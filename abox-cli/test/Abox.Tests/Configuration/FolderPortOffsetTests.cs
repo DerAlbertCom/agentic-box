@@ -10,7 +10,7 @@ public sealed class FolderPortOffsetTests
         // Arrange
         using var root = new TempDirectory();
         var path = root.File(
-            "abox.json",
+            "abox.yaml",
             """{"squad":"AC","portOffset":-10,"userSecrets":["whole",{"id":"filtered","keys":["Db:*"]}]}"""
         );
 
@@ -46,7 +46,7 @@ public sealed class FolderPortOffsetTests
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("abox.json", json);
+        root.File("abox.yaml", json);
 
         // Act
         var load = () => FolderConfig.LoadAsync(root.Path, CancellationToken.None);

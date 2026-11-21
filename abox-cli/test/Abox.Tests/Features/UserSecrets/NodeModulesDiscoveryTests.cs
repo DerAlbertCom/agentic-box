@@ -195,7 +195,7 @@ public sealed class NodeModulesDiscoveryTests
         );
         Project(cli, $"{selectedRoot}/node_modules/Ignored", "not JSON: synthetic-private");
         var location = cli.Root.CreateDirectory($"folder/{selectedRoot}");
-        cli.Root.File($"folder/{selectedRoot}/abox.json", """{"userSecrets":["shared"]}""");
+        cli.Root.File($"folder/{selectedRoot}/abox.yaml", """{"userSecrets":["shared"]}""");
         var name = SandboxName.For(location);
         cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", null) });

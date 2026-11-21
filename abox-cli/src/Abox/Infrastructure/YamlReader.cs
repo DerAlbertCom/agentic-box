@@ -75,6 +75,12 @@ public sealed class YamlReader
     /// <summary>The value of a key, when it is a scalar.</summary>
     public string? GetString(string key) => _root.GetString(key);
 
+    /// <summary>Whether the document has this key with a YAML null value.</summary>
+    public bool IsNull(string key) => _root.IsNull(key);
+
+    /// <summary>The value of a key, when it is a plain integer.</summary>
+    public int? GetInteger(string key) => _root.GetInteger(key);
+
     /// <summary>The value of a key, when it is a list of scalars.</summary>
     public IReadOnlyList<string> GetStringList(string key) => _root.GetStringList(key);
 
@@ -135,6 +141,37 @@ public sealed class YamlEntry
         }
 
         return scalar.Value;
+    }
+
+    /// <summary>Whether this mapping has a key with a YAML null value (empty, ~ or null, unquoted).</summary>
+    public bool IsNull(string key) =>
+        Mapping().Children.TryGetValue(new YamlScalarNode(key), out var node)
+        && node is YamlScalarNode { Style: ScalarStyle.Plain or ScalarStyle.Any } scalar
+        && scalar.Value is null or "" or "~" or "null" or "Null" or "NULL";
+
+    /// <summary>The value of a key of the element, when it is an unquoted integer.</summary>
+    public int? GetInteger(string key)
+    {
+        var mapping = Mapping();
+        if (!mapping.Children.TryGetValue(new YamlScalarNode(key), out var node))
+        {
+            return null;
+        }
+
+        if (
+            node is not YamlScalarNode { Style: ScalarStyle.Plain or ScalarStyle.Any } scalar
+            || !int.TryParse(
+                scalar.Value,
+                System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var value
+            )
+        )
+        {
+            throw new AboxException($"'{_source}': '{KeyPath(key)}' must be an integer.");
+        }
+
+        return value;
     }
 
     /// <summary>The value of a key of the element, when it is a mapping of values.</summary>

@@ -16,7 +16,7 @@ public sealed class PortsCommandAngularTests
     {
         // Arrange
         using var fixture = new PortsCommandFixture();
-        fixture.Root.File("folder/abox.json", """{"portOffset":20000}""");
+        fixture.Root.File("folder/abox.yaml", """{"portOffset":20000}""");
         fixture.Root.File(
             "folder/api/Properties/launchSettings.json",
             """{"profiles":{"http":{"applicationUrl":"http://localhost:5000"}}}"""

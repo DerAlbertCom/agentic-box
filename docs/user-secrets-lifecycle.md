@@ -1,17 +1,17 @@
 # User secrets during create and replacement
 
-`abox.json` is runtime-only configuration in the **resolved sandbox folder**
-(`--location`, then `defaultLocation`, then the current directory), not the local
-team source selected with `--root`:
+The [folder configuration](../README.md#folder-configuration) (`abox.yaml`, overridden
+by an optional git-ignored `abox.user.yaml`) is runtime-only configuration in the
+**resolved sandbox folder** (`--location`, then `defaultLocation`, then the current
+directory), not the local team source selected with `--root`:
 
-```json
-{
-  "squad": "ac",
-  "userSecrets": ["my-local-development-store"]
-}
+```yaml
+squad: ac
+userSecrets: [my-local-development-store]
 ```
 
-Only trust this file from a trusted folder: its explicitly selected stores authorize
+A `userSecrets` list in `abox.user.yaml` replaces the list from `abox.yaml` as a whole.
+Only trust these files from a trusted folder: their explicitly selected stores authorize
 copying those host user secrets into that folder's sandbox. Review changes to its
 squad, IDs and key patterns before running create, replacement or `user-secrets`.
 This is the existing folder opt-in boundary, not a separate approval mechanism.
@@ -38,17 +38,17 @@ on demand and during creation/replacement.
 - On-demand `user-secrets` does not verify squad identity or read/require a local
   sandbox record. Missing, matching, unknown or mismatched records do not block
   copying into the current-first, exact-legacy-fallback sandbox for the folder.
-  `abox.json` still undergoes normal validation, including the optional `squad` field.
+  The folder configuration still undergoes normal validation, including the optional `squad` field.
 
-The team still comes from `--team` or `defaultTeam`; `abox.json` does not select a
-team. Changing its squad does not silently replace an existing sandbox on `run`.
+The team still comes from `--team` or `defaultTeam`; the folder configuration does not
+select a team. Changing its squad does not silently replace an existing sandbox on `run`.
 
 ## When copying runs
 
 Local and published `abox create`, explicit replacement (including `--yes`), and
 accepted newer-local-build replacement from `abox run` use `SandboxCreator`:
 
-1. Load and validate `abox.json` once at command entry and resolve a matching squad.
+1. Load and validate `abox.yaml` and `abox.user.yaml` once at command entry and resolve a matching squad.
    Pass that same folder configuration snapshot (including absence) to the shared
    lifecycle; do not reload it between squad selection, preparation and replacement.
 2. Call shared `UserSecretsCopy.PrepareAsync(folderConfig, false, token)` to
@@ -76,7 +76,7 @@ accepted newer-local-build replacement from `abox run` use `SandboxCreator`:
    only after both required copying and app setup succeed. See
    [app-port lifecycle ordering/recovery](application-ports-lifecycle.md).
 
-A folder without `abox.json` performs no user-secret host-store reads, target discovery
+A folder without `abox.yaml` or `abox.user.yaml` performs no user-secret host-store reads, target discovery
 or writes; creation/replacement still configures app ports/HTTPS. A config with no
 selected stores copies nothing. Ordinary `run`, including declining a newer-build
 replacement, never resynchronizes secrets or reads selected host stores. Creation
@@ -125,7 +125,7 @@ configuration, destination/policy metadata checks or transport failures. An
 override is reported only when used by a successful copy. If pre-create validation
 blocks a store, prefer correcting the values/selection. If an intentional override
 is necessary for a new/replacement sandbox, explicitly deselect those stores in
-`abox.json`, create with no required copy of them, restore the intended selection,
+the folder configuration, create with no required copy of them, restore the intended selection,
 then run the on-demand `--force` command. Restoring selection alone does not make
 ordinary `run` copy anything. The user must deliberately perform this override;
 replacement consent never substitutes for it.

@@ -27,7 +27,7 @@ public sealed class UserSecretsRewriteCommandTests
         var console = new TestConsole();
         var location = root.CreateDirectory("folder");
         root.File(
-            "folder/abox.json",
+            "folder/abox.yaml",
             automatic
                 ? """{"squad":"ac","userSecrets":["sample"]}"""
                 : """{"userSecrets":["sample"]}"""

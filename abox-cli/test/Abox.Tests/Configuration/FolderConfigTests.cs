@@ -20,12 +20,119 @@ public sealed class FolderConfigTests
         snapshot.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData("abox.yml")]
+    [InlineData("abox.user.yml")]
+    public async Task YmlFilesAreNotRecognised(string file)
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File(file, "portOffset: 20000\n");
+
+        // Act
+        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+
+        // Assert
+        snapshot.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("abox.yaml")]
+    [InlineData("abox.user.yaml")]
+    public async Task EitherFileAloneIsTheFolderConfiguration(string file)
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File(
+            file,
+            """
+            squad: ac
+            portOffset: 20000
+            userSecrets:
+              - whole
+              - id: filtered
+                keys: ["Db:*"]
+            """
+        );
+
+        // Act
+        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+
+        // Assert
+        snapshot!.Squad.Should().Be("ac");
+        FolderConfig.SelectPortOffset(snapshot).Should().Be(20000);
+        snapshot.UserSecrets.Select(selection => selection.Id).Should().Equal("whole", "filtered");
+    }
+
+    [Fact]
+    public async Task TheUserFileReplacesValuesAndListsAndKeepsKeysItDoesNotSet()
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File(
+            "abox.yaml",
+            """
+            squad: ac
+            portOffset: 20000
+            userSecrets: [shared, other]
+            """
+        );
+        root.File(
+            "abox.user.yaml",
+            """
+            portOffset: 30000
+            userSecrets: [mine]
+            """
+        );
+
+        // Act
+        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+
+        // Assert
+        snapshot!.Squad.Should().Be("ac");
+        FolderConfig.SelectPortOffset(snapshot).Should().Be(30000);
+        snapshot.UserSecrets.Select(selection => selection.Id).Should().Equal("mine");
+    }
+
+    [Fact]
+    public async Task AnEmptyListInTheUserFileSelectsNoUserSecrets()
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File("abox.yaml", "userSecrets: [shared]\n");
+        root.File("abox.user.yaml", "userSecrets: []\n");
+
+        // Act
+        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+
+        // Assert
+        snapshot!.UserSecrets.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("abox.json", "abox.yaml")]
+    [InlineData("abox.user.json", "abox.user.yaml")]
+    public async Task AJsonFolderConfigurationFailsWithARenameHint(string json, string yaml)
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File("abox.yaml", "portOffset: 20000\n");
+        root.File(json, """{"portOffset":30000}""");
+
+        // Act
+        var load = () => FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+
+        // Assert
+        var failure = await load.Should().ThrowAsync<AboxException>();
+        failure.Which.Message.Should().Contain(json).And.Contain($"Rename it to {yaml}");
+    }
+
     [Fact]
     public async Task CancellationIsNotTranslatedIntoAnInvalidConfigurationError()
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("abox.json", "{}");
+        root.File("abox.yaml", "{}");
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
@@ -36,12 +143,14 @@ public sealed class FolderConfigTests
         await load.Should().ThrowAsync<OperationCanceledException>();
     }
 
-    [Fact]
-    public async Task AnUnreadableConfigurationIsNotTreatedAsAbsent()
+    [Theory]
+    [InlineData("abox.yaml")]
+    [InlineData("abox.user.yaml")]
+    public async Task AnUnreadableConfigurationIsNotTreatedAsAbsent(string file)
     {
         // Arrange
         using var root = new TempDirectory();
-        var path = root.File("abox.json", "synthetic-private");
+        var path = root.File(file, "synthetic-private");
         using var locked = new FileStream(
             path,
             FileMode.Open,
@@ -56,34 +165,52 @@ public sealed class FolderConfigTests
         var failure = await load.Should().ThrowAsync<AboxException>();
         failure
             .Which.Message.Should()
-            .Be("Cannot read abox.json. Check the folder and file permissions.");
+            .Be($"Cannot read '{path}'. Check the folder and file permissions.");
     }
 
     [Theory]
-    [InlineData("null", "must contain an object")]
-    [InlineData("[]", "must contain an object")]
-    [InlineData("{\"squad\":\"ac\",\"squad\":\"bd\"}", "duplicate or unknown")]
-    [InlineData("{\"Squad\":\"synthetic-private\"}", "duplicate or unknown")]
-    [InlineData("{\"squad\":null}", "nonempty string")]
-    [InlineData("{\"squad\":\"  \"}", "nonempty string")]
-    [InlineData("{\"userSecrets\":[{\"id\":\"safe\",\"Id\":\"synthetic-private\"}]}", "unique")]
-    [InlineData("{\"userSecrets\":[{\"id\":\"safe\",\"id\":\"other\"}]}", "unique")]
-    [InlineData("{\"userSecrets\":[{\"keys\":[]}]}", "requires a string 'id'")]
-    [InlineData("{\"squad\":\"synthetic-private\", broken}", "not valid JSON")]
-    public async Task StrictDecodingRejectsInvalidStructureWithoutEchoingInput(
-        string json,
+    [InlineData("abox.yaml", "[]", "must contain a mapping")]
+    [InlineData("abox.user.yaml", "[]", "must contain a mapping")]
+    [InlineData("abox.yaml", "squad: ac\nsquad: bd\n", "not valid YAML")]
+    [InlineData("abox.user.yaml", "squad: ac\nsquad: bd\n", "not valid YAML")]
+    [InlineData("abox.yaml", "Squad: synthetic-private\n", "not a known key")]
+    [InlineData("abox.user.yaml", "Squad: synthetic-private\n", "not a known key")]
+    [InlineData("abox.yaml", "squad:\n", "nonempty string")]
+    [InlineData("abox.user.yaml", "squad: null\n", "nonempty string")]
+    [InlineData("abox.yaml", "squad: '  '\n", "nonempty string")]
+    [InlineData("abox.user.yaml", "squad: [ac]\n", "must be a value")]
+    [InlineData("abox.yaml", "portOffset: '10000'\n", "integer")]
+    [InlineData("abox.user.yaml", "portOffset: 65535\n", "integer")]
+    [InlineData(
+        "abox.yaml",
+        "userSecrets:\n  - id: safe\n    Id: synthetic-private\n",
+        "not a known key"
+    )]
+    [InlineData("abox.user.yaml", "userSecrets:\n  - id: safe\n    id: other\n", "not valid YAML")]
+    [InlineData("abox.yaml", "userSecrets:\n  - keys: []\n", "requires a string 'id'")]
+    [InlineData("abox.user.yaml", "userSecrets: [12, [x]]\n", "must be a value or a mapping")]
+    [InlineData("abox.yaml", "squad: synthetic-private\n broken: [\n", "not valid YAML")]
+    public async Task StrictDecodingNamesTheOffendingFileWithoutEchoingInput(
+        string file,
+        string yaml,
         string diagnostic
     )
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("abox.json", json);
+        var other = file == "abox.yaml" ? "abox.user.yaml" : "abox.yaml";
+        root.File(other, "portOffset: 20000\n");
+        var path = root.File(file, yaml);
 
         // Act
         var load = () => FolderConfig.LoadAsync(root.Path, CancellationToken.None);
 
         // Assert
         var failure = await load.Should().ThrowAsync<AboxException>();
-        failure.Which.Message.Should().Contain(diagnostic).And.NotContain("synthetic-private");
+        failure
+            .Which.Message.Should()
+            .Contain(path)
+            .And.Contain(diagnostic)
+            .And.NotContain("synthetic-private");
     }
 }

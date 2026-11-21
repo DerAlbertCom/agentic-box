@@ -74,7 +74,7 @@ public sealed class PortsCommandBootstrapRuntimeTests
             .GetFiles(runtime)
             .Where(path => path != bootstrap)
             .ToDictionary(path => path, File.ReadAllBytes);
-        fixture.Root.File("folder/abox.json", "invalid unrelated folder configuration");
+        fixture.Root.File("folder/abox.yaml", "invalid unrelated folder configuration");
         fixture.Root.File("folder/Web.csproj", "<Project Sdk=\"Microsoft.NET.Sdk.Web\">");
         calls.Clear();
 

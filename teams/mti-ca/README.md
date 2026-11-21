@@ -42,7 +42,7 @@ It supplies agent UID 1000 with passwordless sudo for the workload's system setu
 
 ## Host credentials
 
-Real credentials never belong in kit arguments, payloads or workspace `abox.json`.
+Real credentials never belong in kit arguments, payloads or workspace `abox.yaml` or `abox.user.yaml`.
 `abox secrets` stores each credential under the service ID named by its kit.
 The proxy injects headers for that capability's exact hosts. Azure DevOps stores
 `base64("pat:<PAT>")` (enter `pat` as its Basic username); JFrog stores

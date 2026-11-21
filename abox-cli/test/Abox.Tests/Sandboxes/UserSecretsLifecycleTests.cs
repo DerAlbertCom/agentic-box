@@ -168,6 +168,64 @@ public sealed class UserSecretsLifecycleTests
     [InlineData("published")]
     [InlineData("local")]
     [InlineData("run")]
+    public async Task TheUserFileReplacesTheSharedUserSecretsAndKeepsTheSharedSquad(string entry)
+    {
+        // Arrange
+        using var fixture = new UserSecretsLifecycleFixture();
+        fixture.Existing();
+        fixture.Configure(
+            """
+            squad: ac
+            userSecrets: [shared]
+            """
+        );
+        fixture.ConfigureForUser("userSecrets: [mine]\n");
+        fixture.Store("shared", "{}");
+        fixture.Store("mine", "{}");
+
+        // Act
+        var exitCode = await fixture.Replace(entry);
+
+        // Assert
+        exitCode.Should().Be(0, fixture.Console.AllText);
+        await fixture
+            .Sbx.Received(1)
+            .WriteUserSecretsAsync(fixture.Name, "mine", "{}", Arg.Any<CancellationToken>());
+        await fixture
+            .Sbx.DidNotReceive()
+            .WriteUserSecretsAsync(
+                Arg.Any<string>(),
+                "shared",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("published")]
+    [InlineData("local")]
+    [InlineData("run")]
+    public async Task AConflictingSquadInTheUserFileCannotReplace(string entry)
+    {
+        // Arrange
+        using var fixture = new UserSecretsLifecycleFixture();
+        fixture.Existing();
+        fixture.Configure("squad: ac\n");
+        fixture.ConfigureForUser("squad: bd\n");
+
+        // Act
+        var exit = await fixture.Replace(entry);
+
+        // Assert
+        exit.Should().Be(1);
+        fixture.Console.AllText.Should().Contain("squad").And.Contain("abox.user.yaml");
+        await fixture.NoReplacementOrCopy();
+    }
+
+    [Theory]
+    [InlineData("published")]
+    [InlineData("local")]
+    [InlineData("run")]
     public async Task AConflictingSquadCannotReplaceOrAutomaticallyCopy(string entry)
     {
         // Arrange
@@ -180,7 +238,7 @@ public sealed class UserSecretsLifecycleTests
 
         // Assert
         exit.Should().Be(1);
-        fixture.Console.AllText.Should().Contain("squad").And.Contain("abox.json");
+        fixture.Console.AllText.Should().Contain("squad").And.Contain("abox.yaml");
         await fixture.NoReplacementOrCopy();
         await fixture
             .Sbx.DidNotReceive()

@@ -59,7 +59,9 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
         services.AddSingleton(PublishedSquadFactory.Source());
     }
 
-    public void Configure(string json) => cli.Configure(json);
+    public void Configure(string yaml) => cli.Configure(yaml);
+
+    public void ConfigureForUser(string yaml) => cli.ConfigureForUser(yaml);
 
     public string Store(string id, string json) => cli.Store(id, json);
 

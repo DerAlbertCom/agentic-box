@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Abox.Infrastructure;
 using Abox.Naming;
 
 namespace Abox.Configuration;
@@ -51,28 +51,19 @@ public sealed class UserSecretSelection
         return remaining.EndsWith(parts[^1], StringComparison.OrdinalIgnoreCase);
     }
 
-    internal static IReadOnlyList<UserSecretSelection> Parse(JsonElement entries)
+    internal static IReadOnlyList<UserSecretSelection> Parse(YamlReader reader)
     {
-        if (entries.ValueKind != JsonValueKind.Array)
-            throw new AboxException(
-                "abox.json: 'userSecrets' must be an array of store IDs or selection objects."
-            );
         var result = new List<UserSecretSelection>();
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in entries.EnumerateArray())
+        foreach (var entry in reader.GetEntries("userSecrets"))
         {
-            var selection = entry.ValueKind switch
-            {
-                JsonValueKind.String => new UserSecretSelection(entry.GetString()!, null),
-                JsonValueKind.Object => ParseObject(entry),
-                _ => throw new AboxException(
-                    "abox.json: every user-secret entry must be a store ID or an object with 'id' and optional 'keys'."
-                ),
-            };
+            var selection = entry.IsScalar
+                ? new UserSecretSelection(entry.ScalarValue, null)
+                : ParseObject(entry, reader.Source);
             ValidateIdSelection(selection.Id);
             if (!ids.Add(selection.Id))
                 throw new AboxException(
-                    "abox.json: duplicate user-secret store IDs are not allowed (case-insensitive)."
+                    $"'{reader.Source}': duplicate user-secret store IDs are not allowed (case-insensitive)."
                 );
             result.Add(selection);
         }
@@ -144,38 +135,21 @@ public sealed class UserSecretSelection
         public UserSecretSelection[] ToArray() => selections.ToArray();
     }
 
-    private static UserSecretSelection ParseObject(JsonElement entry)
+    private static UserSecretSelection ParseObject(YamlEntry entry, string source)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var property in entry.EnumerateObject())
-            if (!seen.Add(property.Name) || property.Name is not ("id" or "keys"))
-                throw new AboxException(
-                    "abox.json: user-secret objects allow only unique 'id' and 'keys' properties."
-                );
-        if (!entry.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String)
-            throw new AboxException("abox.json: a user-secret object requires a string 'id'.");
+        entry.RejectUnknownKeys("id", "keys");
+        var id =
+            entry.GetString("id")
+            ?? throw new AboxException($"'{source}': a user-secret object requires a string 'id'.");
         string[]? keys = null;
-        if (entry.TryGetProperty("keys", out var patterns))
+        if (entry.Has("keys"))
         {
-            if (patterns.ValueKind != JsonValueKind.Array)
-                throw new AboxException(
-                    "abox.json: user-secret 'keys' must be an array of patterns."
-                );
-            keys = patterns
-                .EnumerateArray()
-                .Select(pattern =>
-                    pattern.ValueKind == JsonValueKind.String
-                        ? pattern.GetString()!
-                        : throw new AboxException(
-                            "abox.json: every user-secret key pattern must be a string."
-                        )
-                )
-                .ToArray();
+            keys = entry.GetStringList("keys").ToArray();
             if (keys.Any(key => string.IsNullOrWhiteSpace(key) || key.Any(char.IsControl)))
                 throw new AboxException(
-                    "abox.json: user-secret key patterns must be nonempty and contain no control characters. Use an empty 'keys' array to select no keys."
+                    $"'{source}': user-secret key patterns must be nonempty and contain no control characters. Use an empty 'keys' array to select no keys."
                 );
         }
-        return new UserSecretSelection(id.GetString()!, keys);
+        return new UserSecretSelection(id, keys);
     }
 }

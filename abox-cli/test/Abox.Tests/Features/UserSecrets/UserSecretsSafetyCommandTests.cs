@@ -79,7 +79,7 @@ public sealed class UserSecretsSafetyCommandTests
         // Arrange
         using var fixture = new UserSecretsSafetyCommandFixture();
         if (emptySelection)
-            fixture.Root.File("folder/abox.json", """{"userSecrets":[]}""");
+            fixture.Root.File("folder/abox.yaml", """{"userSecrets":[]}""");
         else
             fixture.Store("""{"Db":"Server=localhost"}""");
 
@@ -111,7 +111,7 @@ public sealed class UserSecretsSafetyCommandTests
         using var fixture = new UserSecretsSafetyCommandFixture();
         if (filtered)
             fixture.Root.File(
-                "folder/abox.json",
+                "folder/abox.yaml",
                 """{"userSecrets":[{"id":"sample","keys":["Db","Nested:*"]}]}"""
             );
         fixture.Store(source);

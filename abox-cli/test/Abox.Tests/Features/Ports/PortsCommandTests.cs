@@ -73,7 +73,7 @@ public sealed class PortsCommandTests
     {
         // Arrange
         using var fixture = new PortsCommandFixture();
-        fixture.Root.File("folder/abox.json", """{"portOffset":1e4,"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"portOffset":1e4,"userSecrets":["sample"]}""");
 
         // Act
         var exit = await fixture.Run("--offset", "20000");
@@ -166,9 +166,9 @@ public sealed class PortsCommandTests
             "folder/Properties/launchSettings.json",
             """{"profiles":{"app":{"applicationUrl":"http://localhost:8203"}}}"""
         );
-        var file = Path.Combine(fixture.Location, "abox.json");
+        var file = Path.Combine(fixture.Location, "abox.yaml");
         if (!initiallyAbsent)
-            fixture.Root.File("folder/abox.json", """{"portOffset":20000}""");
+            fixture.Root.File("folder/abox.yaml", """{"portOffset":20000}""");
         fixture
             .Sbx.GetVersionAsync(Arg.Any<CancellationToken>())
             .Returns(_ =>
@@ -210,9 +210,9 @@ public sealed class PortsCommandTests
             "folder/Properties/launchSettings.json",
             """{"profiles":{"app":{"applicationUrl":"http://localhost:8203"}}}"""
         );
-        var path = Path.Combine(fixture.Location, "abox.json");
+        var path = Path.Combine(fixture.Location, "abox.yaml");
         if (configuration is not null)
-            fixture.Root.File("folder/abox.json", configuration);
+            fixture.Root.File("folder/abox.yaml", configuration);
 
         // Act
         var exit = await fixture.Run(offset is null ? [] : ["--offset", offset]);
@@ -233,6 +233,34 @@ public sealed class PortsCommandTests
             File.Exists(path).Should().BeFalse();
         else
             (await File.ReadAllTextAsync(path)).Should().Be(configuration);
+    }
+
+    [Theory]
+    [InlineData("portOffset: 20000\n", "portOffset: 30000\n", 38203)]
+    [InlineData(null, "portOffset: 30000\n", 38203)]
+    [InlineData("portOffset: 20000\n", "{}", 28203)]
+    public async Task TheUserFileOffsetOverridesTheSharedFile(
+        string? shared,
+        string user,
+        int hostPort
+    )
+    {
+        // Arrange
+        using var fixture = new PortsCommandFixture();
+        fixture.Root.File(
+            "folder/Properties/launchSettings.json",
+            """{"profiles":{"app":{"applicationUrl":"http://localhost:8203"}}}"""
+        );
+        if (shared is not null)
+            fixture.Root.File("folder/abox.yaml", shared);
+        fixture.Root.File("folder/abox.user.yaml", user);
+
+        // Act
+        var exit = await fixture.Run();
+
+        // Assert
+        exit.Should().Be(0, fixture.Console.AllText);
+        fixture.Console.AllText.Should().Contain($"| 8203 | {hostPort}");
     }
 
     [Fact]

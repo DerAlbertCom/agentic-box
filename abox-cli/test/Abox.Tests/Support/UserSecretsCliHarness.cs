@@ -58,7 +58,9 @@ internal sealed class UserSecretsCliHarness : IDisposable
         Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(Name, "running", createdAt) });
 
-    public void Configure(string json) => Root.File("folder/abox.json", json);
+    public void Configure(string yaml) => Root.File("folder/abox.yaml", yaml);
+
+    public void ConfigureForUser(string yaml) => Root.File("folder/abox.user.yaml", yaml);
 
     public string Store(string id, string json) =>
         Root.File($"appdata/Microsoft/UserSecrets/{id}/secrets.json", json);

@@ -11,7 +11,7 @@ public sealed class UserSecretsCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
 
         // Act
@@ -23,11 +23,30 @@ public sealed class UserSecretsCommandTests
     }
 
     [Fact]
+    public async Task TheUserFileAloneSelectsTheUserSecrets()
+    {
+        // Arrange
+        using var fixture = new UserSecretsCliHarness();
+        fixture.ExistingSandbox();
+        fixture.ConfigureForUser("userSecrets: [sample]\n");
+        fixture.Store("sample", "{}");
+
+        // Act
+        var exitCode = await fixture.Run();
+
+        // Assert
+        exitCode.Should().Be(0, fixture.Console.AllText);
+        await fixture
+            .Sbx.Received(1)
+            .WriteUserSecretsAsync(fixture.Name, "sample", "{}", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task PreflightFailureDoesNotReachTheDestination()
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture.Sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 50, 0));
 
@@ -45,7 +64,7 @@ public sealed class UserSecretsCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
             .Sbx.WriteUserSecretsAsync(
@@ -78,7 +97,7 @@ public sealed class UserSecretsCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
             .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())

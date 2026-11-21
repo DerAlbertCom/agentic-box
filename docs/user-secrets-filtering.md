@@ -1,7 +1,7 @@
 # Selecting .NET user-secret keys
 
-`abox user-secrets [--location <folder>] [--force]` reads `abox.json` in the
-sandbox folder and copies explicitly selected host stores into that folder's
+`abox user-secrets [--location <folder>] [--force]` reads the folder configuration
+(`abox.yaml` and `abox.user.yaml`) in the sandbox folder and copies explicitly selected host stores into that folder's
 **existing** local or published sandbox. It never creates or replaces a sandbox.
 Filtering uses the shared prepare/copy flow; there is no separate transport or
 safety path for filtered stores.
