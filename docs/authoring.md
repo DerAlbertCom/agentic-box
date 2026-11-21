@@ -14,6 +14,7 @@ feature is built is in [implementation.md](implementation.md).
 │   └── sample/
 │       ├── ac.abox            a squad: which kits, which parameters, what it may reach
 │       ├── cape.abox          the squad the other squads inherit from
+│       ├── secrets.abox       a squad with dummy secrets, to try abox secrets
 │       └── sample.workload    the workload: the base image of the team
 ├── kits/
 │   └── pi-config/             a kit: a directory with a descriptor
@@ -360,6 +361,22 @@ Without a terminal it prints a warning with what is missing and the
 goes on; approvals need a run on a terminal. sbx itself never asks: it starts without
 an optional credential and rejects a required one, and abox shows its message and
 its `Note:` lines.
+
+To try this without real credentials, use the `secrets` squad of the sample team
+(`teams/sample/secrets.abox`, with the kit `kits/sample-secrets`). Its kit asks for
+`sample-token` (one value), `sample-basic` (a username and a password, joined with `:`
+and base64-encoded) and the optional `sample-optional`; the squad also declares the
+custom secret `sample-custom` (`SAMPLE_CUSTOM_TOKEN` for
+`custom.sample.example.invalid`). Any text will do: the values are sent only to hosts
+under `example.invalid`, which never resolve. The `ac` squad does not carry this kit,
+so it starts without them.
+
+```sh
+abox secrets list --team sample --squad secrets
+abox secrets set --team sample --squad secrets
+abox create --team sample --squad secrets --local --location <folder>
+abox secrets remove --team sample --squad secrets
+```
 
 ## The workload: `.workload`
 
