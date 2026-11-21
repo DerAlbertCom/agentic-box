@@ -174,8 +174,9 @@ public sealed partial class SbxClient : ISbxClient
     }
 
     /// <summary>
-    /// Creates a sandbox from a workload kit and its mixins. sbx never asks: its output is
-    /// captured, so a question would wait unseen.
+    /// Creates a sandbox from a workload kit and its mixins. sbx never asks: abox reads
+    /// nothing from the terminal while it runs, so a question would wait forever. Its lines
+    /// reach <see cref="SbxCreateRequest.Progress"/> live, with known secrets redacted.
     /// </summary>
     public async Task<SbxOutcome> CreateAsync(
         SbxCreateRequest request,
@@ -232,7 +233,10 @@ public sealed partial class SbxClient : ISbxClient
         );
         var redactor = new SecretRedactor(process);
         if (request.Progress is { } progress)
-            process = process with { OutputLines = line => progress(redactor.Redact(line.Text)) };
+            process = process with
+            {
+                OutputLineSink = line => progress(redactor.Redact(line.Text)),
+            };
 
         var outcome = await _invoker.RunOutcomeAsync(process, cancellationToken);
         return outcome with { Output = redactor.Redact(outcome.Output) };

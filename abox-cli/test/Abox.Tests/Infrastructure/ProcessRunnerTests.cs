@@ -415,7 +415,7 @@ public sealed class ProcessRunnerTests
                 : ["-c", "echo one; sleep 0.2; echo two >&2; sleep 0.2; echo three"]
         );
         var lines = new List<ProcessOutputLine>();
-        request = request with { OutputLines = lines.Add };
+        request = request with { OutputLineSink = lines.Add };
 
         // Act
         var result = await new ProcessRunner().RunAsync(request, CancellationToken.None);
@@ -441,7 +441,7 @@ public sealed class ProcessRunnerTests
             "sh",
             ["-c", "echo secret"],
             OutputPolicy: ProcessOutputPolicy.Sensitive,
-            OutputLines: _ => { }
+            OutputLineSink: _ => { }
         );
 
         // Act

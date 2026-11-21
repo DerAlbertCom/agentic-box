@@ -123,7 +123,7 @@ public sealed class SbxClientTests : IDisposable
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                var lines = call.Arg<ProcessRequest>().OutputLines!;
+                var lines = call.Arg<ProcessRequest>().OutputLineSink!;
                 lines(new ProcessOutputLine(ProcessStream.StandardOutput, "Building kit 'git'"));
                 lines(new ProcessOutputLine(ProcessStream.StandardError, "WARN: slow mirror"));
                 lines(new ProcessOutputLine(ProcessStream.StandardOutput, "token is s3cr3t-value"));

@@ -26,7 +26,7 @@ public sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
             request.OutputPolicy != ProcessOutputPolicy.Normal
             || !request.AttachConsole
             || request.StandardInput is not null
-            || request.OutputLines is not null
+            || request.OutputLineSink is not null
         )
             throw new AboxException(
                 "Desktop startup requires normal inherited streams and no supplied stdin."
@@ -127,7 +127,7 @@ public sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
         using var process = new Process { StartInfo = StartInfo(request) };
         var capture = new OutputCapture(
             request.OutputPolicy == ProcessOutputPolicy.Sensitive,
-            request.OutputLines
+            request.OutputLineSink
         );
         if (!request.AttachConsole)
         {
@@ -147,7 +147,7 @@ public sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
     private static void EnsureStreamable(ProcessRequest request)
     {
         if (
-            request.OutputLines is not null
+            request.OutputLineSink is not null
             && (request.OutputPolicy != ProcessOutputPolicy.Normal || request.AttachConsole)
         )
             throw new AboxException(

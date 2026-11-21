@@ -16,7 +16,7 @@ namespace Abox.Infrastructure;
 /// CapturedSensitive retains metadata for parsing. Both suppress diagnostics and forbid attached streams.</param>
 /// <param name="UseUtf8StandardInput">Write supplied stdin as strict UTF-8 without a BOM,
 /// independently of console encoding. Does not change output diagnostics or inherited streams.</param>
-/// <param name="OutputLines">Receives each captured line as it arrives, in arrival order, while
+/// <param name="OutputLineSink">Receives each captured line as it arrives, in arrival order, while
 /// the output is still captured. Only for normal captured calls; called one line at a time.</param>
 public sealed record ProcessRequest(
     string FileName,
@@ -27,7 +27,7 @@ public sealed record ProcessRequest(
     string? StandardInput = null,
     ProcessOutputPolicy OutputPolicy = ProcessOutputPolicy.Normal,
     bool UseUtf8StandardInput = false,
-    Action<ProcessOutputLine>? OutputLines = null
+    Action<ProcessOutputLine>? OutputLineSink = null
 )
 {
     public override string ToString() => "ProcessRequest (arguments, environment and input hidden)";
