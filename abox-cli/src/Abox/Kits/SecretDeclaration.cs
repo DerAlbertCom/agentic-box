@@ -32,18 +32,25 @@ public sealed record SecretInput(string Name, string? Prompt);
 /// <param name="Inputs">The parts the value is built from. Without them, one value is asked for.</param>
 /// <param name="Separator">How the parts are joined.</param>
 /// <param name="Encoding">How the value is stored.</param>
-/// <param name="Host">The host of a service sbx does not know.</param>
+/// <param name="Hosts">The hosts of a service sbx does not know.</param>
 /// <param name="EnvironmentVariable">The variable the agents read, for a service sbx does not know.</param>
+/// <param name="Command">The host command whose output is the value; nobody is asked for it.</param>
+/// <param name="Placeholder">The value the agents see instead of the secret, for a service sbx does not know.</param>
 public sealed record SecretDeclaration(
     string Service,
     string? Prompt = null,
     IReadOnlyList<SecretInput>? Inputs = null,
     string Separator = ":",
     SecretEncoding Encoding = SecretEncoding.Plain,
-    string? Host = null,
-    string? EnvironmentVariable = null
+    IReadOnlyList<string>? Hosts = null,
+    string? EnvironmentVariable = null,
+    string? Command = null,
+    string? Placeholder = null
 )
 {
+    /// <summary>The first host of a service sbx does not know; it names the secret.</summary>
+    public string? Host => Hosts is { Count: > 0 } ? Hosts[0] : null;
+
     /// <summary>Whether the secret is one sbx does not know.</summary>
     public bool IsCustom => Host is not null || EnvironmentVariable is not null;
 

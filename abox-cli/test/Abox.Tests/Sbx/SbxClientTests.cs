@@ -93,8 +93,7 @@ public sealed class SbxClientTests : IDisposable
                 "inspect" => _client.InspectKitAsync("kit", cancellationToken),
                 "set-secret" => _client.SetSecretAsync("service", "value", cancellationToken),
                 "set-custom-secret" => _client.SetCustomSecretAsync(
-                    "host",
-                    "ENV",
+                    new SecretDeclaration("service", Hosts: ["host"], EnvironmentVariable: "ENV"),
                     "value",
                     cancellationToken
                 ),

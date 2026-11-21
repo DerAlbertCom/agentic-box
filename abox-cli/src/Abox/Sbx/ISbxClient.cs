@@ -119,9 +119,8 @@ public interface ISbxClient
     );
 
     Task<SbxOutcome> SetCustomSecretAsync(
-        string? host,
-        string? environmentVariable,
-        string value,
+        SecretDeclaration declaration,
+        string? value,
         CancellationToken cancellationToken
     );
 

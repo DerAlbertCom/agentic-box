@@ -316,6 +316,11 @@ service. The `secrets` section declares how the value is obtained:
 - A service sbx does not know carries `service`, `host` and `env` besides: the value is
   stored as a custom secret, and the variable named in `env` stands in inside the
   sandbox where the sandbox talks to `host`.
+  `host` may be a list; the first host names the secret.
+- A custom secret whose value comes from a host command carries `command` instead of
+  `prompt` or `inputs`, and optionally `placeholder` (the value the agents see, with
+  `{rand}` for a random part). Nobody is asked: sbx runs the command and checks it
+  gives a value when it stores the secret. `command` and `placeholder` need a `host`.
 - A value that is built from parts carries `inputs` (each with its own `prompt`),
   `separator` (default `:`) and `encoding` (`plain` or `base64`).
 
@@ -338,14 +343,17 @@ bindings:
 ```
 
 `abox create` checks both before it replaces a sandbox, for the `apiKey` credentials
-of the squad's local kits; it needs the squad's sources, so `--local` only. On a
-terminal it lists what is missing and asks:
+of the squad's local kits, and the values of the custom secrets the squad declares,
+such as one a kit's setup reads from its variable; it needs the squad's sources, so
+`--local` only. On a terminal it lists what is missing and asks:
 
 - For a missing value of a service declared in `secrets`, whether to set it now. The
-  prompt and the storage are those of `abox secrets set`; an empty answer skips it.
+  prompt and the storage are those of `abox secrets set`; an empty answer or a
+  failing command skips it, and no approval is asked for a value that is not stored.
 - For a missing approval, `Approve sending the credential '<service>' to <domains>?`.
   Yes adds the domains to the binding of the service and keeps every other entry of
-  the file; no starts the sandbox without the credential.
+  the file; no starts the sandbox without the credential. A custom secret needs no
+  approval.
 
 Without a terminal it prints a warning with what is missing and the
 `abox secrets set --team <team> --squad <squad> --service <service>` commands, and

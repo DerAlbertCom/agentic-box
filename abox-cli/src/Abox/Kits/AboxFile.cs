@@ -122,12 +122,30 @@ public sealed class AboxFile
                 "separator",
                 "encoding",
                 "host",
-                "env"
+                "env",
+                "command",
+                "placeholder"
             );
 
             var service =
                 entry.GetString("service")
                 ?? throw new AboxException($"'{reader.Source}': a secret entry needs a 'service'.");
+            var hosts = entry.GetStrings("host");
+            var command = entry.GetString("command");
+            var placeholder = entry.GetString("placeholder");
+            if ((command is not null || placeholder is not null) && hosts.Count == 0)
+            {
+                throw new AboxException(
+                    $"'{reader.Source}': the secret '{service}' needs a 'host' for its 'command' or 'placeholder'."
+                );
+            }
+
+            if (command is not null && (entry.Has("inputs") || entry.Has("prompt")))
+            {
+                throw new AboxException(
+                    $"'{reader.Source}': the secret '{service}' takes its value from its 'command', so it has no 'prompt' or 'inputs'."
+                );
+            }
 
             var inputs = entry
                 .GetEntries("inputs")
@@ -153,8 +171,10 @@ public sealed class AboxFile
                     inputs,
                     entry.GetString("separator") ?? ":",
                     encoding,
-                    entry.GetString("host"),
-                    entry.GetString("env")
+                    hosts.Count > 0 ? hosts : null,
+                    entry.GetString("env"),
+                    command,
+                    placeholder
                 )
             );
         }

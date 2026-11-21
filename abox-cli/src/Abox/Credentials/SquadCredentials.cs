@@ -8,7 +8,9 @@ namespace Abox.Credentials;
 /// <summary>
 /// Gets the credentials the local kits of a squad ask for ready before a sandbox is
 /// created: abox asks for missing values and approvals itself, so sbx never has to.
-/// Only the <c>apiKey</c> mechanism is checked; sbx notes the others itself.
+/// Of the kits' requests only the <c>apiKey</c> mechanism is checked; sbx notes the others
+/// itself. The custom secrets the squad declares are checked too, so a kit's setup that
+/// reads one from its variable does not fail on a value that was never set.
 /// </summary>
 public sealed class SquadCredentials(
     SquadResolver resolver,
@@ -47,11 +49,14 @@ public sealed class SquadCredentials(
                 squad,
                 personalConfigurations.Files
             );
-            var requests = CredentialRequest
-                .Of(resolved)
-                .Where(request => request.Domains.Count > 0)
+            var requested = CredentialRequest.Of(resolved);
+            var requests = requested.Where(request => request.Domains.Count > 0).ToList();
+            var custom = resolved
+                .Secrets.Where(secret =>
+                    secret.IsCustom && requested.All(request => request.Service != secret.Service)
+                )
                 .ToList();
-            if (requests.Count == 0)
+            if (requests.Count == 0 && custom.Count == 0)
             {
                 return;
             }
@@ -59,6 +64,7 @@ public sealed class SquadCredentials(
             var stored = await sbx.ListSecretsAsync(cancellationToken);
             var missing = requests
                 .Select(request => Check(request, resolved.Secrets, stored))
+                .Concat(custom.Select(secret => CheckCustom(secret, stored)))
                 .Where(state => !state.Stored || !state.Approved)
                 .ToList();
             if (missing.Count == 0)
@@ -98,6 +104,19 @@ public sealed class SquadCredentials(
         );
     }
 
+    /// <summary>
+    /// A custom secret the squad declares but no kit asks for with <c>credential@1</c>,
+    /// such as one a kit's setup reads from its variable. sbx sends it without approval.
+    /// </summary>
+    private static CredentialState CheckCustom(SecretDeclaration secret, HostSecrets stored) =>
+        new(
+            new CredentialRequest(secret.Service, [], secret.Hosts ?? [], Optional: false),
+            secret,
+            SecretValues.IsStored(secret.Service, secret, stored),
+            Approved: true,
+            ApprovalNeeded: false
+        );
+
     private async Task AskAsync(
         IReadOnlyList<CredentialState> missing,
         CancellationToken cancellationToken
@@ -114,13 +133,16 @@ public sealed class SquadCredentials(
         foreach (var state in missing)
         {
             var name = state.Request.Service;
-            if (
-                !state.Stored
-                && state.Declaration is { } declaration
-                && console.Confirm($"Set the secret '{name}' now?")
-            )
+            var stored =
+                state.Stored
+                || state.Declaration is { } declaration
+                    && console.Confirm($"Set the secret '{name}' now?")
+                    && await SetAsync(declaration, cancellationToken);
+
+            if (!stored)
             {
-                await SetAsync(declaration, cancellationToken);
+                console.WriteLine($"The sandbox starts without the credential '{name}'.");
+                continue;
             }
 
             if (!state.Approved)
@@ -139,24 +161,27 @@ public sealed class SquadCredentials(
         }
     }
 
-    private async Task SetAsync(SecretDeclaration declaration, CancellationToken cancellationToken)
+    private async Task<bool> SetAsync(
+        SecretDeclaration declaration,
+        CancellationToken cancellationToken
+    )
     {
         var name = declaration.Service;
-        var value = values.Ask(declaration);
-        if (string.IsNullOrEmpty(value))
+        var setting = await values.SetAsync(declaration, cancellationToken);
+        if (!setting.Given)
         {
             console.WriteLine($"The secret '{name}' was not set.");
-            return;
+            return false;
         }
 
-        var outcome = await values.StoreAsync(declaration, value, cancellationToken);
-        if (!outcome.Succeeded)
+        if (!setting.Stored)
         {
-            console.WriteError($"The secret '{name}' was not stored: {outcome.Output.Trim()}");
-            return;
+            console.WriteError($"The secret '{name}' was not stored: {setting.Output}");
+            return false;
         }
 
         console.WriteLine($"Stored the secret '{name}'.");
+        return true;
     }
 
     private void Warn(IReadOnlyList<CredentialState> missing, string team, string squad)
@@ -190,7 +215,8 @@ public sealed class SquadCredentials(
         CredentialRequest Request,
         SecretDeclaration? Declaration,
         bool Stored,
-        bool Approved
+        bool Approved,
+        bool ApprovalNeeded = true
     )
     {
         public string Describe()
@@ -199,9 +225,15 @@ public sealed class SquadCredentials(
                 Stored ? "value stored"
                 : Declaration is null ? "value not set (not declared in 'secrets')"
                 : "value not set";
-            var approval = Approved ? "approved" : "not approved";
+            var approval =
+                !ApprovalNeeded ? ""
+                : Approved ? ", approved"
+                : ", not approved";
+            var source = Request.Kits.Count > 0 ? string.Join(", ", Request.Kits) : "secrets";
             var required = Request.Optional ? "" : ", required";
-            return $"  {Request.Service} ({string.Join(", ", Request.Kits)}{required}) for {string.Join(", ", Request.Domains)}: {value}, {approval}";
+            var domains =
+                Request.Domains.Count > 0 ? $" for {string.Join(", ", Request.Domains)}" : "";
+            return $"  {Request.Service} ({source}{required}){domains}: {value}{approval}";
         }
     }
 }
