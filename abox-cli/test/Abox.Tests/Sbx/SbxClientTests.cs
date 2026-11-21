@@ -115,6 +115,55 @@ public sealed class SbxClientTests : IDisposable
         outcome.Output.Should().Be("stdoutstderr");
     }
 
+    [Fact]
+    public async Task CreationStreamsTheProgressInArrivalOrderWithKnownSecretsRedacted()
+    {
+        // Arrange
+        _runner
+            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                var lines = call.Arg<ProcessRequest>().OutputLineSink!;
+                lines(new ProcessOutputLine(ProcessStream.StandardOutput, "Building kit 'git'"));
+                lines(new ProcessOutputLine(ProcessStream.StandardError, "WARN: slow mirror"));
+                lines(new ProcessOutputLine(ProcessStream.StandardOutput, "token is s3cr3t-value"));
+                return new ProcessResult(
+                    1,
+                    "Building kit 'git'\ntoken is s3cr3t-value\n",
+                    "WARN: slow mirror\n"
+                )
+                {
+                    Output = "Building kit 'git'\nWARN: slow mirror\ntoken is s3cr3t-value\n",
+                };
+            });
+        var progress = new List<string>();
+
+        // Act
+        var outcome = await _client.CreateAsync(
+            new SbxCreateRequest(
+                "kit",
+                "/workspace",
+                "sample",
+                [],
+                new Dictionary<string, string> { ["api_token"] = "s3cr3t-value" },
+                [],
+                [],
+                Progress: progress.Add
+            ),
+            CancellationToken.None
+        );
+
+        // Assert
+        progress.Should().Equal("Building kit 'git'", "WARN: slow mirror", "token is [REDACTED]");
+        outcome.Output.Should().Be("Building kit 'git'\nWARN: slow mirror\ntoken is [REDACTED]\n");
+        await _runner
+            .Received(1)
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--no-input")),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Theory]
     [InlineData(
         "rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac:latest",

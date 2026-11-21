@@ -174,10 +174,11 @@ public sealed partial class SbxClient : ISbxClient
     }
 
     /// <summary>
-    /// Creates a sandbox from a workload kit and its mixins. sbx never asks: its output is
-    /// captured, so a question would wait unseen.
+    /// Creates a sandbox from a workload kit and its mixins. sbx never asks: abox reads
+    /// nothing from the terminal while it runs, so a question would wait forever. Its lines
+    /// reach <see cref="SbxCreateRequest.Progress"/> live, with known secrets redacted.
     /// </summary>
-    public Task<SbxOutcome> CreateAsync(
+    public async Task<SbxOutcome> CreateAsync(
         SbxCreateRequest request,
         CancellationToken cancellationToken
     )
@@ -218,21 +219,27 @@ public sealed partial class SbxClient : ISbxClient
             arguments.Add(string.Join(",", request.StaticMcpServers));
         }
 
-        return _invoker.RunOutcomeAsync(
-            new ProcessRequest(
-                ExecutableName,
-                arguments,
-                Environment: request.HostDockerContext is { } context
-                    ? new Dictionary<string, string>
-                    {
-                        ["SBX_KIT_BUILDER"] = "host",
-                        ["BUILDX_BUILDER"] = context,
-                        ["DOCKER_CONTEXT"] = context,
-                    }
-                    : null
-            ),
-            cancellationToken
+        var process = new ProcessRequest(
+            ExecutableName,
+            arguments,
+            Environment: request.HostDockerContext is { } context
+                ? new Dictionary<string, string>
+                {
+                    ["SBX_KIT_BUILDER"] = "host",
+                    ["BUILDX_BUILDER"] = context,
+                    ["DOCKER_CONTEXT"] = context,
+                }
+                : null
         );
+        var redactor = new SecretRedactor(process);
+        if (request.Progress is { } progress)
+            process = process with
+            {
+                OutputLineSink = line => progress(redactor.Redact(line.Text)),
+            };
+
+        var outcome = await _invoker.RunOutcomeAsync(process, cancellationToken);
+        return outcome with { Output = redactor.Redact(outcome.Output) };
     }
 
     private static string PullPolicyArgument(PullPolicy policy) =>

@@ -113,9 +113,8 @@ public sealed class SandboxCreator(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        console.WriteLine(
-            $"Creating the sandbox '{name}'; building its kits can take a few minutes..."
-        );
+        console.WriteLine($"Creating the sandbox '{name}'...");
+        var streamed = false;
         var outcome = await sbx.CreateAsync(
             new SbxCreateRequest(
                 prepared.KitSource,
@@ -126,16 +125,26 @@ public sealed class SandboxCreator(
                 mounts,
                 manifest.Mcp.Select(server => server.Name).ToList(),
                 PullPolicy: prepared.PullPolicy,
-                HostDockerContext: prepared.DockerContext
+                HostDockerContext: prepared.DockerContext,
+                Progress: line =>
+                {
+                    streamed = true;
+                    console.WriteLine(line.Length > 0 ? "  " + line : line);
+                }
             ),
             cancellationToken
         );
 
         if (!outcome.Succeeded)
         {
-            throw new AboxException(
-                $"sbx could not create the sandbox '{name}'.{Environment.NewLine}{outcome.Output.Trim()}"
+            var retry = CreateRecoveryHints.Render(
+                request.Team.Name,
+                selection.Identity.Squad,
+                request.Tag,
+                request.Local ? manifest : null,
+                location
             );
+            throw new AboxException(CreateFailure(name, outcome, replace, retry, streamed));
         }
 
         WriteNotes(outcome);
@@ -337,7 +346,40 @@ public sealed class SandboxCreator(
         }
     }
 
-    /// <summary>The notes of sbx, such as a credential it did not inject; its other output stays captured.</summary>
+    private static string CreateFailure(
+        string name,
+        SbxOutcome outcome,
+        bool replaced,
+        string retry,
+        bool streamed
+    )
+    {
+        var lines = new List<string>
+        {
+            $"sbx could not create the sandbox '{name}'.",
+            SbxFailureHeadline.Describe(outcome),
+        };
+        if (replaced)
+        {
+            lines.Add(
+                $"The old sandbox '{name}' was removed before the create; the state directories on the host are kept."
+            );
+            lines.Add($"Recreate it with: {retry}");
+        }
+        else
+        {
+            lines.Add($"Retry with: {retry}");
+        }
+
+        var output = outcome.Output.Trim();
+        if (streamed)
+            lines.Add("The full sbx output is shown above.");
+        else if (output.Length > 0)
+            lines.Add($"Full sbx output:{Environment.NewLine}{output}");
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    /// <summary>The notes of sbx, such as a credential it did not inject, gathered after its progress.</summary>
     private void WriteNotes(SbxOutcome outcome)
     {
         foreach (var line in outcome.Output.Split('\n'))

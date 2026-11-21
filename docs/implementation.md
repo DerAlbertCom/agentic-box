@@ -20,6 +20,10 @@ raw errors and scalar fragments), prohibits attached streams and writes explicit
 UTF-8/no-BOM stdin. It is used by user-secrets transfers even with `--verbose`;
 ordinary process diagnostics and `abox secrets` keep their existing behavior.
 
+A normal captured request can also pass each output line to a sink as it arrives,
+tagged stdout or stderr; the result then keeps both streams in arrival order as well
+(`ProcessResult.Output`). `sbx create` uses this to show its progress live.
+
 If a child closes its input early, the process runner closes stdin, continues
 draining captured output and awaits the child, returning its ordinary exit result.
 A child that exits successfully without consuming all input therefore still
@@ -378,9 +382,15 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
    its mixins and arguments. With `--local`,
     uses the **thin prebuilt-workload runtime kit**, `--kit <mixin>...`
     `--kit-arg <name>=<value>...` and `--pull never` instead. Both pass
-    `--mount <host>:<path>... --static-mcp <names>` and `--no-input`: sbx's output
-    is captured, so it must never wait on a question. After a successful create,
-    abox shows sbx's `Note:` lines, such as a credential that was not injected.
+    `--mount <host>:<path>... --static-mcp <names>` and `--no-input`: abox reads
+    nothing from the terminal while sbx runs, so sbx must never wait on a question.
+    sbx's progress is shown live, indented, with stdout and stderr in arrival order
+    and known secrets redacted. After a successful create, abox repeats sbx's `Note:`
+    lines, such as a credential that was not injected. A failed create leads with a
+    headline from `SbxFailureHeadline`: the first failed kit step (`✗ … (kit=<kit>,
+    …, exit <n>)`) with its `── captured output ──` lines, else the last `error:`
+    line. It then says whether the old sandbox was already removed (its state
+    directories are kept) and gives the create command to retry.
 8. Keeps a record of the sandbox in `<state dir>/sandboxes/<sandbox>.json`: the team
    and the squad it comes from, the build metadata and the pulled reference (if any).
 9. After successful creation and record save, copies prepared user secrets through
@@ -1158,6 +1168,7 @@ abox-cli/src/Abox/
   Sbx/              every call to sbx: CLI arguments, settings and response models
     SbxClient.cs    the public facade; owns the executable name and version query
     SbxInvoker.cs   shared captured execution, JSON and failure handling
+    SbxFailureHeadline.cs  the cause of a failed sbx call, ahead of its full output
     SbxDevelopmentCertificates.cs  protected HTTPS runtime and certificate operations
     SbxApplicationPorts.cs         application relay and port mapping operations
     SbxUserSecrets.cs              secret transport and network-policy operations

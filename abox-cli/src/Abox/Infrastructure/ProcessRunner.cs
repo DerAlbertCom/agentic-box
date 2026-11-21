@@ -26,6 +26,7 @@ public sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
             request.OutputPolicy != ProcessOutputPolicy.Normal
             || !request.AttachConsole
             || request.StandardInput is not null
+            || request.OutputLineSink is not null
         )
             throw new AboxException(
                 "Desktop startup requires normal inherited streams and no supplied stdin."
@@ -102,6 +103,7 @@ public sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
         {
             if (request.OutputPolicy != ProcessOutputPolicy.Normal && request.AttachConsole)
                 throw new AboxException("Sensitive processes cannot attach console streams.");
+            EnsureStreamable(request);
             return await RunCoreAsync(request, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -123,26 +125,73 @@ public sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
     )
     {
         using var process = new Process { StartInfo = StartInfo(request) };
-        var standardOutput = new StringBuilder();
-        var standardError = new StringBuilder();
+        var capture = new OutputCapture(
+            request.OutputPolicy == ProcessOutputPolicy.Sensitive,
+            request.OutputLineSink
+        );
         if (!request.AttachConsole)
-            CaptureOutput(
-                process,
-                standardOutput,
-                standardError,
-                request.OutputPolicy == ProcessOutputPolicy.Sensitive
-            );
+        {
+            process.OutputDataReceived += (_, e) =>
+                capture.Add(ProcessStream.StandardOutput, e.Data);
+            process.ErrorDataReceived += (_, e) => capture.Add(ProcessStream.StandardError, e.Data);
+        }
 
         Start(process, request.FileName);
         await CompleteAsync(process, request, cancellationToken);
 
-        var result = new ProcessResult(
-            process.ExitCode,
-            standardOutput.ToString(),
-            standardError.ToString()
-        );
+        var result = capture.Result(process.ExitCode);
         output?.Write(request, result);
         return result;
+    }
+
+    private static void EnsureStreamable(ProcessRequest request)
+    {
+        if (
+            request.OutputLineSink is not null
+            && (request.OutputPolicy != ProcessOutputPolicy.Normal || request.AttachConsole)
+        )
+            throw new AboxException(
+                "Only normal captured processes can stream their output lines."
+            );
+    }
+
+    /// <summary>Both streams are read on their own threads; one lock keeps their arrival order.</summary>
+    private sealed class OutputCapture(bool discard, Action<ProcessOutputLine>? lines)
+    {
+        private readonly Lock gate = new();
+        private readonly StringBuilder standardOutput = new();
+        private readonly StringBuilder standardError = new();
+        private readonly StringBuilder combined = new();
+
+        public void Add(ProcessStream stream, string? text)
+        {
+            if (discard || text is null)
+                return;
+
+            lock (gate)
+            {
+                (
+                    stream == ProcessStream.StandardOutput ? standardOutput : standardError
+                ).AppendLine(text);
+                combined.AppendLine(text);
+                lines?.Invoke(new ProcessOutputLine(stream, text));
+            }
+        }
+
+        public ProcessResult Result(int exitCode)
+        {
+            lock (gate)
+            {
+                return new ProcessResult(
+                    exitCode,
+                    standardOutput.ToString(),
+                    standardError.ToString()
+                )
+                {
+                    Output = combined.ToString(),
+                };
+            }
+        }
     }
 
     private static ProcessStartInfo StartInfo(ProcessRequest request)
@@ -186,29 +235,6 @@ public sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
         }
 
         return startInfo;
-    }
-
-    private static void CaptureOutput(
-        Process process,
-        StringBuilder standardOutput,
-        StringBuilder standardError,
-        bool discard
-    )
-    {
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (!discard && e.Data is not null)
-            {
-                standardOutput.AppendLine(e.Data);
-            }
-        };
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (!discard && e.Data is not null)
-            {
-                standardError.AppendLine(e.Data);
-            }
-        };
     }
 
     private static void Start(Process process, string fileName)

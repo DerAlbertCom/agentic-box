@@ -18,7 +18,7 @@ internal sealed class SbxInvoker(IProcessRunner runner, string executableName)
     )
     {
         var result = await RunAsync(request, cancellationToken);
-        return new SbxOutcome(result.ExitCode, result.StandardOutput + result.StandardError);
+        return new SbxOutcome(result.ExitCode, result.Output);
     }
 
     internal async Task<ProcessResult> RunOrThrowAsync(
