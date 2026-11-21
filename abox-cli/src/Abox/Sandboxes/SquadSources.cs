@@ -69,6 +69,8 @@ public sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages image
         var mixins = manifest.Kits.Select(kit => kit.Reference).ToList();
         if (manifest.StateMixinDirectory is not null)
             mixins.Add(manifest.StateMixinDirectory);
+        if (manifest.ConfigurationMixinDirectory is not null)
+            mixins.Add(manifest.ConfigurationMixinDirectory);
         return new PreparedSquad(
             manifest,
             image.RuntimeKitDirectory,

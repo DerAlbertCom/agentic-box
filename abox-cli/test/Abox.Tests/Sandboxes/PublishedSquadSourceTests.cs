@@ -79,6 +79,25 @@ public sealed class PublishedSquadSourceTests
     }
 
     [Fact]
+    public async Task AcceptsPublishedMetadataThatCarriesSecretDeclarations()
+    {
+        // Arrange
+        _metadata["Secrets"] = JsonNode.Parse(
+            """
+            [{"Service":"elastic","Prompt":"The API key","Hosts":["elastic.example.com"],
+              "Env":"ELASTIC_API_KEY","Inputs":[],"Separator":":","Encoding":"plain"}]
+            """
+        );
+
+        // Act
+        var result = await LoadAsync();
+
+        // Assert
+        result.Metadata.Squad.Should().Be("ac");
+        result.Metadata.Mcp.Single().Name.Should().Be("elastic");
+    }
+
+    [Fact]
     public async Task RegistryIdentityIsCaseInsensitiveButTagsAreNot()
     {
         // Arrange

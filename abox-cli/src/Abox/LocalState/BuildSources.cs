@@ -148,6 +148,11 @@ public static class BuildSources
         {
             yield return state;
         }
+
+        if (manifest.ConfigurationMixinDirectory is { } configuration)
+        {
+            yield return configuration;
+        }
     }
 
     internal static string DirectoryHash(string directory)

@@ -86,13 +86,12 @@ public sealed class PublishService(
             snapshots,
             cancellationToken
         );
-        var configDirectory = WriteConfiguration(
-            publication.Directory,
-            selected.Identity.Team,
-            selected.Build
-        );
         var config = await publication.Publisher.PushVerifiedAsync(
-            publication.Component(configDirectory, "config", PublicationImageKind.Mixin),
+            publication.Component(
+                snapshots[selected.Build.ConfigurationMixinDirectory!],
+                "config",
+                PublicationImageKind.Mixin
+            ),
             cancellationToken
         );
         kits.Add(new PublicationComponent(config));
@@ -191,40 +190,6 @@ public sealed class PublishService(
             ),
             cancellationToken
         );
-    }
-
-    private static string WriteConfiguration(string directory, string team, BuildManifest build)
-    {
-        var configDirectory = Path.Combine(directory, "config");
-        Directory.CreateDirectory(configDirectory);
-        File.WriteAllText(
-            Path.Combine(configDirectory, "squad.json"),
-            JsonSerializer.Serialize(
-                new PublicationSquadMetadata
-                {
-                    Team = team,
-                    Squad = build.Squad,
-                    Tag = build.Tag,
-                    CreatedAt = build.CreatedAt,
-                    Mcp = build.Mcp.Select(mcp => new PublicationMcp(mcp.Name, mcp.Url)).ToList(),
-                    State = build
-                        .State.Select(state => new PublicationState(
-                            state.SandboxPath,
-                            state.RelativePath
-                        ))
-                        .ToList(),
-                    Kits = build
-                        .Kits.Select(kit => new PublicationKitMetadata(kit.Name, kit.Arguments))
-                        .ToList(),
-                },
-                JsonOptions
-            )
-        );
-        WriteDescriptor(
-            Path.Combine(configDirectory, "config.yaml"),
-            new PublicationConfigurationDescriptor()
-        );
-        return configDirectory;
     }
 
     private static void WriteDescriptor<TDescriptor>(string path, TDescriptor descriptor) =>
