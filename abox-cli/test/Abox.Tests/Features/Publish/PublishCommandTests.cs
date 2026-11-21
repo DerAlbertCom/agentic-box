@@ -228,7 +228,8 @@ public sealed class PublishCommandTests
             _store,
             manifest,
             Path.Combine(workload, "workload.yaml"),
-            "schemaVersion: \"3\"\nkind: workload\n"
+            "schemaVersion: \"3\"\nkind: workload\n",
+            team
         );
     }
 }

@@ -162,7 +162,10 @@ public sealed class AboxFile
                 })
                 .ToList();
 
-            var encoding = ReadEncoding(reader, entry.GetString("encoding"));
+            var encoding = SecretDeclaration.ParseEncoding(
+                entry.GetString("encoding"),
+                reader.Source
+            );
 
             secrets.Add(
                 new SecretDeclaration(
@@ -173,7 +176,7 @@ public sealed class AboxFile
                     encoding,
                     hosts.Count > 0 ? hosts : null,
                     entry.GetString("env"),
-                    command,
+                    command is null ? null : new HostCommand(command),
                     placeholder
                 )
             );
@@ -181,16 +184,6 @@ public sealed class AboxFile
 
         return secrets;
     }
-
-    private static SecretEncoding ReadEncoding(YamlReader reader, string? value) =>
-        value?.Trim().ToLowerInvariant() switch
-        {
-            null or "" or "plain" => SecretEncoding.Plain,
-            "base64" => SecretEncoding.Base64,
-            _ => throw new AboxException(
-                $"'{reader.Source}': '{value}' is not a known encoding. Known encodings: plain, base64."
-            ),
-        };
 
     private static IReadOnlyList<McpDeclaration> ReadMcp(YamlReader reader)
     {

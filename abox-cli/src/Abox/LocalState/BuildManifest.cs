@@ -30,6 +30,9 @@ public sealed class BuildManifest
     /// <summary>The directory of the generated mixin that declares the state directories.</summary>
     public string? StateMixinDirectory { get; set; }
 
+    /// <summary>The directory of the generated mixin that bundles squad.json; null on older manifests.</summary>
+    public string? ConfigurationMixinDirectory { get; set; }
+
     /// <summary>The image the workload builds on.</summary>
     public string Template { get; set; } = string.Empty;
 

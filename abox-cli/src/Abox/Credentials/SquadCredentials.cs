@@ -29,10 +29,12 @@ public sealed class SquadCredentials(
     /// <param name="rootDirectory">The project that holds the squad's sources; null skips the check.</param>
     /// <param name="team">The team the squad belongs to.</param>
     /// <param name="squad">The squad the sandbox is created from.</param>
+    /// <param name="location">The folder the sandbox is created for.</param>
     public async Task PrepareAsync(
         string? rootDirectory,
         string team,
         string squad,
+        string location,
         CancellationToken cancellationToken
     )
     {
@@ -74,11 +76,11 @@ public sealed class SquadCredentials(
 
             if (console.IsInteractive)
             {
-                await AskAsync(missing, cancellationToken);
+                await AskAsync(missing, stored, cancellationToken);
             }
             else
             {
-                Warn(missing, team, squad);
+                Warn(missing, location);
             }
         }
         catch (AboxException exception)
@@ -99,7 +101,7 @@ public sealed class SquadCredentials(
         return new CredentialState(
             request,
             declaration,
-            SecretValues.IsStored(request.Service, declaration, stored),
+            stored.Holds(declaration ?? new SecretDeclaration(request.Service)),
             bindings.Covers(request.Service, request.Domains)
         );
     }
@@ -112,13 +114,14 @@ public sealed class SquadCredentials(
         new(
             new CredentialRequest(secret.Service, [], secret.Hosts ?? [], Optional: false),
             secret,
-            SecretValues.IsStored(secret.Service, secret, stored),
+            stored.Holds(secret),
             Approved: true,
             ApprovalNeeded: false
         );
 
     private async Task AskAsync(
         IReadOnlyList<CredentialState> missing,
+        HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
@@ -133,13 +136,13 @@ public sealed class SquadCredentials(
         foreach (var state in missing)
         {
             var name = state.Request.Service;
-            var stored =
+            var ready =
                 state.Stored
                 || state.Declaration is { } declaration
                     && console.Confirm($"Set the secret '{name}' now?")
-                    && await SetAsync(declaration, cancellationToken);
+                    && await SetAsync(declaration, stored, cancellationToken);
 
-            if (!stored)
+            if (!ready)
             {
                 console.WriteLine($"The sandbox starts without the credential '{name}'.");
                 continue;
@@ -163,28 +166,27 @@ public sealed class SquadCredentials(
 
     private async Task<bool> SetAsync(
         SecretDeclaration declaration,
+        HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
         var name = declaration.Service;
-        var setting = await values.SetAsync(declaration, cancellationToken);
-        if (!setting.Given)
+        var setting = await values.SetAsync(declaration, stored, cancellationToken);
+        switch (setting.Result)
         {
-            console.WriteLine($"The secret '{name}' was not set.");
-            return false;
+            case SecretSettingResult.Skipped:
+                console.WriteLine($"The secret '{name}' was not set.");
+                return false;
+            case SecretSettingResult.Refused or SecretSettingResult.Failed:
+                console.WriteError($"The secret '{name}' was not stored: {setting.Message}");
+                return false;
+            default:
+                console.WriteLine($"Stored the secret '{name}'.");
+                return true;
         }
-
-        if (!setting.Stored)
-        {
-            console.WriteError($"The secret '{name}' was not stored: {setting.Output}");
-            return false;
-        }
-
-        console.WriteLine($"Stored the secret '{name}'.");
-        return true;
     }
 
-    private void Warn(IReadOnlyList<CredentialState> missing, string team, string squad)
+    private void Warn(IReadOnlyList<CredentialState> missing, string location)
     {
         console.WriteError(
             "Warning: the kits of the squad ask for credentials that are not ready:"
@@ -199,7 +201,7 @@ public sealed class SquadCredentials(
         )
         {
             console.WriteError(
-                $"Set the value with: abox secrets set --team {team} --squad {squad} --service {state.Request.Service}"
+                $"Set the value with: abox secrets set --location \"{location}\" --service {state.Request.Service}"
             );
         }
 

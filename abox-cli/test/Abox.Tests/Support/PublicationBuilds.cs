@@ -1,4 +1,6 @@
+using Abox.Kits;
 using Abox.LocalState;
+using Abox.Naming;
 
 namespace Abox.Tests;
 
@@ -9,17 +11,33 @@ internal static class PublicationBuilds
         BuildStore store,
         BuildManifest manifest,
         string descriptorPath,
-        string descriptor
+        string descriptor,
+        string team = "sample"
     )
     {
         Directory.CreateDirectory(Path.GetDirectoryName(descriptorPath)!);
         File.WriteAllText(descriptorPath, descriptor);
-        SaveVerified(store, manifest);
+        SaveVerified(store, manifest, team: team);
         return descriptorPath;
     }
 
-    internal static void SaveVerified(BuildStore store, BuildManifest manifest)
+    /// <summary>Writes the build's configuration mixin, as the build does, and saves the manifest.</summary>
+    internal static void SaveVerified(
+        BuildStore store,
+        BuildManifest manifest,
+        IReadOnlyList<SecretDeclaration>? secrets = null,
+        string team = "sample"
+    )
     {
+        manifest.ConfigurationMixinDirectory = SquadConfigurationMixin.Generate(
+            team,
+            manifest,
+            secrets ?? [],
+            Path.Combine(
+                store.DirectoryFor(new SquadBuildIdentity(team, manifest.Squad, manifest.Tag)),
+                SquadConfigurationMixin.MixinName
+            )
+        );
         manifest.IncludesPersonalConfigurations = false;
         manifest.SourceHashes = BuildSources.Capture(manifest);
         store.Save(manifest);

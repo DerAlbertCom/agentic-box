@@ -56,8 +56,23 @@ sentinel, not the stored credential. Service IDs and encodings match v2.
 These service secrets are separate from placeholder-replacement custom bindings.
 
 The base squad declares the RWE GHEC binding as the command-backed custom secret
-`rwe-ghec`. `abox create --local` asks to set it when it is missing, and
-`abox secrets set --service rwe-ghec` sets it; both run the equivalent of:
+`rwe-ghec` in `base.abox`:
+
+```yaml
+secrets:
+  - service: rwe-ghec
+    host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com, rwe.ghe.com, uploads.rwe.ghe.com]
+    env: RWE_GHE_TOKEN
+    command: gh auth token -h rwe.ghe.com
+    placeholder: gho_{rand}
+```
+
+`abox create --local` asks to set it when it is missing and runs the equivalent
+of the command below. `abox secrets list` in the project folder shows whether it is
+stored. `abox secrets set --service rwe-ghec` never runs a command it reads from
+the sandbox: when the binding is missing it prints the `sbx secret set-custom`
+command with `--command '<host command>'`; run it with the command from
+`base.abox`:
 
 ```sh
 sbx secret set-custom \
@@ -67,8 +82,10 @@ sbx secret set-custom \
   --placeholder 'gho_{rand}'
 ```
 
-abox treats any custom secret sent to `copilot-api.rwe.ghe.com` (the first host) as present. If an incompatible
-binding exists, review it manually; do not delete/rebind another sandbox's
+abox treats the binding as present when a custom secret is sent to all four hosts
+under `RWE_GHE_TOKEN` (or under no variable). A custom secret that uses one of the hosts or
+`RWE_GHE_TOKEN` otherwise is an incompatible binding: abox reports it and does not
+replace it. Review it manually; do not delete/rebind another sandbox's
 credentials blindly. sbx checks the command when it stores the secret, so a host
 `gh` that is not logged in shows up as an error right away. Host `gh` must already be logged in with the required scopes (including `workflow`
 for workflow changes). There is no automatic login/scope refresh or legacy-binding

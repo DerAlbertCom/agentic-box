@@ -100,6 +100,7 @@ public sealed class SandboxCreator(
             request.Team.RootDirectory,
             request.Team.Name,
             selection.Identity.Squad,
+            location,
             cancellationToken
         );
         cancellationToken.ThrowIfCancellationRequested();

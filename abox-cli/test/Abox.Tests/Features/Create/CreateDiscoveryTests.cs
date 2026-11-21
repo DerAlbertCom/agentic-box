@@ -42,7 +42,14 @@ public sealed class CreateDiscoveryTests
                     && request.Location == location
                     && request
                         .Mixins.Select(Path.GetFullPath)
-                        .SequenceEqual(new[] { project.ProjectKit, project.PersonalKit })
+                        .SequenceEqual(
+                            new[]
+                            {
+                                project.ProjectKit,
+                                project.PersonalKit,
+                                build.ConfigurationMixinDirectory,
+                            }
+                        )
                     && request.PullPolicy == PullPolicy.Never
                 ),
                 Arg.Any<CancellationToken>()

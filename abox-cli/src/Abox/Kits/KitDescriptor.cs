@@ -16,7 +16,7 @@ public sealed class KitDescriptor
         Services = services;
     }
 
-    /// <summary>The descriptor file.</summary>
+    /// <summary>The descriptor file, or where the descriptor text comes from.</summary>
     public string DescriptorPath { get; }
 
     /// <summary>The services the kit authenticates to.</summary>
@@ -34,7 +34,17 @@ public sealed class KitDescriptor
             return null;
         }
 
-        var reader = YamlReader.LoadFile(path);
+        return Parse(File.ReadAllText(path), path);
+    }
+
+    /// <summary>
+    /// Reads the text of a descriptor, such as one the kit frontend staged in a sandbox.
+    /// </summary>
+    /// <param name="yaml">The descriptor text.</param>
+    /// <param name="source">Where the text comes from, for messages.</param>
+    public static KitDescriptor Parse(string yaml, string source)
+    {
+        var reader = YamlReader.Parse(yaml, source);
         var services = new List<KitService>();
 
         foreach (var capability in reader.GetEntries("capabilities"))
@@ -69,7 +79,7 @@ public sealed class KitDescriptor
             services.Add(new KitService(service, domains, optional));
         }
 
-        return new KitDescriptor(path, services);
+        return new KitDescriptor(source, services);
     }
 
     private static string? FindDescriptor(string kitDirectory)

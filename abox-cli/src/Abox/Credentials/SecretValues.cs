@@ -10,21 +10,13 @@ namespace Abox.Credentials;
 /// </summary>
 public sealed class SecretValues(ISbxClient sbx, IConsole console)
 {
-    /// <summary>
-    /// Whether the value of a service is on the host. A service sbx does not know is
-    /// stored under its host or environment variable, not under its service name.
-    /// </summary>
-    public static bool IsStored(string name, SecretDeclaration? declaration, HostSecrets stored)
+    /// <summary>Why a custom secret is not stored over a conflicting one.</summary>
+    public static string DescribeConflict(SecretDeclaration declaration, CustomSecret conflict)
     {
-        var (kind, value) = (declaration ?? new SecretDeclaration(name)).Identity;
-        return kind switch
-        {
-            SecretIdentityKind.Host => stored.Custom.Any(custom => custom.Targets.Contains(value)),
-            SecretIdentityKind.EnvironmentVariable => stored.Custom.Any(custom =>
-                custom.EnvironmentVariable == value
-            ),
-            _ => stored.Services.Contains(value),
-        };
+        var targets = conflict.Targets.Count > 0 ? string.Join(", ", conflict.Targets) : "no host";
+        var variable = conflict.EnvironmentVariable ?? "no variable";
+        return $"it conflicts with the stored custom secret for {targets} ({variable}). "
+            + $"Another sandbox may need that binding: review it with 'sbx secret ls' and remove it yourself before you set '{declaration.Service}'.";
     }
 
     /// <summary>
@@ -70,27 +62,48 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
 
     /// <summary>
     /// Asks for the value of a service and stores it: a custom secret for a service sbx
-    /// does not know. A secret with a command asks nothing; sbx runs the command.
+    /// does not know. A secret with a command asks nothing; sbx runs the command. A custom
+    /// secret is not stored over a conflicting one.
     /// </summary>
+    /// <param name="declaration">The secret; a withheld command is never run.</param>
+    /// <param name="stored">The secrets the host keeps.</param>
+    /// <param name="cancellationToken">Cancels the sbx calls.</param>
     public async Task<SecretSetting> SetAsync(
         SecretDeclaration declaration,
+        HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
-        if (declaration.Command is not null)
+        if (stored.ConflictWith(declaration) is { } conflict)
+        {
+            return new SecretSetting(
+                SecretSettingResult.Refused,
+                DescribeConflict(declaration, conflict)
+            );
+        }
+
+        if (declaration.Command is { Line: { } command })
         {
             console.WriteLine(
-                $"The secret '{declaration.Service}' comes from the host command: {declaration.Command}"
+                $"The secret '{declaration.Service}' comes from the host command: {command}"
             );
             return SecretSetting.From(
                 await sbx.SetCustomSecretAsync(declaration, null, cancellationToken)
             );
         }
 
+        if (declaration.Command is not null)
+        {
+            throw new ArgumentException(
+                $"The command of the secret '{declaration.Service}' is withheld; abox never runs it.",
+                nameof(declaration)
+            );
+        }
+
         var value = Ask(declaration);
         if (string.IsNullOrEmpty(value))
         {
-            return SecretSetting.NotGiven;
+            return SecretSetting.Skipped;
         }
 
         var outcome = declaration.IsCustom
@@ -100,16 +113,34 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
     }
 }
 
+/// <summary>How setting a secret ended.</summary>
+public enum SecretSettingResult
+{
+    /// <summary>The host keeps the value now.</summary>
+    Stored,
+
+    /// <summary>No value was given, so nothing was stored.</summary>
+    Skipped,
+
+    /// <summary>A conflicting binding is stored, so the secret was not stored over it.</summary>
+    Refused,
+
+    /// <summary>sbx did not store the value.</summary>
+    Failed,
+}
+
 /// <summary>How setting a secret went.</summary>
-/// <param name="Given">Whether a value was given or a command run.</param>
-/// <param name="Stored">Whether the host keeps the value now.</param>
-/// <param name="Output">What sbx said.</param>
-public sealed record SecretSetting(bool Given, bool Stored, string Output)
+/// <param name="Result">How it ended.</param>
+/// <param name="Message">Why it was refused, or what sbx said.</param>
+public sealed record SecretSetting(SecretSettingResult Result, string Message)
 {
     /// <summary>Nothing was given, so nothing was stored.</summary>
-    public static SecretSetting NotGiven { get; } = new(false, false, string.Empty);
+    public static SecretSetting Skipped { get; } = new(SecretSettingResult.Skipped, string.Empty);
 
     /// <summary>The result of storing a value with sbx.</summary>
     public static SecretSetting From(SbxOutcome outcome) =>
-        new(true, outcome.Succeeded, outcome.Output.Trim());
+        new(
+            outcome.Succeeded ? SecretSettingResult.Stored : SecretSettingResult.Failed,
+            outcome.Output.Trim()
+        );
 }
