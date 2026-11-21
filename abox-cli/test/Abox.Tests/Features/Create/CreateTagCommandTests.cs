@@ -27,7 +27,7 @@ public sealed class CreateTagCommandTests
         using var outside = new TempDirectory();
         var sentinel = outside.File("build.json", "external build");
         root.File("teams/sample/ac.abox", "workload: sample\n");
-        root.File("abox.json", "not JSON; invalid tag must be reported first");
+        root.File("abox.yaml", "not JSON; invalid tag must be reported first");
         var paths = AboxPaths.For(
             Path.Combine(root.Path, "config"),
             Path.Combine(root.Path, "state")

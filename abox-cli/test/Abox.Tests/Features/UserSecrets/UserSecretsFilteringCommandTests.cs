@@ -96,8 +96,8 @@ public sealed class UserSecretsFilteringCommandTests
     [InlineData("[{\"id\":\"sample\",\"keys\":[\"\"]}]")]
     [InlineData("[{\"id\":\"sample\",\"keys\":[\"  \"]}]")]
     [InlineData("[{\"id\":\"sample\",\"keys\":[\"synthetic-private\\n\"]}]")]
-    [InlineData("[{\"id\":\"sample\",\"keys\":[null]}]")]
-    [InlineData("[{\"id\":\"sample\",\"keys\":[12]}]")]
+    [InlineData("[{\"id\":\"sample\",\"keys\":[{\"a\":1}]}]")]
+    [InlineData("[{\"id\":\"sample\",\"keys\":[[12]]}]")]
     [InlineData("[{\"id\":\"sample\",\"keys\":[{}]}]")]
     [InlineData("[{\"id\":\"sample\",\"keys\":null}]")]
     [InlineData("[{\"id\":\"sample\",\"keys\":\"*\"}]")]
@@ -383,7 +383,7 @@ public sealed class UserSecretsFilteringCommandTests
         }
 
         public void Configure(string entries) =>
-            Root.File("folder/abox.json", "{\"userSecrets\":" + entries + "}");
+            Root.File("folder/abox.yaml", "{\"userSecrets\":" + entries + "}");
 
         public string Store(string id, string json) => cli.Store(id, json);
 

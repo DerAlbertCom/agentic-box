@@ -13,7 +13,7 @@ public sealed class UserSecretsFilteringTests
         // Arrange
         using var root = new TempDirectory();
         root.File(
-            "folder/abox.json",
+            "folder/abox.yaml",
             """{"userSecrets":[{"id":"sample","keys":["Nested:Keep"]}]}"""
         );
         var source = root.File(

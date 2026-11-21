@@ -18,7 +18,7 @@ public sealed class UserSecretsCopyTests
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("folder/abox.json", configuration);
+        root.File("folder/abox.yaml", configuration);
         var source = root.File(
             "home/.microsoft/usersecrets/sample/secrets.json",
             """{"Nested":{"Password":"synthetic-original"}}"""
@@ -85,7 +85,7 @@ public sealed class UserSecretsCopyTests
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("abox.json", """{"userSecrets":["missing"]}""");
+        root.File("abox.yaml", """{"userSecrets":["missing"]}""");
         var sbx = Substitute.For<ISbxClient>();
         var copy = new UserSecretsCopy(
             new AboxConfig { UserSecretsDenyList = null! },
@@ -109,7 +109,7 @@ public sealed class UserSecretsCopyTests
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("abox.json", """{"userSecrets":["sample"]}""");
+        root.File("abox.yaml", """{"userSecrets":["sample"]}""");
         root.File(".microsoft/usersecrets/sample/secrets.json", "{}");
         var sbx = Substitute.For<ISbxClient>();
         var copy = new UserSecretsCopy(
@@ -136,7 +136,7 @@ public sealed class UserSecretsCopyTests
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("abox.json", """{"userSecrets":["sample"]}""");
+        root.File("abox.yaml", """{"userSecrets":["sample"]}""");
         root.File(".microsoft/usersecrets/sample/secrets.json", "{}");
         var sbx = Substitute.For<ISbxClient>();
         var copy = new UserSecretsCopy(new AboxConfig(), new UserSecretsHost(null, root.Path), sbx);

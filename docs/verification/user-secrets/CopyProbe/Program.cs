@@ -22,7 +22,7 @@ var paths = AboxPaths.For(temporary, temporary);
 try
 {
     await File.WriteAllTextAsync(
-        Path.Combine(temporary, "abox.json"),
+        Path.Combine(temporary, "abox.yaml"),
         "{\"userSecrets\":[\"" + id + "\"]}"
     );
     var store = Path.Combine(temporary, ".microsoft", "usersecrets", id);

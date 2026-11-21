@@ -7,7 +7,8 @@ global setting or app-source edit is required. Apps themselves are not started.
 
 ## Ordering and identity
 
-1. The command loads and validates the resolved folder's `abox.json` once. The
+1. The command loads and validates the resolved folder's `abox.yaml` and `abox.user.yaml`
+   once. The
    immutable snapshot, including absence, selects squad, user secrets and
    `portOffset`; an absent offset is **10000**. `--root` selects local team sources,
    not the folder to scan. Lifecycle commands add no `--offset` option.
@@ -67,7 +68,7 @@ public trust or private certificate activation may remain; no rollback is promis
   abox ports --location "/path/to/folder" --offset 10000
   ```
 
-The explicit retry offset matters if `abox.json` changed after command entry.
+The explicit retry offset matters if the folder configuration changed after command entry.
 On-demand retry rescans current app configuration and does not recopy user secrets.
 Changing offset while old relay bindings remain requires deliberate exact-binding
 removal as documented; retry does not silently remap or take over other bindings.

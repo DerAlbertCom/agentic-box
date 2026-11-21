@@ -34,7 +34,7 @@ public sealed class CreateCommand : Command
         var squad = new Option<string>("--squad")
         {
             Description =
-                "The squad the sandbox is created from. Defaults to abox.json; a conflicting --squad is rejected. Without either, --local can ask which squad to use.",
+                $"The squad the sandbox is created from. Defaults to the folder configuration ({FolderConfig.FileNames}); a conflicting --squad is rejected. Without either, --local can ask which squad to use.",
         };
 
         var location = new Option<string>("--location")
@@ -106,7 +106,7 @@ public sealed class CreateCommand : Command
                         if (!useLocal && string.IsNullOrWhiteSpace(selectedSquad))
                         {
                             throw new AboxException(
-                                "Remote create requires --squad <name> or 'squad' in abox.json; published squad discovery is not supported. No local team files are used."
+                                $"Remote create requires --squad <name> or 'squad' in {FolderConfig.FileNames}; published squad discovery is not supported. No local team files are used."
                             );
                         }
 

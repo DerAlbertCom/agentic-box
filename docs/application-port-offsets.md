@@ -3,7 +3,8 @@
 `abox ports [--location <path>] [--offset <n>]` uses this precedence:
 
 1. `--offset` for this invocation.
-2. `portOffset` in the selected sandbox folder's optional `abox.json`.
+2. `portOffset` in the selected sandbox folder's optional `abox.user.yaml`, then
+   `abox.yaml` (see [folder configuration](../README.md#folder-configuration)).
 3. **10000**, including when there is no folder file.
 
 There is no global setting. No invocation writes configuration. The shared
@@ -12,12 +13,13 @@ entry; an override does not bypass invalid folder configuration. Existing squad
 selection/conflict rules and user-secret selections/filtering/snapshot semantics
 are unchanged. For example:
 
-```json
-{
-  "squad": "AC",
-  "portOffset": 20000,
-  "userSecrets": ["sample", { "id": "filtered", "keys": ["Database:*"] }]
-}
+```yaml
+squad: AC
+portOffset: 20000
+userSecrets:
+  - sample
+  - id: filtered
+    keys: ["Database:*"]
 ```
 
 For an app on sandbox port 8203, the folder default requests host 28203:
@@ -31,13 +33,13 @@ On a folder without old application bindings, this one-run override requests 382
 
 ```sh
 abox ports --location /path/to/project --offset 30000
-# http://localhost:38203; abox.json is unchanged
+# http://localhost:38203; abox.yaml is unchanged
 ```
 
 ## Accepted numbers and validation
 
 Offsets are decimal integers in **-65534..65534 inclusive**, the useful range for
-ports 1..65535. CLI integers can carry a sign; JSON must contain a numeric integer,
+ports 1..65535. CLI integers can carry a sign; YAML must contain an unquoted integer,
 not a quoted string, null, fraction or exponent notation. Zero preserves the port
 number; negative offsets subtract. For example, 8203 with offset -8202 maps to host
 1, and 65535 with offset -65534 also maps to host 1. Low host ports can still require

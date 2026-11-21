@@ -7,11 +7,13 @@ namespace Abox.Sbx;
 /// <param name="KeepStandardInputOpen">Whether standard input stays open.</param>
 /// <param name="WorkingDirectory">The directory to run in, or null for the image's own.</param>
 /// <param name="User">The user to run as, or null for the image's own.</param>
+/// <param name="Environment">Variables set for the command, or null for none.</param>
 public sealed record SbxExecRequest(
     string Sandbox,
     IReadOnlyList<string> Command,
     bool AllocateTty = false,
     bool KeepStandardInputOpen = false,
     string? WorkingDirectory = null,
-    string? User = null
+    string? User = null,
+    IReadOnlyDictionary<string, string>? Environment = null
 );

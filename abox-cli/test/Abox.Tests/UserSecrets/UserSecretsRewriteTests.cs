@@ -584,7 +584,7 @@ public sealed class UserSecretsRewriteTests
         internal async Task<PreparedUserSecrets> PrepareAsync(bool force = false)
         {
             root.File(
-                "abox.json",
+                "abox.yaml",
                 JsonSerializer.Serialize(
                     new
                     {

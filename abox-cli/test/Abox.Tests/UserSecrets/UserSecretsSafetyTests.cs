@@ -20,7 +20,7 @@ public sealed class UserSecretsSafetyTests
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("abox.json", """{"userSecrets":["sample"]}""");
+        root.File("abox.yaml", """{"userSecrets":["sample"]}""");
         root.File(
             ".microsoft/usersecrets/sample/secrets.json",
             JsonSerializer.Serialize(new { Db = value })

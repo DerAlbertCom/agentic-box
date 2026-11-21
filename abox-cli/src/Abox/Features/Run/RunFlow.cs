@@ -14,13 +14,20 @@ namespace Abox.Features.Run;
 /// <param name="LauncherId">The launcher to start.</param>
 /// <param name="Location">The folder whose sandbox is opened.</param>
 /// <param name="Argv">The arguments after <c>--</c>.</param>
-public sealed record RunRequest(string LauncherId, string Location, IReadOnlyList<string> Argv);
+/// <param name="TerminalTheme">Whether the sandbox recolors the terminal, or null to follow the configuration.</param>
+public sealed record RunRequest(
+    string LauncherId,
+    string Location,
+    IReadOnlyList<string> Argv,
+    bool? TerminalTheme = null
+);
 
 /// <summary>
 /// Starts a launcher for the sandbox of a folder: the common Launcher steps in order, then
 /// the launcher itself with a Launcher session.
 /// </summary>
 public sealed class RunFlow(
+    AboxConfig config,
     LauncherRegistry launchers,
     SquadResolver resolver,
     BuildStore store,
@@ -34,6 +41,10 @@ public sealed class RunFlow(
     IConsole console
 )
 {
+    /// <summary>Tells the sandbox's login shell to set the terminal colors (ADR 0002).</summary>
+    private const string TerminalThemeVariable = "SBOX_TERMINAL_THEME";
+    private const string TerminalThemeOn = "1";
+
     /// <summary>Starts the launcher and returns the exit code of the command.</summary>
     public async Task<int> RunAsync(RunRequest request, CancellationToken cancellationToken)
     {
@@ -55,6 +66,11 @@ public sealed class RunFlow(
 
         var location = Path.GetFullPath(request.Location);
         var folderConfig = await FolderConfig.LoadAsync(location, cancellationToken);
+        var terminalTheme = FolderConfig.SelectTerminalTheme(
+            folderConfig,
+            config.TerminalTheme,
+            request.TerminalTheme
+        );
 
         SandboxInfo sandbox;
         try
@@ -101,6 +117,9 @@ public sealed class RunFlow(
             sandbox.Name,
             await WorkspaceOfAsync(sandbox.Name, location, cancellationToken),
             request.Argv,
+            terminalTheme
+                ? new Dictionary<string, string> { [TerminalThemeVariable] = TerminalThemeOn }
+                : new Dictionary<string, string>(),
             sbx,
             https
         );

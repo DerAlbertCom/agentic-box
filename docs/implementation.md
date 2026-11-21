@@ -293,7 +293,7 @@ ordinary compatibility lookup writes no record or state/alias mapping and migrat
 neither legacy state layout nor Herdr registrations.
 
 On-demand user-secret copying does not verify squad identity or read/require a local
-sandbox record, even when `abox.json` declares `squad`. Missing, matching, unknown or
+sandbox record, even when the folder configuration declares `squad`. Missing, matching, unknown or
 mismatched records do not block copying. Host input and deny-list validation precede
 runtime access. Discovery writes no provenance; create/run replacement squad checks,
 destination/ownership, effective policy authorization, value-free reporting and
@@ -308,8 +308,8 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
 ### `abox create --team <name> [--squad <name>] [--location <path>] [--root <dir>] [--tag <tag>]
 [--local] [--yes]`
 
-1. Takes the team from `--team` or `defaultTeam`. Reads runtime-only `abox.json`
-   from the sandbox location: its optional `squad` fills an omitted `--squad`,
+1. Takes the team from `--team` or `defaultTeam`. Reads runtime-only `abox.yaml` and
+   `abox.user.yaml` from the sandbox location: its optional `squad` fills an omitted `--squad`,
    while a case-insensitive conflict fails before preparation/replacement. Remote
    create requires a squad from one of those sources and never resolves local
    team folders; it works without a source tree, local manifest or build. Only
@@ -391,14 +391,14 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
     failure, declined replacement or cancellation never starts a subsequent copy.
 10. Runs the shared prepared app-port/HTTPS flow after required secret copying.
     The entry-time folder snapshot supplies the explicit offset (default 10000),
-    even without `abox.json`. Discovery/mapping validation happens before runtime
+    even without folder configuration. Discovery/mapping validation happens before runtime
     mutations, not after deleting the old sandbox. Required setup failure keeps
     the sandbox/record, suppresses full-success/open output and launcher start,
     returns 1 (130 on cancellation), and prints a folder-qualified `abox ports`
     retry with that offset. See [the complete lifecycle contract](application-ports-lifecycle.md).
 
 Automatic copying never forces deny-list matches: neither `--yes` nor replacement
-consent is a safety override. Missing `abox.json` performs no user-secret store
+consent is a safety override. Missing folder configuration performs no user-secret store
 reads, target discovery or writes; app-port setup is independent of that opt-in. See the
 [lifecycle contract](user-secrets-lifecycle.md) for squad checks and intentional
 on-demand override/recovery.
@@ -475,7 +475,7 @@ give `--squad` or set the folder's `squad`. A pulled sandbox is not offered a
 local-build replacement by `abox run`; recreate it explicitly to refresh the
 published tag.
 
-### `abox run [<launcher>] [--location <path>] [-- <argv>...]`
+### `abox run [<launcher>] [--location <path>] [--terminal-theme <true|false>] [-- <argv>...]`
 
 1. Resolves `--location`, then `defaultLocation`, then the current folder, just like
    `create`. Checks the programs the launcher needs on the host, then loads and
@@ -506,6 +506,13 @@ published tag.
 5. Checks the programs the launcher needs in the sandbox. A missing one means the image
    predates the launcher: the command says to create the sandbox again.
 6. Asks the runtime where the workspace is (`WORKSPACE_DIR`) and starts the launcher.
+   The Launcher session carries the environment of every exec it makes:
+   `SBOX_TERMINAL_THEME=1` unless terminal colors are off, selected by
+   `FolderConfig.SelectTerminalTheme(snapshot, config.TerminalTheme, option)`:
+   `--terminal-theme`, then `terminalTheme` in `abox.user.yaml`, then `abox.yaml`,
+   then the user `config.yaml`, then `true`. `SbxClient` emits each variable of an
+   `SbxExecRequest` as `sbx exec -e NAME=value`. abox emits no escape sequences
+   itself; see [ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
 
 The launchers of this version are `shell` and `herdr-app`. `shell` runs `bash -l` in
 the workspace with a terminal, or the command after `--`.
@@ -553,7 +560,7 @@ not an arbitrary staging/production-secret detector. Mixed plain IDs and objects
 with optional `keys` use [the same key-selection contract](user-secrets-filtering.md)
 on demand and during [creation/replacement](user-secrets-lifecycle.md).
 
-**Trust boundary:** workspace `abox.json` is writable by the sandbox agent and
+**Trust boundary:** workspace `abox.yaml` and `abox.user.yaml` are writable by the sandbox agent and
 selects host stores/keys for the next copy. Review/trust its current contents,
 including squad, IDs and patterns, before invoking create/replacement/user-secrets.
 This feature adds no separate host-side authorization/approval mechanism; neither
@@ -561,8 +568,13 @@ an explicit store name nor the deny list makes an untrusted workspace safe.
 
 Shared orchestration is in `UserSecrets/`, outside command slices:
 
-- `FolderConfig.LoadAsync(location, token)` reads runtime-only `abox.json`,
-  returning null for absence. A missing file is an on-demand error but a lifecycle
+- `FolderConfig.LoadAsync(location, token)` reads runtime-only `abox.yaml` and
+  `abox.user.yaml` through `YamlReader`, returning null when both are absent. Each
+  file is parsed on its own, so YAML and duplicate-key errors name it;
+  `YamlReader.Merge` then lays the user file over the shared one (mappings merged
+  recursively, values and lists replaced as a whole) and the merged result is
+  validated, each error naming the file that supplied the key or value. An existing `abox.json`
+  or `abox.user.json` fails with a rename hint. A missing file is an on-demand error but a lifecycle
   no-op. Its optional `squad` selects creation and rejects conflicting explicit
   selections; accepted run replacement requires a matching known sandbox record
   if that squad is present. On-demand copying never checks the sandbox's squad or
@@ -1112,7 +1124,7 @@ abox-cli/src/Abox/
                             passes the named sandbox to sbx exec
     CommandHandling.cs  turns an abox error into a message and an exit code
   Configuration/    the directories and the user configuration
-    FolderConfig.cs runtime-only abox.json (not squad/build configuration)
+    FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
   UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
                     endpoint override generation and runtime copy flow
   ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
@@ -1184,6 +1196,7 @@ sbox-themes/        the theme command of sbox, installed by the themes kit
   src/sync-themes.ts  the manual palette refresh from upstream (src/sync.ts)
   themes/<theme>/   the palettes, unchanged from upstream, and their licenses
   apps/<app>/       the app templates
+  profile/          the login script that sets the terminal colors (/etc/profile.d)
 ```
 
 For architecture and coding conventions, see the

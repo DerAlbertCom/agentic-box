@@ -29,7 +29,7 @@ public sealed class PortsCommandBootstrapTests
         // Arrange
         var runner = Substitute.For<IProcessRunner>();
         using var fixture = new PortsCommandFixture(runner: runner);
-        fixture.Root.File("folder/abox.json", "invalid unrelated folder configuration");
+        fixture.Root.File("folder/abox.yaml", "invalid unrelated folder configuration");
         fixture.Root.File("folder/Web.csproj", "<Project Sdk=\"Microsoft.NET.Sdk.Web\">");
         var calls = new List<ProcessRequest>();
         runner

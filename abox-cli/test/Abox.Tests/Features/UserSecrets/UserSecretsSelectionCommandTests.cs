@@ -45,7 +45,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        var path = fixture.Root.File("folder/abox.json", "");
+        var path = fixture.Root.File("folder/abox.yaml", "");
         File.WriteAllBytes(path, [123, 34, 115, 113, 117, 97, 100, 34, 58, 34, 0xff, 34, 125]);
 
         // Act
@@ -53,7 +53,7 @@ public sealed class UserSecretsSelectionCommandTests
 
         // Assert
         exitCode.Should().Be(1);
-        fixture.Console.AllText.Should().Contain("abox.json").And.Contain("UTF");
+        fixture.Console.AllText.Should().Contain("abox.yaml").And.Contain("UTF");
         await fixture.NoWrites();
     }
 
@@ -62,7 +62,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         var source = fixture.Store("sample", "{\"Password\":\"synthetic-private\"}");
         using var locked = new FileStream(
             source,
@@ -86,7 +86,7 @@ public sealed class UserSecretsSelectionCommandTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("{not JSON synthetic-value}")]
+    [InlineData("{synthetic-value: [}")]
     [InlineData("[]")]
     [InlineData("{\"userSecrets\":null}")]
     [InlineData("{\"userSecrets\":[12]}")]
@@ -94,14 +94,14 @@ public sealed class UserSecretsSelectionCommandTests
     [InlineData("{\"userSecrets\":[\"sample\",\"SAMPLE\"]}")]
     [InlineData("{\"userSecrets\":[],\"userSecrets\":[\"sample\"]}")]
     [InlineData("{\"unknown\":\"synthetic-value\"}")]
-    [InlineData("{\"squad\":false}")]
+    [InlineData("{\"squad\":null}")]
     [InlineData("{\"squad\":\"\"}")]
     public async Task MissingOrInvalidFolderConfigurationNeverWidensSelection(string? json)
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
         if (json is not null)
-            fixture.Root.File("folder/abox.json", json);
+            fixture.Root.File("folder/abox.yaml", json);
         fixture.Store("sample", "{\"Password\":\"synthetic-value\"}");
 
         // Act
@@ -121,7 +121,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["first","later"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["first","later"]}""");
         fixture.Store("first", "{}");
         fixture.Store("later", json);
 
@@ -143,7 +143,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["missing"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["missing"]}""");
 
         // Act
         var exitCode = await fixture.Run("--force");
@@ -161,7 +161,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness(unix: unix);
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Root.File(
             "home/.microsoft/usersecrets/sample/secrets.json",
             unix ? "{\"Unix\":\"Grüße 🔒\"}" : "malformed unselected fallback"
@@ -196,7 +196,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness(configYaml: yaml);
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Store("sample", "{\"Endpoint\":\"host[STAGE]server\"}");
 
         // Act
@@ -225,7 +225,7 @@ public sealed class UserSecretsSelectionCommandTests
         // Arrange
         using var fixture = new UserSecretsCliHarness();
         fixture.Root.File(
-            "folder/abox.json",
+            "folder/abox.yaml",
             System.Text.Json.JsonSerializer.Serialize(new { userSecrets = new[] { id } })
         );
 
@@ -246,7 +246,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["first","later"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["first","later"]}""");
         fixture.Store("first", "{}");
         fixture.Store("later", json);
 
@@ -268,7 +268,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         var source = fixture.Store("sample", "");
         File.WriteAllBytes(source, [123, 34, 75, 34, 58, 34, 0xff, 34, 125]);
 
@@ -350,7 +350,7 @@ public sealed class UserSecretsSelectionCommandTests
     {
         // Arrange
         using var fixture = new UserSecretsCliHarness();
-        fixture.Root.File("folder/abox.json", """{"userSecrets":["sample"]}""");
+        fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         var source = fixture.Store(
             "sample",
             """{"Nested":{"Password":"synthetic-only"},"Enabled":true}"""

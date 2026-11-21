@@ -23,6 +23,7 @@ Items marked *(proposed)* fill gaps that the decisions so far do not cover. "Ver
 - **Command kit**: a kit that installs one `sbox` command as a bundled module into the commands folder, `~/.local/share/sbox/commands/<command>/`. A squad chooses the commands of its sandboxes by choosing command kits.
 - **Theme**: a named, app-agnostic palette: one `colors.toml` in the flat format of Omarchy (`mode`, `accent`, the background and foreground variants, the 8 colors and their `bright_*` variants). `sbox theme <name>` renders every app template with it. Installed by the `themes` kit.
 - **App template**: the definition of how one app is themed, a folder with an `app.yaml` and Liquid templates. `app.yaml` names the files to render, the JSON settings to merge, and the commands to run afterwards. Every app gets one fixed theme named `sbox`, so switching only rewrites its content.
+- **Terminal color script**: `~/.config/sbox/terminal-colors.sh`, rendered by the `terminal` app template. It prints the OSC sequences that set the current terminal's 16 ANSI colors, foreground, background and cursor to the theme. A login script and `sbox theme` run it when `SBOX_TERMINAL_THEME=1` is set and the output is a terminal. See [ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
 - **Config**: an `.abox` file. Composes a sandbox from `base`, `workload`, `kits`, `parameters`, `mcp`, `state`, and `secrets`.
 - **Sandbox**: one per folder.
 - **Workspace**: the folder's files inside the sandbox, at the runtime-provided `WORKSPACE_DIR`.
@@ -42,7 +43,8 @@ Exit codes: 0 on success, 1 on an `abox` error, 130 on cancellation. `run` passe
   - A sandbox that already exists for the location is replaced after confirmation. The confirmation lists what will be lost. State directories are kept: the sandbox name does not change, so their host paths do not change either.
   - Before it replaces a sandbox, local create checks the credentials the squad's local kits ask for: a stored value and sbx's approval for every domain. On a terminal it asks for what is missing; without one it warns and goes on. sbx never asks itself (`--no-input`), and its `Note:` lines are shown after creation. See [the authoring guide](authoring.md#secrets).
   - An existing sandbox keeps the image it was created from. A newer `latest` reaches only sandboxes created after it (inferred; verify).
-- **`abox run [<launcher>] [--location <path>] [-- <argv>...]`** starts a launcher for the folder's sandbox. The default launcher is `shell`. See Launchers.
+- **`abox run [<launcher>] [--location <path>] [--terminal-theme <true|false>] [-- <argv>...]`** starts a launcher for the folder's sandbox. The default launcher is `shell`. See Launchers.
+  - Passes `SBOX_TERMINAL_THEME=1` to the sandbox exec unless terminal colors are off: `--terminal-theme`, then `terminalTheme` in `abox.user.yaml`, then `abox.yaml`, then the user `config.yaml`, then on. See Terminal colors under Launchers.
   - Starts the sandbox if it is stopped. Never creates a sandbox: if none exists, prints the `abox create` command to run.
   - `shell` works offline. Other launchers list their needs under Launchers.
   - If JFrog has a newer `latest`, asks whether to replace the sandbox now. Skipped offline. *(proposed placement)*
@@ -101,6 +103,8 @@ Herdr's terminal program `herdr` is a separate product that does not share agent
 - uses argv as the command for its first terminal, if it has one. `shell` runs argv instead of a shell;
 - returns 0 when its work is done, or the command's exit code for `shell`;
 - reaches the sandbox only through the internal exec and `abox pipe`, as described in this section. *(proposed)*
+
+**Terminal colors.** Inside the sandbox, the `themes` kit recolors a terminal to the current theme when `SBOX_TERMINAL_THEME=1` is set: a login shell runs the terminal color script and resets the colors when it exits, and `sbox theme` recolors the terminal it runs in. `abox` knows nothing about themes or colors and emits no sequences; it only steers the variable. Whether a launcher's terminals see the variable is the launcher's business: `shell` runs `bash -l` in the exec that gets it; Herdr's panes are started by `hc` inside the sandbox and do not see it. See [ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
 
 ### `shell`
 

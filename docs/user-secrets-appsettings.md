@@ -6,8 +6,8 @@ overrides derived from their projects' appsettings. This uses the existing copy,
 policy discovery, key filters and sensitive transfer, not a second copy command.
 Ordinary `run` does not read appsettings or resynchronize secrets.
 
-For example, with `"userSecrets": ["api-development"]` in the workspace's
-`abox.json`, a project declaring a literal `<UserSecretsId>api-development</UserSecretsId>`
+For example, with `userSecrets: [api-development]` in the workspace's
+`abox.yaml` or `abox.user.yaml`, a project declaring a literal `<UserSecretsId>api-development</UserSecretsId>`
 and this project-local `appsettings.development.json`:
 
 ```json
@@ -32,7 +32,7 @@ modified. Settings need not be under `ConnectionStrings`.
 ## Bounded discovery, not application startup
 
 - Search recursively only beneath the resolved folder containing the selected
-  `abox.json` (`--location`, `defaultLocation`, then the current folder). The team
+  folder configuration (`--location`, `defaultLocation`, then the current folder). The team
   sources selected with `--root` are not the workspace for this search.
 - Exclude directories named `.git`, `bin`, `obj` or `node_modules`
   (case-insensitive) anywhere **beneath** the selected workspace root, plus

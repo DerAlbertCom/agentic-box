@@ -144,7 +144,7 @@ public sealed class UserSecretsDiscoveryCommandTests
         // Arrange
         using var cli = new UserSecretsCliHarness();
         using var links = new DirectoryLinks();
-        cli.Root.File("folder/src/abox.json", """{"userSecrets":["shared"]}""");
+        cli.Root.File("folder/src/abox.yaml", """{"userSecrets":["shared"]}""");
         Project(cli, "src/deep/Api", "http://localhost:8004/synthetic-path");
         var entry = Path.Combine(cli.Root.Path, "entry");
         await links.Add(entry, cli.Location, symbolic);
