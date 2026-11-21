@@ -362,21 +362,25 @@ kits ask for that service.
 - `list` shows each service with the kits that ask for it, whether it is required or
   optional, and whether a value is stored. A service a kit asks for but the squad does
   not declare is marked `not declared`. A custom secret counts as stored when a stored
-  custom secret is sent to all its hosts under its `env`; one that shares a host or
-  the `env` without being that binding is marked `conflicting binding`.
+  custom secret is sent to all its hosts (or, without hosts, uses its `env`) and has
+  its `env` or no variable at all; one that shares a host or the `env` without being
+  that binding, such as one with another variable or only some of the hosts, is
+  marked `conflicting binding`.
 - `set` asks for the declared services, or only for those named with repeatable
   `--service <name>`, with the declared prompts, inputs, separator and encoding, and
   stores each as a service secret, or as a custom secret for a declaration with
   `host` or `env`. An empty answer stores nothing. Naming a declared service no kit
   asks for prints a note. An undeclared service that a kit asks for is asked for with
   the default prompt; an undeclared service no kit asks for, such as a custom service,
-  fails, because abox cannot tell how to store it.
+  fails, because abox cannot tell how to store it. A kit's `credential@1` service is
+  always stored by name, so only custom services (`host`/`env`) need a declaration.
   A custom secret with a conflicting binding is not stored: abox reports the binding,
   which another sandbox may need, and leaves it to you to review and remove it.
   abox never runs a host command it would take from a sandbox: for a command-backed
   secret that is not stored, `set` prints the `sbx secret set-custom` command with its
   hosts, `env` and `placeholder` and `--command '<host command>'`, to run with the
-  command the squad documents; a stored one is reported as stored.
+  `command` of the squad's `secrets` entry (in the team's sources) or the one the
+  team's README gives; a stored one is reported as stored.
 - `remove` takes the values of the declared or named services off the host, by
   service name, custom host or environment variable.
 
@@ -424,8 +428,19 @@ To try this without real credentials, use the `secrets` squad of the sample team
 `sample-token` (one value), `sample-basic` (a username and a password, joined with `:`
 and base64-encoded) and the optional `sample-optional`; the squad also declares the
 custom secret `sample-custom` (`SAMPLE_CUSTOM_TOKEN` for
-`custom.sample.example.invalid`). Any text will do: the values are sent only to hosts
-under `example.invalid`, which never resolve. The `ac` squad does not carry this kit,
+`custom.sample.example.invalid`) and the command-backed custom secret `sample-command`
+(`SAMPLE_COMMAND_TOKEN` for `api.command.sample.example.invalid` and
+`uploads.command.sample.example.invalid`, from the host command `echo dummy` with the
+placeholder `dummy_{rand}`). Any text will do: the values are sent only to hosts
+under `example.invalid`, which never resolve. `abox create --local` stores
+`sample-command` by running `echo dummy` through sbx; `abox secrets set` on the
+sandbox never runs it and prints the `sbx secret set-custom` command with
+`--command '<host command>'` instead; replace it with `'echo dummy'` from
+`teams/sample/secrets.abox`. To see a conflicting binding, store another custom secret
+for one of its hosts, such as
+`sbx secret set-custom --host api.command.sample.example.invalid --env OTHER_TOKEN`,
+then run `abox secrets list` and `set` (remove it again with
+`sbx secret rm --host api.command.sample.example.invalid --force`). The `ac` squad does not carry this kit,
 so it starts without them.
 
 ```sh

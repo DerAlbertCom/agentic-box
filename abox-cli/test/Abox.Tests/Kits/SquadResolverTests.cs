@@ -500,7 +500,7 @@ public sealed class SquadResolverTests : IDisposable
         var secret = squad.Secrets.Single();
         secret.Hosts.Should().Equal("copilot-api.rwe.ghe.com", "api.rwe.ghe.com");
         secret.EnvironmentVariable.Should().Be("RWE_GHE_TOKEN");
-        secret.Command.Should().Be("gh auth token -h rwe.ghe.com");
+        secret.Command!.Line.Should().Be("gh auth token -h rwe.ghe.com");
         secret.Placeholder.Should().Be("gho_{rand}");
         secret.Prompt.Should().BeNull();
     }

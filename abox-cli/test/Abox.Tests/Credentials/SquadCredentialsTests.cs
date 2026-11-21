@@ -147,7 +147,7 @@ public sealed class SquadCredentialsTests
         await _sbx.Received(1)
             .SetCustomSecretAsync(
                 Arg.Is<SecretDeclaration>(secret =>
-                    secret.Command == "gh auth token -h rwe.ghe.com"
+                    secret.Command!.Line == "gh auth token -h rwe.ghe.com"
                     && secret.Hosts!.SequenceEqual(new[] { "rwe.ghe.com", "api.rwe.ghe.com" })
                 ),
                 null,

@@ -562,35 +562,46 @@ team sources: the slice does not use `SquadResolver`. Only `set` and `remove` ac
 repeatable `--service <name>`.
 
 `ISbxClient.ReadSquadFilesAsync` reads, in one `sbx exec <sandbox> sh -c <script>`
-(arguments as a list; `sbx exec` starts a stopped sandbox), every
+(arguments as a list, standard input closed like the other exec-based features;
+`sbx exec` starts a stopped sandbox, so no separate start step is needed), every
 `/usr/share/sandbox/kit/*/kit.yaml` with its kit folder name and
-`/usr/share/abox/squad.json` when present. Each file travels base64 encoded on its own
-line, so no content can break the framing; the wrapper returns the raw texts.
+`/usr/share/abox/squad.json` when present. Each file travels on its own line as
+`kit <base64 folder name> <base64 content>` or `squad <base64 content>`, so no name or
+content can break the framing; the wrapper returns the raw texts.
 `Credentials/SandboxSquadMetadata` turns them into credential requests and secret
 declarations: descriptors are parsed with `KitDescriptor.Parse` (the same
 `credential@1` extraction as for a kit directory, including `apiKey.inject` domains)
 and merged with `CredentialRequest.Merge`, the merge the create-time check uses for
-local kits, so both agree. `Secrets` entries become `SecretDeclaration`s with the
-same encoding validation as `.abox` files; a missing service or input name, an
+local kits, so both agree. `Secrets` entries are read as `Kits/SquadMetadataSecret`, the same
+record the build writes them with, and become `SecretDeclaration`s with the same
+encoding validation as `.abox` files; a missing service or input name, an
 unknown encoding, a duplicate service or invalid JSON fails with a message naming the
 sandbox and suggesting a rebuild or republish. A missing `squad.json` or `Secrets`
-means no declarations (an older sandbox). `FromCommand` becomes
-`SecretDeclaration.CommandWithheld`, which needs `Hosts`; the declaration never
-carries a command.
+means no declarations (an older sandbox). `FromCommand` becomes a
+withheld `HostCommand` (`SecretDeclaration.Command` without a `Line`), which needs
+`Hosts`; the declaration never carries a command.
 
 - `list` shows the services the staged kits ask for and the declared ones, the kits
   that ask for them, whether they are required or optional, and whether the value is
   stored on the host. A requested service without a declaration is `not declared`.
 - `set` asks for the declared services, or the named ones, and stores them. A
   declared service no kit asks for gets a note; an undeclared service a kit asks for
-  uses the default prompt; an undeclared service no kit asks for fails. Older
+  uses the default prompt; an undeclared service no kit asks for fails. A service a
+kit asks for with `credential@1` is always one sbx stores by name (the kit tells sbx
+where to inject it), so it can be stored without a declaration; a custom service
+(`host`/`env`) is never asked for by a kit, so without a declaration abox does not
+know it exists and refuses it. abox does not tell sbx's built-in services from kit
+services; it does not need to. Older
   sandboxes print a hint to recreate the sandbox from a current build or publication.
-  A command-backed declaration (`CommandWithheld`) is never run: when it is not stored,
-  `set` prints `SbxClient.SetCustomSecretCommandLine` (hosts, env, placeholder and
-  `--command '<host command>'`) and fails; when stored it says so. Before storing a
+  A command-backed declaration with a withheld command is never run: when it is not
+  stored, `set` prints `Sbx/SbxCustomSecretArguments.CommandLine` (hosts, env,
+  placeholder and `--command '<host command>'`, the same arguments `SbxClient` passes)
+  with where to find the command (the squad's `secrets` in the team's sources, or the
+  team's README) and fails; when stored it says so. Before storing a
   custom secret, `SecretValues.SetAsync` (shared with the create-time check) refuses
   one whose host or variable a stored custom secret uses without being its binding,
-  and reports that binding.
+  and reports that binding. `SecretSetting` reports `Stored`, `Skipped` (no value),
+  `Refused` (conflict) or `Failed` (sbx).
   The value goes through the standard input
   of sbx as explicit UTF-8 without a BOM or added newline, preserving non-ASCII service
   and custom secrets independently of the console code page. It stays out of process
@@ -599,9 +610,13 @@ carries a command.
   attached-console streams or raw pipes.
 - `remove` takes the values off the host. Custom secrets are matched by `--host`,
   or by sbx's `--env-name` selector when only `env` was declared; service names
-  are used only for service secrets. `list` counts a custom secret as stored when a
-  stored custom secret covers all its hosts and has its variable, and marks one that
-  shares a host or the variable as `conflicting binding`.
+  are used only for service secrets. `Sbx/HostSecrets` matches a declaration to a
+  stored secret by the same identity (`SecretDeclaration.Identity`): a service secret
+  by name; a custom secret with hosts when a stored custom secret is sent to all its
+  hosts, one with only `env` by that variable; when both name a variable it must be
+  the same, so a binding stored without `--env` still counts. `list` marks a stored
+  custom secret that shares a host or the variable without being the binding as
+  `conflicting binding`.
   sbx 0.51 requires destination hosts for credential substitution; environment-only
   legacy mappings remain removable, but need a `host` to supply credentials.
 
@@ -1225,6 +1240,8 @@ abox-cli/src/Abox/
     SbxKitSources.cs               repository-scoped kit-source trust settings
     SbxCredentialBindings.cs       reads and merges the approvals in sbx's credentials.yaml
     SandboxSquadFiles.cs           raw staged kit descriptors and squad.json of a sandbox
+    SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line
+    HostSecrets.cs                 the stored secrets; matches a declaration by its identity
     PullPolicy.cs                 closed pull choices, mapped to flags by the wrapper
   Health/           runtime preflight for sandbox commands, secrets and normal builds;
                     checks the queried sbx version against the required minimum

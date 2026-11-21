@@ -54,11 +54,12 @@ public sealed class SecretsService(
                 : asked.Optional ? "optional"
                 : "required";
             var declaration = metadata.Declaration(name);
-            var isStored = SecretValues.IsStored(name, declaration, stored);
-            var state = isStored ? "stored" : "not set";
+            var state = stored.Holds(declaration ?? new SecretDeclaration(name))
+                ? "stored"
+                : "not set";
             var note =
                 declaration is null ? "not declared"
-                : SecretValues.Conflict(declaration, stored) is not null ? "conflicting binding"
+                : stored.ConflictWith(declaration) is not null ? "conflicting binding"
                 : "";
 
             console.WriteLine(
@@ -106,7 +107,7 @@ public sealed class SecretsService(
                 console.WriteLine($"Note: no kit of the sandbox asks for the service '{name}'.");
             }
 
-            if (declaration is { CommandWithheld: true })
+            if (declaration?.Command is { Line: null })
             {
                 failed |= !ReportCommandSecret(declaration, stored);
                 continue;
@@ -117,21 +118,20 @@ public sealed class SecretsService(
                 stored,
                 cancellationToken
             );
-            if (!setting.Given)
+            switch (setting.Result)
             {
-                console.WriteError($"The service '{name}' was not set.");
-                failed = true;
-                continue;
+                case SecretSettingResult.Skipped:
+                    console.WriteError($"The service '{name}' was not set.");
+                    failed = true;
+                    break;
+                case SecretSettingResult.Refused or SecretSettingResult.Failed:
+                    console.WriteError($"The secret '{name}' was not stored: {setting.Message}");
+                    failed = true;
+                    break;
+                default:
+                    console.WriteLine($"Stored the secret '{name}'.");
+                    break;
             }
-
-            if (!setting.Stored)
-            {
-                console.WriteError($"The secret '{name}' was not stored: {setting.Output}");
-                failed = true;
-                continue;
-            }
-
-            console.WriteLine($"Stored the secret '{name}'.");
         }
 
         if (unknown)
@@ -183,13 +183,13 @@ public sealed class SecretsService(
     private bool ReportCommandSecret(SecretDeclaration declaration, HostSecrets stored)
     {
         var name = declaration.Service;
-        if (SecretValues.IsStored(name, declaration, stored))
+        if (stored.Holds(declaration))
         {
             console.WriteLine($"The secret '{name}' is stored; it comes from a host command.");
             return true;
         }
 
-        if (SecretValues.Conflict(declaration, stored) is { } conflict)
+        if (stored.ConflictWith(declaration) is { } conflict)
         {
             console.WriteError(
                 $"The secret '{name}' was not stored: {SecretValues.DescribeConflict(declaration, conflict)}"
@@ -199,10 +199,11 @@ public sealed class SecretsService(
 
         console.WriteError(
             $"The secret '{name}' comes from a host command, which abox never takes from a sandbox. "
-                + "Store it with sbx, using the host command the squad documents:"
+                + "Store it with sbx, replacing <host command> with the 'command' of its entry in the squad's 'secrets' "
+                + "(in the team's sources) or the command the team's README gives:"
         );
         console.WriteError(
-            "  " + SbxClient.SetCustomSecretCommandLine(declaration, "<host command>")
+            "  " + SbxCustomSecretArguments.CommandLine(declaration, "<host command>")
         );
         return false;
     }

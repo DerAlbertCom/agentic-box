@@ -101,7 +101,7 @@ public sealed class SquadCredentials(
         return new CredentialState(
             request,
             declaration,
-            SecretValues.IsStored(request.Service, declaration, stored),
+            stored.Holds(declaration ?? new SecretDeclaration(request.Service)),
             bindings.Covers(request.Service, request.Domains)
         );
     }
@@ -114,7 +114,7 @@ public sealed class SquadCredentials(
         new(
             new CredentialRequest(secret.Service, [], secret.Hosts ?? [], Optional: false),
             secret,
-            SecretValues.IsStored(secret.Service, secret, stored),
+            stored.Holds(secret),
             Approved: true,
             ApprovalNeeded: false
         );
@@ -172,20 +172,18 @@ public sealed class SquadCredentials(
     {
         var name = declaration.Service;
         var setting = await values.SetAsync(declaration, stored, cancellationToken);
-        if (!setting.Given)
+        switch (setting.Result)
         {
-            console.WriteLine($"The secret '{name}' was not set.");
-            return false;
+            case SecretSettingResult.Skipped:
+                console.WriteLine($"The secret '{name}' was not set.");
+                return false;
+            case SecretSettingResult.Refused or SecretSettingResult.Failed:
+                console.WriteError($"The secret '{name}' was not stored: {setting.Message}");
+                return false;
+            default:
+                console.WriteLine($"Stored the secret '{name}'.");
+                return true;
         }
-
-        if (!setting.Stored)
-        {
-            console.WriteError($"The secret '{name}' was not stored: {setting.Output}");
-            return false;
-        }
-
-        console.WriteLine($"Stored the secret '{name}'.");
-        return true;
     }
 
     private void Warn(IReadOnlyList<CredentialState> missing, string location)

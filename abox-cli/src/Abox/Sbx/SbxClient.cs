@@ -313,8 +313,10 @@ public sealed partial class SbxClient : ISbxClient
     }
 
     /// <summary>
-    /// Reads the staged kit descriptors and the bundled squad metadata in one exec. Each
-    /// file is printed base64 encoded on its own line, so no content can break the framing.
+    /// Reads the staged kit descriptors and the bundled squad metadata in one exec, which
+    /// starts a stopped sandbox. Each file is printed on its own line as <c>kit</c>, its
+    /// base64-encoded folder name and base64-encoded content, or <c>squad</c> and the
+    /// base64-encoded <c>squad.json</c>, so no name or content can break the framing.
     /// </summary>
     public async Task<SandboxSquadFiles> ReadSquadFilesAsync(
         string sandbox,
@@ -325,7 +327,9 @@ public sealed partial class SbxClient : ISbxClient
             for descriptor in /usr/share/sandbox/kit/*/kit.yaml; do
               [ -f "$descriptor" ] || continue
               kit=${descriptor%/kit.yaml}
-              printf 'kit %s ' "${kit##*/}"
+              printf 'kit '
+              printf %s "${kit##*/}" | base64 | tr -d '\n'
+              printf ' '
               base64 < "$descriptor" | tr -d '\n'
               printf '\n'
             done
@@ -336,7 +340,11 @@ public sealed partial class SbxClient : ISbxClient
             fi
             """;
         var result = await _invoker.RunOrThrowAsync(
-            new ProcessRequest(ExecutableName, ["exec", sandbox, "sh", "-c", script]),
+            new ProcessRequest(
+                ExecutableName,
+                ["exec", sandbox, "sh", "-c", script],
+                StandardInput: string.Empty
+            ),
             $"sbx exec {sandbox}",
             cancellationToken
         );
@@ -345,15 +353,13 @@ public sealed partial class SbxClient : ISbxClient
         string? squadJson = null;
         foreach (var line in result.StandardOutput.Split('\n'))
         {
-            var text = line.TrimEnd('\r');
-            var separator = text.LastIndexOf(' ');
-            if (separator < 0)
-                continue;
-            var content = Decode(text[(separator + 1)..], sandbox);
-            if (text.StartsWith("kit ", StringComparison.Ordinal) && separator > 4)
-                kits.Add(new StagedKitDescriptor(text[4..separator], content));
-            else if (text.StartsWith("squad ", StringComparison.Ordinal))
-                squadJson = content;
+            var fields = line.TrimEnd('\r').Split(' ');
+            if (fields is ["kit", var name, var descriptor])
+                kits.Add(
+                    new StagedKitDescriptor(Decode(name, sandbox), Decode(descriptor, sandbox))
+                );
+            else if (fields is ["squad", var squad])
+                squadJson = Decode(squad, sandbox);
         }
 
         return new SandboxSquadFiles(kits, squadJson);
@@ -498,13 +504,13 @@ public sealed partial class SbxClient : ISbxClient
         CancellationToken cancellationToken
     )
     {
-        var arguments = SetCustomSecretArguments(declaration);
+        var arguments = SbxCustomSecretArguments.For(declaration);
 
         if (value is null)
         {
             arguments.Add("--command");
             arguments.Add(
-                declaration.Command
+                declaration.Command?.Line
                     ?? throw new ArgumentException(
                         $"The secret '{declaration.Service}' has neither a value nor a command.",
                         nameof(value)
@@ -528,50 +534,6 @@ public sealed partial class SbxClient : ISbxClient
             cancellationToken
         );
     }
-
-    /// <summary>
-    /// The <c>sbx secret set-custom</c> command line that stores a secret from a host
-    /// command, for the user to run when abox does not run the command itself.
-    /// </summary>
-    /// <param name="declaration">The custom secret.</param>
-    /// <param name="command">The host command, or a stand-in for it.</param>
-    public static string SetCustomSecretCommandLine(SecretDeclaration declaration, string command)
-    {
-        var arguments = SetCustomSecretArguments(declaration);
-        arguments.Add("--command");
-        arguments.Add(command);
-        return string.Join(' ', [ExecutableName, .. arguments.Select(QuoteForShell)]);
-    }
-
-    private static List<string> SetCustomSecretArguments(SecretDeclaration declaration)
-    {
-        var arguments = new List<string> { "secret", "set-custom" };
-
-        foreach (var host in declaration.Hosts ?? [])
-        {
-            arguments.Add("--host");
-            arguments.Add(host);
-        }
-
-        if (declaration.EnvironmentVariable is not null)
-        {
-            arguments.Add("--env");
-            arguments.Add(declaration.EnvironmentVariable);
-        }
-
-        if (declaration.Placeholder is not null)
-        {
-            arguments.Add("--placeholder");
-            arguments.Add(declaration.Placeholder);
-        }
-
-        return arguments;
-    }
-
-    private static string QuoteForShell(string argument) =>
-        PlainShellWord().IsMatch(argument)
-            ? argument
-            : "'" + argument.Replace("'", "'\\''", StringComparison.Ordinal) + "'";
 
     /// <summary>
     /// Removes a secret from the host store. A secret of a service sbx does not know is
@@ -644,7 +606,4 @@ public sealed partial class SbxClient : ISbxClient
 
     [GeneratedRegex(@"(\d+)\.(\d+)\.(\d+)")]
     private static partial Regex VersionPattern();
-
-    [GeneratedRegex(@"^[A-Za-z0-9_./:=@%+-]+$")]
-    private static partial Regex PlainShellWord();
 }

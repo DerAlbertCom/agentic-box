@@ -83,7 +83,7 @@ sbx secret set-custom \
 ```
 
 abox treats the binding as present when a custom secret is sent to all four hosts
-under `RWE_GHE_TOKEN`. A custom secret that uses one of the hosts or
+under `RWE_GHE_TOKEN` (or under no variable). A custom secret that uses one of the hosts or
 `RWE_GHE_TOKEN` otherwise is an incompatible binding: abox reports it and does not
 replace it. Review it manually; do not delete/rebind another sandbox's
 credentials blindly. sbx checks the command when it stores the secret, so a host

@@ -10,37 +10,6 @@ namespace Abox.Credentials;
 /// </summary>
 public sealed class SecretValues(ISbxClient sbx, IConsole console)
 {
-    /// <summary>
-    /// Whether the value of a service is on the host. A service sbx does not know is
-    /// stored as a custom secret that is sent to all its hosts under its variable.
-    /// </summary>
-    public static bool IsStored(string name, SecretDeclaration? declaration, HostSecrets stored)
-    {
-        var secret = declaration ?? new SecretDeclaration(name);
-        return secret.IsCustom
-            ? stored.Custom.Any(custom => Covers(custom, secret))
-            : stored.Services.Contains(secret.Service);
-    }
-
-    /// <summary>
-    /// The stored custom secret that shares a host or the variable of a custom secret
-    /// without being its binding, so storing the secret could break the other one.
-    /// </summary>
-    public static CustomSecret? Conflict(SecretDeclaration declaration, HostSecrets stored)
-    {
-        if (!declaration.IsCustom || stored.Custom.Any(custom => Covers(custom, declaration)))
-        {
-            return null;
-        }
-
-        var hosts = declaration.Hosts ?? [];
-        return stored.Custom.FirstOrDefault(custom =>
-            custom.Targets.Any(hosts.Contains)
-            || declaration.EnvironmentVariable is not null
-                && custom.EnvironmentVariable == declaration.EnvironmentVariable
-        );
-    }
-
     /// <summary>Why a custom secret is not stored over a conflicting one.</summary>
     public static string DescribeConflict(SecretDeclaration declaration, CustomSecret conflict)
     {
@@ -49,13 +18,6 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
         return $"it conflicts with the stored custom secret for {targets} ({variable}). "
             + $"Another sandbox may need that binding: review it with 'sbx secret ls' and remove it yourself before you set '{declaration.Service}'.";
     }
-
-    private static bool Covers(CustomSecret custom, SecretDeclaration declaration) =>
-        (declaration.Hosts ?? []).All(custom.Targets.Contains)
-        && (
-            declaration.EnvironmentVariable is null
-            || custom.EnvironmentVariable == declaration.EnvironmentVariable
-        );
 
     /// <summary>
     /// Asks for the value of a secret: one value, or the parts it is built from. Returns
@@ -103,31 +65,45 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
     /// does not know. A secret with a command asks nothing; sbx runs the command. A custom
     /// secret is not stored over a conflicting one.
     /// </summary>
+    /// <param name="declaration">The secret; a withheld command is never run.</param>
+    /// <param name="stored">The secrets the host keeps.</param>
+    /// <param name="cancellationToken">Cancels the sbx calls.</param>
     public async Task<SecretSetting> SetAsync(
         SecretDeclaration declaration,
         HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
-        if (Conflict(declaration, stored) is { } conflict)
+        if (stored.ConflictWith(declaration) is { } conflict)
         {
-            return new SecretSetting(true, false, DescribeConflict(declaration, conflict));
+            return new SecretSetting(
+                SecretSettingResult.Refused,
+                DescribeConflict(declaration, conflict)
+            );
         }
 
-        if (declaration.Command is not null)
+        if (declaration.Command is { Line: { } command })
         {
             console.WriteLine(
-                $"The secret '{declaration.Service}' comes from the host command: {declaration.Command}"
+                $"The secret '{declaration.Service}' comes from the host command: {command}"
             );
             return SecretSetting.From(
                 await sbx.SetCustomSecretAsync(declaration, null, cancellationToken)
             );
         }
 
+        if (declaration.Command is not null)
+        {
+            throw new ArgumentException(
+                $"The command of the secret '{declaration.Service}' is withheld; abox never runs it.",
+                nameof(declaration)
+            );
+        }
+
         var value = Ask(declaration);
         if (string.IsNullOrEmpty(value))
         {
-            return SecretSetting.NotGiven;
+            return SecretSetting.Skipped;
         }
 
         var outcome = declaration.IsCustom
@@ -137,16 +113,34 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
     }
 }
 
+/// <summary>How setting a secret ended.</summary>
+public enum SecretSettingResult
+{
+    /// <summary>The host keeps the value now.</summary>
+    Stored,
+
+    /// <summary>No value was given, so nothing was stored.</summary>
+    Skipped,
+
+    /// <summary>A conflicting binding is stored, so the secret was not stored over it.</summary>
+    Refused,
+
+    /// <summary>sbx did not store the value.</summary>
+    Failed,
+}
+
 /// <summary>How setting a secret went.</summary>
-/// <param name="Given">Whether a value was given, a command run or a conflict found.</param>
-/// <param name="Stored">Whether the host keeps the value now.</param>
-/// <param name="Output">What sbx said.</param>
-public sealed record SecretSetting(bool Given, bool Stored, string Output)
+/// <param name="Result">How it ended.</param>
+/// <param name="Message">Why it was refused, or what sbx said.</param>
+public sealed record SecretSetting(SecretSettingResult Result, string Message)
 {
     /// <summary>Nothing was given, so nothing was stored.</summary>
-    public static SecretSetting NotGiven { get; } = new(false, false, string.Empty);
+    public static SecretSetting Skipped { get; } = new(SecretSettingResult.Skipped, string.Empty);
 
     /// <summary>The result of storing a value with sbx.</summary>
     public static SecretSetting From(SbxOutcome outcome) =>
-        new(true, outcome.Succeeded, outcome.Output.Trim());
+        new(
+            outcome.Succeeded ? SecretSettingResult.Stored : SecretSettingResult.Failed,
+            outcome.Output.Trim()
+        );
 }

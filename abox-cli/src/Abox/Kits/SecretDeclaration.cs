@@ -18,6 +18,19 @@ public enum SecretEncoding
 }
 
 /// <summary>
+/// A host command whose output is the value of a secret, so nobody is asked for it.
+/// </summary>
+/// <param name="Line">
+/// The command, or null when it is withheld: the squad metadata of a sandbox marks a
+/// command-backed secret but never carries its command.
+/// </param>
+public sealed record HostCommand(string? Line)
+{
+    /// <summary>A command the declaration does not carry.</summary>
+    public static HostCommand Withheld { get; } = new((string?)null);
+}
+
+/// <summary>
 /// One part of a secret that is built from several inputs.
 /// </summary>
 /// <param name="Name">The name of the part.</param>
@@ -36,10 +49,6 @@ public sealed record SecretInput(string Name, string? Prompt);
 /// <param name="EnvironmentVariable">The variable the agents read, for a service sbx does not know.</param>
 /// <param name="Command">The host command whose output is the value; nobody is asked for it.</param>
 /// <param name="Placeholder">The value the agents see instead of the secret, for a service sbx does not know.</param>
-/// <param name="CommandWithheld">
-/// Whether the value comes from a host command this declaration does not carry. The squad
-/// metadata of a sandbox marks such a secret but never holds its command.
-/// </param>
 public sealed record SecretDeclaration(
     string Service,
     string? Prompt = null,
@@ -48,9 +57,8 @@ public sealed record SecretDeclaration(
     SecretEncoding Encoding = SecretEncoding.Plain,
     IReadOnlyList<string>? Hosts = null,
     string? EnvironmentVariable = null,
-    string? Command = null,
-    string? Placeholder = null,
-    bool CommandWithheld = false
+    HostCommand? Command = null,
+    string? Placeholder = null
 )
 {
     /// <summary>The first host of a service sbx does not know; it names the secret.</summary>

@@ -396,6 +396,71 @@ public sealed class BuildServiceTests
         );
     }
 
+    [Fact]
+    public async Task TheBundledSecretsReadBackFromASandboxAsTheDeclarationsOfTheChainWithoutCommands()
+    {
+        // Arrange
+        _root.File(
+            "teams/sample/ac.abox",
+            """
+            workload: sample
+            secrets:
+              - github
+              - service: database
+                inputs:
+                  - name: user
+                    prompt: The database user
+                  - name: password
+                separator: "/"
+                encoding: base64
+              - service: rwe-ghec
+                host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com]
+                env: RWE_GHE_TOKEN
+                command: print-synthetic-token --raw
+                placeholder: gho_{rand}
+            """
+        );
+        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var json = File.ReadAllText(Path.Combine(build.ConfigurationMixinDirectory!, "squad.json"));
+
+        // Act
+        var metadata = Abox.Credentials.SandboxSquadMetadata.Read(
+            "sample-sandbox",
+            new SandboxSquadFiles([], json)
+        );
+
+        // Assert
+        metadata.HasDeclarations.Should().BeTrue();
+        metadata
+            .Secrets.Should()
+            .BeEquivalentTo(
+                new[]
+                {
+                    new SecretDeclaration("github", Inputs: []),
+                    new SecretDeclaration(
+                        "database",
+                        Inputs:
+                        [
+                            new SecretInput("user", "The database user"),
+                            new SecretInput("password", null),
+                        ],
+                        Separator: "/",
+                        Encoding: SecretEncoding.Base64
+                    ),
+                    new SecretDeclaration(
+                        "rwe-ghec",
+                        Inputs: [],
+                        Hosts: ["copilot-api.rwe.ghe.com", "api.rwe.ghe.com"],
+                        EnvironmentVariable: "RWE_GHE_TOKEN",
+                        Command: HostCommand.Withheld,
+                        Placeholder: "gho_{rand}"
+                    ),
+                },
+                options => options.WithStrictOrdering()
+            );
+    }
+
     private JsonElement BundledSquadMetadata()
     {
         var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
