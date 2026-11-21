@@ -7,5 +7,5 @@ staged="$(cd "$1" && pwd)"
 repo="$(cd ../.. && pwd)"
 
 mkdir -p "$staged/files/home/.local/bin"
-cp "$repo/sbox-cli/launcher/sbox" "$staged/files/home/.local/bin/sbox"
-"$repo/sbox-cli/bundle" sbox-cli/src/main.ts "$staged/files/home/.local/share/sbox/sbox.js"
+cp "$repo/sbox-cli/sbox/launcher/sbox" "$staged/files/home/.local/bin/sbox"
+"$repo/sbox-cli/bundle" sbox/src/main.ts "$staged/files/home/.local/share/sbox/sbox.js"

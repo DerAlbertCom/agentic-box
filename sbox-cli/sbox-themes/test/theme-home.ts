@@ -2,7 +2,7 @@ import { afterEach, beforeEach } from "bun:test";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sbox } from "../../sbox-cli/src/sbox";
+import { sbox } from "../../sbox/src/sbox";
 
 class Capture {
   constructor(readonly isTTY = false) {}
@@ -15,7 +15,7 @@ class Capture {
 const packageFolder = join(import.meta.dir, "..");
 
 /**
- * A temporary home for each test with the theme command installed by `install`. Fakes of the
+ * A temporary home for each test with the themes command installed by `install`. Fakes of the
  * tools the apps run are first on PATH: `bat` logs its arguments to `~/bat.log` and copies the
  * bat themes it finds to `~/bat.cache`.
  */
@@ -36,8 +36,8 @@ export function useThemeHome() {
     await rm(home, { recursive: true, force: true });
   });
 
-  const data = () => join(home, ".local/share/sbox/commands/theme");
-  const state = () => join(home, ".local/state/sbox/theme");
+  const data = () => join(home, ".local/share/sbox/commands/themes");
+  const state = () => join(home, ".local/state/sbox/themes");
   const tools = () => join(home, ".fake-tools");
   const homeFile = (path: string) => readFile(join(home, path), "utf8");
 
@@ -47,7 +47,7 @@ export function useThemeHome() {
     },
 
     /**
-     * Installs the theme command with the palettes and app templates of this package, or with
+     * Installs the themes command with the palettes and app templates of this package, or with
      * the given ones: files by their path in the command's data folder.
      */
     async install(files?: Record<string, string>) {
@@ -72,11 +72,11 @@ export function useThemeHome() {
       await writeFile(join(state(), "current"), theme + "\n");
     },
 
-    /** Runs `sbox theme`; with `tty` its stdin and stdout are terminals. */
+    /** Runs `sbox themes`; with `tty` its stdin and stdout are terminals. */
     async run(args: string[], env: Record<string, string> = {}, options: { tty?: boolean } = {}) {
       const stdout = new Capture(options.tty);
       const stderr = new Capture();
-      const code = await sbox(["theme", ...args], {
+      const code = await sbox(["themes", ...args], {
         env: { HOME: home, PATH: `${tools()}:${process.env.PATH ?? ""}`, ...env },
         stdout,
         stderr,

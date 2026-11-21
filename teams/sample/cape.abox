@@ -3,7 +3,7 @@
 # Only the root configuration declares a workload. Every squad inherits from it.
 workload: sample
 
-# sbox, the command line inside the sandbox, with its theme command.
+# sbox, the command line inside the sandbox, with its themes command.
 kits:
   - sbox
   - themes

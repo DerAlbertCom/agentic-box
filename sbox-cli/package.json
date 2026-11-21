@@ -1,8 +1,14 @@
 {
-  "name": "sbox-cli",
+  "name": "agentic-box",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/api.ts"
+  "workspaces": ["sbox", "sbox-*"],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "typescript": "5.9.3"
   }
 }

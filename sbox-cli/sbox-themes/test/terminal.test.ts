@@ -88,7 +88,7 @@ describe("the terminal color script", () => {
 const terminalTheme = { SBOX_TERMINAL_THEME: "1" };
 const switched = (name: string) => `Switched to the theme '${name}'. Some apps show it only after a restart.\n`;
 
-describe("sbox theme <name> and the terminal colors", () => {
+describe("sbox themes <name> and the terminal colors", () => {
   test("recolors the terminal with SBOX_TERMINAL_THEME=1", async () => {
     // Arrange
     await home.install();
@@ -143,7 +143,7 @@ describe("sbox theme <name> and the terminal colors", () => {
   });
 });
 
-describe("sbox theme --apply, --list, --current and --preview", () => {
+describe("sbox themes --apply, --list, --current and --preview", () => {
   test("never recolor the terminal", async () => {
     // Arrange
     await home.install();

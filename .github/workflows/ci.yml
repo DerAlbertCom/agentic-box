@@ -12,6 +12,9 @@ jobs:
   sbox:
     name: sbox (Bun)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sbox-cli
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2

@@ -5,7 +5,7 @@ import { useThemeHome } from "./theme-home";
 
 const home = useThemeHome();
 
-describe("sbox theme <name> for OpenCode", () => {
+describe("sbox themes <name> for OpenCode", () => {
   test("renders the OpenCode theme sbox from the palette and selects it", async () => {
     // Arrange
     await home.install();
@@ -60,7 +60,7 @@ describe("sbox theme <name> for OpenCode", () => {
   });
 });
 
-describe("sbox theme <name> for Claude Code", () => {
+describe("sbox themes <name> for Claude Code", () => {
   test("renders the Claude Code theme sbox from the palette and selects it", async () => {
     // Arrange
     await home.install();
@@ -113,7 +113,7 @@ describe("sbox theme <name> for Claude Code", () => {
 });
 
 
-describe("sbox theme <name> for pi", () => {
+describe("sbox themes <name> for pi", () => {
   test("renders the pi theme sbox from the palette and selects it", async () => {
     // Arrange
     await home.install();
@@ -164,7 +164,7 @@ describe("sbox theme <name> for pi", () => {
 });
 
 
-describe("sbox theme <name> for the terminal tools", () => {
+describe("sbox themes <name> for the terminal tools", () => {
   test("renders the bat theme sbox and rebuilds bat's cache with it, leaving bat's config to the user", async () => {
     // Arrange
     await home.install();
@@ -349,7 +349,7 @@ describe("app templates", () => {
     // Assert
     expect(result.code).toBe(1);
     expect(result.stderr).toBe(
-      "sbox theme: probe: 'echo broken >&2; exit 3' failed with exit code 3:\nbroken\n",
+      "sbox themes: probe: 'echo broken >&2; exit 3' failed with exit code 3:\nbroken\n",
     );
     expect(await home.file("probe.txt")).toStartWith("mode=dark\n");
   });
@@ -387,6 +387,6 @@ describe("app templates", () => {
 
     // Assert
     expect(result.code).toBe(1);
-    expect(result.stderr).toStartWith("sbox theme: probe/probe.liquid: undefined variable: foreground");
+    expect(result.stderr).toStartWith("sbox themes: probe/probe.liquid: undefined variable: foreground");
   });
 });

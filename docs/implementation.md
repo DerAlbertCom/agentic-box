@@ -1259,15 +1259,18 @@ abox-cli/src/Abox/
 ```
 
 ```
-sbox-cli/           sbox, the command line inside the sandbox (TypeScript on Bun)
+sbox-cli/           the Bun workspace of sbox, the command line inside the sandbox
+  package.json      the workspace: sbox and every sbox-<command> package
+  bundle            bundles a workspace module with the pinned Bun in a container
+
+sbox-cli/sbox/      the core of sbox (TypeScript on Bun)
   src/api.ts        the command API that command kits import type-only
   src/sbox.ts       the core: options, help, routing to the commands folder
   src/main.ts       the bundle entry: process arguments, environment and streams;
                     a closed stdout pipe ends sbox quietly
   launcher/sbox     the launcher on PATH; finds Bun through the mise shims
-  bundle            bundles a workspace module with the pinned Bun in a container
 
-sbox-themes/        the theme command of sbox, installed by the themes kit
+sbox-cli/sbox-themes/  the themes command of sbox, installed by the themes kit
   src/command.ts    the command: options, theme resolution, the saved choice
   src/palette.ts    colors.toml and upstream's fallbacks; mix
   src/apps.ts       app.yaml, the Liquid templates and their filters, settings, run
