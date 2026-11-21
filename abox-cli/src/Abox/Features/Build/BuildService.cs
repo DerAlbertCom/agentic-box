@@ -90,6 +90,12 @@ public sealed class BuildService(
         var kits = await kitBuildStep.BuildAsync(squad.Kits, buildDirectory, cancellationToken);
         var manifest = Manifest(team.Name, squad, kits, request, workloadDirectory, stateDirectory);
         manifest.IncludesPersonalConfigurations = personalFiles.Count > 0;
+        manifest.ConfigurationMixinDirectory = SquadConfigurationMixin.Generate(
+            team.Name,
+            manifest,
+            squad.Secrets,
+            Path.Combine(buildDirectory, SquadConfigurationMixin.MixinName)
+        );
         if (!request.IncludePersonalConfigurations)
         {
             manifest.SourceHashes = BuildSources.Capture(manifest);

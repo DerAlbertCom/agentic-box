@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Abox.Configuration;
 using Abox.Features.Build;
 using Abox.Infrastructure;
@@ -246,6 +247,127 @@ public sealed class BuildServiceTests
 
     private BuildRequest Request() =>
         new([_resolver.ResolveTeam(_root.Path, "sample")], _root.Path, "latest");
+
+    [Fact]
+    public async Task TheConfigurationMixinCarriesTheSecretDeclarationsOfTheChain()
+    {
+        // Arrange
+        _root.File(
+            "teams/sample/ac.abox",
+            """
+            base: shared
+            secrets:
+              - service: elastic
+                prompt: The API key for Elastic
+                host: [elastic.example.com, kibana.example.com]
+                env: ELASTIC_API_KEY
+              - service: database
+                inputs:
+                  - name: user
+                    prompt: The database user
+                  - name: password
+                separator: "/"
+                encoding: base64
+            """
+        );
+        _root.File("teams/sample/shared.abox", "workload: sample\nsecrets: [github]\n");
+        _root.File("config/personal.abox", "secrets:\n  - service: private\n    prompt: Mine\n");
+
+        // Act
+        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+
+        // Assert
+        var metadata = BundledSquadMetadata();
+        AssertJson(
+            metadata.GetProperty("Secrets"),
+            """
+            [
+              {"Service": "github", "Prompt": null, "Hosts": [], "Env": null, "Inputs": [], "Separator": ":", "Encoding": "plain"},
+              {
+                "Service": "elastic",
+                "Prompt": "The API key for Elastic",
+                "Hosts": ["elastic.example.com", "kibana.example.com"],
+                "Env": "ELASTIC_API_KEY",
+                "Inputs": [],
+                "Separator": ":",
+                "Encoding": "plain"
+              },
+              {
+                "Service": "database",
+                "Prompt": null,
+                "Hosts": [],
+                "Env": null,
+                "Inputs": [{"Name": "user", "Prompt": "The database user"}, {"Name": "password", "Prompt": null}],
+                "Separator": "/",
+                "Encoding": "base64"
+              },
+              {"Service": "private", "Prompt": "Mine", "Hosts": [], "Env": null, "Inputs": [], "Separator": ":", "Encoding": "plain"}
+            ]
+            """
+        );
+        metadata.GetProperty("SchemaVersion").GetInt32().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AMetadataOnlyBuildOfASquadWithoutSecretsBundlesAnEmptySecretsList()
+    {
+        // Arrange: the fixture's squad declares no secrets.
+        // Act
+        await _service.BuildAsync(
+            Request() with
+            {
+                IncludePersonalConfigurations = false,
+                MetadataOnly = true,
+            },
+            CancellationToken.None
+        );
+
+        // Assert
+        var metadata = BundledSquadMetadata();
+        metadata.GetProperty("Secrets").GetArrayLength().Should().Be(0);
+        metadata.GetProperty("Team").GetString().Should().Be("sample");
+        metadata.GetProperty("Squad").GetString().Should().Be("ac");
+    }
+
+    [Fact]
+    public async Task TheConfigurationMixinNeverCarriesTheHostCommandOfASecret()
+    {
+        // Arrange
+        _root.File(
+            "teams/sample/ac.abox",
+            """
+            workload: sample
+            secrets:
+              - service: token
+                host: api.example.com
+                command: print-synthetic-token --raw
+            """
+        );
+
+        // Act
+        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+
+        // Assert
+        var metadata = BundledSquadMetadata();
+        metadata.GetProperty("Secrets")[0].GetProperty("Service").GetString().Should().Be("token");
+        metadata.GetRawText().Should().NotContain("print-synthetic-token");
+    }
+
+    private JsonElement BundledSquadMetadata()
+    {
+        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var json = File.ReadAllText(Path.Combine(build.ConfigurationMixinDirectory!, "squad.json"));
+        return JsonDocument.Parse(json).RootElement.Clone();
+    }
+
+    private static void AssertJson(JsonElement actual, string expectedJson)
+    {
+        using var expected = JsonDocument.Parse(expectedJson);
+        JsonElement
+            .DeepEquals(actual, expected.RootElement)
+            .Should()
+            .BeTrue("expected {0}, but found {1}", expectedJson, actual.GetRawText());
+    }
 
     [Fact]
     public async Task NoVerifyStillPrebuildsTheWorkloadAndRecordsItsContentIdentity()

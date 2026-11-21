@@ -80,11 +80,20 @@ does not skip the workload image build.
    The original generated sources remain unchanged for publication. The versioned
    runtime directory keeps an unsuccessful rebuild from overwriting the previous
    build's runtime kit.
-11. Writes the manifest of the build: `build.json` in the build directory. It records
+11. Writes the squad configuration mixin `config/` in the build directory:
+   `squad.json` (see [the artifact format](artifact-format.md)), a declaration-only
+   `config.yaml` and a `config.dockerfile` that copies it to
+   `/usr/share/abox/squad.json`. `squad.json` carries the resolved `secrets`
+   declarations of the chain, including personal additions on local builds, as
+   `Secrets`: service, prompt, hosts, environment variable, inputs, separator and
+   encoding, never values or host commands. `create --local` passes this mixin to
+   sbx, and `publish` pushes it, so local and published sandboxes carry the same
+   metadata. This also runs with `--metadata-only`.
+12. Writes the manifest of the build: `build.json` in the build directory. It records
    whether personal configuration was included and the resolved workload's
    `publishRepository`. Only `--no-personal` builds capture SHA-256 fingerprints of
    configuration files (including the `.workload`) and local source trees (including
-   generated workload/state kits), checking them before and after verification and
+   generated workload/state/configuration kits), checking them before and after verification and
    image building. `LocalWorkload` records the unique tag, image content ID,
    Docker context, runtime kit directory and its fingerprint on image builds.
 
@@ -122,7 +131,7 @@ request to fall back to `latest`. Valid explicit tags can override invalid defau
 Published reference naming and tag promotion are unchanged.
 
 **Metadata-only preparation:** `--metadata-only` resolves configurations, writes
-generated workload/state sources and saves the manifest, but skips sbx preflight,
+generated workload/state/configuration sources and saves the manifest, but skips sbx preflight,
 all kit inspection and all Docker/Buildx/image operations. `LocalWorkload` is
 always null. No sbx or Docker installation/daemon/authentication is required for
 this maintainer preparation by abox itself; kit build steps still run, and their
@@ -171,10 +180,13 @@ because it has no source fingerprints.
    supplied `buildArg`/`buildSecret` arguments are explicitly unsupported and fail
    before the first push. Arguments are fixed only in the set's `kits[].args`,
    never duplicated as Buildx build arguments.
-4. Adds a small configuration mixin containing `/usr/share/abox/squad.json`: the
-   resolved team, squad, tag, build timestamp, kit names/arguments, MCP declarations
-   and state declarations. Host source paths, raw `.abox` files and secret values
-   are not included. Do not put credentials in kit arguments; use host secrets.
+4. Pushes the build's squad configuration mixin containing
+   `/usr/share/abox/squad.json`: the resolved team, squad, tag, build timestamp, kit
+   names/arguments, MCP declarations, state declarations and secret declarations
+   (`Secrets`). Publish does not write its own; a build without the mixin must be
+   rebuilt. Host source paths, raw `.abox` files, build provenance, host commands
+   and secret values are not included. Do not put credentials in kit arguments or
+   secret prompts; use host secrets.
 5. Publishes a `kind: set` descriptor listing those references and their resolved
    kit arguments. The frontend pins the references by digest and merges their
    layers/declarations into one ordinary workload kit, without flattening the layers.
@@ -1150,6 +1162,7 @@ abox-cli/src/Abox/
     BuildStore.cs
     LocalWorkloadImages.cs
     PersonalConfigurations.cs
+    SquadConfigurationMixin.cs  the squad.json allowlist and its mixin, for local create and publish
     SandboxRecord.cs
     SandboxRecordStore.cs
   Launchers/        one class per launcher

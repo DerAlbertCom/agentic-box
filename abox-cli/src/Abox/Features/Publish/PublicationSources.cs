@@ -75,6 +75,12 @@ internal sealed class PublicationSources(BuildStore store)
             Descriptor(kit.Reference);
         if (build.StateMixinDirectory is { } state)
             Descriptor(state);
+        Descriptor(
+            build.ConfigurationMixinDirectory
+                ?? throw new AboxException(
+                    $"The local build '{squad}:{tag}' has no squad configuration mixin. Run 'abox build --team {team} --tag {tag} --no-personal' again before publishing."
+                )
+        );
         BuildSources.EnsureUnchanged(build);
         return build;
     }

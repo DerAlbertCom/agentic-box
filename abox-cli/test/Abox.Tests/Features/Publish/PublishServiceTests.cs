@@ -533,19 +533,10 @@ public sealed class PublishServiceTests
         await _service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        // The syntax header is literal LF; indented JSON uses the platform newline.
-        _descriptors[^2]
-            .Should()
-            .Be(
-                "# syntax=docker/sandbox-kit:3\n"
-                    + """
-                    {
-                      "schemaVersion": "3",
-                      "kind": "mixin",
-                      "build": "FROM scratch\nCOPY squad.json /usr/share/abox/squad.json\n"
-                    }
-                    """.ReplaceLineEndings(Environment.NewLine)
-            );
+        var descriptor = YamlReader.Parse(_descriptors[^2], "config");
+        descriptor.GetString("schemaVersion").Should().Be("3");
+        descriptor.GetString("kind").Should().Be("mixin");
+        _configurations.Should().ContainSingle();
     }
 
     [Fact]
@@ -575,7 +566,8 @@ public sealed class PublishServiceTests
               "CreatedAt": "2026-01-02T03:04:05+00:00",
               "Mcp": [{"Name": "host-server", "Url": null}],
               "State": [],
-              "Kits": [{"Name": "tool", "Arguments": {}}]
+              "Kits": [{"Name": "tool", "Arguments": {}}],
+              "Secrets": []
             }
             """
         );
@@ -584,6 +576,67 @@ public sealed class PublishServiceTests
             .Should()
             .NotContain(_root.Path)
             .And.NotContain("synthetic-private-value");
+    }
+
+    [Fact]
+    public async Task PublicationPushesTheConfigurationMixinOfTheBuildWithItsSecretDeclarations()
+    {
+        // Arrange
+        SaveBuild("ac");
+        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        PublicationBuilds.SaveVerified(
+            _store,
+            build,
+            [
+                new SecretDeclaration(
+                    "elastic",
+                    "The API key for Elastic",
+                    Hosts: ["elastic.example.com"],
+                    EnvironmentVariable: "ELASTIC_API_KEY"
+                ),
+            ]
+        );
+
+        // Act
+        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+
+        // Assert
+        using var actual = JsonDocument.Parse(_configurations.Single());
+        actual.RootElement.GetProperty("SchemaVersion").GetInt32().Should().Be(1);
+        AssertPublicJson(
+            actual.RootElement.GetProperty("Secrets"),
+            """
+            [{
+              "Service": "elastic",
+              "Prompt": "The API key for Elastic",
+              "Hosts": ["elastic.example.com"],
+              "Env": "ELASTIC_API_KEY",
+              "Inputs": [],
+              "Separator": ":",
+              "Encoding": "plain"
+            }]
+            """
+        );
+    }
+
+    [Fact]
+    public async Task BuildsWithoutAConfigurationMixinMustBeRebuilt()
+    {
+        // Arrange
+        SaveBuild("ac");
+        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        build.ConfigurationMixinDirectory = null;
+        build.SourceHashes = BuildSources.Capture(build);
+        _store.Save(build);
+
+        // Act
+        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+
+        // Assert
+        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
+            "*no squad configuration mixin*abox build --team sample --tag latest --no-personal*"
+        );
+        _calls.Should().BeEmpty();
     }
 
     [Fact]

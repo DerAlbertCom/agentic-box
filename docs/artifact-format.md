@@ -61,8 +61,21 @@ sbx by immutable platform digest so metadata and declarations cannot drift with
 a moving tag. No workload is built and no registry is written.
 
 The bundled `/usr/share/abox/squad.json` contains `SchemaVersion: 1`, `Team`,
-`Squad`, `Tag`, `CreatedAt`, `Mcp`, `State`, and informational `Kits`. The original
-publisher's identical format without `SchemaVersion` is also accepted as version 1.
+`Squad`, `Tag`, `CreatedAt`, `Mcp`, `State`, informational `Kits` and `Secrets`.
+`Secrets` holds the resolved `secrets` declarations of the squad chain, each with
+`Service`, `Prompt`, `Hosts`, `Env`, `Inputs` (`Name`, `Prompt`), `Separator` and
+`Encoding` (`plain` or `base64`). It holds declarations only, never values or host
+commands; anyone who can read the set can read it, so prompts must not be
+confidential. `Secrets` is additive and optional: the schema stays at version 1,
+remote create accepts metadata with and without it, and older abox versions ignore
+it. The original publisher's identical format without `SchemaVersion` is also
+accepted as version 1.
+
+`abox build` generates this configuration mixin (`config/` in the build directory:
+`squad.json`, a declaration-only `config.yaml` and a `config.dockerfile` copying the
+file into place) for normal and `--metadata-only` builds. `abox create --local`
+passes it as an additional kit, so local sandboxes carry `squad.json` too, and
+`abox publish` pushes the same mixin as `/components/config`.
 Identity, required fields and [portable canonical state paths and non-overlapping host mappings](authoring.md#state)
 are checked with the same rules as local creation; every mount must have
 an exact host-mount declaration in the processed set. Missing or incompatible
