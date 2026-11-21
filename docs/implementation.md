@@ -256,7 +256,7 @@ legacy `spec.yaml` packager does not understand these v3 descriptors; see
 ### Shared existing-sandbox resolution (#10)
 
 `Sandboxes/FolderSandbox` is the single location-to-existing-sandbox rule ("this
-folder's Sandbox") for run, on-demand user secrets, ports and create/replacement checks.
+folder's Sandbox") for run, on-demand user secrets, ports, secrets and create/replacement checks.
 `FindAsync(location, token)` lists sandboxes through sbx once and matches every
 candidate name against that list. It returns the actual `SandboxInfo` or null: current
 `SandboxName.For` first (also without an optional trailing directory separator on
@@ -379,7 +379,8 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
    `apiKey.inject[].domain`. On a terminal it asks for a missing value of a declared
    service (as `abox secrets set` does) and for each missing approval; an approval
    merges the domains into the file and keeps every other entry. Without a terminal
-   it warns, with `abox secrets set` commands for missing values. The check never
+   it warns, with `abox secrets set --location "<folder>" --service <name>` commands
+   for missing values. The check never
    fails the create: a broken bindings file or squad source is a warning.
    The state directories on the host are kept: the name of the sandbox does not change.
 5. Passes one `--mount` per state directory under `<state dir>/<sandbox>/` on the host.
@@ -547,18 +548,41 @@ singular-error status is not readiness. Configuration diagnostics in a valid
 for the intentional hardening and
 bounded startup/cancellation behavior.
 
-### `abox secrets list|set|remove [--team <name>] --squad <name> [--root <dir>]`
+### `abox secrets list|set|remove [--location <path>]`
 
 The kits of a squad ask for a service with the `credential@1` capability. The `secrets`
 section of the configuration says how the value of that service is obtained. abox keeps
 the values on the host, through `sbx secret`, so they never enter a sandbox.
-The team defaults to the user setting `defaultTeam` when `--team` is omitted.
-All three subcommands accept `--root` to select the starting directory for team
-source discovery. Only `set` and `remove` accept repeatable `--service <name>`.
+The command works on the existing sandbox of a folder (`--location`, then
+`defaultLocation`, then the current folder), found with `Sandboxes/FolderSandbox`;
+without one it fails with the create-recovery hint ("secrets never creates or
+replaces one") and calls no secret operation. It runs runtime preflight and needs no
+team sources: the slice does not use `SquadResolver`. Only `set` and `remove` accept
+repeatable `--service <name>`.
 
-- `list` shows the services the local kits ask for, the kits that ask for them, and
-  whether the value is stored on the host. Registry kit descriptors are not inspected.
-- `set` asks for the values and stores them. The value goes through the standard input
+`ISbxClient.ReadSquadFilesAsync` reads, in one `sbx exec <sandbox> sh -c <script>`
+(arguments as a list; `sbx exec` starts a stopped sandbox), every
+`/usr/share/sandbox/kit/*/kit.yaml` with its kit folder name and
+`/usr/share/abox/squad.json` when present. Each file travels base64 encoded on its own
+line, so no content can break the framing; the wrapper returns the raw texts.
+`Credentials/SandboxSquadMetadata` turns them into credential requests and secret
+declarations: descriptors are parsed with `KitDescriptor.Parse` (the same
+`credential@1` extraction as for a kit directory, including `apiKey.inject` domains)
+and merged with `CredentialRequest.Merge`, the merge the create-time check uses for
+local kits, so both agree. `Secrets` entries become `SecretDeclaration`s with the
+same encoding validation as `.abox` files; a missing service or input name, an
+unknown encoding, a duplicate service or invalid JSON fails with a message naming the
+sandbox and suggesting a rebuild or republish. A missing `squad.json` or `Secrets`
+means no declarations (an older sandbox).
+
+- `list` shows the services the staged kits ask for and the declared ones, the kits
+  that ask for them, whether they are required or optional, and whether the value is
+  stored on the host. A requested service without a declaration is `not declared`.
+- `set` asks for the declared services, or the named ones, and stores them. A
+  declared service no kit asks for gets a note; an undeclared service a kit asks for
+  uses the default prompt; an undeclared service no kit asks for fails. Older
+  sandboxes print a hint to recreate the sandbox from a current build or publication.
+  The value goes through the standard input
   of sbx as explicit UTF-8 without a BOM or added newline, preserving non-ASCII service
   and custom secrets independently of the console code page. It stays out of process
   arguments, environment settings and shell history. Normal redacted diagnostics remain
@@ -1151,8 +1175,10 @@ abox-cli/src/Abox/
                     endpoint override generation and runtime copy flow
   ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
   Https/            shared host certificate preparation and sandbox HTTPS activation
-  Credentials/      shared kit credential requests, secret value prompting/storing
-                    (used by abox secrets) and the create-time credential check
+  Credentials/      shared kit credential requests and their merge, the sandbox
+                    squad-metadata model (staged descriptors and squad.json Secrets),
+                    secret value prompting/storing (used by abox secrets) and the
+                    create-time credential check
   Kits/             the .abox and .workload files, the chain, the kit generators
     McpDeclaration.cs      shared MCP name and HTTP(S) URL validation
     YamlScalar.cs          shared generated-YAML scalar quoting, including supplementary Unicode
@@ -1187,6 +1213,7 @@ abox-cli/src/Abox/
     SbxUserSecrets.cs              secret transport and network-policy operations
     SbxKitSources.cs               repository-scoped kit-source trust settings
     SbxCredentialBindings.cs       reads and merges the approvals in sbx's credentials.yaml
+    SandboxSquadFiles.cs           raw staged kit descriptors and squad.json of a sandbox
     PullPolicy.cs                 closed pull choices, mapped to flags by the wrapper
   Health/           runtime preflight for sandbox commands, secrets and normal builds;
                     checks the queried sbx version against the required minimum

@@ -54,6 +54,19 @@ public sealed record SecretDeclaration(
     /// <summary>Whether the secret is one sbx does not know.</summary>
     public bool IsCustom => Host is not null || EnvironmentVariable is not null;
 
+    /// <summary>Reads the name of an encoding; a missing name is plain.</summary>
+    /// <param name="value">The name, such as <c>base64</c>.</param>
+    /// <param name="source">Where the name comes from, for the message.</param>
+    public static SecretEncoding ParseEncoding(string? value, string source) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            null or "" or "plain" => SecretEncoding.Plain,
+            "base64" => SecretEncoding.Base64,
+            _ => throw new AboxException(
+                $"'{source}': '{value}' is not a known encoding. Known encodings: plain, base64."
+            ),
+        };
+
     internal (SecretIdentityKind Kind, string Value) Identity =>
         Host is not null ? (SecretIdentityKind.Host, Host)
         : EnvironmentVariable is not null

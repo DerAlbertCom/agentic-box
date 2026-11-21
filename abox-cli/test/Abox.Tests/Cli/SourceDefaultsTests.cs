@@ -13,9 +13,6 @@ public sealed class SourceDefaultsTests
     [InlineData("build")]
     [InlineData("publish")]
     [InlineData("create")]
-    [InlineData("secrets", "list", "--squad", "ac")]
-    [InlineData("secrets", "set", "--squad", "ac")]
-    [InlineData("secrets", "remove", "--squad", "ac")]
     public async Task MissingTeamsHaveTheSameDiagnosticWithoutRequiringExternalTools(
         params string[] arguments
     )

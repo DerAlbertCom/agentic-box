@@ -312,6 +312,68 @@ public sealed partial class SbxClient : ISbxClient
         return result.ExitCode;
     }
 
+    /// <summary>
+    /// Reads the staged kit descriptors and the bundled squad metadata in one exec. Each
+    /// file is printed base64 encoded on its own line, so no content can break the framing.
+    /// </summary>
+    public async Task<SandboxSquadFiles> ReadSquadFilesAsync(
+        string sandbox,
+        CancellationToken cancellationToken
+    )
+    {
+        const string script = """
+            for descriptor in /usr/share/sandbox/kit/*/kit.yaml; do
+              [ -f "$descriptor" ] || continue
+              kit=${descriptor%/kit.yaml}
+              printf 'kit %s ' "${kit##*/}"
+              base64 < "$descriptor" | tr -d '\n'
+              printf '\n'
+            done
+            if [ -f /usr/share/abox/squad.json ]; then
+              printf 'squad '
+              base64 < /usr/share/abox/squad.json | tr -d '\n'
+              printf '\n'
+            fi
+            """;
+        var result = await _invoker.RunOrThrowAsync(
+            new ProcessRequest(ExecutableName, ["exec", sandbox, "sh", "-c", script]),
+            $"sbx exec {sandbox}",
+            cancellationToken
+        );
+
+        var kits = new List<StagedKitDescriptor>();
+        string? squadJson = null;
+        foreach (var line in result.StandardOutput.Split('\n'))
+        {
+            var text = line.TrimEnd('\r');
+            var separator = text.LastIndexOf(' ');
+            if (separator < 0)
+                continue;
+            var content = Decode(text[(separator + 1)..], sandbox);
+            if (text.StartsWith("kit ", StringComparison.Ordinal) && separator > 4)
+                kits.Add(new StagedKitDescriptor(text[4..separator], content));
+            else if (text.StartsWith("squad ", StringComparison.Ordinal))
+                squadJson = content;
+        }
+
+        return new SandboxSquadFiles(kits, squadJson);
+    }
+
+    private static string Decode(string base64, string sandbox)
+    {
+        try
+        {
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(base64));
+        }
+        catch (FormatException exception)
+        {
+            throw new AboxException(
+                $"Cannot read the squad metadata of the sandbox '{sandbox}': the output of 'sbx exec' is garbled.",
+                exception
+            );
+        }
+    }
+
     /// <summary>Whether a command exists inside a sandbox.</summary>
     public async Task<bool> HasProgramAsync(
         string sandbox,
