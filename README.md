@@ -179,6 +179,7 @@ Only store IDs, key names/counts and safe recovery messages are reported.
 │   └── sample/
 │       ├── ac.abox            the squad: its kits, its parameters, its state, its secrets
 │       ├── cape.abox          the base of the squads of the team
+│       ├── secrets.abox       a squad with dummy secrets, to try abox secrets
 │       └── sample.workload    the workload: the template, the tools, the scripts
 ├── kits/
 │   ├── pi-config/             a kit
