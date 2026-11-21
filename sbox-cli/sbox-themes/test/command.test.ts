@@ -3,7 +3,7 @@ import { useThemeHome } from "./theme-home";
 
 const home = useThemeHome();
 
-describe("sbox theme <name>", () => {
+describe("sbox themes <name>", () => {
   test("saves the choice and tells that some apps show it only after a restart", async () => {
     // Arrange
     await home.install();
@@ -13,7 +13,7 @@ describe("sbox theme <name>", () => {
 
     // Assert
     expect(result.code).toBe(0);
-    expect(await home.file(".local/state/sbox/theme/current")).toBe("nord\n");
+    expect(await home.file(".local/state/sbox/themes/current")).toBe("nord\n");
     expect(result.stdout).toBe("Switched to the theme 'nord'. Some apps show it only after a restart.\n");
   });
 
@@ -28,15 +28,15 @@ describe("sbox theme <name>", () => {
     // Assert
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toStartWith("sbox theme: there is no theme 'tokio-night'. The themes are:\n");
+    expect(result.stderr).toStartWith("sbox themes: there is no theme 'tokio-night'. The themes are:\n");
     expect(result.stderr).toContain("\n  osaka-jade\n");
     expect(result.stderr).toContain("\n  tokyo-night\n");
-    expect(await home.file(".local/state/sbox/theme/current")).toBe("nord\n");
+    expect(await home.file(".local/state/sbox/themes/current")).toBe("nord\n");
     expect(await home.exists(".config/opencode/themes/sbox.json")).toBe(false);
   });
 });
 
-describe("sbox theme --list", () => {
+describe("sbox themes --list", () => {
   test("lists the themes with the current one marked", async () => {
     // Arrange
     await home.install();
@@ -54,7 +54,7 @@ describe("sbox theme --list", () => {
     expect(lines.filter((line) => line.startsWith("*"))).toEqual(["* nord"]);
   });
 
-  test("is what sbox theme does without a name", async () => {
+  test("is what sbox themes does without a name", async () => {
     // Arrange
     await home.install();
 
@@ -69,7 +69,7 @@ describe("sbox theme --list", () => {
 });
 
 
-describe("sbox theme --current and --apply", () => {
+describe("sbox themes --current and --apply", () => {
   test("use the saved choice first", async () => {
     // Arrange
     await home.install();
@@ -124,7 +124,7 @@ describe("sbox theme --current and --apply", () => {
     // Assert
     expect(apply.code).toBe(0);
     expect(apply.stderr).toBe(
-      "sbox theme: the default theme 'tokio-night' (SBOX_THEME) is not installed; using 'tokyo-night'.\n",
+      "sbox themes: the default theme 'tokio-night' (SBOX_THEME) is not installed; using 'tokyo-night'.\n",
     );
     expect(apply.stdout).toBe("Applied the theme 'tokyo-night'.\n");
   });
@@ -139,10 +139,10 @@ describe("sbox theme --current and --apply", () => {
 
     // Assert
     expect(apply.code).toBe(0);
-    expect(apply.stderr).toBe("sbox theme: the saved theme 'osaka-teal' is not installed; using 'nord'.\n");
+    expect(apply.stderr).toBe("sbox themes: the saved theme 'osaka-teal' is not installed; using 'nord'.\n");
     expect(apply.stdout).toBe("Applied the theme 'nord'.\n");
     expect((await home.json(".config/opencode/themes/sbox.json")).theme.background.dark).toBe("#2e3440");
-    expect(await home.file(".local/state/sbox/theme/current")).toBe("osaka-teal\n");
+    expect(await home.file(".local/state/sbox/themes/current")).toBe("osaka-teal\n");
   });
 });
 

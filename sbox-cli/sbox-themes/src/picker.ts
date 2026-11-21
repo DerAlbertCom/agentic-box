@@ -1,4 +1,4 @@
-import type { CommandContext } from "sbox-cli";
+import type { CommandContext } from "sbox";
 import { channels, mix, type Palette } from "./palette";
 
 const reset = "\x1b[0m";
@@ -70,7 +70,7 @@ export function preview(name: string, palette: Palette, width: number): string {
  */
 export async function pick(themes: string[], current: string, ctx: CommandContext): Promise<string | undefined> {
   const fzf = Bun.which("fzf", { PATH: ctx.env.PATH ?? "" });
-  if (!fzf) throw new Error("the picker needs fzf; choose a theme with 'sbox theme <name>' instead.");
+  if (!fzf) throw new Error("the picker needs fzf; choose a theme with 'sbox themes <name>' instead.");
   const env = Object.fromEntries(
     Object.entries(ctx.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
   );

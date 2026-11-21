@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sbox } from "../../sbox-cli/src/sbox";
+import { sbox } from "../../sbox/src/sbox";
 
 class Capture {
   constructor(readonly isTTY = false) {}
@@ -25,12 +25,12 @@ afterEach(async () => {
   await rm(home, { recursive: true, force: true });
 });
 
-const data = () => join(home, ".local/share/sbox/commands/theme");
-const state = () => join(home, ".local/state/sbox/theme");
+const data = () => join(home, ".local/share/sbox/commands/themes");
+const state = () => join(home, ".local/state/sbox/themes");
 const bin = () => join(home, "bin");
 const fzfLog = () => join(home, "fzf.log");
 
-/** Installs the theme command with the palettes and app templates of this package. */
+/** Installs the themes command with the palettes and app templates of this package. */
 async function install() {
   await mkdir(data(), { recursive: true });
   await writeFile(
@@ -70,7 +70,7 @@ async function fzfCalls(): Promise<string[] | null> {
 async function run(args: string[], options: { tty?: boolean; env?: Record<string, string> } = {}) {
   const stdout = new Capture(options.tty);
   const stderr = new Capture();
-  const code = await sbox(["theme", ...args], {
+  const code = await sbox(["themes", ...args], {
     env: { HOME: home, PATH: `${bin()}:${process.env.PATH ?? ""}`, ...options.env },
     stdout,
     stderr,
@@ -90,7 +90,7 @@ async function savedTheme(): Promise<string | null> {
 const background = (r: number, g: number, b: number) => `\x1b[48;2;${r};${g};${b}m`;
 const foreground = (r: number, g: number, b: number) => `\x1b[38;2;${r};${g};${b}m`;
 
-describe("sbox theme --preview <name>", () => {
+describe("sbox themes --preview <name>", () => {
   test("prints truecolor swatches of the palette", async () => {
     // Act
     const result = await run(["--preview", "tokyo-night"]);
@@ -145,7 +145,7 @@ describe("sbox theme --preview <name>", () => {
   });
 });
 
-describe("sbox theme in a terminal", () => {
+describe("sbox themes in a terminal", () => {
   test("offers the themes in fzf and switches to the chosen one", async () => {
     // Arrange
     await fakeFzf("nord");
@@ -162,7 +162,7 @@ describe("sbox theme in a terminal", () => {
     const items = calls.filter((line) => line.startsWith("item: "));
     expect(items).toHaveLength(24);
     expect(items).toContain("item: tokyo-night");
-    expect(calls.some((line) => line.startsWith("arg: ") && line.includes("sbox theme --preview {}"))).toBe(true);
+    expect(calls.some((line) => line.startsWith("arg: ") && line.includes("sbox themes --preview {}"))).toBe(true);
   });
 
   test("preselects the current theme", async () => {

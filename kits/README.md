@@ -31,7 +31,7 @@ actions. It runs on Bun, which the workload must install through mise (`bun@1.4.
 | File in the sandbox | What it is |
 |---|---|
 | `~/.local/bin/sbox` | the launcher, on PATH |
-| `~/.local/share/sbox/sbox.js` | the bundled core from `sbox-cli/` |
+| `~/.local/share/sbox/sbox.js` | the bundled core from `sbox-cli/sbox/` |
 | `~/.local/share/sbox/commands/<command>/command.js` | a command, installed by its command kit |
 | `~/.local/state/sbox/<command>/` | the state folder of a command |
 
@@ -46,22 +46,22 @@ Bun in Docker through `sbox-cli/bundle` and keeps Bun's package cache in the vol
 A command kit adds one `sbox` command. Its build step bundles the command's package
 into `command.js`, and its recipe copies that file, with any data the command reads,
 into `~/.local/share/sbox/commands/<command>/`. The module default-exports a `Command`
-(`summary` and `run(args, ctx)`) from the command API in `sbox-cli/src/api.ts`; see
+(`summary` and `run(args, ctx)`) from the command API in `sbox-cli/sbox/src/api.ts`; see
 the [TypeScript coding standards](../CODING_STANDARDS.md#typescript).
 
 ## themes
 
-The `themes` kit installs the `sbox theme` command (from `sbox-themes/`) with every
+The `themes` kit installs the `sbox themes` command (from `sbox-cli/sbox-themes/`) with every
 theme and app template. It needs the `sbox` kit. The apps are switched together and
 at once, without recreating the sandbox:
 
 | Command | What it does |
 |---|---|
-| `sbox theme <name>` | renders every app with the theme, saves the choice, recolors the terminal (see [Terminal colors](#terminal-colors)), notes that some apps show it only after a restart |
-| `sbox theme` | in a terminal, opens an `fzf` picker with a color preview of each theme, the current one selected, and switches like `<name>`; Esc changes nothing; otherwise like `--list` |
-| `sbox theme --list` | lists the themes, the current one marked with `*` |
-| `sbox theme --current` | prints the current theme |
-| `sbox theme --apply` | renders the current theme again; the install and startup hooks run it |
+| `sbox themes <name>` | renders every app with the theme, saves the choice, recolors the terminal (see [Terminal colors](#terminal-colors)), notes that some apps show it only after a restart |
+| `sbox themes` | in a terminal, opens an `fzf` picker with a color preview of each theme, the current one selected, and switches like `<name>`; Esc changes nothing; otherwise like `--list` |
+| `sbox themes --list` | lists the themes, the current one marked with `*` |
+| `sbox themes --current` | prints the current theme |
+| `sbox themes --apply` | renders the current theme again; the install and startup hooks run it |
 
 The current theme is the saved choice, then the kit arg `THEME` (`SBOX_THEME`,
 `tokyo-night` by default), then `tokyo-night`. A saved theme that no longer exists
@@ -76,7 +76,7 @@ kits:
       THEME: nord          # the team's default; the user's choice wins
 ```
 
-The choice is saved in `~/.local/state/sbox/theme/current`. It survives a restart; to
+The choice is saved in `~/.local/state/sbox/themes/current`. It survives a restart; to
 keep it when the sandbox is recreated, the squad needs the sbox state folder as state:
 
 ```yaml
@@ -96,7 +96,7 @@ The apps it themes today:
 | fzf | `~/.config/fzf/sbox` | `FZF_DEFAULT_OPTS_FILE`, set by the kit |
 | lazygit | `~/.config/lazygit/sbox.yml` | `LG_CONFIG_FILE`, set by the kit: `config.yml`, then `sbox.yml` (an empty `config.yml` is created when there is none) |
 | yazi | `~/.config/yazi/theme.toml` | the file itself |
-| terminal | `~/.config/sbox/terminal-colors.sh`, the terminal color script | the login script and `sbox theme`, see [Terminal colors](#terminal-colors) |
+| terminal | `~/.config/sbox/terminal-colors.sh`, the terminal color script | the login script and `sbox themes`, see [Terminal colors](#terminal-colors) |
 
 The terminal tools pick up a switch on their next run; some apps, such as the agents,
 may show it only after a restart. A switch overwrites only the theme files it renders
@@ -126,11 +126,11 @@ does unless the user turned it off, and only in a terminal:
   111, 112) when the shell exits (`exit`, Ctrl+D, `logout`). Otherwise it does nothing.
   Login does not start `sbox`; a login before the first render, while the startup hook
   still runs on a fresh sandbox, gets no colors.
-- **Switch.** `sbox theme <name>` and a picker selection run the freshly rendered
+- **Switch.** `sbox themes <name>` and a picker selection run the freshly rendered
   script after rendering. Esc, `--apply`, `--list`, `--current` and `--preview` never
   recolor.
 
-Only the terminal that runs `sbox theme` is recolored; other terminals of the sandbox
+Only the terminal that runs `sbox themes` is recolored; other terminals of the sandbox
 get the new colors at their next login. Try it without `abox run` with
 `sbx exec -it -e SBOX_TERMINAL_THEME=1 <sandbox> bash -l`. Terminals that ignore the
 reset sequences keep the theme's colors after exit. The reset is an `EXIT` trap set at
@@ -140,14 +140,14 @@ and the colors stay after exit. See
 
 ### Adding a theme
 
-A theme is a folder `sbox-themes/themes/<name>/` with a `colors.toml`, and its
-`LICENSE` if it has its own; `sbox-themes/themes/LICENSE` is the license of the
+A theme is a folder `sbox-cli/sbox-themes/themes/<name>/` with a `colors.toml`, and its
+`LICENSE` if it has its own; `sbox-cli/sbox-themes/themes/LICENSE` is the license of the
 upstream collection. The palettes come unchanged from
 [Omarchy](https://github.com/basecamp/omarchy) (`themes/*/colors.toml`), plus
 `osaka-jade` from its own repository. Refresh them with:
 
 ```sh
-cd sbox-themes && bun run sync-themes
+cd sbox-cli/sbox-themes && bun run sync-themes
 ```
 
 It adds new themes and updates changed ones, never deletes, and reports the themes
@@ -160,7 +160,7 @@ background mixed 25%/50% with black, `color0`–`color15` and the short names
 
 ### Adding an app
 
-An app is a folder `sbox-themes/apps/<app>/` with an `app.yaml` and Liquid templates;
+An app is a folder `sbox-cli/sbox-themes/apps/<app>/` with an `app.yaml` and Liquid templates;
 no TypeScript changes. Every app uses one fixed theme named `sbox`, so a switch only
 rewrites its content.
 

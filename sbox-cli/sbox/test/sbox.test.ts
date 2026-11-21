@@ -162,12 +162,12 @@ describe("sbox <unknown>", () => {
     await install("hello", withSummary("Say hello"));
 
     // Act
-    const result = await run(["theme", "nord"]);
+    const result = await run(["themes", "nord"]);
 
     // Assert
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("sbox: the command 'theme' is not installed.");
+    expect(result.stderr).toContain("sbox: the command 'themes' is not installed.");
     expect(result.stderr).toMatch(/hello\s+Say hello/);
   });
 
@@ -187,7 +187,7 @@ describe("sbox <unknown>", () => {
 describe("sbox --help", () => {
   test("lists the installed commands with their summaries, sorted by name", async () => {
     // Arrange
-    await install("theme", withSummary("Switch the color theme"));
+    await install("themes", withSummary("Switch the color theme"));
     await install("hello", withSummary("Say hello"));
 
     // Act
@@ -195,7 +195,7 @@ describe("sbox --help", () => {
 
     // Assert
     expect(result.code).toBe(0);
-    expect(result.stdout).toMatch(/hello\s+Say hello\n\s+theme\s+Switch the color theme\n/);
+    expect(result.stdout).toMatch(/hello\s+Say hello\n\s+themes\s+Switch the color theme\n/);
     expect(result.stdout).not.toContain("No commands are installed.");
   });
 

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import type { Command, CommandContext } from "sbox-cli";
+import type { Command, CommandContext } from "sbox";
 import { readAppTemplates, renderAppTemplates, type Rendered } from "./apps";
 import { foldersWith } from "./folders";
 import { readPalette, type Palette } from "./palette";
@@ -41,7 +41,7 @@ export default {
     if (values.apply) {
       const resolved = themes.resolve();
       for (const warning of resolved.warnings) {
-        ctx.stderr.write(ctx.style.yellow(`sbox theme: ${warning}`) + "\n");
+        ctx.stderr.write(ctx.style.yellow(`sbox themes: ${warning}`) + "\n");
       }
       const rendered = await themes.render(resolved.name);
       ctx.stdout.write(`Applied the theme '${resolved.name}'.\n`);
@@ -87,7 +87,7 @@ class Themes {
 
   /** Reports an unknown theme with the available ones and returns the exit code. */
   unknown(name: string): number {
-    this.ctx.stderr.write(`sbox theme: there is no theme '${name}'. The themes are:\n`);
+    this.ctx.stderr.write(`sbox themes: there is no theme '${name}'. The themes are:\n`);
     for (const theme of this.names()) this.ctx.stderr.write(`  ${theme}\n`);
     return 1;
   }
@@ -116,7 +116,7 @@ class Themes {
     const palette = this.palette(name);
     const apps = readAppTemplates(join(this.ctx.paths.data, "apps"));
     const rendered = await renderAppTemplates(apps, palette, this.ctx.env, this.ctx.paths.home);
-    for (const failure of rendered.failures) this.ctx.stderr.write(`sbox theme: ${failure}\n`);
+    for (const failure of rendered.failures) this.ctx.stderr.write(`sbox themes: ${failure}\n`);
     return rendered;
   }
 

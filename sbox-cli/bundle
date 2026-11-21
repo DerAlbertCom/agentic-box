@@ -1,18 +1,18 @@
 #!/bin/sh
 # Usage: bundle <entry> <outFile>
-# Bundles <entry>, a module of the root Bun workspace given relative to the repository,
+# Bundles <entry>, a module of the Bun workspace given relative to this folder (sbox-cli),
 # into one file for Bun. Runs the pinned Bun in a container, so the host needs only
 # Docker. The Bun version matches bun in the mise tools of the workload.
 set -eu
 
 bun_image="oven/bun:1.4.4"
-repo="$(cd "$(dirname "$0")/.." && pwd)"
+workspace="$(cd "$(dirname "$0")" && pwd)"
 entry="$1"
 out_dir="$(mkdir -p "$(dirname "$2")" && cd "$(dirname "$2")" && pwd)"
 out_name="$(basename "$2")"
 
 docker run --rm \
-  --volume "$repo:/src:ro" \
+  --volume "$workspace:/src:ro" \
   --volume "$out_dir:/out" \
   --volume agentic-box-bun-cache:/root/.bun/install/cache \
   --env OWNER="$(id -u):$(id -g)" \

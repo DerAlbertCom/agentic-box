@@ -190,10 +190,12 @@ Only store IDs, key names/counts and safe recovery messages are reported.
 │   ├── agentic-box.slnx
 │   ├── src/Abox/              the command line
 │   └── test/Abox.Tests/       the tests
-├── sbox-cli/                  the core of sbox, the command line inside the sandbox
-├── sbox-themes/               the theme command of sbox, with the palettes and app templates
-├── package.json               the Bun workspace of the TypeScript packages
-└── bun.lock
+└── sbox-cli/                  the Bun workspace of sbox, the command line inside the sandbox
+    ├── sbox/                  the core of sbox
+    ├── sbox-themes/           the themes command of sbox, with the palettes and app templates
+    ├── bundle                 bundles a workspace module for a kit build step
+    ├── package.json
+    └── bun.lock
 ```
 
 The `.abox` files and the workloads live in the team folders under `teams`, the kits in
@@ -335,7 +337,7 @@ userSecrets: [shared-store, my-dev-store]
 ### Terminal colors
 
 While you are in a sandbox, the sandbox recolors your terminal session to its current
-theme (`sbox theme`) and resets the colors when the shell exits; the host terminal's
+theme (`sbox themes`) and resets the colors when the shell exits; the host terminal's
 configuration is never changed. `abox` itself knows nothing about themes: every
 `abox run`, whatever the launcher, passes `SBOX_TERMINAL_THEME=1` to the sandbox
 (`sbx exec -e SBOX_TERMINAL_THEME=1`) unless you turned it off. With it off, the
@@ -755,8 +757,8 @@ configure publishing credentials. See [the publishing details](docs/implementati
 
 ## Building and testing sbox
 
-`sbox` and its commands are TypeScript packages in the Bun workspace at the
-repository root. With [Bun](https://bun.sh) 1.4.4 installed:
+`sbox` and its commands are TypeScript packages in the Bun workspace `sbox-cli/`.
+With [Bun](https://bun.sh) 1.4.4 installed, from `sbox-cli/`:
 
 ```sh
 bun install --frozen-lockfile

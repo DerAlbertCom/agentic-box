@@ -95,13 +95,14 @@ class.
 ## TypeScript
 
 The in-sandbox CLI `sbox` and its commands are TypeScript on Bun, in one Bun
-workspace at the repository root with one lockfile (`bun.lock`).
+workspace, `sbox-cli/`, with one lockfile (`sbox-cli/bun.lock`).
 
-- Put each package in a top-level folder: `sbox-cli` is the core, command packages
-  are named `sbox-<name>` after what they hold, such as `sbox-themes` for the `theme`
-  command. A package lists its folder in the root `workspaces`.
-- Commands depend on the core only through the command API in `sbox-cli/src/api.ts`,
-  with type-only imports (`import type { Command } from "sbox-cli"`), so nothing of
+- Put each package directly in `sbox-cli/`: `sbox-cli/sbox` is the core (package
+  `sbox`), and each command is `sbox-cli/sbox-<command>`, where `<command>` is exactly
+  the command name, such as `sbox-cli/sbox-themes` for `sbox themes`. The workspace
+  picks up every `sbox-*` folder.
+- Commands depend on the core only through the command API in `sbox-cli/sbox/src/api.ts`,
+  with type-only imports (`import type { Command } from "sbox"`), so nothing of
   the core is bundled into a command. Keep that API small; change it only in
   backward-compatible ways, because installed commands and the core evolve apart.
 - A command's module default-exports its `Command` and checks it with
@@ -116,7 +117,7 @@ workspace at the repository root with one lockfile (`bun.lock`).
   files. Keep tests in a `test` folder next to `src`, mirroring it, with the same
   `// Arrange`, `// Act` and `// Assert` comments.
 - `tsc` checks the types in strict mode: `bun run typecheck`. Run it and `bun test`
-  from the repository root; CI runs both.
+  from `sbox-cli/`; CI runs both.
 
 ## Domain language
 
