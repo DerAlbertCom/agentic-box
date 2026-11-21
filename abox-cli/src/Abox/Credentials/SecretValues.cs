@@ -68,18 +68,48 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
             : joined;
     }
 
-    /// <summary>Stores the value of a service: a custom secret for a service sbx does not know.</summary>
-    public Task<SbxOutcome> StoreAsync(
+    /// <summary>
+    /// Asks for the value of a service and stores it: a custom secret for a service sbx
+    /// does not know. A secret with a command asks nothing; sbx runs the command.
+    /// </summary>
+    public async Task<SecretSetting> SetAsync(
         SecretDeclaration declaration,
-        string value,
         CancellationToken cancellationToken
-    ) =>
-        declaration.IsCustom
-            ? sbx.SetCustomSecretAsync(
-                declaration.Host,
-                declaration.EnvironmentVariable,
-                value,
-                cancellationToken
-            )
-            : sbx.SetSecretAsync(declaration.Service, value, cancellationToken);
+    )
+    {
+        if (declaration.Command is not null)
+        {
+            console.WriteLine(
+                $"The secret '{declaration.Service}' comes from the host command: {declaration.Command}"
+            );
+            return SecretSetting.From(
+                await sbx.SetCustomSecretAsync(declaration, null, cancellationToken)
+            );
+        }
+
+        var value = Ask(declaration);
+        if (string.IsNullOrEmpty(value))
+        {
+            return SecretSetting.NotGiven;
+        }
+
+        var outcome = declaration.IsCustom
+            ? await sbx.SetCustomSecretAsync(declaration, value, cancellationToken)
+            : await sbx.SetSecretAsync(declaration.Service, value, cancellationToken);
+        return SecretSetting.From(outcome);
+    }
+}
+
+/// <summary>How setting a secret went.</summary>
+/// <param name="Given">Whether a value was given or a command run.</param>
+/// <param name="Stored">Whether the host keeps the value now.</param>
+/// <param name="Output">What sbx said.</param>
+public sealed record SecretSetting(bool Given, bool Stored, string Output)
+{
+    /// <summary>Nothing was given, so nothing was stored.</summary>
+    public static SecretSetting NotGiven { get; } = new(false, false, string.Empty);
+
+    /// <summary>The result of storing a value with sbx.</summary>
+    public static SecretSetting From(SbxOutcome outcome) =>
+        new(true, outcome.Succeeded, outcome.Output.Trim());
 }

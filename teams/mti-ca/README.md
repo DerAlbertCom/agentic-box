@@ -55,8 +55,9 @@ vssps.dev.azure.com. Its AZURE_DEVOPS_EXT_PAT value inside the sandbox is a
 sentinel, not the stored credential. Service IDs and encodings match v2.
 These service secrets are separate from placeholder-replacement custom bindings.
 
-The RWE GHEC binding cannot be expressed by abox's single-host, static-secret
-schema. Preserve the command-backed custom binding on the host:
+The base squad declares the RWE GHEC binding as the command-backed custom secret
+`rwe-ghec`. `abox create --local` asks to set it when it is missing, and
+`abox secrets set --service rwe-ghec` sets it; both run the equivalent of:
 
 ```sh
 sbx secret set-custom \
@@ -66,9 +67,10 @@ sbx secret set-custom \
   --placeholder 'gho_{rand}'
 ```
 
-Run this only if that exact binding is absent. If an incompatible binding exists,
-review it manually; do not delete/rebind another sandbox's credentials blindly.
-Host `gh` must already be logged in with the required scopes (including `workflow`
+abox treats any custom secret sent to `copilot-api.rwe.ghe.com` (the first host) as present. If an incompatible
+binding exists, review it manually; do not delete/rebind another sandbox's
+credentials blindly. sbx checks the command when it stores the secret, so a host
+`gh` that is not logged in shows up as an error right away. Host `gh` must already be logged in with the required scopes (including `workflow`
 for workflow changes). There is no automatic login/scope refresh or legacy-binding
 cleanup. Public GH_TOKEN/GITHUB_TOKEN stay empty. The kit fails setup without a
 token-shaped tenant placeholder. It never writes the host token into the image.

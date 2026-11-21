@@ -113,6 +113,9 @@ public sealed class SandboxCreator(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        console.WriteLine(
+            $"Creating the sandbox '{name}'; building its kits can take a few minutes..."
+        );
         var outcome = await sbx.CreateAsync(
             new SbxCreateRequest(
                 prepared.KitSource,

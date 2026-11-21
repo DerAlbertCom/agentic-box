@@ -36,9 +36,8 @@ public sealed class SecretsServiceTests
         _sbx.SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, string.Empty));
         _sbx.SetCustomSecretAsync(
+                Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(new SbxOutcome(0, string.Empty));
@@ -250,8 +249,10 @@ public sealed class SecretsServiceTests
         // Assert
         await _sbx.Received(1)
             .SetCustomSecretAsync(
-                "api.elastic.co",
-                "ELASTIC_API_KEY",
+                Arg.Is<SecretDeclaration>(secret =>
+                    secret.Host == "api.elastic.co"
+                    && secret.EnvironmentVariable == "ELASTIC_API_KEY"
+                ),
                 "the-key",
                 Arg.Any<CancellationToken>()
             );
@@ -280,9 +281,8 @@ public sealed class SecretsServiceTests
             .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _sbx.DidNotReceive()
             .SetCustomSecretAsync(
+                Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -432,6 +432,75 @@ public sealed class SecretsServiceTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task ACommandSecretIsStoredFromItsCommandWithoutAsking()
+    {
+        // Arrange
+        _root.File(
+            "teams/sample/ac.abox",
+            """
+            workload: mti-ca-dotnet
+            secrets:
+              - service: rwe-ghec
+                host: [rwe.ghe.com, api.rwe.ghe.com]
+                env: RWE_GHE_TOKEN
+                command: gh auth token -h rwe.ghe.com
+                placeholder: gho_{rand}
+            """
+        );
+        var (service, runner) = CreateRuntimeService();
+
+        // Act
+        var exitCode = await service.SetAsync(Request(), CancellationToken.None);
+
+        // Assert
+        exitCode.Should().Be(0);
+        _console.Output.Should().NotContain(line => line.StartsWith("The secret 'rwe-ghec':"));
+        await runner
+            .Received(1)
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request =>
+                    request.Arguments.SequenceEqual(
+                        new[]
+                        {
+                            "secret",
+                            "set-custom",
+                            "--host",
+                            "rwe.ghe.com",
+                            "--host",
+                            "api.rwe.ghe.com",
+                            "--env",
+                            "RWE_GHE_TOKEN",
+                            "--placeholder",
+                            "gho_{rand}",
+                            "--command",
+                            "gh auth token -h rwe.ghe.com",
+                        }
+                    )
+                    && request.StandardInput == null
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ACommandSecretWithoutAHostIsAnError()
+    {
+        // Arrange
+        _root.File(
+            "teams/sample/ac.abox",
+            "workload: mti-ca-dotnet\nsecrets: [{service: rwe-ghec, env: RWE_GHE_TOKEN, command: gh auth token}]\n"
+        );
+
+        // Act
+        var act = () => _service.SetAsync(Request(), CancellationToken.None);
+
+        // Assert
+        (await act.Should().ThrowAsync<AboxException>())
+            .Which.Message.Should()
+            .Contain("'host'");
     }
 
     [Fact]

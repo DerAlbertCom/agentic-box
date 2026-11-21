@@ -18,9 +18,8 @@ public sealed class SquadCredentialsTests
         _sbx.SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, string.Empty));
         _sbx.SetCustomSecretAsync(
+                Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(new SbxOutcome(0, string.Empty));
@@ -110,6 +109,92 @@ public sealed class SquadCredentialsTests
         await _sbx.DidNotReceive()
             .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         console.AllText.Should().Contain("not set");
+    }
+
+    [Fact]
+    public async Task ACredentialWithoutAValueIsNotOfferedForApproval()
+    {
+        // Arrange
+        var console = new TestConsole(answer: false);
+
+        // Act
+        await Prepare(console);
+
+        // Assert
+        console.Output.Should().Contain("Set the secret 'github' now?");
+        console.Output.Should().NotContain(line => line.StartsWith("Approve sending"));
+        console.Output.Should().Contain("The sandbox starts without the credential 'github'.");
+        File.Exists(BindingsFile).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AMissingCustomSecretNoKitAsksForIsSetFromItsCommand()
+    {
+        // Arrange
+        WriteCommandSecretSquad();
+        var console = new TestConsole(answer: true);
+
+        // Act
+        await Prepare(console);
+
+        // Assert
+        console.Output.Should().Contain(line => line.Contains("rwe-ghec (secrets, required)"));
+        console.Output.Should().Contain("Set the secret 'rwe-ghec' now?");
+        console.Output.Should().NotContain(line => line.StartsWith("Approve sending"));
+        await _sbx.Received(1)
+            .SetCustomSecretAsync(
+                Arg.Is<SecretDeclaration>(secret =>
+                    secret.Command == "gh auth token -h rwe.ghe.com"
+                    && secret.Hosts!.SequenceEqual(new[] { "rwe.ghe.com", "api.rwe.ghe.com" })
+                ),
+                null,
+                Arg.Any<CancellationToken>()
+            );
+        console.Output.Should().Contain("Stored the secret 'rwe-ghec'.");
+    }
+
+    [Fact]
+    public async Task AFailingCommandOfACustomSecretIsShown()
+    {
+        // Arrange
+        WriteCommandSecretSquad();
+        _sbx.SetCustomSecretAsync(
+                Arg.Any<SecretDeclaration>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new SbxOutcome(1, "command failed: not logged in\n"));
+        var console = new TestConsole(answer: true);
+
+        // Act
+        await Prepare(console);
+
+        // Assert
+        console
+            .Errors.Should()
+            .Contain("The secret 'rwe-ghec' was not stored: command failed: not logged in");
+        console.Output.Should().Contain("The sandbox starts without the credential 'rwe-ghec'.");
+    }
+
+    [Fact]
+    public async Task AStoredCustomSecretAsksNothing()
+    {
+        // Arrange
+        WriteCommandSecretSquad();
+        _sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
+            .Returns(
+                new HostSecrets(
+                    [],
+                    [new CustomSecret(["rwe.ghe.com", "api.rwe.ghe.com"], "RWE_GHE_TOKEN")]
+                )
+            );
+        var console = new TestConsole();
+
+        // Act
+        await Prepare(console);
+
+        // Assert
+        console.AllText.Should().BeEmpty();
     }
 
     [Fact]
@@ -255,6 +340,20 @@ public sealed class SquadCredentialsTests
     private void StoreValue() =>
         _sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
             .Returns(new HostSecrets(["github"], []));
+
+    private void WriteCommandSecretSquad() =>
+        _root.File(
+            "teams/sample/ac.abox",
+            """
+            workload: mti-ca-dotnet
+            secrets:
+              - service: rwe-ghec
+                host: [rwe.ghe.com, api.rwe.ghe.com]
+                env: RWE_GHE_TOKEN
+                command: gh auth token -h rwe.ghe.com
+                placeholder: gho_{rand}
+            """
+        );
 
     private void WriteSquad(bool declared) =>
         _root.File(

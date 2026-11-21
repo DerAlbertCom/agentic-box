@@ -1,6 +1,7 @@
 using System.Text;
 using Abox.Configuration;
 using Abox.Infrastructure;
+using Abox.Kits;
 using Abox.Sbx;
 using NSubstitute;
 
@@ -86,8 +87,11 @@ public sealed class SbxSecretInputTests
             // Act
             var outcome = custom
                 ? await client.SetCustomSecretAsync(
-                    "example.test",
-                    "SYNTHETIC_TOKEN",
+                    new SecretDeclaration(
+                        "synthetic",
+                        Hosts: ["example.test"],
+                        EnvironmentVariable: "SYNTHETIC_TOKEN"
+                    ),
                     value,
                     cancellation.Token
                 )
@@ -145,8 +149,11 @@ public sealed class SbxSecretInputTests
         var action = () =>
             custom
                 ? client.SetCustomSecretAsync(
-                    "example.test",
-                    "SYNTHETIC_TOKEN",
+                    new SecretDeclaration(
+                        "synthetic",
+                        Hosts: ["example.test"],
+                        EnvironmentVariable: "SYNTHETIC_TOKEN"
+                    ),
                     "synthetic-ü€",
                     cancellation.Token
                 )

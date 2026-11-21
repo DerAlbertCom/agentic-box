@@ -414,27 +414,49 @@ public sealed partial class SbxClient : ISbxClient
 
     /// <summary>
     /// Stores the secret of a service sbx does not know. The value goes through the
-    /// standard input, so it stays out of the process list.
+    /// standard input, so it stays out of the process list. Without a value, sbx takes
+    /// it from the command of the declaration and checks that the command gives one.
     /// </summary>
     public Task<SbxOutcome> SetCustomSecretAsync(
-        string? host,
-        string? environmentVariable,
-        string value,
+        SecretDeclaration declaration,
+        string? value,
         CancellationToken cancellationToken
     )
     {
         var arguments = new List<string> { "secret", "set-custom" };
 
-        if (host is not null)
+        foreach (var host in declaration.Hosts ?? [])
         {
             arguments.Add("--host");
             arguments.Add(host);
         }
 
-        if (environmentVariable is not null)
+        if (declaration.EnvironmentVariable is not null)
         {
             arguments.Add("--env");
-            arguments.Add(environmentVariable);
+            arguments.Add(declaration.EnvironmentVariable);
+        }
+
+        if (declaration.Placeholder is not null)
+        {
+            arguments.Add("--placeholder");
+            arguments.Add(declaration.Placeholder);
+        }
+
+        if (value is null)
+        {
+            arguments.Add("--command");
+            arguments.Add(
+                declaration.Command
+                    ?? throw new ArgumentException(
+                        $"The secret '{declaration.Service}' has neither a value nor a command.",
+                        nameof(value)
+                    )
+            );
+            return _invoker.RunOutcomeAsync(
+                new ProcessRequest(ExecutableName, arguments),
+                cancellationToken
+            );
         }
 
         arguments.Add("--value-stdin");

@@ -94,24 +94,22 @@ public sealed class SecretsService(
                 continue;
             }
 
-            if (!services.ContainsKey(name))
+            if (!declaration.IsCustom && !services.ContainsKey(name))
             {
                 console.WriteLine($"Note: no kit of the squad asks for the service '{name}'.");
             }
 
-            var value = values.Ask(declaration);
-            if (value is null)
+            var setting = await values.SetAsync(declaration, cancellationToken);
+            if (!setting.Given)
             {
                 console.WriteError($"The service '{name}' was not set.");
                 failed = true;
                 continue;
             }
 
-            var outcome = await values.StoreAsync(declaration, value, cancellationToken);
-
-            if (!outcome.Succeeded)
+            if (!setting.Stored)
             {
-                console.WriteError($"The secret '{name}' was not stored: {outcome.Output.Trim()}");
+                console.WriteError($"The secret '{name}' was not stored: {setting.Output}");
                 failed = true;
                 continue;
             }
