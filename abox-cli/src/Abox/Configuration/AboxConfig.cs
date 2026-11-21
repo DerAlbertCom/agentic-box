@@ -26,7 +26,7 @@ public sealed class AboxConfig
     /// <summary>Case-insensitive literal substrings forbidden in selected original user-secret values.</summary>
     public IReadOnlyList<string> UserSecretsDenyList { get; init; } = [];
 
-    /// <summary>Whether <c>abox run</c> lets the sandbox recolour the terminal, unless the folder or the command line says otherwise.</summary>
+    /// <summary>Whether <c>abox run</c> lets the sandbox recolor the terminal, unless the folder or the command line says otherwise.</summary>
     public bool TerminalTheme { get; init; } = true;
 
     /// <summary>The absolute sandbox folder, preferring the command line over the user default.</summary>

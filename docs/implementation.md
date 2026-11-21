@@ -570,8 +570,10 @@ Shared orchestration is in `UserSecrets/`, outside command slices:
 
 - `FolderConfig.LoadAsync(location, token)` reads runtime-only `abox.yaml` and
   `abox.user.yaml` through `YamlReader`, returning null when both are absent. Each
-  file is validated on its own and names itself in errors; the user file then
-  replaces every key it sets (values and lists as a whole). An existing `abox.json`
+  file is parsed on its own, so YAML and duplicate-key errors name it;
+  `YamlReader.Merge` then lays the user file over the shared one (mappings merged
+  recursively, values and lists replaced as a whole) and the merged result is
+  validated, each error naming the file that supplied the key or value. An existing `abox.json`
   or `abox.user.json` fails with a rename hint. A missing file is an on-demand error but a lifecycle
   no-op. Its optional `squad` selects creation and rejects conflicting explicit
   selections; accepted run replacement requires a matching known sandbox record

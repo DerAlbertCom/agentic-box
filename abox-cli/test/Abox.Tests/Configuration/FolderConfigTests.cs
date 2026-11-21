@@ -95,6 +95,23 @@ public sealed class FolderConfigTests
     }
 
     [Fact]
+    public async Task TheMergedResultIsValidatedSoTheUserFileCanReplaceAnInvalidValue()
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File("abox.yaml", "squad:\nportOffset: 70000\nuserSecrets: [../escape]\n");
+        root.File("abox.user.yaml", "squad: ac\nportOffset: 20000\nuserSecrets: [mine]\n");
+
+        // Act
+        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+
+        // Assert
+        snapshot!.Squad.Should().Be("ac");
+        FolderConfig.SelectPortOffset(snapshot).Should().Be(20000);
+        snapshot.UserSecrets.Select(selection => selection.Id).Should().Equal("mine");
+    }
+
+    [Fact]
     public async Task AnEmptyListInTheUserFileSelectsNoUserSecrets()
     {
         // Arrange
@@ -199,7 +216,7 @@ public sealed class FolderConfigTests
         // Arrange
         using var root = new TempDirectory();
         var other = file == "abox.yaml" ? "abox.user.yaml" : "abox.yaml";
-        root.File(other, "portOffset: 20000\n");
+        root.File(other, "terminalTheme: true\n");
         var path = root.File(file, yaml);
 
         // Act

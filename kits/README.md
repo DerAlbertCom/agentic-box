@@ -133,7 +133,9 @@ does unless the user turned it off, and only in a terminal:
 Only the terminal that runs `sbox theme` is recolored; other terminals of the sandbox
 get the new colors at their next login. Try it without `abox run` with
 `sbx exec -it -e SBOX_TERMINAL_THEME=1 <sandbox> bash -l`. Terminals that ignore the
-reset sequences keep the theme's colors after exit. See
+reset sequences keep the theme's colors after exit. The reset is an `EXIT` trap set at
+login, so a later login file or `~/.bashrc` that sets its own `EXIT` trap replaces it
+and the colors stay after exit. See
 [ADR 0002](../docs/adr/0002-terminal-colors-from-the-sandbox.md).
 
 ### Adding a theme

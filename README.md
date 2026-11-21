@@ -319,11 +319,13 @@ userSecrets: [shared-store, my-dev-store]
 - The keys are `squad`, `userSecrets`, `portOffset` and `terminalTheme`. Every key is allowed in both files.
 - `abox.user.yaml` overrides `abox.yaml`: a value or list in the user file replaces
   the one in the shared file as a whole (the example selects both stores; it does
-  not append), and keys it does not set keep their shared value. Only dictionaries
-  would be merged key by key; the current keys hold values and lists.
+  not append), and keys it does not set keep their shared value. Dictionaries are
+  merged key by key, recursively; the current keys all hold values and lists.
 - Either file may exist alone; with neither, the folder has no folder configuration.
-- Both files are strict YAML: unknown or duplicate keys, invalid YAML and invalid
-  values are errors that name the offending file.
+- Both files are strict YAML: invalid YAML and duplicate keys are errors that name
+  the offending file. The merged result is then validated like a single file, so a
+  value the user file replaces is never checked; an unknown key or an invalid value
+  names the file that supplied it.
 - `abox.json` and `abox.user.json` are no longer read: if either exists, commands
   fail and ask you to rename it to `abox.yaml` or `abox.user.yaml` (the content is
   now YAML). `.yml` files are not recognised.

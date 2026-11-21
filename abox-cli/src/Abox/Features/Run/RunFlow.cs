@@ -14,7 +14,7 @@ namespace Abox.Features.Run;
 /// <param name="LauncherId">The launcher to start.</param>
 /// <param name="Location">The folder whose sandbox is opened.</param>
 /// <param name="Argv">The arguments after <c>--</c>.</param>
-/// <param name="TerminalTheme">Whether the sandbox recolours the terminal, or null to follow the configuration.</param>
+/// <param name="TerminalTheme">Whether the sandbox recolors the terminal, or null to follow the configuration.</param>
 public sealed record RunRequest(
     string LauncherId,
     string Location,
@@ -41,6 +41,10 @@ public sealed class RunFlow(
     IConsole console
 )
 {
+    /// <summary>Tells the sandbox's login shell to set the terminal colors (ADR 0002).</summary>
+    private const string TerminalThemeVariable = "SBOX_TERMINAL_THEME";
+    private const string TerminalThemeOn = "1";
+
     /// <summary>Starts the launcher and returns the exit code of the command.</summary>
     public async Task<int> RunAsync(RunRequest request, CancellationToken cancellationToken)
     {
@@ -114,7 +118,7 @@ public sealed class RunFlow(
             await WorkspaceOfAsync(sandbox.Name, location, cancellationToken),
             request.Argv,
             terminalTheme
-                ? new Dictionary<string, string> { ["SBOX_TERMINAL_THEME"] = "1" }
+                ? new Dictionary<string, string> { [TerminalThemeVariable] = TerminalThemeOn }
                 : new Dictionary<string, string>(),
             sbx,
             https

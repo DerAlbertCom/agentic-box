@@ -59,11 +59,11 @@ public sealed class UserSecretSelection
         {
             var selection = entry.IsScalar
                 ? new UserSecretSelection(entry.ScalarValue, null)
-                : ParseObject(entry, reader.Source);
+                : ParseObject(entry);
             ValidateIdSelection(selection.Id);
             if (!ids.Add(selection.Id))
                 throw new AboxException(
-                    $"'{reader.Source}': duplicate user-secret store IDs are not allowed (case-insensitive)."
+                    $"'{entry.Source}': duplicate user-secret store IDs are not allowed (case-insensitive)."
                 );
             result.Add(selection);
         }
@@ -135,19 +135,21 @@ public sealed class UserSecretSelection
         public UserSecretSelection[] ToArray() => selections.ToArray();
     }
 
-    private static UserSecretSelection ParseObject(YamlEntry entry, string source)
+    private static UserSecretSelection ParseObject(YamlEntry entry)
     {
         entry.RejectUnknownKeys("id", "keys");
         var id =
             entry.GetString("id")
-            ?? throw new AboxException($"'{source}': a user-secret object requires a string 'id'.");
+            ?? throw new AboxException(
+                $"'{entry.Source}': a user-secret object requires a string 'id'."
+            );
         string[]? keys = null;
         if (entry.Has("keys"))
         {
             keys = entry.GetStringList("keys").ToArray();
             if (keys.Any(key => string.IsNullOrWhiteSpace(key) || key.Any(char.IsControl)))
                 throw new AboxException(
-                    $"'{source}': user-secret key patterns must be nonempty and contain no control characters. Use an empty 'keys' array to select no keys."
+                    $"'{entry.Source}': user-secret key patterns must be nonempty and contain no control characters. Use an empty 'keys' array to select no keys."
                 );
         }
         return new UserSecretSelection(id, keys);

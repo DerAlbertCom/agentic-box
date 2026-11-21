@@ -28,7 +28,7 @@ public sealed class PortsCommand : Command
         var offset = new Option<int?>("--offset")
         {
             Description =
-                "One-run port offset (-65534..65534). Overrides the folder portOffset (abox.user.yaml, abox.yaml), then default 10000.",
+                $"One-run port offset (-65534..65534). Overrides the folder portOffset ({FolderConfig.FileNames}), then default 10000.",
         };
         Options.Add(location);
         Options.Add(offset);

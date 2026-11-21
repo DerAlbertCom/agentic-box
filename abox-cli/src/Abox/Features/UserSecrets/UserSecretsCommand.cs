@@ -41,7 +41,7 @@ public sealed class UserSecretsCommand : Command
                         var folderConfig =
                             await FolderConfig.LoadAsync(folder, cancellationToken)
                             ?? throw new AboxException(
-                                "No abox.yaml or abox.user.yaml in this folder. Declare 'userSecrets' explicitly before copying."
+                                $"No {FolderConfig.FileNames} in this folder. Declare 'userSecrets' explicitly before copying."
                             );
                         var prepared = await copy.Value.PrepareAsync(
                             folderConfig,

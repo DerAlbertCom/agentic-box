@@ -41,7 +41,7 @@ public sealed class RunCommand : Command
             Arity = ArgumentArity.ExactlyOne,
             HelpName = "true|false",
             Description =
-                "Whether the sandbox sets the terminal colours from its theme. Overrides terminalTheme in abox.user.yaml, abox.yaml and the user configuration; defaults to true.",
+                $"Whether the sandbox sets the terminal colors from its theme. Overrides terminalTheme in the folder configuration ({FolderConfig.FileNames}) and in the user configuration; defaults to true.",
         };
 
         Arguments.Add(launcher);

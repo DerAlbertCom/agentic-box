@@ -31,14 +31,11 @@ public sealed class FolderConfig
     public static int SelectPortOffset(FolderConfig? folderConfig, int? explicitOffset = null)
     {
         var offset = explicitOffset ?? folderConfig?.PortOffset ?? 10000;
-        if (offset is < -65534 or > 65534)
-            throw new AboxException(
-                "Port offset must be an integer in -65534..65534; every resulting host port must also be in 1..65535."
-            );
+        ValidatePortOffset(offset, null);
         return offset;
     }
 
-    /// <summary>Whether the sandbox recolours the terminal: the switch, then the folder, then the user default.</summary>
+    /// <summary>Whether the sandbox recolors the terminal: the switch, then the folder, then the user default.</summary>
     public static bool SelectTerminalTheme(
         FolderConfig? folderConfig,
         bool userDefault,
@@ -54,7 +51,7 @@ public sealed class FolderConfig
             && !Squad.Equals(explicitSquad, StringComparison.OrdinalIgnoreCase)
         )
             throw new AboxException(
-                "The selected squad conflicts with 'squad' in abox.yaml or abox.user.yaml. Use the folder's squad or update the folder configuration before creating or replacing its sandbox."
+                $"The selected squad conflicts with 'squad' in {FileNames}. Use the folder's squad or update the folder configuration before creating or replacing its sandbox."
             );
         return Squad ?? explicitSquad;
     }
@@ -64,14 +61,14 @@ public sealed class FolderConfig
     {
         if (Squad is not null && string.IsNullOrWhiteSpace(recordedSquad))
             throw new AboxException(
-                "Cannot verify the sandbox's squad against the folder configuration (abox.yaml, abox.user.yaml). Create it with abox create for this folder before replacing it."
+                $"Cannot verify the sandbox's squad against the folder configuration ({FileNames}). Create it with abox create for this folder before replacing it."
             );
         SelectSquad(recordedSquad);
     }
 
     /// <summary>
-    /// Reads abox.yaml and abox.user.yaml; the user file replaces every key it sets.
-    /// Missing configuration is a no-op for lifecycle callers.
+    /// Reads abox.yaml and lays abox.user.yaml over it (<see cref="YamlReader.Merge"/>), then
+    /// validates the merged result. Missing configuration is a no-op for lifecycle callers.
     /// </summary>
     public static async Task<FolderConfig?> LoadAsync(
         string location,
@@ -82,38 +79,29 @@ public sealed class FolderConfig
         RejectJson(location, "abox.user.json", UserFile);
         var shared = await ReadAsync(Path.Combine(location, SharedFile), cancellationToken);
         var user = await ReadAsync(Path.Combine(location, UserFile), cancellationToken);
-        if (shared is null && user is null)
-            return null;
-        // Every key is a value or a list, so the user file replaces it as a whole.
-        return new FolderConfig(
-            location,
-            user?.Squad ?? shared?.Squad,
-            user?.UserSecrets ?? shared?.UserSecrets ?? [],
-            user?.PortOffset ?? shared?.PortOffset,
-            user?.TerminalTheme ?? shared?.TerminalTheme
-        );
+        var merged =
+            shared is null ? user
+            : user is null ? shared
+            : YamlReader.Merge(shared, user);
+        return merged is null ? null : Decode(location, merged);
     }
 
-    private const string SharedFile = "abox.yaml";
-    private const string UserFile = "abox.user.yaml";
+    public const string SharedFile = "abox.yaml";
+    public const string UserFile = "abox.user.yaml";
 
-    private sealed record FolderFile(
-        string? Squad,
-        IReadOnlyList<UserSecretSelection>? UserSecrets,
-        int? PortOffset,
-        bool? TerminalTheme
-    );
+    /// <summary>Both folder configuration files, for messages.</summary>
+    public const string FileNames = $"{SharedFile} or {UserFile}";
 
-    private static void RejectJson(string location, string json, string yaml)
+    private static void RejectJson(string location, string jsonFile, string yamlFile)
     {
-        var path = Path.Combine(location, json);
+        var path = Path.Combine(location, jsonFile);
         if (File.Exists(path))
             throw new AboxException(
-                $"'{path}' is no longer read. Rename it to {yaml}; the folder configuration is now YAML."
+                $"'{path}' is no longer read. Rename it to {yamlFile}; the folder configuration is now YAML."
             );
     }
 
-    private static async Task<FolderFile?> ReadAsync(
+    private static async Task<YamlReader?> ReadAsync(
         string path,
         CancellationToken cancellationToken
     )
@@ -145,16 +133,20 @@ public sealed class FolderConfig
                 $"Cannot read '{path}'. Check the folder and file permissions."
             );
         }
-        return Decode(YamlReader.Parse(yaml, path));
+        return YamlReader.Parse(yaml, path);
     }
 
-    private static FolderFile Decode(YamlReader reader)
+    private static FolderConfig Decode(string location, YamlReader reader)
     {
         reader.RejectUnknownKeys("squad", "userSecrets", "portOffset", "terminalTheme");
-        return new FolderFile(
+        var portOffset = reader.GetInteger("portOffset");
+        if (portOffset is { } offset)
+            ValidatePortOffset(offset, reader.SourceOf("portOffset"));
+        return new FolderConfig(
+            location,
             ReadSquad(reader),
-            reader.Has("userSecrets") ? UserSecretSelection.Parse(reader) : null,
-            ReadPortOffset(reader),
+            UserSecretSelection.Parse(reader),
+            portOffset,
             reader.GetBoolean("terminalTheme")
         );
     }
@@ -165,17 +157,19 @@ public sealed class FolderConfig
             return null;
         var squad = reader.GetString("squad");
         if (reader.IsNull("squad") || string.IsNullOrWhiteSpace(squad))
-            throw new AboxException($"'{reader.Source}': 'squad' must be a nonempty string.");
+            throw new AboxException(
+                $"'{reader.SourceOf("squad")}': 'squad' must be a nonempty string."
+            );
         return squad;
     }
 
-    private static int? ReadPortOffset(YamlReader reader)
+    private static void ValidatePortOffset(int offset, string? source)
     {
-        var offset = reader.GetInteger("portOffset");
-        if (offset is < -65534 or > 65534)
-            throw new AboxException(
-                $"'{reader.Source}': 'portOffset' must be an integer in -65534..65534."
-            );
-        return offset;
+        if (offset is >= -65534 and <= 65534)
+            return;
+        var file = source is null ? string.Empty : $"'{source}': ";
+        throw new AboxException(
+            $"{file}Port offset must be an integer in -65534..65534; every resulting host port must also be in 1..65535."
+        );
     }
 }

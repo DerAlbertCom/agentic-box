@@ -13,5 +13,6 @@ The host terminal that runs `abox run` kept its own colors, so a themed sandbox 
 
 - Only terminals whose shell sees the variable are recolored. `shell` runs `bash -l` in the exec that gets it; Herdr's panes are started by `hc` inside the sandbox and do not, until a launcher delivers it.
 - A shell that ends without running its `EXIT` trap (a dropped connection, a killed sandbox) leaves the theme's colors in the host terminal, as do terminals that ignore the reset sequences.
+- The login script owns no more than a plain `EXIT` trap: a later login file or `~/.bashrc` that sets its own `EXIT` trap replaces it, and the colors stay after exit. Chaining traps is left out to keep the script thin.
 - A login before the first render, such as while the startup hook still runs on a fresh sandbox, gets no colors.
 - Non-interactive runs (`abox exec`, `abox pipe`, the kit's hooks, scripts without a terminal) never emit the sequences, so none end up in captured output.
