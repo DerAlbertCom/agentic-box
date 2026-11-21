@@ -54,7 +54,7 @@ public sealed class SbxClientTests : IDisposable
     }
 
     [Fact]
-    public async Task SquadFilesAreReadInOneExecAndSplitIntoDescriptorsAndSquadMetadata()
+    public async Task SquadFilesAreReadInOneExecWithClosedInputAndSplitIntoDescriptorsAndSquadMetadata()
     {
         // Arrange
         static string Encoded(string text) =>
@@ -66,7 +66,7 @@ public sealed class SbxClientTests : IDisposable
             .Returns(
                 new ProcessResult(
                     0,
-                    $"kit jfrog {Encoded(descriptor)}\nkit empty \r\nsquad {Encoded(squad)}\n",
+                    $"kit {Encoded("jfrog")} {Encoded(descriptor)}\nkit {Encoded("an empty kit")} \r\nsquad {Encoded(squad)}\n",
                     ""
                 )
             );
@@ -79,7 +79,7 @@ public sealed class SbxClientTests : IDisposable
             .Kits.Should()
             .Equal(
                 new StagedKitDescriptor("jfrog", descriptor),
-                new StagedKitDescriptor("empty", "")
+                new StagedKitDescriptor("an empty kit", "")
             );
         files.SquadJson.Should().Be(squad);
         await _runner
@@ -93,6 +93,8 @@ public sealed class SbxClientTests : IDisposable
                         .SequenceEqual(new[] { "exec", "sample", "sh", "-c" })
                     && request.Arguments[4].Contains("/usr/share/sandbox/kit/*/kit.yaml")
                     && request.Arguments[4].Contains("/usr/share/abox/squad.json")
+                    && request.StandardInput == ""
+                    && !request.AttachConsole
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -104,7 +106,7 @@ public sealed class SbxClientTests : IDisposable
         // Arrange
         _runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new ProcessResult(0, "kit workload a2luZDogd29ya2xvYWQK\n", ""));
+            .Returns(new ProcessResult(0, "kit d29ya2xvYWQ= a2luZDogd29ya2xvYWQK\n", ""));
 
         // Act
         var files = await _client.ReadSquadFilesAsync("sample", CancellationToken.None);

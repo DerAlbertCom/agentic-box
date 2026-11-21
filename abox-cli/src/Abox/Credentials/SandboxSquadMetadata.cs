@@ -82,9 +82,15 @@ public sealed class SandboxSquadMetadata
             }
 
             var entries =
-                element.Deserialize<List<MetadataSecret>>(JsonOptions)
+                element.Deserialize<List<SquadMetadataSecret?>>(JsonOptions)
                 ?? throw new JsonException("Secrets is not a list.");
-            var secrets = entries.Select(Declaration).ToList();
+            var secrets = entries
+                .Select(entry =>
+                    (
+                        entry ?? throw new AboxException("a secret entry needs a 'Service'")
+                    ).ToDeclaration()
+                )
+                .ToList();
             var duplicate = secrets
                 .GroupBy(secret => secret.Service, StringComparer.Ordinal)
                 .FirstOrDefault(group => group.Count() > 1);
@@ -103,61 +109,4 @@ public sealed class SandboxSquadMetadata
             );
         }
     }
-
-    private static SecretDeclaration Declaration(MetadataSecret? secret)
-    {
-        if (secret is null || string.IsNullOrWhiteSpace(secret.Service))
-        {
-            throw new AboxException("a secret entry needs a 'Service'");
-        }
-
-        var inputs = (secret.Inputs ?? [])
-            .Select(input =>
-                input is null || string.IsNullOrWhiteSpace(input.Name)
-                    ? throw new AboxException(
-                        $"an input of the secret '{secret.Service}' needs a 'Name'"
-                    )
-                    : new SecretInput(input.Name, input.Prompt)
-            )
-            .ToList();
-        var hosts = (secret.Hosts ?? [])
-            .Select(host =>
-                string.IsNullOrWhiteSpace(host)
-                    ? throw new AboxException($"a host of the secret '{secret.Service}' is empty")
-                    : host
-            )
-            .ToList();
-        if (secret.FromCommand && hosts.Count == 0)
-        {
-            throw new AboxException(
-                $"the secret '{secret.Service}' comes from a host command, so it needs 'Hosts'"
-            );
-        }
-
-        return new SecretDeclaration(
-            secret.Service,
-            secret.Prompt,
-            inputs,
-            secret.Separator ?? ":",
-            SecretDeclaration.ParseEncoding(secret.Encoding, "squad.json"),
-            hosts.Count > 0 ? hosts : null,
-            string.IsNullOrWhiteSpace(secret.Env) ? null : secret.Env,
-            Placeholder: string.IsNullOrWhiteSpace(secret.Placeholder) ? null : secret.Placeholder,
-            CommandWithheld: secret.FromCommand
-        );
-    }
-
-    private sealed record MetadataSecret(
-        string? Service,
-        string? Prompt,
-        IReadOnlyList<string?>? Hosts,
-        string? Env,
-        IReadOnlyList<MetadataSecretInput?>? Inputs,
-        string? Separator,
-        string? Encoding,
-        string? Placeholder,
-        bool FromCommand
-    );
-
-    private sealed record MetadataSecretInput(string? Name, string? Prompt);
 }

@@ -47,6 +47,26 @@ public sealed class SecretsCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task AStoppedSandboxIsReadThroughTheExecThatStartsIt()
+    {
+        // Arrange
+        _cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Returns(new[] { new SandboxInfo(_cli.Name, "stopped", null) });
+        Sandbox([Kit("jfrog", ("jfrog", false))], SquadJson("""{"Service":"jfrog"}"""));
+
+        // Act
+        var exitCode = await Secrets("list");
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        Line("jfrog").Should().Contain("required");
+        await _cli.Sbx.Received(1).ReadSquadFilesAsync(_cli.Name, Arg.Any<CancellationToken>());
+        await _cli
+            .Sbx.DidNotReceive()
+            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ListShowsOneLinePerServiceWithEveryKitThatAsksForIt()
     {
         // Arrange
@@ -159,6 +179,90 @@ public sealed class SecretsCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task ListShowsACustomSecretStoredWithoutItsVariableAsStored()
+    {
+        // Arrange
+        Sandbox(
+            [Kit("sample-secrets")],
+            SquadJson(
+                """{"Service":"sample-custom","Hosts":["custom.example.invalid"],"Env":"SAMPLE_CUSTOM_TOKEN"}"""
+            )
+        );
+        StoreCustom(new CustomSecret(["custom.example.invalid"], null));
+
+        // Act
+        var exitCode = await Secrets("list");
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        Line("sample-custom").Should().Contain("stored").And.NotContain("not set");
+        Line("sample-custom").Should().NotContain("conflict");
+    }
+
+    [Fact]
+    public async Task SetOfACustomSecretStoredWithoutItsVariableReplacesItInsteadOfReportingAConflict()
+    {
+        // Arrange
+        Sandbox(
+            [Kit("sample-secrets")],
+            SquadJson(
+                """{"Service":"sample-custom","Hosts":["custom.example.invalid"],"Env":"SAMPLE_CUSTOM_TOKEN"}"""
+            )
+        );
+        StoreCustom(new CustomSecret(["custom.example.invalid"], null));
+        _cli.Console.Answers.Add("the-value");
+
+        // Act
+        var exitCode = await Secrets("set", "--service", "sample-custom");
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        _cli.Console.Errors.Should().NotContain(error => error.Contains("conflicts with"));
+        await _cli
+            .Sbx.Received(1)
+            .SetCustomSecretAsync(
+                Arg.Is<SecretDeclaration>(secret =>
+                    secret.EnvironmentVariable == "SAMPLE_CUSTOM_TOKEN"
+                ),
+                "the-value",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ListShowsACustomSecretUnderAnotherVariableAsAConflict()
+    {
+        // Arrange
+        Sandbox(
+            [Kit("sample-secrets")],
+            SquadJson(
+                """{"Service":"sample-custom","Hosts":["custom.example.invalid"],"Env":"SAMPLE_CUSTOM_TOKEN"}"""
+            )
+        );
+        StoreCustom(new CustomSecret(["custom.example.invalid"], "OTHER_TOKEN"));
+
+        // Act
+        await Secrets("list");
+
+        // Assert
+        Line("sample-custom").Should().Contain("not set").And.EndWith("conflicting binding");
+    }
+
+    [Fact]
+    public async Task ListDoesNotCountACustomSecretOfOtherHostsAsAVariableOnlySecret()
+    {
+        // Arrange
+        Sandbox([Kit("sample-secrets")], SquadJson("""{"Service":"env-only","Env":"ENV_ONLY"}"""));
+        StoreCustom(new CustomSecret(["other.example.invalid"], null));
+
+        // Act
+        await Secrets("list");
+
+        // Assert
+        Line("env-only").Should().Contain("not set").And.NotContain("conflict");
+    }
+
+    [Fact]
     public async Task SetOfACommandBackedSecretFromTheSandboxPrintsTheSbxCommandAndRunsNothing()
     {
         // Arrange
@@ -173,6 +277,8 @@ public sealed class SecretsCommandTests : IDisposable
             .Contain(error =>
                 error.Contains("'rwe-ghec' comes from a host command")
                 && error.Contains("never takes")
+                && error.Contains("team's sources")
+                && error.Contains("README")
             );
         _cli.Console.Errors.Should()
             .Contain(

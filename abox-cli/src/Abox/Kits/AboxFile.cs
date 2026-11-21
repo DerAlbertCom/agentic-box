@@ -176,7 +176,7 @@ public sealed class AboxFile
                     encoding,
                     hosts.Count > 0 ? hosts : null,
                     entry.GetString("env"),
-                    command,
+                    command is null ? null : new HostCommand(command),
                     placeholder
                 )
             );
