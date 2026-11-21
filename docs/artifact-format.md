@@ -63,9 +63,11 @@ a moving tag. No workload is built and no registry is written.
 The bundled `/usr/share/abox/squad.json` contains `SchemaVersion: 1`, `Team`,
 `Squad`, `Tag`, `CreatedAt`, `Mcp`, `State`, informational `Kits` and `Secrets`.
 `Secrets` holds the resolved `secrets` declarations of the squad chain, each with
-`Service`, `Prompt`, `Hosts`, `Env`, `Inputs` (`Name`, `Prompt`), `Separator` and
-`Encoding` (`plain` or `base64`). It holds declarations only, never values or host
-commands; anyone who can read the set can read it, so prompts must not be
+`Service`, `Prompt`, `Hosts`, `Env`, `Inputs` (`Name`, `Prompt`), `Separator`,
+`Encoding` (`plain` or `base64`), `Placeholder` and `FromCommand` (whether the value
+comes from a host command). It holds declarations only, never values or host
+commands: `FromCommand` marks a command-backed secret without its command, and abox
+never runs a command from a sandbox. Every field but `Service` is optional; anyone who can read the set can read it, so prompts must not be
 confidential. `Secrets` is additive and optional: the schema stays at version 1,
 remote create accepts metadata with and without it, and older abox versions ignore
 it. The original publisher's identical format without `SchemaVersion` is also

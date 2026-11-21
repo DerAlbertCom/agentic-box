@@ -54,8 +54,12 @@ public sealed class SecretsService(
                 : asked.Optional ? "optional"
                 : "required";
             var declaration = metadata.Declaration(name);
-            var state = SecretValues.IsStored(name, declaration, stored) ? "stored" : "not set";
-            var note = declaration is null ? "not declared" : "";
+            var isStored = SecretValues.IsStored(name, declaration, stored);
+            var state = isStored ? "stored" : "not set";
+            var note =
+                declaration is null ? "not declared"
+                : SecretValues.Conflict(declaration, stored) is not null ? "conflicting binding"
+                : "";
 
             console.WriteLine(
                 $"{name.PadRight(20)} {kits.PadRight(20)} {need.PadRight(9)} {state.PadRight(10)} {note}".TrimEnd()
@@ -79,6 +83,7 @@ public sealed class SecretsService(
             return 1;
         }
 
+        var stored = await sbx.ListSecretsAsync(cancellationToken);
         var failed = false;
         var unknown = false;
 
@@ -101,8 +106,15 @@ public sealed class SecretsService(
                 console.WriteLine($"Note: no kit of the sandbox asks for the service '{name}'.");
             }
 
+            if (declaration is { CommandWithheld: true })
+            {
+                failed |= !ReportCommandSecret(declaration, stored);
+                continue;
+            }
+
             var setting = await values.SetAsync(
                 declaration ?? new SecretDeclaration(name),
+                stored,
                 cancellationToken
             );
             if (!setting.Given)
@@ -162,6 +174,37 @@ public sealed class SecretsService(
         }
 
         return failed ? 1 : 0;
+    }
+
+    /// <summary>
+    /// A secret from a host command: abox never runs a command it would take from a sandbox,
+    /// so it tells the user how to store the secret with sbx.
+    /// </summary>
+    private bool ReportCommandSecret(SecretDeclaration declaration, HostSecrets stored)
+    {
+        var name = declaration.Service;
+        if (SecretValues.IsStored(name, declaration, stored))
+        {
+            console.WriteLine($"The secret '{name}' is stored; it comes from a host command.");
+            return true;
+        }
+
+        if (SecretValues.Conflict(declaration, stored) is { } conflict)
+        {
+            console.WriteError(
+                $"The secret '{name}' was not stored: {SecretValues.DescribeConflict(declaration, conflict)}"
+            );
+            return false;
+        }
+
+        console.WriteError(
+            $"The secret '{name}' comes from a host command, which abox never takes from a sandbox. "
+                + "Store it with sbx, using the host command the squad documents:"
+        );
+        console.WriteError(
+            "  " + SbxClient.SetCustomSecretCommandLine(declaration, "<host command>")
+        );
+        return false;
     }
 
     private static IReadOnlyList<string> Wanted(

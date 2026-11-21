@@ -201,6 +201,31 @@ public sealed class SquadCredentialsTests
     }
 
     [Fact]
+    public async Task AConflictingCustomBindingIsReportedAndNotReplaced()
+    {
+        // Arrange
+        WriteCommandSecretSquad();
+        _sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
+            .Returns(new HostSecrets([], [new CustomSecret(["rwe.ghe.com"], "RWE_GHE_TOKEN")]));
+        var console = new TestConsole(answer: true);
+
+        // Act
+        await Prepare(console);
+
+        // Assert
+        console
+            .Errors.Should()
+            .Contain(error => error.Contains("'rwe-ghec'") && error.Contains("conflicts with"));
+        console.Output.Should().Contain("The sandbox starts without the credential 'rwe-ghec'.");
+        await _sbx.DidNotReceive()
+            .SetCustomSecretAsync(
+                Arg.Any<SecretDeclaration>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task AServiceTheSquadDoesNotDeclareIsNotAskedFor()
     {
         // Arrange

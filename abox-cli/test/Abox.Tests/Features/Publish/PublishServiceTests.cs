@@ -613,7 +613,9 @@ public sealed class PublishServiceTests
               "Env": "ELASTIC_API_KEY",
               "Inputs": [],
               "Separator": ":",
-              "Encoding": "plain"
+              "Encoding": "plain",
+              "Placeholder": null,
+              "FromCommand": false
             }]
             """
         );

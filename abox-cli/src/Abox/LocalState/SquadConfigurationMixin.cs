@@ -84,7 +84,7 @@ public static class SquadConfigurationMixin
         IReadOnlyDictionary<string, string> Arguments
     );
 
-    /// <summary>How to ask for a service's value; a declaration only, never a value or a host command.</summary>
+    /// <summary>How to ask for a service's value; a declaration only, never a value or a host command; a command-backed secret is only marked.</summary>
     private sealed record SquadMetadataSecret(
         string Service,
         string? Prompt,
@@ -92,7 +92,9 @@ public static class SquadConfigurationMixin
         string? Env,
         IReadOnlyList<SquadMetadataSecretInput> Inputs,
         string Separator,
-        string Encoding
+        string Encoding,
+        string? Placeholder,
+        bool FromCommand
     )
     {
         internal static SquadMetadataSecret From(SecretDeclaration declaration) =>
@@ -105,7 +107,9 @@ public static class SquadConfigurationMixin
                     .Select(input => new SquadMetadataSecretInput(input.Name, input.Prompt))
                     .ToList(),
                 declaration.Separator,
-                declaration.Encoding.ToString().ToLowerInvariant()
+                declaration.Encoding.ToString().ToLowerInvariant(),
+                declaration.Placeholder,
+                declaration.Command is not null || declaration.CommandWithheld
             );
     }
 

@@ -323,8 +323,19 @@ service. The `secrets` section declares how the value is obtained:
   `host` may be a list; the first host names the secret.
 - A custom secret whose value comes from a host command carries `command` instead of
   `prompt` or `inputs`, and optionally `placeholder` (the value the agents see, with
-  `{rand}` for a random part). Nobody is asked: sbx runs the command and checks it
-  gives a value when it stores the secret. `command` and `placeholder` need a `host`.
+  `{rand}` for a random part). Nobody is asked for a value. `command` and
+  `placeholder` need a `host`. abox runs the command only from the squad's sources,
+  in the `abox create --local` check: sbx runs it and checks it gives a value when it
+  stores the secret. A sandbox never supplies a command (see `set` below).
+
+  ```yaml
+  secrets:
+    - service: rwe-ghec
+      host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com, rwe.ghe.com, uploads.rwe.ghe.com]
+      env: RWE_GHE_TOKEN
+      command: gh auth token -h rwe.ghe.com
+      placeholder: gho_{rand}
+  ```
 - A value that is built from parts carries `inputs` (each with its own `prompt`),
   `separator` (default `:`) and `encoding` (`plain` or `base64`).
 
@@ -341,14 +352,18 @@ it is stopped:
   `/usr/share/abox/squad.json`: the resolved `secrets` declarations of the squad
   chain, written by `abox build` for local and published sandboxes alike. Prompts,
   hosts and environment variable names are readable by anyone who can read the set,
-  so they must not be confidential; values and host commands are never written.
+  so they must not be confidential; values and host commands are never written. A
+  command-backed secret keeps its hosts, `env` and `placeholder` and is only marked
+  as coming from a command (`FromCommand`).
 
 Values are stored globally on the host, so a value set once serves every sandbox whose
 kits ask for that service.
 
 - `list` shows each service with the kits that ask for it, whether it is required or
   optional, and whether a value is stored. A service a kit asks for but the squad does
-  not declare is marked `not declared`.
+  not declare is marked `not declared`. A custom secret counts as stored when a stored
+  custom secret is sent to all its hosts under its `env`; one that shares a host or
+  the `env` without being that binding is marked `conflicting binding`.
 - `set` asks for the declared services, or only for those named with repeatable
   `--service <name>`, with the declared prompts, inputs, separator and encoding, and
   stores each as a service secret, or as a custom secret for a declaration with
@@ -356,6 +371,12 @@ kits ask for that service.
   asks for prints a note. An undeclared service that a kit asks for is asked for with
   the default prompt; an undeclared service no kit asks for, such as a custom service,
   fails, because abox cannot tell how to store it.
+  A custom secret with a conflicting binding is not stored: abox reports the binding,
+  which another sandbox may need, and leaves it to you to review and remove it.
+  abox never runs a host command it would take from a sandbox: for a command-backed
+  secret that is not stored, `set` prints the `sbx secret set-custom` command with its
+  hosts, `env` and `placeholder` and `--command '<host command>'`, to run with the
+  command the squad documents; a stored one is reported as stored.
 - `remove` takes the values of the declared or named services off the host, by
   service name, custom host or environment variable.
 
