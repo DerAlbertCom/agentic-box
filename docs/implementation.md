@@ -85,8 +85,9 @@ does not skip the workload image build.
    `config.yaml` and a `config.dockerfile` that copies it to
    `/usr/share/abox/squad.json`. `squad.json` carries the resolved `secrets`
    declarations of the chain, including personal additions on local builds, as
-   `Secrets`: service, prompt, hosts, environment variable, inputs, separator and
-   encoding, never values or host commands. `create --local` passes this mixin to
+   `Secrets`: service, prompt, hosts, environment variable, inputs, separator,
+   encoding, placeholder and whether the value comes from a host command
+   (`FromCommand`), never values or host commands. `create --local` passes this mixin to
    sbx, and `publish` pushes it, so local and published sandboxes carry the same
    metadata. This also runs with `--metadata-only`.
 12. Writes the manifest of the build: `build.json` in the build directory. It records
@@ -573,7 +574,9 @@ local kits, so both agree. `Secrets` entries become `SecretDeclaration`s with th
 same encoding validation as `.abox` files; a missing service or input name, an
 unknown encoding, a duplicate service or invalid JSON fails with a message naming the
 sandbox and suggesting a rebuild or republish. A missing `squad.json` or `Secrets`
-means no declarations (an older sandbox).
+means no declarations (an older sandbox). `FromCommand` becomes
+`SecretDeclaration.CommandWithheld`, which needs `Hosts`; the declaration never
+carries a command.
 
 - `list` shows the services the staged kits ask for and the declared ones, the kits
   that ask for them, whether they are required or optional, and whether the value is
@@ -582,6 +585,12 @@ means no declarations (an older sandbox).
   declared service no kit asks for gets a note; an undeclared service a kit asks for
   uses the default prompt; an undeclared service no kit asks for fails. Older
   sandboxes print a hint to recreate the sandbox from a current build or publication.
+  A command-backed declaration (`CommandWithheld`) is never run: when it is not stored,
+  `set` prints `SbxClient.SetCustomSecretCommandLine` (hosts, env, placeholder and
+  `--command '<host command>'`) and fails; when stored it says so. Before storing a
+  custom secret, `SecretValues.SetAsync` (shared with the create-time check) refuses
+  one whose host or variable a stored custom secret uses without being its binding,
+  and reports that binding.
   The value goes through the standard input
   of sbx as explicit UTF-8 without a BOM or added newline, preserving non-ASCII service
   and custom secrets independently of the console code page. It stays out of process
@@ -590,7 +599,9 @@ means no declarations (an older sandbox).
   attached-console streams or raw pipes.
 - `remove` takes the values off the host. Custom secrets are matched by `--host`,
   or by sbx's `--env-name` selector when only `env` was declared; service names
-  are used only for service secrets. `list` uses the same custom-secret identity.
+  are used only for service secrets. `list` counts a custom secret as stored when a
+  stored custom secret covers all its hosts and has its variable, and marks one that
+  shares a host or the variable as `conflicting binding`.
   sbx 0.51 requires destination hosts for credential substitution; environment-only
   legacy mappings remain removable, but need a `host` to supply credentials.
 

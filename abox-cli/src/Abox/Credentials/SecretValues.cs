@@ -12,20 +12,50 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
 {
     /// <summary>
     /// Whether the value of a service is on the host. A service sbx does not know is
-    /// stored under its host or environment variable, not under its service name.
+    /// stored as a custom secret that is sent to all its hosts under its variable.
     /// </summary>
     public static bool IsStored(string name, SecretDeclaration? declaration, HostSecrets stored)
     {
-        var (kind, value) = (declaration ?? new SecretDeclaration(name)).Identity;
-        return kind switch
-        {
-            SecretIdentityKind.Host => stored.Custom.Any(custom => custom.Targets.Contains(value)),
-            SecretIdentityKind.EnvironmentVariable => stored.Custom.Any(custom =>
-                custom.EnvironmentVariable == value
-            ),
-            _ => stored.Services.Contains(value),
-        };
+        var secret = declaration ?? new SecretDeclaration(name);
+        return secret.IsCustom
+            ? stored.Custom.Any(custom => Covers(custom, secret))
+            : stored.Services.Contains(secret.Service);
     }
+
+    /// <summary>
+    /// The stored custom secret that shares a host or the variable of a custom secret
+    /// without being its binding, so storing the secret could break the other one.
+    /// </summary>
+    public static CustomSecret? Conflict(SecretDeclaration declaration, HostSecrets stored)
+    {
+        if (!declaration.IsCustom || stored.Custom.Any(custom => Covers(custom, declaration)))
+        {
+            return null;
+        }
+
+        var hosts = declaration.Hosts ?? [];
+        return stored.Custom.FirstOrDefault(custom =>
+            custom.Targets.Any(hosts.Contains)
+            || declaration.EnvironmentVariable is not null
+                && custom.EnvironmentVariable == declaration.EnvironmentVariable
+        );
+    }
+
+    /// <summary>Why a custom secret is not stored over a conflicting one.</summary>
+    public static string DescribeConflict(SecretDeclaration declaration, CustomSecret conflict)
+    {
+        var targets = conflict.Targets.Count > 0 ? string.Join(", ", conflict.Targets) : "no host";
+        var variable = conflict.EnvironmentVariable ?? "no variable";
+        return $"it conflicts with the stored custom secret for {targets} ({variable}). "
+            + $"Another sandbox may need that binding: review it with 'sbx secret ls' and remove it yourself before you set '{declaration.Service}'.";
+    }
+
+    private static bool Covers(CustomSecret custom, SecretDeclaration declaration) =>
+        (declaration.Hosts ?? []).All(custom.Targets.Contains)
+        && (
+            declaration.EnvironmentVariable is null
+            || custom.EnvironmentVariable == declaration.EnvironmentVariable
+        );
 
     /// <summary>
     /// Asks for the value of a secret: one value, or the parts it is built from. Returns
@@ -70,13 +100,20 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
 
     /// <summary>
     /// Asks for the value of a service and stores it: a custom secret for a service sbx
-    /// does not know. A secret with a command asks nothing; sbx runs the command.
+    /// does not know. A secret with a command asks nothing; sbx runs the command. A custom
+    /// secret is not stored over a conflicting one.
     /// </summary>
     public async Task<SecretSetting> SetAsync(
         SecretDeclaration declaration,
+        HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
+        if (Conflict(declaration, stored) is { } conflict)
+        {
+            return new SecretSetting(true, false, DescribeConflict(declaration, conflict));
+        }
+
         if (declaration.Command is not null)
         {
             console.WriteLine(
@@ -101,7 +138,7 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
 }
 
 /// <summary>How setting a secret went.</summary>
-/// <param name="Given">Whether a value was given or a command run.</param>
+/// <param name="Given">Whether a value was given, a command run or a conflict found.</param>
 /// <param name="Stored">Whether the host keeps the value now.</param>
 /// <param name="Output">What sbx said.</param>
 public sealed record SecretSetting(bool Given, bool Stored, string Output)

@@ -76,7 +76,7 @@ public sealed class SquadCredentials(
 
             if (console.IsInteractive)
             {
-                await AskAsync(missing, cancellationToken);
+                await AskAsync(missing, stored, cancellationToken);
             }
             else
             {
@@ -121,6 +121,7 @@ public sealed class SquadCredentials(
 
     private async Task AskAsync(
         IReadOnlyList<CredentialState> missing,
+        HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
@@ -135,13 +136,13 @@ public sealed class SquadCredentials(
         foreach (var state in missing)
         {
             var name = state.Request.Service;
-            var stored =
+            var ready =
                 state.Stored
                 || state.Declaration is { } declaration
                     && console.Confirm($"Set the secret '{name}' now?")
-                    && await SetAsync(declaration, cancellationToken);
+                    && await SetAsync(declaration, stored, cancellationToken);
 
-            if (!stored)
+            if (!ready)
             {
                 console.WriteLine($"The sandbox starts without the credential '{name}'.");
                 continue;
@@ -165,11 +166,12 @@ public sealed class SquadCredentials(
 
     private async Task<bool> SetAsync(
         SecretDeclaration declaration,
+        HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
         var name = declaration.Service;
-        var setting = await values.SetAsync(declaration, cancellationToken);
+        var setting = await values.SetAsync(declaration, stored, cancellationToken);
         if (!setting.Given)
         {
             console.WriteLine($"The secret '{name}' was not set.");

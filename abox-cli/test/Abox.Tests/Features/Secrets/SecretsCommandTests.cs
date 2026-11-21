@@ -118,29 +118,161 @@ public sealed class SecretsCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task ACommandBackedDeclarationIsListedWithoutBreakingTheList()
+    public async Task ListShowsACommandBackedBindingAsStoredWhenItHasAllItsHostsAndItsVariable()
     {
         // Arrange
-        Sandbox(
-            [Kit("rwe-ghec")],
-            SquadJson(
-                """{"Service":"rwe-ghec","Prompt":null,"Hosts":["copilot-api.rwe.ghe.com","api.rwe.ghe.com"],"Env":"RWE_GHE_TOKEN","Inputs":[],"Separator":":","Encoding":"plain"}"""
+        Sandbox([Kit("rwe-ghec")], SquadJson(RweGhec));
+        StoreCustom(
+            new CustomSecret(
+                [
+                    "copilot-api.rwe.ghe.com",
+                    "api.rwe.ghe.com",
+                    "rwe.ghe.com",
+                    "uploads.rwe.ghe.com",
+                ],
+                "RWE_GHE_TOKEN"
             )
         );
-        _cli.Sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
-            .Returns(
-                new HostSecrets(
-                    [],
-                    [new CustomSecret(["copilot-api.rwe.ghe.com"], "RWE_GHE_TOKEN")]
-                )
-            );
 
         // Act
         var exitCode = await Secrets("list");
 
         // Assert
         exitCode.Should().Be(0, _cli.Console.AllText);
-        Line("rwe-ghec").Should().Contain("stored").And.NotContain("not declared");
+        Line("rwe-ghec").Should().Contain("stored").And.NotContain("not set");
+        Line("rwe-ghec").Should().NotContain("not declared").And.NotContain("conflict");
+    }
+
+    [Fact]
+    public async Task ListShowsABindingThatCoversOnlySomeHostsAsAConflictNotAsStored()
+    {
+        // Arrange
+        Sandbox([Kit("rwe-ghec")], SquadJson(RweGhec));
+        StoreCustom(new CustomSecret(["copilot-api.rwe.ghe.com"], "RWE_GHE_TOKEN"));
+
+        // Act
+        var exitCode = await Secrets("list");
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        Line("rwe-ghec").Should().Contain("not set").And.EndWith("conflicting binding");
+    }
+
+    [Fact]
+    public async Task SetOfACommandBackedSecretFromTheSandboxPrintsTheSbxCommandAndRunsNothing()
+    {
+        // Arrange
+        Sandbox([Kit("rwe-ghec")], SquadJson(RweGhec));
+
+        // Act
+        var exitCode = await Secrets("set", "--service", "rwe-ghec");
+
+        // Assert
+        exitCode.Should().Be(1);
+        _cli.Console.Errors.Should()
+            .Contain(error =>
+                error.Contains("'rwe-ghec' comes from a host command")
+                && error.Contains("never takes")
+            );
+        _cli.Console.Errors.Should()
+            .Contain(
+                "  sbx secret set-custom --host copilot-api.rwe.ghe.com --host api.rwe.ghe.com --host rwe.ghe.com --host uploads.rwe.ghe.com --env RWE_GHE_TOKEN --placeholder 'gho_{rand}' --command '<host command>'"
+            );
+        _cli.Console.Output.Should().NotContain(line => line.EndsWith(": "));
+        await _cli
+            .Sbx.DidNotReceive()
+            .SetCustomSecretAsync(
+                Arg.Any<SecretDeclaration>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task SetOfAStoredCommandBackedSecretFromTheSandboxSaysItIsStored()
+    {
+        // Arrange
+        Sandbox([Kit("rwe-ghec")], SquadJson(RweGhec));
+        StoreCustom(
+            new CustomSecret(
+                [
+                    "uploads.rwe.ghe.com",
+                    "rwe.ghe.com",
+                    "api.rwe.ghe.com",
+                    "copilot-api.rwe.ghe.com",
+                ],
+                "RWE_GHE_TOKEN"
+            )
+        );
+
+        // Act
+        var exitCode = await Secrets("set");
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        _cli.Console.Output.Should().Contain(line => line.Contains("'rwe-ghec' is stored"));
+        _cli.Console.Errors.Should().BeEmpty();
+        await _cli
+            .Sbx.DidNotReceive()
+            .SetCustomSecretAsync(
+                Arg.Any<SecretDeclaration>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task SetReportsAConflictingCommandBackedBindingInsteadOfPrintingTheCommand()
+    {
+        // Arrange
+        Sandbox([Kit("rwe-ghec")], SquadJson(RweGhec));
+        StoreCustom(new CustomSecret(["copilot-api.rwe.ghe.com"], "RWE_GHE_TOKEN"));
+
+        // Act
+        var exitCode = await Secrets("set", "--service", "rwe-ghec");
+
+        // Assert
+        exitCode.Should().Be(1);
+        _cli.Console.Errors.Should()
+            .Contain(error =>
+                error.Contains("'rwe-ghec'")
+                && error.Contains("conflicts with")
+                && error.Contains("copilot-api.rwe.ghe.com")
+            );
+        _cli.Console.Errors.Should().NotContain(error => error.Contains("sbx secret set-custom"));
+    }
+
+    [Fact]
+    public async Task SetReportsAConflictingCustomBindingInsteadOfReplacingIt()
+    {
+        // Arrange
+        Sandbox(
+            [Kit("sample-secrets")],
+            SquadJson(
+                """{"Service":"sample-custom","Hosts":["custom.example.invalid","api.custom.example.invalid"],"Env":"SAMPLE_CUSTOM_TOKEN"}"""
+            )
+        );
+        StoreCustom(new CustomSecret(["api.custom.example.invalid"], "OTHER_TOKEN"));
+
+        // Act
+        var exitCode = await Secrets("set");
+
+        // Assert
+        exitCode.Should().Be(1);
+        _cli.Console.Errors.Should()
+            .Contain(error =>
+                error.Contains("'sample-custom'")
+                && error.Contains("conflicts with")
+                && error.Contains("OTHER_TOKEN")
+            );
+        _cli.Console.Output.Should().NotContain(line => line.EndsWith(": "));
+        await _cli
+            .Sbx.DidNotReceive()
+            .SetCustomSecretAsync(
+                Arg.Any<SecretDeclaration>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -511,6 +643,9 @@ public sealed class SecretsCommandTests : IDisposable
     [InlineData("""{"Secrets":[{"Service":"jfrog","Inputs":[{"Prompt":"no name"}]}]}""")]
     [InlineData("""{"Secrets":[{"Service":"jfrog"},{"Service":"jfrog"}]}""")]
     [InlineData("""{"Secrets":[""")]
+    [InlineData(
+        """{"Secrets":[{"Service":"rwe-ghec","Env":"RWE_GHE_TOKEN","FromCommand":true}]}"""
+    )]
     public async Task MalformedSecretsFailNamingTheSandboxAndSuggestARebuild(string squadJson)
     {
         // Arrange
@@ -547,6 +682,15 @@ public sealed class SecretsCommandTests : IDisposable
                 && error.Contains("/usr/share/sandbox/kit/broken/kit.yaml")
             );
     }
+
+    private const string RweGhec = """
+        {"Service":"rwe-ghec","Prompt":null,"Hosts":["copilot-api.rwe.ghe.com","api.rwe.ghe.com","rwe.ghe.com","uploads.rwe.ghe.com"],"Env":"RWE_GHE_TOKEN","Inputs":[],"Separator":":","Encoding":"plain","Placeholder":"gho_{rand}","FromCommand":true}
+        """;
+
+    private void StoreCustom(params CustomSecret[] custom) =>
+        _cli
+            .Sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
+            .Returns(new HostSecrets([], custom));
 
     private Task<int> Secrets(params string[] args) =>
         _cli.Invoke(["secrets", .. args, "--location", _cli.Location]);

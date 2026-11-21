@@ -498,25 +498,7 @@ public sealed partial class SbxClient : ISbxClient
         CancellationToken cancellationToken
     )
     {
-        var arguments = new List<string> { "secret", "set-custom" };
-
-        foreach (var host in declaration.Hosts ?? [])
-        {
-            arguments.Add("--host");
-            arguments.Add(host);
-        }
-
-        if (declaration.EnvironmentVariable is not null)
-        {
-            arguments.Add("--env");
-            arguments.Add(declaration.EnvironmentVariable);
-        }
-
-        if (declaration.Placeholder is not null)
-        {
-            arguments.Add("--placeholder");
-            arguments.Add(declaration.Placeholder);
-        }
+        var arguments = SetCustomSecretArguments(declaration);
 
         if (value is null)
         {
@@ -546,6 +528,50 @@ public sealed partial class SbxClient : ISbxClient
             cancellationToken
         );
     }
+
+    /// <summary>
+    /// The <c>sbx secret set-custom</c> command line that stores a secret from a host
+    /// command, for the user to run when abox does not run the command itself.
+    /// </summary>
+    /// <param name="declaration">The custom secret.</param>
+    /// <param name="command">The host command, or a stand-in for it.</param>
+    public static string SetCustomSecretCommandLine(SecretDeclaration declaration, string command)
+    {
+        var arguments = SetCustomSecretArguments(declaration);
+        arguments.Add("--command");
+        arguments.Add(command);
+        return string.Join(' ', [ExecutableName, .. arguments.Select(QuoteForShell)]);
+    }
+
+    private static List<string> SetCustomSecretArguments(SecretDeclaration declaration)
+    {
+        var arguments = new List<string> { "secret", "set-custom" };
+
+        foreach (var host in declaration.Hosts ?? [])
+        {
+            arguments.Add("--host");
+            arguments.Add(host);
+        }
+
+        if (declaration.EnvironmentVariable is not null)
+        {
+            arguments.Add("--env");
+            arguments.Add(declaration.EnvironmentVariable);
+        }
+
+        if (declaration.Placeholder is not null)
+        {
+            arguments.Add("--placeholder");
+            arguments.Add(declaration.Placeholder);
+        }
+
+        return arguments;
+    }
+
+    private static string QuoteForShell(string argument) =>
+        PlainShellWord().IsMatch(argument)
+            ? argument
+            : "'" + argument.Replace("'", "'\\''", StringComparison.Ordinal) + "'";
 
     /// <summary>
     /// Removes a secret from the host store. A secret of a service sbx does not know is
@@ -618,4 +644,7 @@ public sealed partial class SbxClient : ISbxClient
 
     [GeneratedRegex(@"(\d+)\.(\d+)\.(\d+)")]
     private static partial Regex VersionPattern();
+
+    [GeneratedRegex(@"^[A-Za-z0-9_./:=@%+-]+$")]
+    private static partial Regex PlainShellWord();
 }

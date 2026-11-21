@@ -282,7 +282,7 @@ public sealed class BuildServiceTests
             metadata.GetProperty("Secrets"),
             """
             [
-              {"Service": "github", "Prompt": null, "Hosts": [], "Env": null, "Inputs": [], "Separator": ":", "Encoding": "plain"},
+              {"Service": "github", "Prompt": null, "Hosts": [], "Env": null, "Inputs": [], "Separator": ":", "Encoding": "plain", "Placeholder": null, "FromCommand": false},
               {
                 "Service": "elastic",
                 "Prompt": "The API key for Elastic",
@@ -290,7 +290,9 @@ public sealed class BuildServiceTests
                 "Env": "ELASTIC_API_KEY",
                 "Inputs": [],
                 "Separator": ":",
-                "Encoding": "plain"
+                "Encoding": "plain",
+                "Placeholder": null,
+                "FromCommand": false
               },
               {
                 "Service": "database",
@@ -299,9 +301,11 @@ public sealed class BuildServiceTests
                 "Env": null,
                 "Inputs": [{"Name": "user", "Prompt": "The database user"}, {"Name": "password", "Prompt": null}],
                 "Separator": "/",
-                "Encoding": "base64"
+                "Encoding": "base64",
+                "Placeholder": null,
+                "FromCommand": false
               },
-              {"Service": "private", "Prompt": "Mine", "Hosts": [], "Env": null, "Inputs": [], "Separator": ":", "Encoding": "plain"}
+              {"Service": "private", "Prompt": "Mine", "Hosts": [], "Env": null, "Inputs": [], "Separator": ":", "Encoding": "plain", "Placeholder": null, "FromCommand": false}
             ]
             """
         );
@@ -351,6 +355,45 @@ public sealed class BuildServiceTests
         var metadata = BundledSquadMetadata();
         metadata.GetProperty("Secrets")[0].GetProperty("Service").GetString().Should().Be("token");
         metadata.GetRawText().Should().NotContain("print-synthetic-token");
+    }
+
+    [Fact]
+    public async Task TheConfigurationMixinMarksACommandBackedSecretWithItsHostsVariableAndPlaceholder()
+    {
+        // Arrange
+        _root.File(
+            "teams/sample/ac.abox",
+            """
+            workload: sample
+            secrets:
+              - service: rwe-ghec
+                host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com]
+                env: RWE_GHE_TOKEN
+                command: print-synthetic-token --raw
+                placeholder: gho_{rand}
+            """
+        );
+
+        // Act
+        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+
+        // Assert
+        AssertJson(
+            BundledSquadMetadata().GetProperty("Secrets"),
+            """
+            [{
+              "Service": "rwe-ghec",
+              "Prompt": null,
+              "Hosts": ["copilot-api.rwe.ghe.com", "api.rwe.ghe.com"],
+              "Env": "RWE_GHE_TOKEN",
+              "Inputs": [],
+              "Separator": ":",
+              "Encoding": "plain",
+              "Placeholder": "gho_{rand}",
+              "FromCommand": true
+            }]
+            """
+        );
     }
 
     private JsonElement BundledSquadMetadata()

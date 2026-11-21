@@ -127,6 +127,12 @@ public sealed class SandboxSquadMetadata
                     : host
             )
             .ToList();
+        if (secret.FromCommand && hosts.Count == 0)
+        {
+            throw new AboxException(
+                $"the secret '{secret.Service}' comes from a host command, so it needs 'Hosts'"
+            );
+        }
 
         return new SecretDeclaration(
             secret.Service,
@@ -135,7 +141,9 @@ public sealed class SandboxSquadMetadata
             secret.Separator ?? ":",
             SecretDeclaration.ParseEncoding(secret.Encoding, "squad.json"),
             hosts.Count > 0 ? hosts : null,
-            string.IsNullOrWhiteSpace(secret.Env) ? null : secret.Env
+            string.IsNullOrWhiteSpace(secret.Env) ? null : secret.Env,
+            Placeholder: string.IsNullOrWhiteSpace(secret.Placeholder) ? null : secret.Placeholder,
+            CommandWithheld: secret.FromCommand
         );
     }
 
@@ -146,7 +154,9 @@ public sealed class SandboxSquadMetadata
         string? Env,
         IReadOnlyList<MetadataSecretInput?>? Inputs,
         string? Separator,
-        string? Encoding
+        string? Encoding,
+        string? Placeholder,
+        bool FromCommand
     );
 
     private sealed record MetadataSecretInput(string? Name, string? Prompt);
