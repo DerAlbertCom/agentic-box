@@ -397,6 +397,61 @@ public sealed class ProcessRunnerTests
     }
 
     [Fact]
+    public async Task StreamedLinesArriveInTheirOriginalOrderAcrossBothStreams()
+    {
+        // Arrange
+        var request = new ProcessRequest(
+            OperatingSystem.IsWindows() ? "powershell" : "sh",
+            OperatingSystem.IsWindows()
+                ?
+                [
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    "[Console]::Out.WriteLine('one'); [Console]::Out.Flush(); Start-Sleep -Milliseconds 200; "
+                        + "[Console]::Error.WriteLine('two'); [Console]::Error.Flush(); Start-Sleep -Milliseconds 200; "
+                        + "[Console]::Out.WriteLine('three')",
+                ]
+                : ["-c", "echo one; sleep 0.2; echo two >&2; sleep 0.2; echo three"]
+        );
+        var lines = new List<ProcessOutputLine>();
+        request = request with { OutputLines = lines.Add };
+
+        // Act
+        var result = await new ProcessRunner().RunAsync(request, CancellationToken.None);
+
+        // Assert
+        lines
+            .Should()
+            .Equal(
+                new ProcessOutputLine(ProcessStream.StandardOutput, "one"),
+                new ProcessOutputLine(ProcessStream.StandardError, "two"),
+                new ProcessOutputLine(ProcessStream.StandardOutput, "three")
+            );
+        result.Output.Should().Be(string.Join(Environment.NewLine, "one", "two", "three", ""));
+        result.StandardOutput.Should().Be($"one{Environment.NewLine}three{Environment.NewLine}");
+        result.StandardError.Should().Be($"two{Environment.NewLine}");
+    }
+
+    [Fact]
+    public async Task SensitiveProcessesCannotStreamTheirOutput()
+    {
+        // Arrange
+        var request = new ProcessRequest(
+            "sh",
+            ["-c", "echo secret"],
+            OutputPolicy: ProcessOutputPolicy.Sensitive,
+            OutputLines: _ => { }
+        );
+
+        // Act
+        var action = () => new ProcessRunner().RunAsync(request, CancellationToken.None);
+
+        // Assert
+        await action.Should().ThrowAsync<AboxException>();
+    }
+
+    [Fact]
     public async Task TheArgumentsArePassedOneByOne()
     {
         // Arrange

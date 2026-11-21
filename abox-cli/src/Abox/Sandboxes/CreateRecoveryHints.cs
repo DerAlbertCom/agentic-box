@@ -73,7 +73,7 @@ public sealed class CreateRecoveryHints(
         }
     }
 
-    private static string Render(
+    internal static string Render(
         string? team,
         string? squad,
         string tag,
