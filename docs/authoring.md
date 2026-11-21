@@ -32,7 +32,7 @@ named in this guide, and an unknown key is an error.
 ```
 abox build --team sample                     # make the kits of the team, check them
 abox create --team sample --local --location <folder>  # test the local build for a folder
-abox secrets set --team sample --squad ac    # store the values the kits of the squad ask for
+abox secrets set --location <folder>         # store the values the kits of the sandbox ask for
 abox run --location <folder>                 # open the sandbox of the folder
 ```
 
@@ -60,18 +60,22 @@ abox run --location <folder>                 # open the sandbox of the folder
   Local team discovery starts at the sandbox location and searches its parents;
   `--root <dir>` selects a separate source project.
   `abox create --team sample --local --location <folder>` again replaces the sandbox.
+- `secrets` works on the sandbox of the folder, like `run`: it reads the services the
+  kits of the sandbox ask for and the squad's `secrets` declarations from inside the
+  sandbox, asks for the values and stores them on the host. It needs no team sources,
+  so it works the same for a published and a local sandbox. See [Secrets](#secrets).
 - `run` starts a launcher (a shell, unless said otherwise) in the sandbox. When the
   squad has a newer build than the sandbox was made of, it offers to replace first.
 
 The user configuration (in the abox config directory) can fix the defaults:
 `defaultTeam` is the team the commands use when they are not asked for one.
 An explicit `--team` replaces that default; `build` and `publish` accept repeated
-`--team` selections, while `create` and `secrets` select one team. Without either
+`--team` selections, while `create` selects one team. Without either
 an explicit team or a default, these commands report the same missing-team error.
 
 ### Finding sources from nested folders
 
-`build`, `publish` and `secrets` search for the selected team starting in the current
+`build` and `publish` search for the selected team starting in the current
 directory and continuing through its parents. Local `create` starts at its resolved
 `--location`/`defaultLocation` instead. For each command, `--root <dir>` overrides
 that start directory (`create` requires `--local` with it). Relative roots are
@@ -88,9 +92,8 @@ use the selected project's kits too. Builds record the owning project root so a
 later local replacement can find the same sources.
 
 For example, from `project/src/app`, with sources under `project/teams` and
-`project/kits`, `abox build --team sample`, `abox publish --team sample` and
-`abox secrets list --team sample --squad ac` use the same project sources as when
-run from `project`. `abox create --local --team sample --squad ac --location .`
+`project/kits`, `abox build --team sample` and `abox publish --team sample` use the
+same project sources as when run from `project`. `abox create --local --team sample --squad ac --location .`
 selects the same team's local build. A separate workspace can use
 `abox create --local --team sample --squad ac --location <workspace> --root <project>`.
 
@@ -177,7 +180,7 @@ capabilities:
         You work in a sandbox.
 ```
 
-- Abox's own descriptor lookup, used by `secrets` and `publish`, first tries
+- Abox's own descriptor lookup, used by the create-time credential check and `publish`, first tries
   `<directory-name>.yaml`, then `spec.yaml`, then the first `*.yaml` file sorted by
   path, all directly inside the kit directory. Build verification and local create
   pass the directory to sbx, whose descriptor lookup is independent; prefer the
@@ -325,10 +328,43 @@ service. The `secrets` section declares how the value is obtained:
 - A value that is built from parts carries `inputs` (each with its own `prompt`),
   `separator` (default `:`) and `encoding` (`plain` or `base64`).
 
-`abox secrets list` shows declared secrets and services requested by local kits,
-the local kits requesting each service, and whether values are stored. Registry
-kits are not inspected for requested services. `abox secrets remove` takes the
-values off the host.
+`abox secrets list|set|remove [--location <folder>]` works on the existing sandbox of
+a folder (`--location`, then `defaultLocation`, then the current folder); it never
+creates or replaces one. It reads two things from inside the sandbox, starting it when
+it is stopped:
+
+- the services the kits ask for, from the kit descriptors staged in the sandbox
+  (`/usr/share/sandbox/kit/<kit>/kit.yaml`), merged per service as for a local
+  squad: every kit that asks, the union of the domains, optional only when every kit
+  that asks is optional;
+- how to ask for each value, from the `Secrets` field of the bundled
+  `/usr/share/abox/squad.json`: the resolved `secrets` declarations of the squad
+  chain, written by `abox build` for local and published sandboxes alike. Prompts,
+  hosts and environment variable names are readable by anyone who can read the set,
+  so they must not be confidential; values and host commands are never written.
+
+Values are stored globally on the host, so a value set once serves every sandbox whose
+kits ask for that service.
+
+- `list` shows each service with the kits that ask for it, whether it is required or
+  optional, and whether a value is stored. A service a kit asks for but the squad does
+  not declare is marked `not declared`.
+- `set` asks for the declared services, or only for those named with repeatable
+  `--service <name>`, with the declared prompts, inputs, separator and encoding, and
+  stores each as a service secret, or as a custom secret for a declaration with
+  `host` or `env`. An empty answer stores nothing. Naming a declared service no kit
+  asks for prints a note. An undeclared service that a kit asks for is asked for with
+  the default prompt; an undeclared service no kit asks for, such as a custom service,
+  fails, because abox cannot tell how to store it.
+- `remove` takes the values of the declared or named services off the host, by
+  service name, custom host or environment variable.
+
+A sandbox created before abox bundled `Secrets` (no `squad.json`, or one without
+`Secrets`) has no declarations: its kits' services are listed as not declared and can
+be set with `--service <name>` and the default prompt, and custom services cannot be
+set. Recreate such a sandbox from a current build or publication to get the squad's
+prompts and custom services. A malformed `Secrets` field fails the command with a
+message naming the sandbox; rebuild or republish the squad.
 
 A stored value is not enough: sbx injects the credential of a kit that is not built
 into sbx only with an approval, a *binding* of the service to the domains of its
@@ -357,7 +393,7 @@ such as one a kit's setup reads from its variable; it needs the squad's sources,
   approval.
 
 Without a terminal it prints a warning with what is missing and the
-`abox secrets set --team <team> --squad <squad> --service <service>` commands, and
+`abox secrets set --location <folder> --service <service>` commands, and
 goes on; approvals need a run on a terminal. sbx itself never asks: it starts without
 an optional credential and rejects a required one, and abox shows its message and
 its `Note:` lines.
@@ -372,11 +408,15 @@ under `example.invalid`, which never resolve. The `ac` squad does not carry this
 so it starts without them.
 
 ```sh
-abox secrets list --team sample --squad secrets
-abox secrets set --team sample --squad secrets
+abox build --team sample
 abox create --team sample --squad secrets --local --location <folder>
-abox secrets remove --team sample --squad secrets
+abox secrets list --location <folder>
+abox secrets set --location <folder>
+abox secrets remove --location <folder>
 ```
+
+On a terminal, `abox create` asks for the missing values itself; `abox secrets` then
+manages them for the folder's sandbox.
 
 ## The workload: `.workload`
 

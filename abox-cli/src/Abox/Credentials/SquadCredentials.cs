@@ -29,10 +29,12 @@ public sealed class SquadCredentials(
     /// <param name="rootDirectory">The project that holds the squad's sources; null skips the check.</param>
     /// <param name="team">The team the squad belongs to.</param>
     /// <param name="squad">The squad the sandbox is created from.</param>
+    /// <param name="location">The folder the sandbox is created for.</param>
     public async Task PrepareAsync(
         string? rootDirectory,
         string team,
         string squad,
+        string location,
         CancellationToken cancellationToken
     )
     {
@@ -78,7 +80,7 @@ public sealed class SquadCredentials(
             }
             else
             {
-                Warn(missing, team, squad);
+                Warn(missing, location);
             }
         }
         catch (AboxException exception)
@@ -184,7 +186,7 @@ public sealed class SquadCredentials(
         return true;
     }
 
-    private void Warn(IReadOnlyList<CredentialState> missing, string team, string squad)
+    private void Warn(IReadOnlyList<CredentialState> missing, string location)
     {
         console.WriteError(
             "Warning: the kits of the squad ask for credentials that are not ready:"
@@ -199,7 +201,7 @@ public sealed class SquadCredentials(
         )
         {
             console.WriteError(
-                $"Set the value with: abox secrets set --team {team} --squad {squad} --service {state.Request.Service}"
+                $"Set the value with: abox secrets set --location \"{location}\" --service {state.Request.Service}"
             );
         }
 

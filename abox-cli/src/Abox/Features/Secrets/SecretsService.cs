@@ -1,105 +1,110 @@
+using Abox.Configuration;
 using Abox.Credentials;
 using Abox.Infrastructure;
 using Abox.Kits;
-using Abox.LocalState;
+using Abox.Sandboxes;
 using Abox.Sbx;
 
 namespace Abox.Features.Secrets;
 
-/// <summary>What to do with the secrets of a squad.</summary>
-/// <param name="Team">The team the squad belongs to.</param>
-/// <param name="Squad">The squad whose secrets are meant.</param>
-/// <param name="RootDirectory">The directory of the project that holds the teams folder.</param>
-/// <param name="Services">The services to act on. All of them when the list is empty.</param>
+/// <summary>What to do with the secrets of a folder's sandbox.</summary>
+/// <param name="Location">The folder whose sandbox is meant.</param>
+/// <param name="FolderConfig">The folder configuration, for the create-recovery hint.</param>
+/// <param name="Services">The services to act on. All declared ones when the list is empty.</param>
 public sealed record SecretsRequest(
-    string Team,
-    string Squad,
-    string RootDirectory,
+    string Location,
+    FolderConfig? FolderConfig,
     IReadOnlyList<string> Services
 );
 
 /// <summary>
-/// The secrets of the host: the kits ask for a service, the configuration says how the
-/// value of that service is obtained, and sbx keeps it.
+/// The secrets of the host for a folder's sandbox: its staged kits ask for a service, its
+/// bundled squad metadata says how the value of that service is obtained, and sbx keeps
+/// the value globally.
 /// </summary>
 public sealed class SecretsService(
-    SquadResolver resolver,
-    PersonalConfigurations personalConfigurations,
+    FolderSandbox sandboxes,
     ISbxClient sbx,
     SecretValues values,
     IConsole console
 )
 {
-    /// <summary>Lists the services of the squad and whether they are stored.</summary>
+    /// <summary>Lists the services of the sandbox and whether they are stored.</summary>
     public async Task<int> ListAsync(SecretsRequest request, CancellationToken cancellationToken)
     {
-        var squad = Resolve(request);
-        var services = ServicesOf(squad);
+        var metadata = await ReadAsync(request, cancellationToken);
         var stored = await sbx.ListSecretsAsync(cancellationToken);
 
-        var names = services
-            .Keys.Union(squad.Secrets.Select(secret => secret.Service))
-            .Order()
+        var names = metadata
+            .Requests.Select(service => service.Service)
+            .Union(metadata.Secrets.Select(secret => secret.Service))
+            .Order(StringComparer.Ordinal)
             .ToList();
 
         console.WriteLine(
-            $"{"SERVICE".PadRight(20)} {"KITS".PadRight(20)} {"STATE".PadRight(10)} NOTE"
+            $"{"SERVICE".PadRight(20)} {"KITS".PadRight(20)} {"NEED".PadRight(9)} {"STATE".PadRight(10)} NOTE"
         );
 
         foreach (var name in names)
         {
-            var kits = services.TryGetValue(name, out var kitNames)
-                ? string.Join(", ", kitNames)
-                : "-";
-            var declaration = squad.Secrets.FirstOrDefault(secret => secret.Service == name);
-            var declared = declaration is not null;
+            var asked = metadata.Request(name);
+            var kits = asked is null ? "-" : string.Join(", ", asked.Kits);
+            var need =
+                asked is null ? "-"
+                : asked.Optional ? "optional"
+                : "required";
+            var declaration = metadata.Declaration(name);
             var state = SecretValues.IsStored(name, declaration, stored) ? "stored" : "not set";
+            var note = declaration is null ? "not declared" : "";
 
             console.WriteLine(
-                $"{name.PadRight(20)} {kits.PadRight(20)} {state.PadRight(10)} {(declared ? "" : "not declared")}".TrimEnd()
+                $"{name.PadRight(20)} {kits.PadRight(20)} {need.PadRight(9)} {state.PadRight(10)} {note}".TrimEnd()
             );
         }
 
+        WriteOlderSandboxHint(metadata);
         return 0;
     }
 
     /// <summary>Asks for the values of the services and stores them on the host.</summary>
     public async Task<int> SetAsync(SecretsRequest request, CancellationToken cancellationToken)
     {
-        var squad = Resolve(request);
-        var services = ServicesOf(squad);
-
-        var wanted =
-            request.Services.Count > 0
-                ? request.Services
-                : squad.Secrets.Select(secret => secret.Service).ToList();
+        var metadata = await ReadAsync(request, cancellationToken);
+        var wanted = Wanted(request, metadata);
 
         if (wanted.Count == 0)
         {
             console.WriteError("There are no secrets to set.");
+            WriteOlderSandboxHint(metadata);
             return 1;
         }
 
         var failed = false;
+        var unknown = false;
 
         foreach (var name in wanted)
         {
-            var declaration = squad.Secrets.FirstOrDefault(secret => secret.Service == name);
-            if (declaration is null)
+            var asked = metadata.Request(name);
+            var declaration = metadata.Declaration(name);
+            if (declaration is null && asked is null)
             {
                 console.WriteError(
-                    $"The service '{name}' is not declared. Add it to the 'secrets' section of the configuration."
+                    $"The service '{name}' is not declared and no kit of the sandbox asks for it, so abox cannot tell how to store it."
                 );
+                unknown = true;
                 failed = true;
                 continue;
             }
 
-            if (!declaration.IsCustom && !services.ContainsKey(name))
+            if (declaration is { IsCustom: false } && asked is null)
             {
-                console.WriteLine($"Note: no kit of the squad asks for the service '{name}'.");
+                console.WriteLine($"Note: no kit of the sandbox asks for the service '{name}'.");
             }
 
-            var setting = await values.SetAsync(declaration, cancellationToken);
+            var setting = await values.SetAsync(
+                declaration ?? new SecretDeclaration(name),
+                cancellationToken
+            );
             if (!setting.Given)
             {
                 console.WriteError($"The service '{name}' was not set.");
@@ -117,26 +122,33 @@ public sealed class SecretsService(
             console.WriteLine($"Stored the secret '{name}'.");
         }
 
+        if (unknown)
+        {
+            WriteOlderSandboxHint(metadata);
+        }
+
         return failed ? 1 : 0;
     }
 
     /// <summary>Removes the secrets of the services from the host.</summary>
     public async Task<int> RemoveAsync(SecretsRequest request, CancellationToken cancellationToken)
     {
-        var squad = Resolve(request);
+        var metadata = await ReadAsync(request, cancellationToken);
+        var wanted = Wanted(request, metadata);
 
-        var wanted =
-            request.Services.Count > 0
-                ? request.Services
-                : squad.Secrets.Select(secret => secret.Service).ToList();
+        if (wanted.Count == 0)
+        {
+            console.WriteError("There are no secrets to remove.");
+            WriteOlderSandboxHint(metadata);
+            return 1;
+        }
 
         var failed = false;
 
         foreach (var name in wanted)
         {
-            var declaration = squad.Secrets.FirstOrDefault(secret => secret.Service == name);
             var outcome = await sbx.RemoveSecretAsync(
-                declaration ?? new SecretDeclaration(name),
+                metadata.Declaration(name) ?? new SecretDeclaration(name),
                 cancellationToken
             );
             if (!outcome.Succeeded)
@@ -152,23 +164,40 @@ public sealed class SecretsService(
         return failed ? 1 : 0;
     }
 
-    /// <summary>The services the local kits of the squad ask for, with the kits that ask.</summary>
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> ServicesOf(
-        ResolvedSquad squad
+    private static IReadOnlyList<string> Wanted(
+        SecretsRequest request,
+        SandboxSquadMetadata metadata
     ) =>
-        CredentialRequest
-            .Of(squad)
-            .ToDictionary(
-                request => request.Service,
-                request => request.Kits,
-                StringComparer.Ordinal
-            );
+        request.Services.Count > 0
+            ? request.Services.Distinct(StringComparer.Ordinal).ToList()
+            : metadata.Secrets.Select(secret => secret.Service).ToList();
 
-    private ResolvedSquad Resolve(SecretsRequest request) =>
-        resolver.Resolve(
-            request.RootDirectory,
-            request.Team,
-            request.Squad,
-            personalConfigurations.Files
+    private async Task<SandboxSquadMetadata> ReadAsync(
+        SecretsRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var sandbox = await sandboxes.RequireAsync(
+            request.Location,
+            request.FolderConfig,
+            "secrets never creates or replaces one",
+            cancellationToken
         );
+        var files = await sbx.ReadSquadFilesAsync(sandbox.Name, cancellationToken);
+        return SandboxSquadMetadata.Read(sandbox.Name, files);
+    }
+
+    private void WriteOlderSandboxHint(SandboxSquadMetadata metadata)
+    {
+        if (metadata.HasDeclarations)
+        {
+            return;
+        }
+
+        console.WriteError(
+            "The sandbox carries no secret declarations: it was created from an older build or publication. "
+                + "Services its kits ask for can still be set with the default prompt (--service <name>); "
+                + "for the squad's prompts and its custom services, recreate the sandbox from a current build or publication."
+        );
+    }
 }

@@ -50,6 +50,8 @@ public sealed class SquadCredentialsTests
 
     private string BindingsFile => Path.Combine(_root.Path, "sbx", "credentials.yaml");
 
+    private string Location => Path.Combine(_root.Path, "my folder");
+
     [Fact]
     public async Task WithoutLocalSourcesNothingIsChecked()
     {
@@ -57,7 +59,8 @@ public sealed class SquadCredentialsTests
         var console = new TestConsole();
 
         // Act
-        await Credentials(console).PrepareAsync(null, "sample", "ac", CancellationToken.None);
+        await Credentials(console)
+            .PrepareAsync(null, "sample", "ac", Location, CancellationToken.None);
 
         // Assert
         _sbx.ReceivedCalls().Should().BeEmpty();
@@ -275,7 +278,7 @@ public sealed class SquadCredentialsTests
         console.Output.Should().BeEmpty();
         var warning = string.Join(Environment.NewLine, console.Errors);
         warning.Should().Contain("github").And.Contain("not approved");
-        warning.Should().Contain("abox secrets set --team sample --squad ac --service github");
+        warning.Should().Contain($"abox secrets set --location \"{Location}\" --service github");
         warning.Should().Contain("terminal");
         await _sbx.DidNotReceive()
             .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -323,7 +326,8 @@ public sealed class SquadCredentialsTests
     }
 
     private Task Prepare(TestConsole console) =>
-        Credentials(console).PrepareAsync(_root.Path, "sample", "ac", CancellationToken.None);
+        Credentials(console)
+            .PrepareAsync(_root.Path, "sample", "ac", Location, CancellationToken.None);
 
     private SquadCredentials Credentials(TestConsole console) =>
         new(

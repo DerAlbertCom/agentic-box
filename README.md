@@ -19,20 +19,20 @@ work up**. How to write the squads, the kits and the workloads of a project is i
 | `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--root <dir>] [--yes]` | Pulls a self-contained published squad set, or uses a local prebuild with `--local`. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying. Only local create can ask for an otherwise omitted squad; `--root` locates its team sources separately from the sandbox location. `--yes` confirms replacement. |
 | `abox run [<launcher>] [--location <path>] [--terminal-theme <true\|false>] [-- <argv>...]` | Starts a launcher for the sandbox of a folder. The default launcher is a shell. `--terminal-theme` decides for this run whether the sandbox sets the terminal colors from its theme (see [Terminal colors](#terminal-colors)). |
 | `abox prune [--full] [--sbx]` | Removes the template images of sbx that stopped being used. `--full` reaches for everything sbx holds, `--sbx` stops the running sandboxes first. |
-| `abox secrets list\|set\|remove [--team <name>] --squad <name> [--root <dir>]` | The host secrets the local kits of a squad ask for. `set` and `remove` also accept repeatable `--service <name>`; `list` does not. |
+| `abox secrets list\|set\|remove [--location <path>]` | The host secrets the kits of the folder's existing sandbox ask for, read from inside the sandbox; no team sources needed. `set` and `remove` also accept repeatable `--service <name>`; `list` does not. Values are stored globally on the host. |
 | `abox user-secrets [--location <path>] [--force]` | Copies explicitly selected local .NET user-secret stores into the folder's existing sandbox. |
 | `abox ports [--location <path>] [--offset <n>] [--refresh-https-bootstrap]` | Discovers .NET and Angular app ports and publishes them on host loopback at port + offset (default 10000). The explicit refresh flag repairs only the protected HTTPS bootstrap reader. |
 
 Two more entry points exist, and stay out of the help: `abox pipe <sandbox> -- <command>`
 and `abox exec <sandbox> -- <command>`.
 
-`create`, `run`, `user-secrets` and `ports` use `--location`, then the user setting `defaultLocation`,
+`create`, `run`, `secrets`, `user-secrets` and `ports` use `--location`, then the user setting `defaultLocation`,
 then the current folder. For `create --local`, team discovery starts at that location
 and searches its parents, unless `--root <dir>` selects a separate source project.
 For `create`, `--root` requires `--local`; remote create rejects it because no local
 team sources are used.
-`build`, `publish` and every `secrets` subcommand also accept `--root <dir>` to
-override where their search for team sources starts.
+`build` and `publish` also accept `--root <dir>` to override where their search for
+team sources starts.
 
 ### Reaching sandbox apps over HTTP
 
