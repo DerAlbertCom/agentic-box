@@ -14,13 +14,20 @@ namespace Abox.Features.Run;
 /// <param name="LauncherId">The launcher to start.</param>
 /// <param name="Location">The folder whose sandbox is opened.</param>
 /// <param name="Argv">The arguments after <c>--</c>.</param>
-public sealed record RunRequest(string LauncherId, string Location, IReadOnlyList<string> Argv);
+/// <param name="TerminalTheme">Whether the sandbox recolours the terminal, or null to follow the configuration.</param>
+public sealed record RunRequest(
+    string LauncherId,
+    string Location,
+    IReadOnlyList<string> Argv,
+    bool? TerminalTheme = null
+);
 
 /// <summary>
 /// Starts a launcher for the sandbox of a folder: the common Launcher steps in order, then
 /// the launcher itself with a Launcher session.
 /// </summary>
 public sealed class RunFlow(
+    AboxConfig config,
     LauncherRegistry launchers,
     SquadResolver resolver,
     BuildStore store,
@@ -55,6 +62,11 @@ public sealed class RunFlow(
 
         var location = Path.GetFullPath(request.Location);
         var folderConfig = await FolderConfig.LoadAsync(location, cancellationToken);
+        var terminalTheme = FolderConfig.SelectTerminalTheme(
+            folderConfig,
+            config.TerminalTheme,
+            request.TerminalTheme
+        );
 
         SandboxInfo sandbox;
         try
@@ -101,6 +113,9 @@ public sealed class RunFlow(
             sandbox.Name,
             await WorkspaceOfAsync(sandbox.Name, location, cancellationToken),
             request.Argv,
+            terminalTheme
+                ? new Dictionary<string, string> { ["SBOX_TERMINAL_THEME"] = "1" }
+                : new Dictionary<string, string>(),
             sbx,
             https
         );

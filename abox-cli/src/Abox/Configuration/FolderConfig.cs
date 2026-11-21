@@ -10,18 +10,21 @@ public sealed class FolderConfig
         string location,
         string? squad,
         IReadOnlyList<UserSecretSelection> userSecrets,
-        int? portOffset
+        int? portOffset,
+        bool? terminalTheme
     )
     {
         Location = Path.GetFullPath(location);
         Squad = squad;
         UserSecrets = userSecrets;
         PortOffset = portOffset;
+        TerminalTheme = terminalTheme;
     }
 
     public string? Squad { get; }
     public IReadOnlyList<UserSecretSelection> UserSecrets { get; }
     public int? PortOffset { get; }
+    public bool? TerminalTheme { get; }
     internal string Location { get; }
 
     /// <summary>Select from the entry-time snapshot; never reread or write folder configuration.</summary>
@@ -34,6 +37,13 @@ public sealed class FolderConfig
             );
         return offset;
     }
+
+    /// <summary>Whether the sandbox recolours the terminal: the switch, then the folder, then the user default.</summary>
+    public static bool SelectTerminalTheme(
+        FolderConfig? folderConfig,
+        bool userDefault,
+        bool? explicitTerminalTheme = null
+    ) => explicitTerminalTheme ?? folderConfig?.TerminalTheme ?? userDefault;
 
     /// <summary>The folder selects the squad; an explicit matching selection is allowed.</summary>
     public string? SelectSquad(string? explicitSquad)
@@ -79,7 +89,8 @@ public sealed class FolderConfig
             location,
             user?.Squad ?? shared?.Squad,
             user?.UserSecrets ?? shared?.UserSecrets ?? [],
-            user?.PortOffset ?? shared?.PortOffset
+            user?.PortOffset ?? shared?.PortOffset,
+            user?.TerminalTheme ?? shared?.TerminalTheme
         );
     }
 
@@ -89,7 +100,8 @@ public sealed class FolderConfig
     private sealed record FolderFile(
         string? Squad,
         IReadOnlyList<UserSecretSelection>? UserSecrets,
-        int? PortOffset
+        int? PortOffset,
+        bool? TerminalTheme
     );
 
     private static void RejectJson(string location, string json, string yaml)
@@ -138,11 +150,12 @@ public sealed class FolderConfig
 
     private static FolderFile Decode(YamlReader reader)
     {
-        reader.RejectUnknownKeys("squad", "userSecrets", "portOffset");
+        reader.RejectUnknownKeys("squad", "userSecrets", "portOffset", "terminalTheme");
         return new FolderFile(
             ReadSquad(reader),
             reader.Has("userSecrets") ? UserSecretSelection.Parse(reader) : null,
-            ReadPortOffset(reader)
+            ReadPortOffset(reader),
+            reader.GetBoolean("terminalTheme")
         );
     }
 

@@ -12,6 +12,7 @@ public sealed class LauncherSession(
     string sandboxName,
     string workspacePath,
     IReadOnlyList<string> argv,
+    IReadOnlyDictionary<string, string> environment,
     ISbxClient sbx,
     SandboxHttps https
 )
@@ -28,7 +29,7 @@ public sealed class LauncherSession(
     /// <summary>The arguments after <c>--</c>.</summary>
     public IReadOnlyList<string> Argv => argv;
 
-    /// <summary>Runs a command in the sandbox and returns its exit code.</summary>
+    /// <summary>Runs a command in the sandbox with the session's variables and returns its exit code.</summary>
     public Task<int> ExecAsync(
         IReadOnlyList<string> command,
         CancellationToken cancellationToken,
@@ -42,7 +43,8 @@ public sealed class LauncherSession(
                 command,
                 allocateTty,
                 keepStandardInputOpen,
-                workingDirectory
+                workingDirectory,
+                Environment: environment
             ),
             cancellationToken
         );

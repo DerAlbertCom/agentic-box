@@ -81,6 +81,9 @@ public sealed class YamlReader
     /// <summary>The value of a key, when it is a plain integer.</summary>
     public int? GetInteger(string key) => _root.GetInteger(key);
 
+    /// <summary>The value of a key, when it is an unquoted boolean.</summary>
+    public bool? GetBoolean(string key) => _root.GetBoolean(key);
+
     /// <summary>The value of a key, when it is a list of scalars.</summary>
     public IReadOnlyList<string> GetStringList(string key) => _root.GetStringList(key);
 
@@ -172,6 +175,29 @@ public sealed class YamlEntry
         }
 
         return value;
+    }
+
+    /// <summary>The value of a key of the element, when it is an unquoted <c>true</c> or <c>false</c>.</summary>
+    public bool? GetBoolean(string key)
+    {
+        var mapping = Mapping();
+        if (!mapping.Children.TryGetValue(new YamlScalarNode(key), out var node))
+        {
+            return null;
+        }
+
+        if (node is YamlScalarNode { Style: ScalarStyle.Plain or ScalarStyle.Any } scalar)
+        {
+            switch (scalar.Value)
+            {
+                case "true" or "True" or "TRUE":
+                    return true;
+                case "false" or "False" or "FALSE":
+                    return false;
+            }
+        }
+
+        throw new AboxException($"'{_source}': '{KeyPath(key)}' must be true or false.");
     }
 
     /// <summary>The value of a key of the element, when it is a mapping of values.</summary>

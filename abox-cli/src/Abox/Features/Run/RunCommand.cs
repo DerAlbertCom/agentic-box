@@ -36,8 +36,17 @@ public sealed class RunCommand : Command
                 "The folder whose sandbox is opened. Defaults to the location of the user configuration, or the current directory.",
         };
 
+        var terminalTheme = new Option<bool?>("--terminal-theme")
+        {
+            Arity = ArgumentArity.ExactlyOne,
+            HelpName = "true|false",
+            Description =
+                "Whether the sandbox sets the terminal colours from its theme. Overrides terminalTheme in abox.user.yaml, abox.yaml and the user configuration; defaults to true.",
+        };
+
         Arguments.Add(launcher);
         Options.Add(location);
+        Options.Add(terminalTheme);
 
         Description =
             "Start a launcher for the sandbox of a folder."
@@ -59,7 +68,8 @@ public sealed class RunCommand : Command
                         var request = new RunRequest(
                             parseResult.GetValue(launcher) ?? "shell",
                             config.Value.ResolveLocation(parseResult.GetValue(location)),
-                            trailing.Values
+                            trailing.Values,
+                            parseResult.GetValue(terminalTheme)
                         );
 
                         if (!await preflight.EnsureReadyAsync(cancellationToken))

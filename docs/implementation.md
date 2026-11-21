@@ -475,7 +475,7 @@ give `--squad` or set the folder's `squad`. A pulled sandbox is not offered a
 local-build replacement by `abox run`; recreate it explicitly to refresh the
 published tag.
 
-### `abox run [<launcher>] [--location <path>] [-- <argv>...]`
+### `abox run [<launcher>] [--location <path>] [--terminal-theme <true|false>] [-- <argv>...]`
 
 1. Resolves `--location`, then `defaultLocation`, then the current folder, just like
    `create`. Checks the programs the launcher needs on the host, then loads and
@@ -506,6 +506,13 @@ published tag.
 5. Checks the programs the launcher needs in the sandbox. A missing one means the image
    predates the launcher: the command says to create the sandbox again.
 6. Asks the runtime where the workspace is (`WORKSPACE_DIR`) and starts the launcher.
+   The Launcher session carries the environment of every exec it makes:
+   `SBOX_TERMINAL_THEME=1` unless terminal colors are off, selected by
+   `FolderConfig.SelectTerminalTheme(snapshot, config.TerminalTheme, option)`:
+   `--terminal-theme`, then `terminalTheme` in `abox.user.yaml`, then `abox.yaml`,
+   then the user `config.yaml`, then `true`. `SbxClient` emits each variable of an
+   `SbxExecRequest` as `sbx exec -e NAME=value`. abox emits no escape sequences
+   itself; see [ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
 
 The launchers of this version are `shell` and `herdr-app`. `shell` runs `bash -l` in
 the workspace with a terminal, or the command after `--`.

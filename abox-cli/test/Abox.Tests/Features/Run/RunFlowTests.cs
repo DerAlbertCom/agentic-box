@@ -163,6 +163,7 @@ public sealed class RunFlowTests
         );
         var config = new AboxConfig();
         var service = new RunFlow(
+            config,
             new LauncherRegistry([new ShellLauncher()]),
             new SquadResolver(config),
             _store,
@@ -290,6 +291,7 @@ public sealed class RunFlowTests
         }
 
         var service = new RunFlow(
+            new AboxConfig(),
             new LauncherRegistry([new ShellLauncher()]),
             new SquadResolver(new AboxConfig()),
             _store,

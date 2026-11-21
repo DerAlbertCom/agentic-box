@@ -2,6 +2,7 @@ using System.Text.Json;
 using Abox.Cli;
 using Abox.Configuration;
 using Abox.Infrastructure;
+using Abox.Launchers;
 using Abox.LocalState;
 using Abox.Naming;
 using Abox.Sbx;
@@ -26,7 +27,7 @@ public sealed class RunCommandTests
         exitCode.Should().Be(0, fixture.Console.AllText);
         var exec = fixture.Launch();
         exec.Arguments.Take(5).Should().Equal("exec", "-i", "-t", "-w", "/home/agent/workspace");
-        exec.Arguments[5].Should().Be(fixture.Name);
+        exec.Arguments[7].Should().Be(fixture.Name);
         exec.Arguments.TakeLast(2).Should().Equal("bash", "-l");
     }
 
@@ -200,6 +201,139 @@ public sealed class RunCommandTests
         fixture.Calls.Should().NotContain(call => call.FileName != "sbx");
     }
 
+    [Theory]
+    [InlineData("shell")]
+    [InlineData("probe")]
+    public async Task EveryLauncherPassesTheTerminalThemeVariableByDefault(string launcher)
+    {
+        // Arrange
+        using var fixture = new Fixture();
+
+        // Act
+        var exitCode = await fixture.Run(launcher);
+
+        // Assert
+        exitCode.Should().Be(0, fixture.Console.AllText);
+        var exec = fixture.Launch();
+        exec.Arguments.Should().ContainInConsecutiveOrder("-e", "SBOX_TERMINAL_THEME=1");
+        var arguments = exec.Arguments.ToList();
+        arguments.IndexOf("-e").Should().BeLessThan(arguments.IndexOf(fixture.Name));
+    }
+
+    [Theory]
+    [InlineData(null, null, null, "false", false)]
+    [InlineData(null, null, "false", "true", false)]
+    [InlineData(null, "false", "true", "true", false)]
+    [InlineData(null, "true", "false", "false", true)]
+    [InlineData("false", "true", "true", "true", false)]
+    [InlineData("true", "false", "false", "false", true)]
+    [InlineData(null, null, null, null, true)]
+    public async Task TheTerminalThemeFollowsSwitchThenUserFileThenSharedFileThenUserConfiguration(
+        string? terminalThemeSwitch,
+        string? userFile,
+        string? sharedFile,
+        string? userConfiguration,
+        bool passed
+    )
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        if (userConfiguration is not null)
+            fixture.Root.File(
+                "config.yaml",
+                $"defaultTeam: sample\nterminalTheme: {userConfiguration}\n"
+            );
+        if (sharedFile is not null)
+            File.WriteAllText(
+                Path.Combine(fixture.Location, "abox.yaml"),
+                $"terminalTheme: {sharedFile}\n"
+            );
+        if (userFile is not null)
+            File.WriteAllText(
+                Path.Combine(fixture.Location, "abox.user.yaml"),
+                $"terminalTheme: {userFile}\n"
+            );
+        if (terminalThemeSwitch is not null)
+            fixture.Options.AddRange(["--terminal-theme", terminalThemeSwitch]);
+
+        // Act
+        var exitCode = await fixture.Run("shell");
+
+        // Assert
+        exitCode.Should().Be(0, fixture.Console.AllText);
+        var arguments = fixture.Launch().Arguments;
+        if (passed)
+            arguments.Should().ContainInConsecutiveOrder("-e", "SBOX_TERMINAL_THEME=1");
+        else
+            arguments
+                .Should()
+                .NotContain("-e")
+                .And.NotContain(argument => argument.Contains("SBOX_TERMINAL_THEME"));
+    }
+
+    [Theory]
+    [InlineData("abox.yaml", "terminalTheme: yes\n")]
+    [InlineData("abox.user.yaml", "terminalTheme: \"true\"\n")]
+    [InlineData("abox.yaml", "terminalTheme:\n")]
+    [InlineData("abox.user.yaml", "terminalTheme: 1\n")]
+    public async Task ANonBooleanFolderTerminalThemeIsAConfigurationError(string file, string yaml)
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        File.WriteAllText(Path.Combine(fixture.Location, file), yaml);
+
+        // Act
+        var exitCode = await fixture.Run("shell");
+
+        // Assert
+        exitCode.Should().Be(1);
+        fixture
+            .Console.Errors.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(
+                $"error: '{Path.Combine(fixture.Location, file)}': 'terminalTheme' must be true or false."
+            );
+        fixture.Calls.Should().NotContain(call => call.AttachConsole);
+    }
+
+    [Fact]
+    public async Task ANonBooleanTerminalThemeInTheUserConfigurationIsAConfigurationError()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        fixture.Root.File("config.yaml", "defaultTeam: sample\nterminalTheme: off\n");
+
+        // Act
+        var exitCode = await fixture.Run("shell");
+
+        // Assert
+        exitCode.Should().Be(1);
+        fixture
+            .Console.Errors.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(
+                $"error: '{Path.Combine(fixture.Root.Path, "config.yaml")}': 'terminalTheme' must be true or false."
+            );
+        fixture.Calls.Should().NotContain(call => call.AttachConsole);
+    }
+
+    [Fact]
+    public async Task ANonBooleanTerminalThemeSwitchIsRejected()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        fixture.Options.AddRange(["--terminal-theme", "maybe"]);
+
+        // Act
+        var exitCode = await fixture.Run("shell");
+
+        // Assert
+        exitCode.Should().NotBe(0);
+        fixture.Calls.Should().NotContain(call => call.AttachConsole);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly CliTestApplication application;
@@ -220,9 +354,10 @@ public sealed class RunCommandTests
                 AboxPaths.For(Root.Path, Root.Path),
                 new TrailingArguments()
             );
+            Root.File("config.yaml", "defaultTeam: sample\n");
             application
-                .Services.AddSingleton(new AboxConfig { DefaultTeam = "sample" })
-                .AddSingleton(runner)
+                .Services.AddSingleton(runner)
+                .AddSingleton<ILauncher, ProbeLauncher>()
                 .AddSingleton<ISbxClient, SbxClient>()
                 .AddSingleton(programs);
         }
@@ -237,6 +372,7 @@ public sealed class RunCommandTests
         public HashSet<string> MissingOnHost { get; } = [];
         public HashSet<string> MissingInSandbox { get; } = [];
         public List<ProcessRequest> Calls { get; } = [];
+        public List<string> Options { get; } = [];
 
         public void Record(SandboxRecord record) =>
             Provider.GetRequiredService<SandboxRecordStore>().Save(Name, record);
@@ -246,7 +382,7 @@ public sealed class RunCommandTests
             Provider.GetRequiredService<TrailingArguments>().Values = argv;
             return Provider
                 .GetRequiredService<AboxRootCommand>()
-                .InvokeAsync(["run", launcher, "--location", Location]);
+                .InvokeAsync(["run", launcher, "--location", Location, .. Options]);
         }
 
         public ProcessRequest Launch() =>
@@ -279,6 +415,23 @@ public sealed class RunCommandTests
                 "exec" => new(ExecExitCode, "", ""),
                 _ => new(0, "", ""),
             };
+        }
+
+        /// <summary>A launcher besides the shell that reaches the sandbox only through its session.</summary>
+        private sealed class ProbeLauncher : ILauncher
+        {
+            public string Id => "probe";
+
+            public string Summary => "Runs a probe in the sandbox";
+
+            public IReadOnlyList<HostRequirement> HostRequirements => [];
+
+            public IReadOnlyList<string> SandboxRequirements => [];
+
+            public Task<int> RunAsync(
+                LauncherSession session,
+                CancellationToken cancellationToken
+            ) => session.ExecAsync(["probe"], cancellationToken);
         }
 
         public void Dispose()

@@ -43,7 +43,8 @@ Exit codes: 0 on success, 1 on an `abox` error, 130 on cancellation. `run` passe
   - A sandbox that already exists for the location is replaced after confirmation. The confirmation lists what will be lost. State directories are kept: the sandbox name does not change, so their host paths do not change either.
   - Before it replaces a sandbox, local create checks the credentials the squad's local kits ask for: a stored value and sbx's approval for every domain. On a terminal it asks for what is missing; without one it warns and goes on. sbx never asks itself (`--no-input`), and its `Note:` lines are shown after creation. See [the authoring guide](authoring.md#secrets).
   - An existing sandbox keeps the image it was created from. A newer `latest` reaches only sandboxes created after it (inferred; verify).
-- **`abox run [<launcher>] [--location <path>] [-- <argv>...]`** starts a launcher for the folder's sandbox. The default launcher is `shell`. See Launchers.
+- **`abox run [<launcher>] [--location <path>] [--terminal-theme <true|false>] [-- <argv>...]`** starts a launcher for the folder's sandbox. The default launcher is `shell`. See Launchers.
+  - Passes `SBOX_TERMINAL_THEME=1` to the sandbox exec unless terminal colors are off: `--terminal-theme`, then `terminalTheme` in `abox.user.yaml`, then `abox.yaml`, then the user `config.yaml`, then on. See Terminal colors under Launchers.
   - Starts the sandbox if it is stopped. Never creates a sandbox: if none exists, prints the `abox create` command to run.
   - `shell` works offline. Other launchers list their needs under Launchers.
   - If JFrog has a newer `latest`, asks whether to replace the sandbox now. Skipped offline. *(proposed placement)*

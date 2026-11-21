@@ -288,6 +288,12 @@ public sealed partial class SbxClient : ISbxClient
             arguments.Add(request.WorkingDirectory);
         }
 
+        foreach (var (name, value) in request.Environment ?? new Dictionary<string, string>())
+        {
+            arguments.Add("-e");
+            arguments.Add($"{name}={value}");
+        }
+
         arguments.Add(request.Sandbox);
         SbxDevelopmentCertificates.AppendExecCommand(arguments, request.Command);
 

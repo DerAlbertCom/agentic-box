@@ -17,6 +17,7 @@ public static class AboxConfigLoader
         "defaultTag",
         "pullRepository",
         "userSecretsDenyList",
+        "terminalTheme",
     ];
 
     public static AboxConfig Load(AboxPaths paths)
@@ -49,6 +50,7 @@ public static class AboxConfigLoader
                 : defaults.DefaultTag,
             PullRepository = pullRepository,
             UserSecretsDenyList = reader.GetStringList("userSecretsDenyList"),
+            TerminalTheme = reader.GetBoolean("terminalTheme") ?? defaults.TerminalTheme,
         };
     }
 

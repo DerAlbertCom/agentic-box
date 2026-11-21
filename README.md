@@ -17,7 +17,7 @@ work up**. How to write the squads, the kits and the workloads of a project is i
 | `abox build --team <name> --metadata-only` | Maintainer-only source preparation without image builds. Clears local image selection for this tag; not required for remote create. |
 | `abox publish --team <name> [--root <dir>] [--tag <tag>] [--builder <name>]` | Builds and pushes the local kit sets to `rwest.jfrog.io/<publishRepository>`, configured in each workload. Requires Docker Buildx and host registry sign-in. |
 | `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--root <dir>] [--yes]` | Pulls a self-contained published squad set, or uses a local prebuild with `--local`. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying. Only local create can ask for an otherwise omitted squad; `--root` locates its team sources separately from the sandbox location. `--yes` confirms replacement. |
-| `abox run [<launcher>] [--location <path>] [-- <argv>...]` | Starts a launcher for the sandbox of a folder. The default launcher is a shell. |
+| `abox run [<launcher>] [--location <path>] [--terminal-theme <true\|false>] [-- <argv>...]` | Starts a launcher for the sandbox of a folder. The default launcher is a shell. `--terminal-theme` decides for this run whether the sandbox sets the terminal colors from its theme (see [Terminal colors](#terminal-colors)). |
 | `abox prune [--full] [--sbx]` | Removes the template images of sbx that stopped being used. `--full` reaches for everything sbx holds, `--sbx` stops the running sandboxes first. |
 | `abox secrets list\|set\|remove [--team <name>] --squad <name> [--root <dir>]` | The host secrets the local kits of a squad ask for. `set` and `remove` also accept repeatable `--service <name>`; `list` does not. |
 | `abox user-secrets [--location <path>] [--force]` | Copies explicitly selected local .NET user-secret stores into the folder's existing sandbox. |
@@ -273,6 +273,7 @@ pullRepository: mtiae-docker-release
 userSecretsDenyList:
   - staging.example.internal
   - production.example.internal
+terminalTheme: true
 ```
 
 - `defaultLocation` is unset by default: `create`, `run`, `user-secrets` and `ports` use the current folder unless `--location` is given.
@@ -283,6 +284,8 @@ userSecretsDenyList:
   It defaults to `[]`: there is no built-in staging/production detection. Add your
   environment markers here; do not put secret values in configuration. This is a
   policy safeguard, not a detector for arbitrary production credentials.
+- `terminalTheme` (`true` or `false`, default `true`) is your default for
+  [terminal colors](#terminal-colors) in every folder.
 
 The file is at `$XDG_CONFIG_HOME/abox/config.yaml` when `XDG_CONFIG_HOME` is an
 absolute path; otherwise it is `<home>/.config/abox/config.yaml` on Linux/macOS or
@@ -313,7 +316,7 @@ userSecrets: [shared-store]
 userSecrets: [shared-store, my-dev-store]
 ```
 
-- The keys are `squad`, `userSecrets` and `portOffset`. Every key is allowed in both files.
+- The keys are `squad`, `userSecrets`, `portOffset` and `terminalTheme`. Every key is allowed in both files.
 - `abox.user.yaml` overrides `abox.yaml`: a value or list in the user file replaces
   the one in the shared file as a whole (the example selects both stores; it does
   not append), and keys it does not set keep their shared value. Only dictionaries
@@ -325,6 +328,28 @@ userSecrets: [shared-store, my-dev-store]
   fail and ask you to rename it to `abox.yaml` or `abox.user.yaml` (the content is
   now YAML). `.yml` files are not recognised.
 - abox never writes either file and never touches `.gitignore`.
+
+### Terminal colors
+
+While you are in a sandbox, the sandbox recolors your terminal session to its current
+theme (`sbox theme`) and resets the colors when the shell exits; the host terminal's
+configuration is never changed. `abox` itself knows nothing about themes: every
+`abox run`, whatever the launcher, passes `SBOX_TERMINAL_THEME=1` to the sandbox
+(`sbx exec -e SBOX_TERMINAL_THEME=1`) unless you turned it off. With it off, the
+variable is not passed and the terminal is never touched.
+
+Precedence is **`--terminal-theme <true|false>`, `terminalTheme` in `abox.user.yaml`,
+then `abox.yaml`, then in the user `config.yaml`, then `true`**:
+
+```sh
+abox run --terminal-theme false   # keep the host colors for this session
+abox run --terminal-theme true    # try the colors although a configuration turned them off
+```
+
+`terminalTheme` must be unquoted `true` or `false`; any other value is a configuration
+error. Herdr's panes are started inside the sandbox and do not see the variable yet.
+See the [themes kit](kits/README.md) and
+[ADR 0002](docs/adr/0002-terminal-colors-from-the-sandbox.md).
 
 ### Reusing cape-agent-sandbox environments
 

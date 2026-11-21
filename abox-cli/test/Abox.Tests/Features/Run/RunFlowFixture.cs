@@ -44,6 +44,7 @@ internal sealed class RunFlowFixture
             new UserSecretsCopy(Config, new UserSecretsHost(null, null), Sbx)
         );
         Service = new RunFlow(
+            Config,
             launchers,
             new SquadResolver(Config),
             Store,
