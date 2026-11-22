@@ -100,7 +100,11 @@ public sealed class SbxSecretInputTests
             // Assert
             File.ReadAllBytes(Path.Combine(root.Path, "received.bin")).Should().Equal(expected);
             outcome.ExitCode.Should().Be(exitCode);
-            outcome.Output.Should().Be($"stored{Environment.NewLine}warning{Environment.NewLine}");
+            // stdout and stderr arrive on separate pipes, so their order in the combined output varies.
+            outcome
+                .Output.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+                .Should()
+                .BeEquivalentTo(["stored", "warning"]);
             console.AllText.Should().Contain("stored").And.Contain("warning").And.NotContain(value);
             emitted.Should().NotBeNull();
             emitted!.FileName.Should().Be("sbx");
