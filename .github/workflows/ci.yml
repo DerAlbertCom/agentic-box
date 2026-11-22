@@ -16,7 +16,7 @@ jobs:
       run:
         working-directory: sbox-cli
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           # Matches bun in the mise tools of the workload and the image of kits/sbox/build.
@@ -29,8 +29,8 @@ jobs:
     name: abox (.NET)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
       - run: dotnet tool restore
