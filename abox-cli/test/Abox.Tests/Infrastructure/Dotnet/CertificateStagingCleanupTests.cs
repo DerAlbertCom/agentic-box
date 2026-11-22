@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Abox.Features.Shared.Https;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -80,7 +81,7 @@ public sealed class CertificateStagingCleanupTests
             runner
                 .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
                 .Returns(call => Run(call.Arg<ProcessRequest>(), outcome));
-            Exporter = new HostDevelopmentCertificate(
+            Exporter = new DotnetDevelopmentCertificate(
                 runner,
                 Console,
                 root.Path,
@@ -90,7 +91,7 @@ public sealed class CertificateStagingCleanupTests
 
         public TestConsole Console { get; } = new();
         public CancellationTokenSource Cancellation { get; } = new();
-        public HostDevelopmentCertificate Exporter { get; }
+        public DotnetDevelopmentCertificate Exporter { get; }
         public string? StagingPath { get; private set; }
         public string MarkerPath { get; }
 

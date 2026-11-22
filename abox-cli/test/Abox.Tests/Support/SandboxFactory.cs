@@ -5,6 +5,7 @@ using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
 using Abox.Infrastructure.Shell;
 using NSubstitute;
@@ -22,19 +23,38 @@ internal static class SandboxFactory
         SandboxRecordStore records
     ) => new(config, new SquadResolver(config), store, records);
 
-    public static AppPorts Ports(
-        IApplicationPortPublisher publisher,
-        ISbxClient sbx,
-        IConsole console
-    ) => new(publisher, console, Https(sbx, Exec(), console));
+    public static AppPorts Ports(IApplicationPortPublisher publisher, IConsole console) =>
+        new(publisher, console, Https(Exec(), console));
 
-    public static SandboxHttps Https(ISbxClient sbx, ISandboxExec exec, IConsole console) =>
+    public static SandboxHttps Https(ISandboxExec exec, IConsole console) =>
         new(
-            new HostDevelopmentCertificate(LocalWorkloadFactory.Runner(), console),
-            sbx,
+            new DotnetDevelopmentCertificate(LocalWorkloadFactory.Runner(), console),
+            Certificates(),
             exec,
             console
         );
+
+    public static readonly SandboxCertificateActivation Activated = new(
+        SandboxCertificateActivationStatus.Activated
+    );
+
+    /// <summary>Sandbox HTTPS whose every step succeeds, with an empty export password.</summary>
+    public static ISandboxDevelopmentCertificates Certificates()
+    {
+        var certificates = Substitute.For<ISandboxDevelopmentCertificates>();
+        certificates
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCertificatePreparation(SandboxCertificateStatus.Succeeded));
+        certificates
+            .ActivateAsync(
+                Arg.Any<string>(),
+                Arg.Any<ReadOnlyMemory<byte>>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Activated);
+        return certificates;
+    }
 
     /// <summary>A sandbox exec whose commands all succeed.</summary>
     public static ISandboxExec Exec()

@@ -95,8 +95,9 @@ certificate is promised. Correct the prerequisite and rerun folder-qualified
 
 ## Runtime storage and atomic refresh
 
-Every runtime operation uses `SbxClient`, argv lists, the actual default non-root
-application user, and sensitive length/digest-framed stdin. Linux, Python 3.8+,
+Every runtime operation goes through the sbx certificate adapter
+(`SbxDevelopmentCertificates`, behind `ISandboxDevelopmentCertificates`), argv lists,
+the actual default non-root application user, and sensitive length/digest-framed stdin. Linux, Python 3.8+,
 `sh`, `id` and readable `/proc` are prerequisites for configured sandboxes. Nothing
 is installed. The receiver checks the size, SHA-256, JSON/base64 framing and rejects
 links, nonregular/multiply-linked files, wrong ownership, unexpected entries and
@@ -178,7 +179,7 @@ without the protected environment. Use the explicit reader-only recovery command
 abox ports --location "<folder>" --refresh-https-bootstrap
 ```
 
-This mode uses the new CLI's embedded receiver directly through `SbxClient`, never
+This mode uses the new CLI's embedded receiver directly through `SbxDevelopmentCertificates`, never
 the unverified installed reader. Under the runtime lock it checks existing protected
 paths, ownership/modes, configuration and the public PEM, then atomically replaces
 only `bootstrap.py`. Private PFX/configuration, password/path and existing Node roots

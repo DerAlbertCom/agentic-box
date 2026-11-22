@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Abox.Features.Shared.Https;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -15,7 +16,7 @@ internal sealed class LifecycleCertificateCli : IDisposable
     public X509Certificate2 Current { get; private set; }
     public int Exports { get; private set; }
     public Action? Exported { get; set; }
-    public HostDevelopmentCertificate Exporter { get; }
+    public DotnetDevelopmentCertificate Exporter { get; }
 
     public LifecycleCertificateCli(TestConsole console)
     {
@@ -24,7 +25,7 @@ internal sealed class LifecycleCertificateCli : IDisposable
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(call => Run(call.Arg<ProcessRequest>()));
-        Exporter = new HostDevelopmentCertificate(
+        Exporter = new DotnetDevelopmentCertificate(
             runner,
             console,
             staging.Path,

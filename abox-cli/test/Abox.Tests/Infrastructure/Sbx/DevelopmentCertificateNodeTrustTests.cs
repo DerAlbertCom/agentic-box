@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -55,10 +56,7 @@ public sealed class DevelopmentCertificateNodeTrustTests
 
         // Act
         var readiness = () =>
-            scenario.Client.VerifyDevelopmentCertificateActivationAsync(
-                Scenario.Name,
-                CancellationToken.None
-            );
+            scenario.Client.VerifyActivationAsync(Scenario.Name, CancellationToken.None);
         var launch = await scenario.Exec.RunAsync(
             new SandboxExecRequest(
                 Scenario.Name,
@@ -74,9 +72,9 @@ public sealed class DevelopmentCertificateNodeTrustTests
         );
 
         // Assert
-        (await readiness.Should().ThrowAsync<AboxException>())
-            .Which.Message.Should()
-            .Contain("NODE_EXTRA_CA_CERTS");
+        (await readiness())
+            .Should()
+            .Be(SandboxCertificateStatus.NodeExtraCaIncomplete);
         launch.ExitCode.Should().Be(0);
         Directory.GetFiles(scenario.Receiver.RuntimePath, "node-*").Should().BeEmpty();
     }
@@ -130,16 +128,13 @@ public sealed class DevelopmentCertificateNodeTrustTests
 
         // Act
         var readiness = () =>
-            scenario.Client.VerifyDevelopmentCertificateActivationAsync(
-                Scenario.Name,
-                CancellationToken.None
-            );
+            scenario.Client.VerifyActivationAsync(Scenario.Name, CancellationToken.None);
         var ordinaryLaunch = await scenario.Launch();
 
         // Assert
-        (await readiness.Should().ThrowAsync<AboxException>())
-            .Which.Message.Should()
-            .Contain("NODE_EXTRA_CA_CERTS");
+        (await readiness())
+            .Should()
+            .Be(SandboxCertificateStatus.NodeExtraCaIncomplete);
         ordinaryLaunch.Should().Be(0);
         Directory
             .GetFiles(scenario.Receiver.RuntimePath, "node-*")
@@ -156,7 +151,7 @@ public sealed class DevelopmentCertificateNodeTrustTests
         private readonly CertificateTestDirectory root = new();
         internal SyntheticDevelopmentCertificate Certificate { get; } = new();
         internal DisposableCertificateRuntime Receiver { get; }
-        internal SbxClient Client { get; }
+        internal SbxDevelopmentCertificates Client { get; }
         internal SbxSandboxExec Exec { get; }
         internal string PublicPem => Certificate.Certificate.ExportCertificatePem();
 
@@ -169,15 +164,17 @@ public sealed class DevelopmentCertificateNodeTrustTests
                 .Returns(call =>
                     Receiver.RunAsync(call.Arg<ProcessRequest>(), call.Arg<CancellationToken>())
                 );
-            Client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+            Client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
             Exec = new SbxSandboxExec(runner);
         }
 
         internal static async Task<Scenario> Create() =>
             new(await DisposableCertificateRuntime.Create(Name));
 
-        internal Task Activate(byte[] pfx) =>
-            Client.ActivateDevelopmentCertificateAsync(Name, pfx, Password, CancellationToken.None);
+        internal async Task Activate(byte[] pfx) =>
+            (await Client.ActivateAsync(Name, pfx, Password, CancellationToken.None))
+                .Status.Should()
+                .Be(SandboxCertificateActivationStatus.Activated);
 
         internal async Task<int> Launch() =>
             (

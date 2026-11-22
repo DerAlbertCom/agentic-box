@@ -167,11 +167,8 @@ public sealed class PortsDiscoveryTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .GetDevelopmentCertificatePasswordAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     private static void AddLaunchPorts(UserSecretsCliHarness fixture) =>
@@ -190,10 +187,7 @@ public sealed class PortsDiscoveryTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .GetDevelopmentCertificatePasswordAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

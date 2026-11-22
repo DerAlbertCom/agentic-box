@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Https;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -27,11 +28,11 @@ public sealed class DevelopmentCertificateTransportTests
                     call.Arg<CancellationToken>()
                 )
             );
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
         var pfx = Pfx("Grüße 🔒");
 
         // Act
-        await client.ActivateDevelopmentCertificateAsync(
+        var activation = await client.ActivateAsync(
             "actual",
             pfx,
             "Grüße 🔒",
@@ -39,6 +40,7 @@ public sealed class DevelopmentCertificateTransportTests
         );
 
         // Assert
+        activation.Status.Should().Be(SandboxCertificateActivationStatus.Activated);
         var bytes = File.ReadAllBytes(Path.Combine(root.Path, "frame.input"));
         bytes.Take(3).Should().Equal((byte)'A', (byte)'B', (byte)'O');
         var frame = Encoding.UTF8.GetString(bytes).Split('\n', 4);
@@ -86,12 +88,12 @@ public sealed class DevelopmentCertificateTransportTests
                     new ProcessResult(0, "raw synthetic output", "raw synthetic error")
                 );
             });
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
         const string password = "synthetic-password-🔒";
         var pfx = Pfx(password);
 
         // Act
-        await client.ActivateDevelopmentCertificateAsync(
+        var activation = await client.ActivateAsync(
             "actual-sandbox",
             pfx,
             password,
@@ -99,6 +101,7 @@ public sealed class DevelopmentCertificateTransportTests
         );
 
         // Assert
+        activation.Status.Should().Be(SandboxCertificateActivationStatus.Activated);
         captured.Should().NotBeNull();
         captured!
             .Arguments.Take(6)
@@ -142,25 +145,29 @@ public sealed class DevelopmentCertificateTransportTests
         using var root = new CertificateTestDirectory();
         using var scenario = new TransferFailureScenario(failure, cleanupSucceeds ? 0 : 1);
         const string privateText = "synthetic-password 123456789 true";
-        var client = new SbxClient(scenario.Runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(scenario.Runner));
         var pfx = Pfx("synthetic-password");
 
         // Act
-        var action = () =>
-            client.ActivateDevelopmentCertificateAsync(
-                "actual",
-                pfx,
-                "synthetic-password",
-                scenario.Cancellation.Token
-            );
+        var activation = await client.ActivateAsync(
+            "actual",
+            pfx,
+            "synthetic-password",
+            scenario.Cancellation.Token
+        );
 
         // Assert
-        var error =
-            failure == "cancel"
-                ? (Exception)(await action.Should().ThrowAsync<OperationCanceledException>()).Which
-                : (await action.Should().ThrowAsync<AboxException>()).Which;
-        error.ToString().Should().NotContain(privateText).And.NotContain("synthetic-password");
-        error.InnerException.Should().BeNull();
+        activation
+            .Should()
+            .Be(
+                new SandboxCertificateActivation(
+                    failure == "cancel"
+                        ? SandboxCertificateActivationStatus.TransferCanceled
+                        : SandboxCertificateActivationStatus.TransferFailed,
+                    cleanupSucceeds
+                )
+            );
+        activation.ToString().Should().NotContain(privateText).And.NotContain("synthetic-password");
         scenario.Calls.Should().HaveCount(2);
         scenario.CleanupToken.CanBeCanceled.Should().BeTrue();
         scenario.CleanupToken.IsCancellationRequested.Should().BeFalse();
@@ -170,13 +177,6 @@ public sealed class DevelopmentCertificateTransportTests
         cleanup.StandardInput.Should().BeEmpty();
         cleanup.OutputPolicy.Should().Be(ProcessOutputPolicy.Sensitive);
         cleanup.Arguments[^1].Should().Be(scenario.Calls[0].Arguments[^1]);
-        if (!cleanupSucceeds)
-            error.Message.Should().Contain("cleanup is unconfirmed");
-        else if (failure != "cancel")
-            error
-                .Message.Should()
-                .Contain("commit was not acknowledged")
-                .And.Contain("no rollback is promised");
     }
 
     private sealed class TransferFailureScenario : IDisposable
@@ -243,25 +243,24 @@ public sealed class DevelopmentCertificateTransportTests
                 await Task.Delay(Timeout.InfiniteTimeSpan, cleanupToken);
                 return new ProcessResult(0, "", "");
             });
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
         var pfx = Pfx("password");
 
         // Act
-        var action = () =>
-            client
-                .ActivateDevelopmentCertificateAsync(
-                    "actual",
-                    pfx,
-                    "password",
-                    CancellationToken.None
-                )
-                .WaitAsync(TimeSpan.FromSeconds(15));
+        var activation = await client
+            .ActivateAsync("actual", pfx, "password", CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(15));
 
         // Assert
-        var error = (await action.Should().ThrowAsync<AboxException>()).Which;
         cleanupToken.IsCancellationRequested.Should().BeTrue();
-        error.Message.Should().Contain("cleanup is unconfirmed").And.NotContain("private child");
-        error.InnerException.Should().BeNull();
+        activation
+            .Should()
+            .Be(
+                new SandboxCertificateActivation(
+                    SandboxCertificateActivationStatus.TransferFailed,
+                    CleanupConfirmed: false
+                )
+            );
     }
 
     [Theory]
@@ -274,7 +273,7 @@ public sealed class DevelopmentCertificateTransportTests
         // Arrange
         using var root = new CertificateTestDirectory();
         var runner = Substitute.For<IProcessRunner>();
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
@@ -289,24 +288,17 @@ public sealed class DevelopmentCertificateTransportTests
     }
 
     private static Task InvokeCertificateOperationAsync(
-        SbxClient client,
+        SbxDevelopmentCertificates client,
         string mode,
         CancellationToken token
     ) =>
         mode switch
         {
-            "prepare" => client.GetDevelopmentCertificatePasswordAsync("actual", token),
-            "status" => client.VerifyDevelopmentCertificateActivationAsync("actual", token),
-            "refresh-bootstrap" => client.RefreshDevelopmentCertificateBootstrapAsync(
-                "actual",
-                token
-            ),
-            _ => client.ActivateDevelopmentCertificateAsync(
-                "actual",
-                new byte[] { 1 },
-                "synthetic-password",
-                token
-            ),
+            "prepare" => client.PrepareAsync("actual", token),
+            "status" => client.VerifyActivationAsync("actual", token),
+            "refresh-bootstrap" => client.RefreshBootstrapAsync("actual", token),
+            _ => (Task)
+                client.ActivateAsync("actual", new byte[] { 1 }, "synthetic-password", token),
         };
 
     /// <summary>Answers the user lookup and root trust that precede every private activation.</summary>

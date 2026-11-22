@@ -182,7 +182,7 @@ public sealed class RunFlowTests
             _create,
             _inspection,
             _exec,
-            SandboxFactory.Https(_sbx, _exec, _console),
+            SandboxFactory.Https(_exec, _console),
             SandboxFactory.Resolver(_lifecycle, SandboxFactory.Hints(config, _store, _records)),
             SandboxFactory.Hints(config, _store, _records),
             Substitute.For<IHostPrograms>(),
@@ -314,7 +314,7 @@ public sealed class RunFlowTests
             _create,
             _inspection,
             _exec,
-            SandboxFactory.Https(_sbx, _exec, _console),
+            SandboxFactory.Https(_exec, _console),
             SandboxFactory.Resolver(
                 _lifecycle,
                 SandboxFactory.Hints(new AboxConfig(), _store, _records)

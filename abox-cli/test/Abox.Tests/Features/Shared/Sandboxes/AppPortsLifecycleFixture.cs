@@ -2,6 +2,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
@@ -24,6 +25,7 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
     public IKitSourceTrust KitSources => cli.KitSources;
     public ISandboxInspection Inspection => cli.Inspection;
     public IApplicationPortPublisher Publisher => cli.Publisher;
+    public ISandboxDevelopmentCertificates Certificates => cli.Certificates;
     public ISandboxExec Exec => cli.Exec;
     public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
     public string Location => cli.Location;
@@ -76,28 +78,43 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
             "folder/api/Properties/launchSettings.json",
             """{"profiles":{"https":{"applicationUrl":"https://localhost:8203"}}}"""
         );
-        Sbx.GetDevelopmentCertificatePasswordAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new string('a', 64));
+        Certificates
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new SandboxCertificatePreparation(
+                    SandboxCertificateStatus.Succeeded,
+                    new string('a', 64)
+                )
+            );
     }
 
     public void Configure(string json) => cli.Configure(json);
 
-    public void HttpsOutcome(string stage, Task outcome)
+    /// <summary>Lets the activation or verification step fail or be canceled; null lets both succeed.</summary>
+    public void HttpsOutcome(string stage, bool? cancel)
     {
-        if (stage == "activate")
-            Sbx.ActivateDevelopmentCertificateAsync(
-                    Arg.Any<string>(),
-                    Arg.Any<ReadOnlyMemory<byte>>(),
-                    Arg.Any<string>(),
-                    Arg.Any<CancellationToken>()
+        Certificates
+            .ActivateAsync(
+                Arg.Any<string>(),
+                Arg.Any<ReadOnlyMemory<byte>>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new SandboxCertificateActivation(
+                    cancel is null || stage != "activate"
+                        ? SandboxCertificateActivationStatus.Activated
+                    : cancel.Value ? SandboxCertificateActivationStatus.TransferCanceled
+                    : SandboxCertificateActivationStatus.TransferFailed
                 )
-                .Returns(outcome);
-        else
-            Sbx.VerifyDevelopmentCertificateActivationAsync(
-                    Arg.Any<string>(),
-                    Arg.Any<CancellationToken>()
-                )
-                .Returns(outcome);
+            );
+        Certificates
+            .VerifyActivationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(
+                cancel is null || stage != "verify" ? SandboxCertificateStatus.Succeeded
+                : cancel.Value ? SandboxCertificateStatus.Canceled
+                : SandboxCertificateStatus.Failed
+            );
     }
 
     public void Existing()

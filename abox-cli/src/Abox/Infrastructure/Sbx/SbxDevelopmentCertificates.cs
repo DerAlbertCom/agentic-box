@@ -1,9 +1,15 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using Abox.Features.Shared.Https;
 
 namespace Abox.Infrastructure.Sbx;
 
+/// <summary>
+/// Protected development HTTPS through <c>sbx exec</c>: owns the embedded receiver, trust and
+/// exec scripts and maps their exit codes to the domain outcomes of each operation.
+/// </summary>
 internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
+    : ISandboxDevelopmentCertificates
 {
     private static readonly Lazy<string> DevelopmentCertificateExecBootstrap = new(() =>
         ReadDevelopmentCertificateResource("Abox.DevelopmentCertificateExec")
@@ -11,10 +17,6 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
     private static readonly Lazy<string> DevelopmentCertificateReceiver = new(
         ReadDevelopmentCertificateReceiver
     );
-    private const string DevelopmentCertificateBusy =
-        "Protected HTTPS runtime is busy after a bounded lock wait; retry the operation or 'abox ports'. No complete readiness is claimed. Child diagnostics were suppressed. ";
-    private const string PreparationFailure =
-        "Cannot prepare protected HTTPS runtime configuration. Check Python 3.8+, non-root execution and owner-only nonmounted /tmp paths. Child diagnostics were suppressed.";
 
     internal static void AppendExecCommand(List<string> arguments, IReadOnlyList<string> command)
     {
@@ -42,7 +44,7 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         InvalidConfiguration = 78,
     }
 
-    public async Task ActivateDevelopmentCertificateAsync(
+    public async Task<SandboxCertificateActivation> ActivateAsync(
         string sandbox,
         ReadOnlyMemory<byte> pfx,
         string password,
@@ -50,13 +52,25 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var publicCertificate = await EstablishDevelopmentCertificateTrustAsync(
-            sandbox,
-            pfx,
-            password,
-            cancellationToken
-        );
-        await TransferDevelopmentCertificateAsync(
+        string publicCertificate;
+        try
+        {
+            publicCertificate = await EstablishDevelopmentCertificateTrustAsync(
+                sandbox,
+                pfx,
+                password,
+                cancellationToken
+            );
+        }
+        catch (OperationCanceledException)
+        {
+            return new(SandboxCertificateActivationStatus.TrustCanceled);
+        }
+        catch (Exception)
+        {
+            return new(SandboxCertificateActivationStatus.TrustFailed);
+        }
+        return await TransferDevelopmentCertificateAsync(
             sandbox,
             pfx,
             password,
@@ -73,36 +87,20 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         CancellationToken cancellationToken
     )
     {
-        try
-        {
-            using var certificate = X509CertificateLoader.LoadPkcs12(
-                pfx.Span,
-                password,
-                X509KeyStorageFlags.EphemeralKeySet
-            );
-            var publicCertificate = certificate.ExportCertificatePem();
-            var uid = await GetDevelopmentCertificateUserAsync(sandbox, cancellationToken);
-            await TrustPublicDevelopmentCertificateAsync(
-                sandbox,
-                uid,
-                publicCertificate,
-                cancellationToken
-            );
-            return publicCertificate;
-        }
-        catch (OperationCanceledException)
-        {
-            throw new OperationCanceledException(
-                "Sandbox trust setup canceled; trust may be partially updated. Retry abox ports; no complete activation is claimed.",
-                cancellationToken
-            );
-        }
-        catch (Exception)
-        {
-            throw new AboxException(
-                "Cannot establish exact public development-certificate sandbox trust. Require sandbox root exec, Python 3.8+, an existing Debian-style ca-certificates store and /usr/sbin/update-ca-certificates on ordinary root-owned, nonmounted paths. No packages were installed and host trust was not changed. Correct the sandbox prerequisite and retry abox ports; trust may be partially updated, no complete activation is claimed. Child diagnostics were suppressed."
-            );
-        }
+        using var certificate = X509CertificateLoader.LoadPkcs12(
+            pfx.Span,
+            password,
+            X509KeyStorageFlags.EphemeralKeySet
+        );
+        var publicCertificate = certificate.ExportCertificatePem();
+        var uid = await GetDevelopmentCertificateUserAsync(sandbox, cancellationToken);
+        await TrustPublicDevelopmentCertificateAsync(
+            sandbox,
+            uid,
+            publicCertificate,
+            cancellationToken
+        );
+        return publicCertificate;
     }
 
     private async Task<string> GetDevelopmentCertificateUserAsync(
@@ -159,7 +157,7 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
             throw new InvalidOperationException();
     }
 
-    public async Task<string> GetDevelopmentCertificatePasswordAsync(
+    public async Task<SandboxCertificatePreparation> PrepareAsync(
         string sandbox,
         CancellationToken cancellationToken
     )
@@ -183,27 +181,24 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         }
         catch (OperationCanceledException)
         {
-            throw new OperationCanceledException(
-                "HTTPS runtime preparation canceled.",
-                cancellationToken
-            );
+            return new(SandboxCertificateStatus.Canceled);
         }
         catch (Exception)
         {
-            throw new AboxException(PreparationFailure);
+            return new(SandboxCertificateStatus.Unavailable);
         }
         if (result.ExitCode == (int)DevelopmentCertificateOutcome.RuntimeBusy)
-            throw new AboxException(DevelopmentCertificateBusy);
+            return new(SandboxCertificateStatus.Busy);
         var password = result.StandardOutput.Trim();
         if (
             !result.Succeeded
             || !System.Text.RegularExpressions.Regex.IsMatch(password, "^[0-9a-f]{64}$")
         )
-            throw new AboxException(PreparationFailure);
-        return password;
+            return new(SandboxCertificateStatus.Failed);
+        return new(SandboxCertificateStatus.Succeeded, password);
     }
 
-    public async Task VerifyDevelopmentCertificateActivationAsync(
+    public async Task<SandboxCertificateStatus> VerifyActivationAsync(
         string sandbox,
         CancellationToken cancellationToken
     )
@@ -222,44 +217,31 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         }
         catch (OperationCanceledException)
         {
-            throw new OperationCanceledException(
-                "HTTPS activation check canceled.",
-                cancellationToken
-            );
+            return SandboxCertificateStatus.Canceled;
         }
         catch (Exception)
         {
-            throw new AboxException(
-                "Cannot verify protected HTTPS launch configuration; child diagnostics were suppressed."
-            );
+            return SandboxCertificateStatus.Unavailable;
         }
-        if (result.ExitCode == (int)DevelopmentCertificateOutcome.StaleParents)
-            throw new AboxException(
-                "HTTPS certificate copied, but existing Herdr/agent parents are stale: full activation is NOT complete. Explicitly exit existing Copilot/OpenCode/pi/Claude Code parents and open fresh ones through abox. Save work and obtain consent before stopping core-managed sessions. For an existing Herdr core, deliberately run 'abox run shell -- hc server restart --fresh' if supported by installed hc; otherwise explicitly run 'abox run shell -- hc server stop', then 'abox run shell -- hc server start'. For a stale OpenCode service, explicitly run 'abox run shell -- opencode service stop', then reopen it through abox. Nothing was restarted automatically. Then retry 'abox ports'. Already-running apps require explicit restart for renewal."
-            );
-        if (result.ExitCode == (int)DevelopmentCertificateOutcome.ProcessEnvironmentsUnavailable)
-            throw new AboxException(
-                "Cannot confirm existing agent HTTPS readiness: sandbox /proc process environments are not inspectable (permissions or process visibility). Ordinary shell/exec/pipe and recovery remain available; no existing agent is claimed configured and nothing was restarted."
-            );
-        if (result.ExitCode == (int)DevelopmentCertificateOutcome.NodeExtraCaIncomplete)
-            throw new AboxException(
-                "HTTPS trust/private activation may be present, but Node extra-CA configuration is incomplete. Check NODE_EXTRA_CA_CERTS: require a user-readable regular PEM file (caller-selected symlinks are supported) of at most 1 MiB and no more than 16 distinct source-content variants. Ordinary/recovery access retains the original Node setting and protected Kestrel configuration. Correct the input or inspect unused owned node pairs and retry abox ports. No complete activation is claimed."
-            );
-        if (result.ExitCode == (int)DevelopmentCertificateOutcome.RuntimeBusy)
-            throw new AboxException(DevelopmentCertificateBusy);
-        if (!result.Succeeded)
-            throw new AboxException(
-                "Cannot verify protected HTTPS launch configuration. Check runtime file ownership, permissions, public.pem, owned Node source integrity and process visibility; no complete activation is claimed."
-            );
+        return result.ExitCode switch
+        {
+            (int)DevelopmentCertificateOutcome.StaleParents =>
+                SandboxCertificateStatus.StaleParents,
+            (int)DevelopmentCertificateOutcome.ProcessEnvironmentsUnavailable =>
+                SandboxCertificateStatus.ProcessEnvironmentsUnavailable,
+            (int)DevelopmentCertificateOutcome.NodeExtraCaIncomplete =>
+                SandboxCertificateStatus.NodeExtraCaIncomplete,
+            (int)DevelopmentCertificateOutcome.RuntimeBusy => SandboxCertificateStatus.Busy,
+            _ when !result.Succeeded => SandboxCertificateStatus.Failed,
+            _ => SandboxCertificateStatus.Succeeded,
+        };
     }
 
-    public async Task RefreshDevelopmentCertificateBootstrapAsync(
+    public async Task<SandboxCertificateStatus> RefreshBootstrapAsync(
         string sandbox,
         CancellationToken cancellationToken
     )
     {
-        const string failure =
-            "Cannot refresh the protected HTTPS bootstrap. Require an existing valid private activation, Python 3.8+, non-root execution and ordinary owner-only nonmounted runtime files (including config.json, active.pfx and public.pem). Correct protected-state ownership/integrity or rerun abox ports for full setup. No host export, root trust or port change was attempted; child diagnostics were suppressed.";
         cancellationToken.ThrowIfCancellationRequested();
         ProcessResult result;
         try
@@ -274,22 +256,20 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         }
         catch (OperationCanceledException)
         {
-            throw new OperationCanceledException(
-                "HTTPS bootstrap refresh canceled; the atomic reader replacement may already be committed. Retry the explicit refresh; HTTPS readiness was not verified.",
-                cancellationToken
-            );
+            return SandboxCertificateStatus.Canceled;
         }
         catch (Exception)
         {
-            throw new AboxException(failure);
+            return SandboxCertificateStatus.Unavailable;
         }
         if (result.ExitCode == (int)DevelopmentCertificateOutcome.RuntimeBusy)
-            throw new AboxException(DevelopmentCertificateBusy);
-        if (!result.Succeeded)
-            throw new AboxException(failure);
+            return SandboxCertificateStatus.Busy;
+        return result.Succeeded
+            ? SandboxCertificateStatus.Succeeded
+            : SandboxCertificateStatus.Failed;
     }
 
-    private async Task TransferDevelopmentCertificateAsync(
+    private async Task<SandboxCertificateActivation> TransferDevelopmentCertificateAsync(
         string sandbox,
         ReadOnlyMemory<byte> pfx,
         string password,
@@ -300,8 +280,10 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var frame = DevelopmentCertificateFrame.Create(pfx, password, publicCertificate);
+        if (frame is null)
+            return new(SandboxCertificateActivationStatus.InvalidPayload);
         var transfer = Guid.NewGuid().ToString("N");
-        var busy = false;
+        SandboxCertificateActivationStatus failure;
         try
         {
             var result = await RunDevelopmentCertificateReceiverAsync(
@@ -311,28 +293,23 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
                 frame,
                 cancellationToken
             );
-            busy = result.ExitCode == (int)DevelopmentCertificateOutcome.RuntimeBusy;
-            if (!result.Succeeded)
-                throw new AboxException("Certificate transfer failed.");
+            if (result.Succeeded)
+                return new(SandboxCertificateActivationStatus.Activated);
+            failure =
+                result.ExitCode == (int)DevelopmentCertificateOutcome.RuntimeBusy
+                    ? SandboxCertificateActivationStatus.TransferBusy
+                    : SandboxCertificateActivationStatus.TransferFailed;
         }
-        catch (Exception exception)
+        catch (OperationCanceledException)
         {
-            var cleaned = await TryCleanupDevelopmentCertificateAsync(sandbox, transfer);
-            if (exception is OperationCanceledException)
-                throw new OperationCanceledException(
-                    cleaned
-                        ? "Certificate transfer canceled; retry after checking runtime state."
-                        : "Certificate transfer canceled; remote temporary cleanup is unconfirmed. Remove task-owned .transfer-*.tmp files from the protected runtime certificate directory before retrying.",
-                    cancellationToken
-                );
-            var failure = busy
-                ? DevelopmentCertificateBusy
-                : "Cannot transfer the development certificate. Check Python 3.8+, the non-root application user, ordinary owner-only runtime paths and mount layout. Child diagnostics were suppressed. ";
-            var recovery = cleaned
-                ? "Retry after correcting the destination; an existing active certificate is retained unless the completed commit was not acknowledged. Initial protected configuration may already be present; no rollback is promised."
-                : "Remote temporary cleanup is unconfirmed; remove task-owned .transfer-*.tmp files from the protected runtime certificate directory before retrying.";
-            throw new AboxException(failure + recovery);
+            failure = SandboxCertificateActivationStatus.TransferCanceled;
         }
+        catch (Exception)
+        {
+            failure = SandboxCertificateActivationStatus.TransferFailed;
+        }
+        var cleaned = await TryCleanupDevelopmentCertificateAsync(sandbox, transfer);
+        return new(failure, cleaned);
     }
 
     private async Task<bool> TryCleanupDevelopmentCertificateAsync(string sandbox, string transfer)

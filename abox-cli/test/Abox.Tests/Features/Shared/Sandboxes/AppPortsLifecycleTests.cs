@@ -30,11 +30,8 @@ public sealed class AppPortsLifecycleTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .GetDevelopmentCertificatePasswordAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         fixture
             .Console.AllText.Should()
             .Contain("No explicit application ports")
@@ -187,11 +184,8 @@ public sealed class AppPortsLifecycleTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .GetDevelopmentCertificatePasswordAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         fixture.Console.AllText.Should().Contain("| 4200 | 14200").And.Contain("Created sandbox");
     }
 }

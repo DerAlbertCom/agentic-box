@@ -1222,7 +1222,11 @@ abox-cli/src/Abox/
         ISandboxUserSecrets.cs    a sandbox's authorized host ports and store transport
       ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
         IApplicationPortPublisher.cs  publishes ApplicationPortMappings of a sandbox on loopback
-      Https/            shared host certificate preparation and sandbox HTTPS activation
+      Https/            sandbox HTTPS activation: ordering, refresh and launch readiness
+        IHostDevelopmentCertificate.cs     exports the host's trusted development certificate
+        ISandboxDevelopmentCertificates.cs prepares, activates, verifies and refreshes
+                                           protected HTTPS in a sandbox
+        SandboxHttpsFailures.cs            the user-facing failure text of each step's outcome
       Credentials/      shared kit credential requests and their merge, secret value
                         prompting/storing (used by abox secrets) and the create-time
                         credential check
@@ -1304,7 +1308,8 @@ abox-cli/src/Abox/
       SbxPreflightChecks.cs  IPreflightChecks: on PATH, sbx version, sbx diagnose, sbx login
       SbxSandboxExec.cs  ISandboxExec: sbx exec, privately wrapped in the HTTPS bootstrap
       SbxFailureHeadline.cs  the cause of a failed sbx call, ahead of its full output
-      SbxDevelopmentCertificates.cs  protected HTTPS runtime and certificate operations
+      SbxDevelopmentCertificates.cs  ISandboxDevelopmentCertificates: the receiver, trust and
+                                     exec scripts; maps their exit codes to step outcomes
       SbxApplicationPorts.cs         IApplicationPortPublisher: relay, sbx ports inventory and mapping
       ApplicationPortInventory.cs    strict decoding of sbx ports and relay acknowledgments
       SbxUserSecrets.cs              ISandboxUserSecrets: secret transport and network-policy operations
@@ -1319,6 +1324,11 @@ abox-cli/src/Abox/
       SbxCredentialBindings.cs       ICredentialApprovals: reads and merges sbx's credentials.yaml
       SbxSandboxSquadFileReader.cs   ISandboxSquadFileReader: one sbx exec, base64-framed
       *.py, *.sh                     the embedded scripts sbx runs in the sandbox
+    Dotnet/
+      DotnetDevelopmentCertificate.cs  IHostDevelopmentCertificate: dotnet dev-certs export
+      InstalledDevelopmentCertificateTools.cs  finds installed SDK dev-certs tools
+      DevelopmentCertificateExport.cs  one correlated export into protected staging
+      DevelopmentCertificateIdentity.cs  dev-certs identity report and PFX proof
     Docker/           every call to docker, with list arguments and use-case failure messages
       DockerCommand.cs               runs docker; maps OCI manifests to RegistryManifest
       DockerWorkloadImages.cs        IWorkloadImageBuilder and ILocalWorkloadImageStore:

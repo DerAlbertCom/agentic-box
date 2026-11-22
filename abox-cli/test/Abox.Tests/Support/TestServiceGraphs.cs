@@ -79,7 +79,7 @@ internal static class TestServiceGraphs
             local,
             remote,
             copy,
-            SandboxFactory.Ports(Substitute.For<IApplicationPortPublisher>(), sbx, console),
+            SandboxFactory.Ports(Substitute.For<IApplicationPortPublisher>(), console),
             Credentials(
                 paths,
                 secrets ?? HostSecretStore(),

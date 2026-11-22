@@ -151,11 +151,8 @@ public sealed class AppPortsLifecycleSelectionTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .GetDevelopmentCertificatePasswordAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await fixture
             .Lifecycle.DidNotReceive()
             .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());

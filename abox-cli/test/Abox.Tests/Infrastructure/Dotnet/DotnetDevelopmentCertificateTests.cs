@@ -3,11 +3,12 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using Abox.Features.Shared.Https;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using NSubstitute;
 
 namespace Abox.Tests;
 
-public sealed class HostDevelopmentCertificateTests
+public sealed class DotnetDevelopmentCertificateTests
 {
     [Fact]
     public async Task PrivateStagingFailureRetainsSpecificSafeRecoveryGuidanceBeforeExport()
@@ -29,7 +30,7 @@ public sealed class HostDevelopmentCertificateTests
                     "private child diagnostic"
                 )
             );
-        var exporter = new HostDevelopmentCertificate(
+        var exporter = new DotnetDevelopmentCertificate(
             runner,
             new TestConsole(),
             Path.Combine(root.Path, "missing-private-parent"),
@@ -74,7 +75,7 @@ public sealed class HostDevelopmentCertificateTests
                     "secret"
                 );
             });
-        var exporter = new HostDevelopmentCertificate(runner, new TestConsole(), root.Path, null);
+        var exporter = new DotnetDevelopmentCertificate(runner, new TestConsole(), root.Path, null);
 
         // Act
         var action = () => exporter.ExportAsync(new string('a', 64), CancellationToken.None);
@@ -132,7 +133,7 @@ public sealed class HostDevelopmentCertificateTests
                 }
                 return new ProcessResult(0, identity.Metadata().ToJsonString(), "secret");
             });
-        var exporter = new HostDevelopmentCertificate(runner, new TestConsole(), root.Path, null);
+        var exporter = new DotnetDevelopmentCertificate(runner, new TestConsole(), root.Path, null);
 
         // Act
         using var exported = await exporter.ExportAsync(password, CancellationToken.None);
@@ -163,7 +164,11 @@ public sealed class HostDevelopmentCertificateTests
         if (condition == "invalid-pe")
             File.WriteAllText(tool, "not an assembly");
         if (condition == "no-format-constant")
-            File.Copy(typeof(HostDevelopmentCertificate).Assembly.Location, tool, overwrite: true);
+            File.Copy(
+                typeof(DotnetDevelopmentCertificate).Assembly.Location,
+                tool,
+                overwrite: true
+            );
         var runner = Substitute.For<IProcessRunner>();
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
@@ -176,7 +181,7 @@ public sealed class HostDevelopmentCertificateTests
                     "private diagnostic"
                 )
             );
-        var exporter = new HostDevelopmentCertificate(runner, new TestConsole(), root.Path, null);
+        var exporter = new DotnetDevelopmentCertificate(runner, new TestConsole(), root.Path, null);
 
         // Act
         var action = () => exporter.ExportAsync("generated-test-password", CancellationToken.None);
@@ -214,7 +219,7 @@ public sealed class HostDevelopmentCertificateTests
             "dotnet-dev-certs.dll"
         );
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.Copy(typeof(HostDevelopmentCertificateTests).Assembly.Location, path);
+        File.Copy(typeof(DotnetDevelopmentCertificateTests).Assembly.Location, path);
         return path;
     }
 
@@ -289,7 +294,7 @@ public sealed class HostDevelopmentCertificateTests
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(new ProcessResult(0, metadata.ToJsonString(), "secret"));
-        var exporter = new HostDevelopmentCertificate(
+        var exporter = new DotnetDevelopmentCertificate(
             runner,
             new TestConsole(),
             root.Path,
@@ -331,7 +336,7 @@ public sealed class HostDevelopmentCertificateTests
                 calls.Add(call.Arg<ProcessRequest>());
                 return new ProcessResult(0, metadata, "private diagnostic");
             });
-        var exporter = new HostDevelopmentCertificate(
+        var exporter = new DotnetDevelopmentCertificate(
             runner,
             new TestConsole(),
             root.Path,
@@ -386,7 +391,7 @@ public sealed class HostDevelopmentCertificateTests
                 }
                 return new ProcessResult(0, metadata, "private metadata error");
             });
-        var exporter = new HostDevelopmentCertificate(
+        var exporter = new DotnetDevelopmentCertificate(
             runner,
             new TestConsole(),
             root.Path,
@@ -498,7 +503,7 @@ public sealed class HostDevelopmentCertificateTests
         using var root = new CertificateTestDirectory();
         const string password = "generated-test-password";
         using var cli = new SyntheticCertificateExport(condition, password);
-        var exporter = new HostDevelopmentCertificate(
+        var exporter = new DotnetDevelopmentCertificate(
             cli.Runner,
             new TestConsole(),
             root.Path,

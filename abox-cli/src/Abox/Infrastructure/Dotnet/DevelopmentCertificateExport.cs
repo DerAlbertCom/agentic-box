@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using Abox.Infrastructure;
+using Abox.Features.Shared.Https;
 
-namespace Abox.Features.Shared.Https;
+namespace Abox.Infrastructure.Dotnet;
 
 /// <summary>Owns private staging and bytes until an exact, freshly trusted export is proven.</summary>
 internal sealed class DevelopmentCertificateExport(

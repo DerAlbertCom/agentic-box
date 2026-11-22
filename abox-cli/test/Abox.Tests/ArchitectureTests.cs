@@ -13,10 +13,7 @@ public sealed class ArchitectureTests
 
     // Features that still use an external tool's adapter directly. The later tickets of
     // #147 move each use behind a use-case interface and remove its entry here.
-    private static readonly string[] KnownToolAdapterReferences =
-    [
-        "Abox.Features.Shared.Https.SandboxHttps -> Abox.Infrastructure.Sbx",
-    ];
+    private static readonly string[] KnownToolAdapterReferences = [];
 
     [Fact]
     public void SharedFeaturesAndInfrastructureDoNotReferenceACommandSlice()

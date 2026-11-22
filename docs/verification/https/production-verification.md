@@ -69,7 +69,7 @@ runner/API/relay, host key export helper or manual trust entries.
    if ($LASTEXITCODE) { throw 'Production setup failed; no acceptance claimed.' }
    ```
 
-   This must exercise the real `HostDevelopmentCertificate`, its CLI-only export,
+   This must exercise the real `DotnetDevelopmentCertificate`, its CLI-only export,
    private staging/cleanup, root **public-only** system trust, non-root activation,
    readiness check and forwarding. Do not substitute `setup` from the synthetic
    probe, a manual PFX/password/environment, a user shell profile or extra trust.

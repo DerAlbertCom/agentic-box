@@ -1,8 +1,8 @@
 using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Https;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace Abox.Tests;
 
@@ -51,19 +51,24 @@ public sealed class AppPortsHttpsTests
                 """{"profiles":{"app":{"applicationUrl":"https://localhost:8203"}}}"""
             );
         }
-        var runner = Substitute.For<IProcessRunner>();
-        runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new ProcessResult(0, "[]", ""));
-        var sbx = Substitute.For<ISbxClient>();
-        sbx.GetDevelopmentCertificatePasswordAsync("actual", Arg.Any<CancellationToken>())
-            .Returns(new string('a', 64));
+        var certificates = SandboxFactory.Certificates();
+        certificates
+            .PrepareAsync("actual", Arg.Any<CancellationToken>())
+            .Returns(
+                new SandboxCertificatePreparation(
+                    SandboxCertificateStatus.Succeeded,
+                    new string('a', 64)
+                )
+            );
+        var exporter = Substitute.For<IHostDevelopmentCertificate>();
+        exporter
+            .ExportAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new AboxException("No trusted development certificate."));
         var console = new TestConsole();
-        var exporter = new HostDevelopmentCertificate(runner, console, root.Path, [new("tool", 6)]);
         var ports = new AppPorts(
             Substitute.For<IApplicationPortPublisher>(),
             console,
-            new SandboxHttps(exporter, sbx, SandboxFactory.Exec(), console)
+            new SandboxHttps(exporter, certificates, SandboxFactory.Exec(), console)
         );
 
         // Act
@@ -73,20 +78,17 @@ public sealed class AppPortsHttpsTests
         if (expected)
         {
             await action.Should().ThrowAsync<AboxException>();
-            await sbx.Received(1)
-                .GetDevelopmentCertificatePasswordAsync("actual", Arg.Any<CancellationToken>());
+            await certificates.Received(1).PrepareAsync("actual", Arg.Any<CancellationToken>());
         }
         else
         {
             await action();
-            await sbx.DidNotReceive()
-                .GetDevelopmentCertificatePasswordAsync(
-                    Arg.Any<string>(),
-                    Arg.Any<CancellationToken>()
-                );
-            await runner
+            await certificates
                 .DidNotReceive()
-                .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>());
+                .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            await exporter
+                .DidNotReceive()
+                .ExportAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
     }
 }

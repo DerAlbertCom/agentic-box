@@ -8,13 +8,15 @@ namespace Abox.Infrastructure.Sbx;
 /// <summary>Validates and frames private certificate data without invoking the runtime.</summary>
 internal static class DevelopmentCertificateFrame
 {
-    internal static string Create(
+    /// <summary>The framed payload, or null when the payload cannot be transferred.</summary>
+    internal static string? Create(
         ReadOnlyMemory<byte> pfx,
         string password,
         string? publicCertificate
     )
     {
-        Validate(pfx, password);
+        if (!IsValid(pfx, password))
+            return null;
         var data = new Dictionary<string, object>
         {
             ["version"] = 1,
@@ -40,14 +42,10 @@ internal static class DevelopmentCertificateFrame
         }
     }
 
-    private static void Validate(ReadOnlyMemory<byte> pfx, string password)
-    {
-        var invalidPfx = pfx.IsEmpty || pfx.Length > 1024 * 1024;
-        var invalidPassword =
-            string.IsNullOrEmpty(password) || password.Length > 1024 || password.Contains('\0');
-        if (invalidPfx || invalidPassword)
-            throw new AboxException(
-                "Invalid certificate transfer payload; no sandbox operation was started."
-            );
-    }
+    private static bool IsValid(ReadOnlyMemory<byte> pfx, string password) =>
+        !pfx.IsEmpty
+        && pfx.Length <= 1024 * 1024
+        && !string.IsNullOrEmpty(password)
+        && password.Length <= 1024
+        && !password.Contains('\0');
 }
