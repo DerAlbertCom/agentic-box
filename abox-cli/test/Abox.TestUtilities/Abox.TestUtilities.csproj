@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Abox.Core.Tests" />
+    <InternalsVisibleTo Include="Abox.Infrastructure.TestUtilities" />
+    <InternalsVisibleTo Include="Abox.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="Abox.IntegrationTests" />
+    <InternalsVisibleTo Include="Abox.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSubstitute" Version="6.2.0" />
+    <PackageReference Include="xunit.v3.extensibility.core" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Abox.Core/Abox.Core.csproj" />
+  </ItemGroup>
+</Project>

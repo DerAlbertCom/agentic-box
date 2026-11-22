@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Abox</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Abox.Core.Tests" />
+    <InternalsVisibleTo Include="Abox.Infrastructure.TestUtilities" />
+    <InternalsVisibleTo Include="Abox.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="Abox.IntegrationTests" />
+    <InternalsVisibleTo Include="Abox.Tests" />
+    <InternalsVisibleTo Include="Abox.TestUtilities" />
+    <!-- NSubstitute builds its substitutes of internal interfaces in this assembly. -->
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    <EmbeddedResource Include="Features/Build/Assets/rwe_inspection_certificate_chain.pem" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference
+      Include="Microsoft.Extensions.DependencyInjection.Abstractions"
+      Version="10.0.14"
+    />
+    <PackageReference Include="System.CommandLine" Version="2.0.14" />
+  </ItemGroup>
+</Project>

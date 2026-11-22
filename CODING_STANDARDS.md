@@ -20,14 +20,17 @@ or dogmatic application of patterns.
 ## Architecture
 
 The rules below guide code organization and are recorded, with the options we rejected,
-in [ADR 0003](docs/adr/0003-external-tools-behind-use-case-interfaces.md);
+in [ADR 0003](docs/adr/0003-external-tools-behind-use-case-interfaces.md) and
+[ADR 0004](docs/adr/0004-core-and-infrastructure-projects.md);
 [the implementation code map](docs/implementation.md#the-code) documents the current
 directory layout.
 
-- **Root:** the CLI project's root holds only `Program.cs`, the project file,
-  `AboxException`, `Assets/`, `Cli/` (the composition root), `Features/` and
-  `Infrastructure/`. Namespaces follow folders: `Abox.Features.<Command>`,
-  `Abox.Features.Shared.<UseCase>`, `Abox.Infrastructure.<Tool>`.
+- **Projects:** `abox-cli/src` holds three projects. `Abox.Core` holds only `Features/`
+  and references nothing in the solution, nor YamlDotNet. `Abox.Infrastructure` holds
+  the adapters and the generic technical helpers and references Core. `Abox` (the host,
+  assembly `abox`) holds only `Program.cs` and `Cli/` (the root command and the
+  composition) and references both. Namespaces follow folders: `Abox.Features.<Command>`,
+  `Abox.Features.Shared.<UseCase>`, `Abox.Infrastructure.<Tool>`, `Abox.Cli`.
 - **Command slices:** use vertical slice architecture. Keep a command, all its
   subcommands, slice registration and command-specific implementation together in
   `Features/<Command>`. Code used by only one command lives in that command's slice.
@@ -35,10 +38,13 @@ directory layout.
   one folder per shared feature, named by use case (such as `Sandboxes`, `Squads`,
   `Builds`, `UserSecrets`, `Https`, `Preflight`), never by tool. There is no
   `Shared/Sbx` or `Shared/Docker`. Shared features never import a command slice.
-- **Infrastructure:** `Infrastructure/` holds only what is external: one folder per
+- **Infrastructure:** `Abox.Infrastructure` holds only what is external: one folder per
   external tool (`Sbx`, `Docker`, `Dotnet`, `Herdr`, `Shell`) with that tool's adapters,
-  plus the generic technical helpers (console, process runner, YAML reader, temporary
-  directories, secret redaction). External means another program, or a file another
+  plus, in its root, the generic technical helpers (system console, process runner,
+  YamlDotNet parser, protected staging, secret redaction) and
+  `InfrastructureServiceCollection`, its registration. The console abstraction,
+  `AboxException` and the temporary-directory helper live in the shared `Common`
+  feature in Core. External means another program, or a file another
   tool owns, such as sbx's `credentials.yaml` or the .NET user-secrets store. abox's own
   files (`abox.yaml`, `abox.user.yaml`, `.abox`, `.workload`, its state folder) are not
   external; features read them with the generic helpers.
@@ -49,15 +55,25 @@ directory layout.
   it; the adapter in `Infrastructure/<Tool>` maps them. A new external use case adds a
   small interface; it does not widen an existing one. One adapter may implement several
   interfaces when that is clearly simpler, but one adapter per interface is preferred.
-- **One sbx invoker:** one invoker in `Infrastructure/Sbx` owns the `sbx` executable
+- **One sbx invoker:** one invoker in `Abox.Infrastructure/Sbx` owns the `sbx` executable
   name, the minimum version check, captured execution, JSON handling and the failure
   headline; every sbx adapter calls `sbx` through it. Process arguments are always a
   list, never a shell string.
-- **Dependency direction:** features depend on `Features/Shared` interfaces and the
-  generic helpers, never on an `Infrastructure/<Tool>` type. `Infrastructure/<Tool>`
-  depends on `Features/Shared` interfaces and models, never on a command slice. `Cli`
-  depends on features, never the other way round, and only `Cli` wires adapters to
-  interfaces. An architecture test enforces this direction.
+- **Dependency direction:** no command slice depends on another; slices meet only
+  through interfaces and models in shared features, and shared features never depend
+  on a command slice. Adapters depend on `Features/Shared` interfaces and models. The
+  project references keep Core free of Infrastructure and the host; the ArchUnitNET
+  rules in `Abox.IntegrationTests` check the rest.
+- **Visibility:** production projects meet only through `public` types: the use-case
+  interfaces and their models, `AboxException`, `IConsole`, the YAML parser and node
+  tree, the command types the root command collects, the command-line types the host
+  and the process runner use (`CommandLine`, `CommandHandling`, `TrailingArguments`,
+  `Verbosity`), the two registration methods and `CreateSystemConsole`, which gives the
+  entry point its console. Adapters, `SystemConsole`, `ProcessOutput` and everything
+  else stay `internal`. Grant `InternalsVisibleTo` only to test code: the test
+  projects, the two TestUtilities projects (their helpers build internal services)
+  and `DynamicProxyGenAssembly2`, the assembly in which NSubstitute builds substitutes
+  of internal interfaces.
 - Runtime folder selections and their parsing/matching live in the shared
   `Configuration` feature, not the shared copy orchestration. Portable store-ID
   validation lives in the shared `Naming` feature (`UserSecretId`); both configuration
@@ -69,16 +85,21 @@ directory layout.
 - Each command is a class that the container builds and that takes its dependencies
   in its constructor; nothing looks the commands up by hand. The root command holds
   every command the container has, one per slice.
-- A slice registers itself: `AddAbox` calls one method per slice and that method adds
-  its command and any slice-specific services. The composition root registers shared
-  feature modules once for reuse across slices.
+- Each layer registers its own services through one public extension method:
+  `AddAboxCore` registers the shared services and calls one method per slice, which adds
+  its command and any slice-specific services; `AddAboxInfrastructure` registers every
+  adapter against its use-case interface, the process runner, the YAML parser and the
+  launchers that drive an external tool. The host's `AddAbox` calls both, so adding a
+  service never changes the host.
 - The entry point builds a plain service provider, not a host: it does not load
   `appsettings.json` from the working directory. Commands defer configuration-dependent
   dependencies until their actions run, so help, `exec` and `pipe` need no user configuration.
 - The services take their dependencies in their constructor, so the tests can hand them
-  substitutes of the use-case interfaces (NSubstitute in the test project).
-- The YAML is read in one place (`YamlReader`), so every file is read the same way and
-  an unknown key is an error everywhere.
+  substitutes of the use-case interfaces (NSubstitute in the test projects).
+- YAML is parsed behind `IYamlParser` (its only implementation, on YamlDotNet, is in
+  Infrastructure) and read in one place, Core's strict `YamlReader`, so every file is
+  read the same way and an unknown key is an error everywhere. Loaders of abox's own
+  files take the parser as a dependency.
 
 ## SOLID principles
 
@@ -113,11 +134,25 @@ class.
   restating configuration values.
 - Mark each test's phases explicitly with `// Arrange`, `// Act` and `// Assert`
   comments.
-- Mirror the production folder structure in the test project: keep each command and
-  its subcommands together under `Features/<Command>`, group shared-feature tests by
-  shared feature under `Features/Shared/<UseCase>`, and put adapter tests under
-  `Infrastructure/<Tool>`. Support fixtures tied to one area live next to that area's
-  tests.
+- Put a test in the test project of what it needs, under `abox-cli/test`:
+  `Abox.Core.Tests` for features with substitutes (references only Core and
+  `Abox.TestUtilities`), `Abox.Infrastructure.Tests` for adapters and the YAML parser,
+  `Abox.IntegrationTests` for tests that need real Core and real Infrastructure
+  together (the whole CLI through the CLI test application, including the composition
+  root, real YAML files, the architecture rules), and `Abox.Tests` for the host's own
+  tests that need no CLI test application. Shared helpers live in
+  `Abox.TestUtilities`, which references only Core; shared helpers that need
+  Infrastructure live in `Abox.Infrastructure.TestUtilities`, which only
+  `Abox.Infrastructure.Tests` and `Abox.IntegrationTests` reference. Every helper has one
+  owning project: test projects do not compile in each other's files with linked
+  `<Compile>` items. Every test project uses the `Abox.Tests` namespace.
+- `test/Directory.Build.props` holds the settings, test packages and global usings every
+  test project shares; a project file lists only its references and what is its own.
+- Mirror the source project's folders in its test project: keep each command and its
+  subcommands together under `Features/<Command>`, group shared-feature tests by shared
+  feature under `Features/Shared/<UseCase>`, and put adapter tests under `<Tool>/` in
+  `Abox.Infrastructure.Tests`. Support fixtures tied to one area live next to that
+  area's tests.
 - Feature tests substitute the small use-case interfaces with NSubstitute; they do not
   fake tools. Adapter tests verify tool-specific behaviour (arguments, JSON, exit codes,
   scripts) against the fake sbx and shell setup and the synthetic tools. Command

@@ -1,42 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-    <RootNamespace>Abox.Tests</RootNamespace>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-    <PackageReference Include="NSubstitute" Version="6.2.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" />
-    <PackageReference Include="xunit.v3.core" Version="4.0.2" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="../../src/Abox/Abox.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content
-      Include="../../../docs/verification/application-ports/ReceiverChecks.py"
-      Link="Fixtures/Verification/ApplicationPortsReceiverChecks.py"
-      CopyToOutputDirectory="PreserveNewest"
-    />
-    <Content
-      Include="../../../kits/opencode-config/opencode-config.yaml;../../../kits/pi-config/pi-config.yaml"
-      Link="Fixtures/Kits/%(Filename)/%(Filename)%(Extension)"
-      CopyToOutputDirectory="PreserveNewest"
-    />
-    <Content
-      Include="../../../docs/verification/user-secrets/metadata/*.policy.kit.json"
-      Link="Fixtures/Verification/%(Filename)%(Extension)"
-      CopyToOutputDirectory="PreserveNewest"
-    />
+    <ProjectReference Include="../Abox.TestUtilities/Abox.TestUtilities.csproj" />
   </ItemGroup>
 </Project>

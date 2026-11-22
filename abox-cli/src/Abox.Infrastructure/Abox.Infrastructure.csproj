@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Abox.Infrastructure</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Abox.Infrastructure.TestUtilities" />
+    <InternalsVisibleTo Include="Abox.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="Abox.IntegrationTests" />
+    <InternalsVisibleTo Include="Abox.Tests" />
+    <!-- NSubstitute builds its substitutes of internal interfaces in this assembly. -->
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    <EmbeddedResource Include="Sbx/application_ports.py" LogicalName="Abox.ApplicationPortsRelay" />
+    <EmbeddedResource
+      Include="Sbx/development_certificate.py"
+      LogicalName="Abox.DevelopmentCertificateReceiver"
+    />
+    <EmbeddedResource
+      Include="Sbx/development_certificate_exec.sh"
+      LogicalName="Abox.DevelopmentCertificateExec"
+    />
+    <EmbeddedResource
+      Include="Sbx/development_certificate_trust.py"
+      LogicalName="Abox.DevelopmentCertificateTrust"
+    />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference
+      Include="Microsoft.Extensions.DependencyInjection.Abstractions"
+      Version="10.0.14"
+    />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Abox.Core/Abox.Core.csproj" />
+  </ItemGroup>
+</Project>

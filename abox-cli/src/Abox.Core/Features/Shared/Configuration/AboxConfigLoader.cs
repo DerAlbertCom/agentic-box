@@ -1,0 +1,60 @@
+using Abox.Features.Shared.Common;
+using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Yaml;
+
+namespace Abox.Features.Shared.Configuration;
+
+/// <summary>
+/// Reads the user configuration file.
+/// </summary>
+internal static class AboxConfigLoader
+{
+    private static readonly string[] KnownKeys =
+    [
+        "defaultTeam",
+        "defaultLocation",
+        "teamsDirectory",
+        "kitsDirectory",
+        "defaultTag",
+        "pullRepository",
+        "userSecretsDenyList",
+        "terminalTheme",
+    ];
+
+    public static AboxConfig Load(AboxPaths paths, IYamlParser parser)
+    {
+        if (!File.Exists(paths.ConfigFile))
+        {
+            return new AboxConfig();
+        }
+
+        var reader = parser.ReadFile(paths.ConfigFile);
+        reader.RejectUnknownKeys(KnownKeys);
+
+        var defaults = new AboxConfig();
+        var pullRepository = Or(reader.GetString("pullRepository"), defaults.PullRepository);
+        if (!RegistryImageName.IsValidRepository(pullRepository))
+        {
+            throw new AboxException(
+                $"'{paths.ConfigFile}': 'pullRepository' is not a valid repository name. Use one lowercase registry path segment, without a host, slash or tag."
+            );
+        }
+
+        return new AboxConfig
+        {
+            DefaultTeam = reader.GetString("defaultTeam"),
+            DefaultLocation = reader.GetString("defaultLocation"),
+            TeamsDirectory = Or(reader.GetString("teamsDirectory"), defaults.TeamsDirectory),
+            KitsDirectory = Or(reader.GetString("kitsDirectory"), defaults.KitsDirectory),
+            DefaultTag = reader.Has("defaultTag")
+                ? reader.GetString("defaultTag") ?? string.Empty
+                : defaults.DefaultTag,
+            PullRepository = pullRepository,
+            UserSecretsDenyList = reader.GetStringList("userSecretsDenyList"),
+            TerminalTheme = reader.GetBoolean("terminalTheme") ?? defaults.TerminalTheme,
+        };
+    }
+
+    private static string Or(string? value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value;
+}

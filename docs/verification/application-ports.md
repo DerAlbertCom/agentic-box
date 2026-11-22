@@ -257,7 +257,7 @@ below cover the Python receiver, not host forwarding or application availability
 ### Retained receiver checks
 
 [ReceiverChecks.py](application-ports/ReceiverChecks.py) now loads the production
-`abox-cli/src/Abox/Infrastructure/Sbx/application_ports.py` directly. Run in a disposable Linux checkout
+`abox-cli/src/Abox.Infrastructure/Sbx/application_ports.py` directly. Run in a disposable Linux checkout
 with Python 3.8+ as a non-root user (no .NET project, sbx or npm needed):
 
 ```sh

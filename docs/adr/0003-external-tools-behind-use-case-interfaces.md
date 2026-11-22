@@ -1,5 +1,7 @@
 # External tools behind use-case interfaces
 
+[ADR 0004](0004-core-and-infrastructure-projects.md) supersedes the root layout below and the rule that only `Cli` wires adapters to interfaces.
+
 The root of `abox-cli` mixed three kinds of module: use cases shared by several commands, wrappers of external tools, and code used by only one command. External tools were the worst of it. Every feature that talked to `sbx` widened one wide `ISbxClient`, which also grew HTTPS, port-relay, user-secret, kit-trust and credential knowledge, and features used `docker`, `dotnet dev-certs`, `herdr`, `bash` and a kit's `build` script directly or through tool-shaped classes, so flags, exit codes and process results leaked into them. So the project is organized by what a module is, and every external tool sits behind small interfaces named by use case:
 
 - **Root.** The root of the CLI project holds only `Program.cs`, the project file, `AboxException`, `Assets/`, `Cli/`, `Features/` and `Infrastructure/`. Namespaces follow folders: `Abox.Features.<Command>`, `Abox.Features.Shared.<UseCase>`, `Abox.Infrastructure.<Tool>`.

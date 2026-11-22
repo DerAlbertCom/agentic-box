@@ -188,8 +188,17 @@ Only store IDs, key names/counts and safe recovery messages are reported.
 │       └── opencode-config.yaml
 ├── abox-cli/
 │   ├── agentic-box.slnx
-│   ├── src/Abox/              the command line
-│   └── test/Abox.Tests/       the tests
+│   ├── src/
+│   │   ├── Abox/              the command line host: the entry point and the root command
+│   │   ├── Abox.Core/         the features: command slices and shared features
+│   │   └── Abox.Infrastructure/  the adapters for external tools and the generic helpers
+│   └── test/
+│       ├── Abox.Core.Tests/   feature tests with substitutes
+│       ├── Abox.Infrastructure.Tests/  adapter tests against fake and synthetic tools
+│       ├── Abox.IntegrationTests/  the whole CLI and the architecture rules
+│       ├── Abox.Tests/        the host's tests
+│       ├── Abox.TestUtilities/  shared test helpers
+│       └── Abox.Infrastructure.TestUtilities/  shared test helpers built on Infrastructure
 └── sbox-cli/                  the Bun workspace of sbox, the command line inside the sandbox
     ├── sbox/                  the core of sbox
     ├── sbox-themes/           the themes command of sbox, with the palettes and app templates
@@ -236,12 +245,12 @@ Use `create --local --root <project>` when the sandbox location is outside that 
 ```sh
 cd abox-cli
 dotnet build
-dotnet test/Abox.Tests/bin/Debug/net10.0/Abox.Tests.dll -noColor
+dotnet test
 dotnet run --project src/Abox -- build --team sample --root .. --no-verify
 ```
 
-Run the xUnit executable directly to execute the synthetic regression suite.
-See [synthetic CLI tests](docs/verification/synthetic-cli-tests.md) for separate
+`dotnet test` runs every test project of the solution; each is also an xUnit v3
+executable that can be run directly. See [synthetic CLI tests](docs/verification/synthetic-cli-tests.md) for separate
 discovery/execution commands, isolated output, prerequisites and platform gaps.
 
 ### Checking the tool package locally

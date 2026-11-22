@@ -1,0 +1,86 @@
+using Abox.Features.Build;
+using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
+using Abox.Infrastructure.Docker;
+using NSubstitute;
+
+namespace Abox.Tests;
+
+public sealed class BuildCommandTests
+{
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MetadataOnlyPreparesRemoteMetadataWithoutAnyExternalPrograms(bool noVerify)
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File(
+            "teams/sample/ac.abox",
+            "workload: sample\nstate: [~/.probe-state]\nmcp: [elastic]\n"
+        );
+        root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
+        var console = new TestConsole();
+        var preflight = Substitute.For<IPreflightChecks>();
+        var programs = Substitute.For<IHostPrograms>();
+        var runner = Substitute.For<IProcessRunner>();
+        var config = new AboxConfig();
+        var paths = AboxPaths.For(
+            Path.Combine(root.Path, "config"),
+            Path.Combine(root.Path, "state")
+        );
+        var store = new BuildStore(paths);
+        var resolver = new SquadResolver(config, new YamlDotNetParser());
+        var service = TestServiceGraphs.Build(
+            resolver,
+            new PersonalConfigurations(paths),
+            store,
+            LocalWorkloadFactory.Images(programs, runner, console),
+            console
+        );
+        var command = new BuildCommand(
+            new Lazy<AboxConfig>(() => config),
+            new Preflight(console, preflight),
+            new Lazy<SquadResolver>(() => resolver),
+            new Lazy<BuildService>(() => service),
+            console
+        );
+        var arguments = new List<string>
+        {
+            "--team",
+            "sample",
+            "--root",
+            root.Path,
+            "--tag",
+            "remote",
+            "--metadata-only",
+            "--no-personal",
+        };
+        if (noVerify)
+        {
+            arguments.Add("--no-verify");
+        }
+
+        // Act
+        var exitCode = await command.Parse(arguments.ToArray()).InvokeAsync();
+
+        // Assert
+        exitCode.Should().Be(0);
+        var manifest = store.Load(new SquadBuildIdentity("sample", "ac", "remote"))!;
+        manifest.LocalWorkload.Should().BeNull();
+        manifest.Reference.Should().Be(ImageName.OfTeam("sample", "remote"));
+        manifest.State.Should().ContainSingle();
+        manifest.Mcp.Should().ContainSingle().Which.Name.Should().Be("elastic");
+        manifest.SourceHashes.Should().NotBeEmpty();
+        File.Exists(Path.Combine(manifest.WorkloadKitDirectory, "workload.yaml")).Should().BeTrue();
+        console.AllText.Should().Contain("metadata only").And.NotContain("--tag remote --local");
+        preflight.ReceivedCalls().Should().BeEmpty();
+        programs.ReceivedCalls().Should().BeEmpty();
+        runner.ReceivedCalls().Should().BeEmpty();
+    }
+}

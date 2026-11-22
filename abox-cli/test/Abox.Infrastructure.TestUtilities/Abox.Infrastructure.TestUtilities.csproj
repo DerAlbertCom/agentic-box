@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Test helpers built on Infrastructure, shared by Abox.Infrastructure.Tests and Abox.IntegrationTests. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Abox.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="Abox.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
+    <PackageReference Include="NSubstitute" Version="6.2.0" />
+    <PackageReference Include="xunit.v3.extensibility.core" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Abox.Infrastructure/Abox.Infrastructure.csproj" />
+    <ProjectReference Include="../Abox.TestUtilities/Abox.TestUtilities.csproj" />
+  </ItemGroup>
+</Project>

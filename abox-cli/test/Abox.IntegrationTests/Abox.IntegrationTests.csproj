@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" Version="0.13.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Abox/Abox.csproj" />
+    <ProjectReference Include="../../src/Abox.Core/Abox.Core.csproj" />
+    <ProjectReference Include="../../src/Abox.Infrastructure/Abox.Infrastructure.csproj" />
+    <ProjectReference Include="../Abox.Infrastructure.TestUtilities/Abox.Infrastructure.TestUtilities.csproj" />
+    <ProjectReference Include="../Abox.TestUtilities/Abox.TestUtilities.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content
+      Include="../../../kits/opencode-config/opencode-config.yaml;../../../kits/pi-config/pi-config.yaml"
+      Link="Fixtures/Kits/%(Filename)/%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Content
+      Include="../../../docs/verification/user-secrets/metadata/*.policy.kit.json"
+      Link="Fixtures/Verification/%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+  </ItemGroup>
+</Project>

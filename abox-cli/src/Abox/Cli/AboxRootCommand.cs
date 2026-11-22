@@ -1,6 +1,5 @@
 using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
-using Abox.Infrastructure;
 
 namespace Abox.Cli;
 
@@ -9,7 +8,7 @@ namespace Abox.Cli;
 /// </summary>
 public sealed class AboxRootCommand : RootCommand
 {
-    private readonly ProcessOutput _output;
+    private readonly Verbosity _verbosity;
     private readonly Option<bool> _verbose = new("--verbose")
     {
         Description =
@@ -17,10 +16,10 @@ public sealed class AboxRootCommand : RootCommand
         Recursive = true,
     };
 
-    public AboxRootCommand(IEnumerable<Command> subcommands, ProcessOutput output)
+    public AboxRootCommand(IEnumerable<Command> subcommands, Verbosity verbosity)
         : base("abox: AI agent sandboxes for your folders.")
     {
-        _output = output;
+        _verbosity = verbosity;
         Options.Add(_verbose);
         foreach (var subcommand in subcommands)
         {
@@ -31,7 +30,7 @@ public sealed class AboxRootCommand : RootCommand
     public Task<int> InvokeAsync(IReadOnlyList<string> arguments)
     {
         var parsed = this.Parse(arguments);
-        _output.Verbose = parsed.GetValue(_verbose);
+        _verbosity.Verbose = parsed.GetValue(_verbose);
         return parsed.InvokeAsync();
     }
 }

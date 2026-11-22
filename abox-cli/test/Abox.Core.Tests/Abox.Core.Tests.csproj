@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/Abox.Core/Abox.Core.csproj" />
+    <ProjectReference Include="../Abox.TestUtilities/Abox.TestUtilities.csproj" />
+  </ItemGroup>
+</Project>

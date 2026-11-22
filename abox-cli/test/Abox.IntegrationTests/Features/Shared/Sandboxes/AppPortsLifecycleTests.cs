@@ -1,0 +1,192 @@
+using Abox.Features.Shared.ApplicationPorts;
+using Abox.Features.Shared.Common;
+using Abox.Features.Shared.Sandboxes;
+using Abox.Infrastructure.Sbx;
+using NSubstitute;
+
+namespace Abox.Tests;
+
+public sealed class AppPortsLifecycleTests
+{
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EmptyOrNonWebDotnetFoldersNeedNoCertificateCliOrPortRuntime(bool library)
+    {
+        // Arrange
+        using var fixture = new AppPortsLifecycleFixture();
+        if (library)
+            fixture.Root.File("folder/Library.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />");
+
+        // Act
+        var exit = await fixture.Create(false);
+
+        // Assert
+        exit.Should().Be(0, fixture.Console.AllText);
+        await fixture
+            .Publisher.DidNotReceive()
+            .PublishAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
+                Arg.Any<CancellationToken>()
+            );
+        await fixture
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        fixture
+            .Console.AllText.Should()
+            .Contain("No explicit application ports")
+            .And.Contain("Created sandbox");
+    }
+
+    [Theory]
+    [InlineData("published", false)]
+    [InlineData("local", false)]
+    [InlineData("run", false)]
+    [InlineData("published", true)]
+    [InlineData("local", true)]
+    [InlineData("run", true)]
+    public async Task RequiredPublishingFailureRetainsRecordAndOffersRetryWithoutLaunching(
+        string entry,
+        bool cancel
+    )
+    {
+        // Arrange
+        using var fixture = new AppPortsLifecycleFixture();
+        fixture.Existing();
+        fixture.Angular();
+        fixture
+            .Publisher.PublishAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Task.FromException(
+                    cancel
+                        ? new OperationCanceledException()
+                        : new AboxException("synthetic port conflict")
+                )
+            );
+
+        // Act
+        var exit = await fixture.Replace(entry);
+
+        // Assert
+        exit.Should().Be(cancel ? 130 : 1, fixture.Console.AllText);
+        fixture
+            .Records.Load(fixture.Name)!
+            .BuildCreatedAt.Should()
+            .BeAfter(AppPortsLifecycleFixture.OldBuild);
+        fixture
+            .Console.AllText.Should()
+            .Contain("record retained")
+            .And.Contain("may remain")
+            .And.Contain("abox ports --location \"" + fixture.Location + "\"")
+            .And.NotContain("Created sandbox '")
+            .And.NotContain("Open it with");
+        await fixture
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("published", "malformed")]
+    [InlineData("local", "malformed")]
+    [InlineData("run", "malformed")]
+    [InlineData("published", "overflow")]
+    [InlineData("local", "overflow")]
+    [InlineData("run", "overflow")]
+    [InlineData("published", "aspnet")]
+    [InlineData("local", "aspnet")]
+    [InlineData("run", "aspnet")]
+    public async Task InvalidDiscoveryCannotMutateOrReplaceTheExistingSandbox(
+        string entry,
+        string problem
+    )
+    {
+        // Arrange
+        using var fixture = new AppPortsLifecycleFixture();
+        fixture.Existing();
+        InvalidDiscovery(fixture, problem);
+
+        // Act
+        var exit = await fixture.Replace(entry);
+
+        // Assert
+        exit.Should().Be(1, fixture.Console.AllText);
+        await fixture
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await fixture
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
+        await fixture
+            .KitSources.DidNotReceive()
+            .EnsureTrustedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        fixture
+            .Records.Load(fixture.Name)!
+            .BuildCreatedAt.Should()
+            .Be(AppPortsLifecycleFixture.OldBuild);
+    }
+
+    private static void InvalidDiscovery(AppPortsLifecycleFixture fixture, string problem)
+    {
+        fixture.Angular();
+        if (problem == "overflow")
+            fixture.Configure("""{"portOffset":65534}""");
+        else if (problem == "aspnet")
+        {
+            fixture.Root.File("folder/A.csproj", "<Project Sdk=\"Microsoft.NET.Sdk.Web\" />");
+            fixture.Root.File(
+                "folder/Web.csproj",
+                "<Project Sdk=\"Microsoft.NET.Sdk.Web\"><broken>"
+            );
+        }
+        else
+            fixture.Root.File("folder/api/Properties/launchSettings.json", "{broken");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreationWithoutFolderConfigurationPublishesAngularPortsAfterSavingItsRecord(
+        bool local
+    )
+    {
+        // Arrange
+        using var fixture = new AppPortsLifecycleFixture();
+        fixture.Angular();
+        fixture
+            .Publisher.PublishAsync(
+                fixture.Name,
+                Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ =>
+            {
+                fixture.Records.Load(fixture.Name)!.Squad.Should().Be("ac");
+                fixture.Console.AllText.Should().NotContain("Created sandbox");
+                return Task.CompletedTask;
+            });
+
+        // Act
+        var exit = await fixture.Create(local);
+
+        // Assert
+        exit.Should().Be(0, fixture.Console.AllText);
+        await fixture
+            .Publisher.Received(1)
+            .PublishAsync(
+                fixture.Name,
+                Arg.Is<IReadOnlyList<ApplicationPortMapping>>(ports =>
+                    ports.Count == 1 && ports[0] == new ApplicationPortMapping(4200, 14200)
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await fixture
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        fixture.Console.AllText.Should().Contain("| 4200 | 14200").And.Contain("Created sandbox");
+    }
+}

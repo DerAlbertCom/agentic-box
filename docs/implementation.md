@@ -1168,10 +1168,10 @@ so a failed download stops that build step instead of being hidden by a shell
 pipeline and causing `mise: not found` in the next step.
 
 Every generated workload (including one without tools) installs the approved
-`abox-cli/src/Abox/Assets/rwe_inspection_certificate_chain.pem` bundle before any apt,
+`abox-cli/src/Abox.Core/Features/Build/Assets/rwe_inspection_certificate_chain.pem` bundle before any apt,
 mise or script downloads. This is the supplied RWE inspection CA bundle: public
 certificates and CA metadata comments, not private keys. It is embedded in the
-CLI assembly, so global tool installations do not need the repository or
+Abox.Core assembly, so global tool installations do not need the repository or
 `C:/Localdata` at runtime. The generated `certificates/` build-context directory
 contains the exact bundle and one `.crt` per certificate; as root, the Dockerfile
 copies these into `/usr/local/share/ca-certificates/abox/` and runs the distro's
@@ -1190,123 +1190,139 @@ After updating the approved repository bundle, rebuild the CLI/tool and workload
 ## The code
 
 ```
-abox-cli/src/Abox/
-  Program.cs        runs the command line
-  AboxException.cs  the safe application error reported by command handling
-  Assets/           embedded workload certificate assets
-  Cli/              the composition root: the service collection and the root command
-  Features/         the command slices and the shared features
-    Build/          abox build: the command and the service that does its work
-      KitBuildStep.cs             stages a kit with a build file and runs its build (ADR 0001)
-      StateMixinGenerator.cs      the state mixin of a built squad
-      WorkloadKitGenerator.cs     turns a workload into a sandbox kit
-      SquadConfigurationMixin.cs  the squad.json allowlist and its mixin
-    Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly
-    Create/         abox create: the command and its slice registration
-    Run/            abox run: the command and the Run flow (common Launcher steps)
-      ShellLauncher.cs  the default launcher: a shell in the workspace
-    Secrets/        abox secrets: the command and the service that does its work
-      SandboxSquadMetadata.cs  staged descriptors and squad.json Secrets of a sandbox
-    UserSecrets/    abox user-secrets: on-demand command only
-    Ports/          abox ports: on-demand command only
-    Prune/          abox prune: the command and the service that does its work
-    Sandbox/        the commands other programs call: abox exec and abox pipe
-      SandboxCommand.cs     shared hidden-command construction and argv validation;
-                            passes the named sandbox to sbx exec
-    Shared/         everything shared by commands, one folder per use case
-      CommandLine/      the trailing arguments after "--" and command handling, which
-                        turns an abox error into a message and an exit code
-      Configuration/    the directories and the user configuration
-        FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
-      UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
-                        endpoint override generation and runtime copy flow
-        IHostUserSecretStores.cs  reading the host's .NET user-secret stores by ID
-        ISandboxUserSecrets.cs    a sandbox's authorized host ports and store transport
-      ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
-        IApplicationPortPublisher.cs  publishes ApplicationPortMappings of a sandbox on loopback
-      Https/            sandbox HTTPS activation: ordering, refresh and launch readiness
-        IHostDevelopmentCertificate.cs     exports the host's trusted development certificate
-        ISandboxDevelopmentCertificates.cs prepares, activates, verifies and refreshes
-                                           protected HTTPS in a sandbox
-        SandboxHttpsFailures.cs            the user-facing failure text of each step's outcome
-      Credentials/      shared kit credential requests and their merge, secret value
-                        prompting/storing (used by abox secrets) and the create-time
-                        credential check
-        IHostSecretStore.cs         list, set and remove host secrets; the manual
-                                    custom-secret instruction
-        ICredentialApprovals.cs     the approvals of a service's API key for its domains
-        ISandboxSquadFileReader.cs  a sandbox's staged kit descriptors and squad.json
-        HostSecrets.cs              the stored secrets; matches a declaration by its identity
-        SecretIdentity.cs           the host, variable or service a secret is stored under
-      Squads/           the .abox and .workload files, the chain, squad resolution
-        McpDeclaration.cs      shared MCP name and HTTP(S) URL validation
-        YamlScalar.cs          shared generated-YAML scalar quoting, including supplementary Unicode
-      Builds/           the local build state shared by the command slices
-        BuildManifest.cs
-        BuildSources.cs
-        BuildStore.cs
-        LocalWorkloadImages.cs  prebuilt workload images; owns the workload kit name
-        IWorkloadImageBuilder.cs  building workload images into the host image store,
-                                with fresh image references
-        ILocalWorkloadImageStore.cs  inspecting them there (the host-builder check)
-        WorkloadBuildSecrets.cs  the secrets workload recipes may mount
-        PersonalConfigurations.cs
-      Launchers/        the launcher abstraction
-        ILauncher.cs           launcher contract; launcher services are constructor-injected
-        LauncherSession.cs     what a launcher gets: location, sandbox, workspace, argv,
-                               exec in the sandbox and ensure launch-ready
-        LauncherRegistry.cs    the launchers abox knows: the run slice's shell and the
-                               infrastructure adapters the composition root adds
-      Sandboxes/        orchestration and resolution shared by create, run, ports and user-secrets
-        ISandboxExec.cs         run a command in a sandbox: request, console input mode, outcome
-        SandboxCreator.cs       the create operation shared by create and run
-        FolderSandbox.cs        this folder's Sandbox: one listing, current-first, exact legacy fallback
-        ISandboxLifecycle.cs    list, create and remove sandboxes; SandboxCreation, SandboxRemoval
-        SandboxDefinition.cs    what a new sandbox is made of; SandboxMount.cs, PullPolicy.cs
-        SandboxInfo.cs          a sandbox as the runtime lists it
-        IMcpServerRegistry.cs   list and register the host's MCP servers
-        IKitSourceTrust.cs      trust a registry repository as a kit source
-        ISandboxInspection.cs   detect a program and the workspace directory in a sandbox
-        IFolderRealPath.cs      the physical path of a host folder, for legacy names
-        LegacySandboxName.cs    the sandbox names of earlier abox versions
-        SandboxRecord.cs
-        SandboxRecordStore.cs
-        CreateRecoveryHints.cs  renders the create hint for a missing sandbox or an image
-                                that lacks a launcher's required program
-        PublishedSquadSource.cs reads the published set's bundled squad metadata
-        PublishedConfigArchive.cs safely reads squad metadata from Docker-save archives
-        PublishedRuntimeMetadata.cs validates bundled state and MCP runtime declarations
-        SquadSources.cs         local and remote ISquadSource adapters
-      Registry/         publishing images to and reading them from the registry
-        IRegistryPublisher.cs   push, inspect and tag for abox publish
-        IPublishedImageReader.cs  inspect and save published images for remote create
-        RegistryManifest.cs     a registry manifest: its kit descriptor or its platform images
-        ImageReferences.cs      digest, pinning and repository rules of image references
-      Preflight/        runtime preflight for sandbox commands, secrets and normal builds
-        Preflight.cs            installed, new enough, healthy and signed in; the user messages
-        IPreflightChecks.cs     what preflight asks of the sandbox runtime
-        IHostPrograms.cs        whether a program is on the host's PATH
-        RuntimeVersion.cs       the installed version against the minimum
-        DiagnoseReport.cs       the runtime's diagnosis: its checks and whether it is signed out
-        DiagnosticCheck.cs      one check of the diagnosis
-        InstallInstructions.cs  how to install sbx on the current system
-      SandboxCleanup/   ISandboxCleanup for abox prune: list sandboxes and template images,
-                        stop a sandbox, remove a template image
-      KitInspection/    IKitInspector: checks a local kit's declarations for abox build
-      KitBuildScripts/  IKitBuildScript: runs a local kit's build file into its staged copy
-      Naming/           sandbox and image names
-        ImageName.cs            the unqualified team reference of a local build
-        TcpPort.cs              shared TCP parsing and the 1–65535 range
-        WindowsDeviceName.cs    shared reserved device-name validation
-        SquadBuildIdentity.cs  validated team/squad/tag and shared repository naming
-  Infrastructure/   the external tools and the generic helpers: the console, the
-                    processes, the YAML
+abox-cli/src/       three projects; ADR 0004 records the split and the reference rules
+  Abox/             the host (assembly abox, the rwest-agentic-box tool); references
+                    Abox.Core and Abox.Infrastructure
+    Program.cs      runs the command line
+    Cli/            the root command and AddAbox, which calls AddAboxCore and
+                    AddAboxInfrastructure
+  Abox.Core/        the features; references nothing in the solution, nor YamlDotNet
+    Features/       the command slices and the shared features
+      CoreServiceCollection.cs  AddAboxCore: the shared services and one call per slice
+      LazyService.cs  resolves a Lazy<T> dependency only when its value is first used
+      Build/          abox build: the command and the service that does its work
+        Assets/                     the inspection certificate chain, embedded in Abox.Core
+        KitBuildStep.cs             stages a kit with a build file and runs its build (ADR 0001)
+        StateMixinGenerator.cs      the state mixin of a built squad
+        WorkloadKitGenerator.cs     turns a workload into a sandbox kit
+        SquadConfigurationMixin.cs  the squad.json allowlist and its mixin
+      Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly
+      Create/         abox create: the command and its slice registration
+      Run/            abox run: the command and the Run flow (common Launcher steps)
+        ShellLauncher.cs  the default launcher: a shell in the workspace
+      Secrets/        abox secrets: the command and the service that does its work
+        SandboxSquadMetadata.cs  staged descriptors and squad.json Secrets of a sandbox
+      UserSecrets/    abox user-secrets: on-demand command only
+      Ports/          abox ports: on-demand command only
+      Prune/          abox prune: the command and the service that does its work
+      Sandbox/        the commands other programs call: abox exec and abox pipe
+        SandboxCommand.cs     shared hidden-command construction and argv validation;
+                              passes the named sandbox to sbx exec
+      Shared/         everything shared by commands, one folder per use case
+        Common/           IConsole, AboxException and TemporaryDirectory, used by every layer
+        Yaml/             IYamlParser and its YamlNode tree; YamlReader, the strict reader
+                          of abox's own files and the merge of abox.yaml with abox.user.yaml
+        CommandLine/      the trailing arguments after "--", the --verbose setting
+                          (Verbosity, set by the root command, read by ProcessOutput) and
+                          command handling, which turns an abox error into a message and
+                          an exit code
+        Configuration/    the directories and the user configuration
+          FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
+        UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
+                          endpoint override generation and runtime copy flow
+          IHostUserSecretStores.cs  reading the host's .NET user-secret stores by ID
+          ISandboxUserSecrets.cs    a sandbox's authorized host ports and store transport
+        ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
+          IApplicationPortPublisher.cs  publishes ApplicationPortMappings of a sandbox on loopback
+        Https/            sandbox HTTPS activation: ordering, refresh and launch readiness
+          IHostDevelopmentCertificate.cs     exports the host's trusted development certificate
+          ISandboxDevelopmentCertificates.cs prepares, activates, verifies and refreshes
+                                             protected HTTPS in a sandbox
+          SandboxHttpsFailures.cs            the user-facing failure text of each step's outcome
+        Credentials/      shared kit credential requests and their merge, secret value
+                          prompting/storing (used by abox secrets) and the create-time
+                          credential check
+          IHostSecretStore.cs         list, set and remove host secrets; the manual
+                                      custom-secret instruction
+          ICredentialApprovals.cs     the approvals of a service's API key for its domains
+          ISandboxSquadFileReader.cs  a sandbox's staged kit descriptors and squad.json
+          HostSecrets.cs              the stored secrets; matches a declaration by its identity
+          SecretIdentity.cs           the host, variable or service a secret is stored under
+        Squads/           the .abox and .workload files, the chain, squad resolution
+          McpDeclaration.cs      shared MCP name and HTTP(S) URL validation
+          YamlScalar.cs          shared generated-YAML scalar quoting, including supplementary Unicode
+        Builds/           the local build state shared by the command slices
+          BuildManifest.cs
+          BuildSources.cs
+          BuildStore.cs
+          LocalWorkloadImages.cs  prebuilt workload images; owns the workload kit name
+          IWorkloadImageBuilder.cs  building workload images into the host image store,
+                                  with fresh image references
+          ILocalWorkloadImageStore.cs  inspecting them there (the host-builder check)
+          WorkloadBuildSecrets.cs  the secrets workload recipes may mount
+          PersonalConfigurations.cs
+        Launchers/        the launcher abstraction
+          ILauncher.cs           launcher contract; launcher services are constructor-injected
+          LauncherSession.cs     what a launcher gets: location, sandbox, workspace, argv,
+                                 exec in the sandbox and ensure launch-ready
+          LauncherRegistry.cs    the launchers abox knows: the run slice's shell and the
+                                 infrastructure adapters AddAboxInfrastructure adds
+        Sandboxes/        orchestration and resolution shared by create, run, ports and user-secrets
+          ISandboxExec.cs         run a command in a sandbox: request, console input mode, outcome
+          SandboxCreator.cs       the create operation shared by create and run
+          FolderSandbox.cs        this folder's Sandbox: one listing, current-first, exact legacy fallback
+          ISandboxLifecycle.cs    list, create and remove sandboxes; SandboxCreation, SandboxRemoval
+          SandboxDefinition.cs    what a new sandbox is made of; SandboxMount.cs, PullPolicy.cs
+          SandboxInfo.cs          a sandbox as the runtime lists it
+          IMcpServerRegistry.cs   list and register the host's MCP servers
+          IKitSourceTrust.cs      trust a registry repository as a kit source
+          ISandboxInspection.cs   detect a program and the workspace directory in a sandbox
+          IFolderRealPath.cs      the physical path of a host folder, for legacy names
+          LegacySandboxName.cs    the sandbox names of earlier abox versions
+          SandboxRecord.cs
+          SandboxRecordStore.cs
+          CreateRecoveryHints.cs  renders the create hint for a missing sandbox or an image
+                                  that lacks a launcher's required program
+          PublishedSquadSource.cs reads the published set's bundled squad metadata
+          PublishedConfigArchive.cs safely reads squad metadata from Docker-save archives
+          PublishedRuntimeMetadata.cs validates bundled state and MCP runtime declarations
+          SquadSources.cs         local and remote ISquadSource adapters
+        Registry/         publishing images to and reading them from the registry
+          IRegistryPublisher.cs   push, inspect and tag for abox publish
+          IPublishedImageReader.cs  inspect and save published images for remote create
+          RegistryManifest.cs     a registry manifest: its kit descriptor or its platform images
+          ImageReferences.cs      digest, pinning and repository rules of image references
+        Preflight/        runtime preflight for sandbox commands, secrets and normal builds
+          Preflight.cs            installed, new enough, healthy and signed in; the user messages
+          IPreflightChecks.cs     what preflight asks of the sandbox runtime
+          IHostPrograms.cs        whether a program is on the host's PATH
+          RuntimeVersion.cs       the installed version against the minimum
+          DiagnoseReport.cs       the runtime's diagnosis: its checks and whether it is signed out
+          DiagnosticCheck.cs      one check of the diagnosis
+          InstallInstructions.cs  how to install sbx on the current system
+        SandboxCleanup/   ISandboxCleanup for abox prune: list sandboxes and template images,
+                          stop a sandbox, remove a template image
+        KitInspection/    IKitInspector: checks a local kit's declarations for abox build
+        KitBuildScripts/  IKitBuildScript: runs a local kit's build file into its staged copy
+        Naming/           sandbox and image names
+          ImageName.cs            the unqualified team reference of a local build
+          TcpPort.cs              shared TCP parsing and the 1–65535 range
+          WindowsDeviceName.cs    shared reserved device-name validation
+          SquadBuildIdentity.cs  validated team/squad/tag and shared repository naming
+  Abox.Infrastructure/  the external tools and the generic helpers; references Abox.Core
+    InfrastructureServiceCollection.cs  AddAboxInfrastructure: every adapter, the process
+                            runner, the YAML parser and the external-tool launchers;
+                            CreateSystemConsole: the entry point's console
+    SystemConsole.cs        IConsole on the real terminal (internal)
+    ProcessRunner.cs        runs processes from argument lists; IProcessRunner,
+                            ProcessRequest, ProcessResult
     ProcessOutput.cs        captured-output diagnostics and output policy
+    YamlDotNetParser.cs     IYamlParser on YamlDotNet; parse errors name the source
     SecretRedactor.cs       credential collection and diagnostic redaction
+    ProtectedTemporaryDirectory.cs  owner-only private staging
     PrivateStagingException.cs  structural protected-staging failure classification
-    TemporaryDirectory.cs   temporary working directories and their cleanup
     Sbx/              every call to sbx: one adapter per use-case interface, all calling
-                      sbx through the one SbxInvoker the composition root registers
+                      sbx through the one SbxInvoker
       SbxInvoker.cs   the executable name, the minimum version and version query, shared
                       captured execution, JSON and failure handling, the failure headline
       SbxPreflightChecks.cs  IPreflightChecks: on PATH, sbx version, sbx diagnose, sbx login
@@ -1348,8 +1364,31 @@ abox-cli/src/Abox/
       ShellHostPrograms.cs    IHostPrograms: the directories of PATH (and PATHEXT on Windows)
     Herdr/
       HerdrAppLauncher.cs  the herdr-app launcher (an ILauncher adapter, registered by
-                           the composition root); its programs stay internal
+                           AddAboxInfrastructure); its programs stay internal
       HerdrResponses.cs    the internal hc and herdr-app protocol responses
+```
+
+```
+abox-cli/test/      one test project per source project, each mirroring its folders;
+                    every one uses the Abox.Tests namespace
+  Directory.Build.props       the settings, test packages and global usings of every
+                              test project
+  Abox.Core.Tests/            features with NSubstitute substitutes; references only
+                              Abox.Core and Abox.TestUtilities
+  Abox.Infrastructure.Tests/  adapters against the fake sbx and shell setup and the
+                              synthetic tools; the YAML parser contract
+  Abox.IntegrationTests/      real Core and real Infrastructure together: the whole CLI
+                              through the CLI test application (Cli/ holds the composition
+                              root, command location and source defaults), real YAML files
+                              and fixtures, and the ArchUnitNET architecture rules
+  Abox.Tests/                 the host's own tests that need no CLI test application:
+                              the root command's --verbose handling and the executable
+  Abox.TestUtilities/         shared helpers (test console, temporary directories,
+                              fakes); references only Abox.Core
+  Abox.Infrastructure.TestUtilities/  shared helpers built on Infrastructure (directory
+                              links, the gated user-secrets policy runner, sandbox and
+                              workload fakes) for Abox.Infrastructure.Tests and
+                              Abox.IntegrationTests
 ```
 
 ```
