@@ -1,13 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-    <RootNamespace>Abox.Tests</RootNamespace>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
-
   <ItemGroup>
     <InternalsVisibleTo Include="Abox.Core.Tests" />
     <InternalsVisibleTo Include="Abox.Infrastructure.Tests" />
