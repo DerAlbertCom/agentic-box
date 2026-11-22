@@ -161,6 +161,26 @@ describe("sbox themes in a terminal", () => {
     expect(await home.exists(".config/opencode/themes/sbox.json")).toBe(false);
   });
 
+  test("changes nothing and leaves the terminal alone when an app template fails for the chosen theme", async () => {
+    // Arrange
+    const broken = ".local/share/sbox/commands/themes/apps/zz-broken";
+    await home.write(`${broken}/app.yaml`, "files:\n  - template: broken.liquid\n    target: ~/broken.txt\n");
+    await home.write(`${broken}/broken.liquid`, "{{ nope }}");
+    await home.writeState("themes", "current", "nord\n");
+    await fakeFzf("white");
+
+    // Act
+    const result = await home.run(["themes"], { tty: true, env: { SBOX_TERMINAL_THEME: "1" } });
+
+    // Assert
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toStartWith("sbox themes: zz-broken/broken.liquid: undefined variable: nope");
+    expect(await savedTheme()).toBe("nord");
+    expect(await home.exists(".config/opencode/themes/sbox.json")).toBe(false);
+    expect(await home.exists(".config/sbox/terminal-colors.sh")).toBe(false);
+  });
+
   test("recolors the terminal with the chosen theme with SBOX_TERMINAL_THEME=1", async () => {
     // Arrange
     await fakeFzf("nord");

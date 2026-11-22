@@ -75,6 +75,14 @@ A theme whose palette is invalid (see [Adding a theme](#adding-a-theme)) is refu
 key, exit code 1 and nothing changed; `--apply` does not fall back for it. `--list` and
 `--current` do not read palettes, so they still show it.
 
+A switch or `--apply` is all or nothing: it reads the palette and every app template,
+renders every file and merges every settings file in memory first. A template that
+fails, a malformed `app.yaml` or a settings file that is not a JSON object stops it
+with an error naming the cause, exit code 1, and no app's files, no settings and not
+the saved choice changed. Only then are the files written, each atomically, the apps'
+commands run and, for a switch, the choice saved. A write that fails then is not
+rolled back.
+
 ```yaml
 kits:
   - sbox
@@ -204,5 +212,6 @@ template sees every color of the palette, each a `#rrggbb`, and `mode` (`dark` o
 | `strip` | `{{ accent \| strip }}` | `7aa2f7` |
 | `rgb` | `{{ accent \| rgb }}` | `122,162,247` |
 
-A template that names a key outside the palette fails the switch, naming the template. A `run` command
-that fails is reported and fails the command after everything is rendered.
+A template that names a key outside the palette fails the switch before anything is written, naming the
+template. A `run` command that fails is reported and fails the command after everything is written; the
+other commands still run and the switch is kept.
