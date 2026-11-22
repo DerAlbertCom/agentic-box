@@ -264,7 +264,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("herdr-app", _root.Path, []),
+            new RunRequest("app", _root.Path, []),
             CancellationToken.None
         );
 
@@ -319,7 +319,7 @@ public sealed class RunFlowTests
     [Fact]
     public async Task ALauncherThatIsNotKnownIsAnError()
     {
-        // Arrange: the fixture registers only shell and herdr-app launchers.
+        // Arrange: the fixture registers only the shell and app launchers.
         // Act
         var action = () =>
             _service.RunAsync(new RunRequest("nope", _root.Path, []), CancellationToken.None);

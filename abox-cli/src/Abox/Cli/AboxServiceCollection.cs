@@ -12,6 +12,7 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Https;
+using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
@@ -19,6 +20,7 @@ using Abox.Features.Shared.UserSecrets;
 using Abox.Features.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
+using Abox.Infrastructure.Herdr;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -43,6 +45,7 @@ public static class AboxServiceCollection
             .AddPublishFeature()
             .AddCreateFeature()
             .AddRunFeature()
+            .AddLaunchers()
             .AddSecretsFeature()
             .AddUserSecretsFeature()
             .AddPortsFeature()
@@ -54,6 +57,10 @@ public static class AboxServiceCollection
 
         return services;
     }
+
+    // The launchers that open apps through an external tool, after the run slice's own.
+    private static IServiceCollection AddLaunchers(this IServiceCollection services) =>
+        services.AddSingleton<ILauncher, HerdrAppLauncher>();
 
     private static IServiceCollection AddSharedServices(
         this IServiceCollection services,

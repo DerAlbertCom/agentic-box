@@ -22,7 +22,6 @@ public sealed class ArchitectureTests
         "Abox.Features.Prune.PruneService -> Abox.Infrastructure.Sbx",
         "Abox.Features.Publish.PublishService -> Abox.Infrastructure.Docker",
         "Abox.Features.Publish.VerifiedPublicationRegistry -> Abox.Infrastructure.Docker",
-        "Abox.Features.Run.RunFeature -> Abox.Infrastructure.Herdr",
         "Abox.Features.Run.RunFlow -> Abox.Infrastructure.Sbx",
         "Abox.Features.Sandbox.ExecCommand -> Abox.Infrastructure.Sbx",
         "Abox.Features.Sandbox.PipeCommand -> Abox.Infrastructure.Sbx",
