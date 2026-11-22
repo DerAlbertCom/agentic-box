@@ -9,8 +9,7 @@ public sealed class SbxSandboxExec : ISandboxExec
 {
     private readonly SbxInvoker _invoker;
 
-    public SbxSandboxExec(IProcessRunner runner) =>
-        _invoker = new SbxInvoker(runner, SbxClient.ExecutableName);
+    public SbxSandboxExec(IProcessRunner runner) => _invoker = new SbxInvoker(runner);
 
     public async Task<SandboxExecOutcome> RunAsync(
         SandboxExecRequest request,

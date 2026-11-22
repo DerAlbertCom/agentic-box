@@ -3,6 +3,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
@@ -17,6 +18,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
 {
     public TempDirectory Root { get; } = new();
     public TestConsole Console { get; } = new();
+    public IPreflightChecks Preflight { get; } = ReadyPreflight.Checks();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public string Location { get; }
@@ -34,8 +36,6 @@ internal sealed class UserSecretsCliHarness : IDisposable
     )
     {
         Location = Root.CreateDirectory("folder");
-        Sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 51, 0));
-        Sbx.DiagnoseAsync(Arg.Any<CancellationToken>()).Returns(new DiagnoseReport([]));
         if (existingSandbox)
             ExistingSandbox();
         var programs = Substitute.For<IHostPrograms>();
@@ -58,6 +58,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
         Services.AddSingleton(Sbx);
         Services.AddSingleton(Exec);
         Services.AddSingleton(programs);
+        Services.AddSingleton(Preflight);
     }
 
     public void ExistingSandbox(DateTimeOffset? createdAt = null) =>

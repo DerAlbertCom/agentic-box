@@ -326,40 +326,6 @@ public sealed class SbxClientTests : IDisposable
     }
 
     [Fact]
-    public async Task TheVersionIsReadFromTheJsonOutput()
-    {
-        // Arrange
-        _runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(
-                new ProcessResult(
-                    0,
-                    """
-                    {
-                      "client": {
-                        "version": "v0.51.0",
-                        "revision": "7d55286de0c775148b985ed349f760f1eba06203"
-                      },
-                      "server": {
-                        "state": "running",
-                        "version": "v0.51.0",
-                        "revision": "7d55286de0c775148b985ed349f760f1eba06203",
-                        "api_version": "0.49.0"
-                      }
-                    }
-                    """,
-                    string.Empty
-                )
-            );
-
-        // Act
-        var version = await _client.GetVersionAsync(CancellationToken.None);
-
-        // Assert
-        version.Should().Be(new Version(0, 51, 0));
-    }
-
-    [Fact]
     public async Task ThinLocalKitsUseTheHostBuilderAndRecordedDockerContext()
     {
         // Arrange
@@ -396,23 +362,6 @@ public sealed class SbxClientTests : IDisposable
                 ),
                 Arg.Any<CancellationToken>()
             );
-    }
-
-    [Fact]
-    public async Task AVersonlessAnswerIsAnError()
-    {
-        // Arrange
-        _runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new ProcessResult(0, "{\"server\": {\"state\": \"stopped\"}}", string.Empty));
-
-        // Act
-        var call = async () => await _client.GetVersionAsync(CancellationToken.None);
-
-        // Assert
-        (await call.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*Cannot read the sbx version from ''*"
-        );
     }
 
     [Fact]
@@ -458,43 +407,6 @@ public sealed class SbxClientTests : IDisposable
         sandboxes[0].CreatedAt.Should().Be(DateTimeOffset.Parse("2026-11-08T14:27:10Z"));
         sandboxes[1].IsRunning.Should().BeFalse();
         sandboxes[1].CreatedAt.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task TheDiagnoseReportIsReadFromTheJsonOutput()
-    {
-        // Arrange
-        _runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(
-                new ProcessResult(
-                    0,
-                    """
-                    {
-                      "version": "1.0",
-                      "checks": [
-                        {
-                          "name": "Daemon",
-                          "status": "fail",
-                          "message": "not healthy",
-                          "detail": "no answer",
-                          "hint": "start the daemon"
-                        }
-                      ]
-                    }
-                    """,
-                    string.Empty
-                )
-            );
-
-        // Act
-        var report = await _client.DiagnoseAsync(CancellationToken.None);
-
-        // Assert
-        var check = report.Checks.Should().ContainSingle().Which;
-        check.Name.Should().Be("Daemon");
-        check.Failed.Should().BeTrue();
-        check.Hint.Should().Be("start the daemon");
     }
 
     [Fact]
@@ -584,23 +496,6 @@ public sealed class SbxClientTests : IDisposable
         var exception = await action.Should().ThrowAsync<AboxException>();
 
         exception.Which.Message.Should().Contain("sbx ls");
-    }
-
-    [Fact]
-    public async Task EmptyOutputIsAnErrorThatNamesTheCommand()
-    {
-        // Arrange
-        _runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new ProcessResult(0, string.Empty, string.Empty));
-
-        // Act
-        var action = () => _client.DiagnoseAsync(CancellationToken.None);
-
-        // Assert
-        var exception = await action.Should().ThrowAsync<AboxException>();
-
-        exception.Which.Message.Should().Contain("sbx diagnose");
     }
 
     [Fact]

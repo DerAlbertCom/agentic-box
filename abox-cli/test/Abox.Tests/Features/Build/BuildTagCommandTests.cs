@@ -38,12 +38,9 @@ public sealed class BuildTagCommandTests
         );
         var console = new TestConsole();
         var programs = Substitute.For<IHostPrograms>();
-        programs.Exists("sbx").Returns(true);
         programs.Exists("docker").Returns(true);
         var runner = LocalWorkloadFactory.Runner();
         var sbx = Substitute.For<ISbxClient>();
-        sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 51, 0));
-        sbx.DiagnoseAsync(Arg.Any<CancellationToken>()).Returns(new DiagnoseReport([]));
         var resolver = new SquadResolver(new AboxConfig());
         var store = new BuildStore(paths);
         var service = TestServiceGraphs.Build(
@@ -56,7 +53,7 @@ public sealed class BuildTagCommandTests
         );
         var command = new BuildCommand(
             new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths)),
-            new Preflight(console, sbx, programs),
+            new Preflight(console, ReadyPreflight.Checks()),
             new Lazy<SquadResolver>(() => resolver),
             new Lazy<BuildService>(() => service),
             console
@@ -117,6 +114,7 @@ public sealed class BuildTagCommandTests
                 "defaultTag: " + (input == "unvalued" ? "" : JsonSerializer.Serialize(tag)) + "\n"
             );
         }
+        var preflight = Substitute.For<IPreflightChecks>();
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
         var sbx = Substitute.For<ISbxClient>();
@@ -133,7 +131,7 @@ public sealed class BuildTagCommandTests
         );
         var command = new BuildCommand(
             new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths)),
-            new Preflight(console, sbx, programs),
+            new Preflight(console, preflight),
             new Lazy<SquadResolver>(() => resolver),
             new Lazy<BuildService>(() => build),
             console
@@ -154,6 +152,7 @@ public sealed class BuildTagCommandTests
         // Assert
         exitCode.Should().Be(1);
         console.AllText.Should().Contain("not a valid registry tag").And.Contain("1-128");
+        preflight.ReceivedCalls().Should().BeEmpty();
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
         sbx.ReceivedCalls().Should().BeEmpty();

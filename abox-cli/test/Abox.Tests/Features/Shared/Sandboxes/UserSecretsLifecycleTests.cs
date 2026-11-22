@@ -268,11 +268,11 @@ public sealed class UserSecretsLifecycleTests
                 });
         else
             fixture
-                .Sbx.GetVersionAsync(Arg.Any<CancellationToken>())
+                .Preflight.CheckVersionAsync(Arg.Any<CancellationToken>())
                 .Returns(_ =>
                 {
                     fixture.Configure("""{"squad":"bd","userSecrets":["missing"]}""");
-                    return new Version(0, 51, 0);
+                    return ReadyPreflight.SupportedVersion;
                 });
 
         // Act

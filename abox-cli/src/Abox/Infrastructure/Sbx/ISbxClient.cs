@@ -29,13 +29,6 @@ public interface ISbxClient
         CancellationToken cancellationToken
     );
 
-    /// <summary>The first sbx version abox works with.</summary>
-    const string MinimumVersion = "0.51.0";
-
-    Task<Version> GetVersionAsync(CancellationToken cancellationToken);
-
-    Task<DiagnoseReport> DiagnoseAsync(CancellationToken cancellationToken);
-
     Task<IReadOnlyList<SandboxInfo>> ListSandboxesAsync(CancellationToken cancellationToken);
 
     Task<SbxOutcome> CreateAsync(SbxCreateRequest request, CancellationToken cancellationToken);
@@ -112,6 +105,4 @@ public interface ISbxClient
         SecretDeclaration declaration,
         CancellationToken cancellationToken
     );
-
-    Task<bool> SignInAsync(CancellationToken cancellationToken);
 }

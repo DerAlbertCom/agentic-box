@@ -1,16 +1,13 @@
-using System.Text.RegularExpressions;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Squads;
 
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>
-/// Every call abox makes to <c>sbx</c>. Keeping them in one place keeps the flags and the
-/// version check in one place too.
+/// The calls abox makes to <c>sbx</c> that are not yet behind a use-case interface.
 /// </summary>
-public sealed partial class SbxClient : ISbxClient
+public sealed class SbxClient : ISbxClient
 {
-    internal const string ExecutableName = "sbx";
     private readonly SbxInvoker _invoker;
     private readonly SbxDevelopmentCertificates _certificates;
     private readonly SbxUserSecrets _userSecrets;
@@ -18,7 +15,7 @@ public sealed partial class SbxClient : ISbxClient
 
     public SbxClient(IProcessRunner runner, AboxPaths paths)
     {
-        _invoker = new SbxInvoker(runner, ExecutableName);
+        _invoker = new SbxInvoker(runner);
         _certificates = new SbxDevelopmentCertificates(_invoker);
         _userSecrets = new SbxUserSecrets(_invoker);
         _kitSources = new SbxKitSources(_invoker, paths);
@@ -74,39 +71,6 @@ public sealed partial class SbxClient : ISbxClient
         string repositoryPrefix,
         CancellationToken cancellationToken
     ) => _kitSources.EnsureKitSourceAllowedAsync(repositoryPrefix, cancellationToken);
-
-    /// <summary>The version of the installed sbx client.</summary>
-    public async Task<Version> GetVersionAsync(CancellationToken cancellationToken)
-    {
-        // The JSON format is read the same way as every other call, so the version
-        // does not depend on the words of the plain text.
-        var report = await _invoker.RunJsonAsync<SbxVersion>(
-            ["version", "--json"],
-            "sbx version",
-            cancellationToken
-        );
-        return ParseVersion(report.Client?.Version ?? string.Empty);
-    }
-
-    /// <summary>The report of <c>sbx diagnose</c>.</summary>
-    public async Task<DiagnoseReport> DiagnoseAsync(CancellationToken cancellationToken)
-    {
-        var report = await _invoker.RunJsonAsync<SbxDiagnose>(
-            ["diagnose", "--json"],
-            "sbx diagnose",
-            cancellationToken
-        );
-        return new DiagnoseReport(
-            report
-                .Checks.Select(check => new DiagnosticCheck(
-                    check.Name ?? string.Empty,
-                    check.Status ?? string.Empty,
-                    check.Message ?? string.Empty,
-                    check.Hint ?? string.Empty
-                ))
-                .ToList()
-        );
-    }
 
     /// <summary>The sandboxes sbx knows about.</summary>
     public async Task<IReadOnlyList<SandboxInfo>> ListSandboxesAsync(
@@ -178,7 +142,7 @@ public sealed partial class SbxClient : ISbxClient
         }
 
         var process = new ProcessRequest(
-            ExecutableName,
+            SbxInvoker.Executable,
             arguments,
             Environment: request.HostDockerContext is { } context
                 ? new Dictionary<string, string>
@@ -212,7 +176,7 @@ public sealed partial class SbxClient : ISbxClient
     public Task<SbxOutcome> RemoveSandboxAsync(string name, CancellationToken cancellationToken)
     {
         return _invoker.RunOutcomeAsync(
-            new ProcessRequest(ExecutableName, ["rm", name, "--force"]),
+            new ProcessRequest(SbxInvoker.Executable, ["rm", name, "--force"]),
             cancellationToken
         );
     }
@@ -246,7 +210,7 @@ public sealed partial class SbxClient : ISbxClient
             """;
         var result = await _invoker.RunOrThrowAsync(
             new ProcessRequest(
-                ExecutableName,
+                SbxInvoker.Executable,
                 ["exec", sandbox, "sh", "-c", script],
                 StandardInput: string.Empty
             ),
@@ -294,7 +258,7 @@ public sealed partial class SbxClient : ISbxClient
     {
         var result = await _invoker.RunAsync(
             new ProcessRequest(
-                ExecutableName,
+                SbxInvoker.Executable,
                 ["exec", sandbox, "sh", "-c", "command -v \"$1\"", "_", program]
             ),
             cancellationToken
@@ -311,7 +275,7 @@ public sealed partial class SbxClient : ISbxClient
     {
         var result = await _invoker.RunAsync(
             new ProcessRequest(
-                ExecutableName,
+                SbxInvoker.Executable,
                 ["exec", sandbox, "sh", "-c", "printf %s \"$WORKSPACE_DIR\""]
             ),
             cancellationToken
@@ -334,7 +298,7 @@ public sealed partial class SbxClient : ISbxClient
             command.AddRange(["--kit-arg", $"{name}={value}"]);
         }
         return _invoker.RunOutcomeAsync(
-            new ProcessRequest(ExecutableName, command),
+            new ProcessRequest(SbxInvoker.Executable, command),
             cancellationToken
         );
     }
@@ -389,7 +353,7 @@ public sealed partial class SbxClient : ISbxClient
     {
         return _invoker.RunOutcomeAsync(
             new ProcessRequest(
-                ExecutableName,
+                SbxInvoker.Executable,
                 ["secret", "set", service],
                 StandardInput: value,
                 UseUtf8StandardInput: true
@@ -422,7 +386,7 @@ public sealed partial class SbxClient : ISbxClient
                     )
             );
             return _invoker.RunOutcomeAsync(
-                new ProcessRequest(ExecutableName, arguments),
+                new ProcessRequest(SbxInvoker.Executable, arguments),
                 cancellationToken
             );
         }
@@ -431,7 +395,7 @@ public sealed partial class SbxClient : ISbxClient
 
         return _invoker.RunOutcomeAsync(
             new ProcessRequest(
-                ExecutableName,
+                SbxInvoker.Executable,
                 arguments,
                 StandardInput: value,
                 UseUtf8StandardInput: true
@@ -465,19 +429,9 @@ public sealed partial class SbxClient : ISbxClient
         arguments.Add("--force");
 
         return _invoker.RunOutcomeAsync(
-            new ProcessRequest(ExecutableName, arguments),
+            new ProcessRequest(SbxInvoker.Executable, arguments),
             cancellationToken
         );
-    }
-
-    /// <summary>Starts the browser sign-in.</summary>
-    public async Task<bool> SignInAsync(CancellationToken cancellationToken)
-    {
-        var result = await _invoker.RunAsync(
-            new ProcessRequest(ExecutableName, ["login"], AttachConsole: true),
-            cancellationToken
-        );
-        return result.Succeeded;
     }
 
     /// <summary>Registers an MCP server on the host.</summary>
@@ -488,27 +442,8 @@ public sealed partial class SbxClient : ISbxClient
     )
     {
         return _invoker.RunOutcomeAsync(
-            new ProcessRequest(ExecutableName, ["mcp", "add", name, "--url", url]),
+            new ProcessRequest(SbxInvoker.Executable, ["mcp", "add", name, "--url", url]),
             cancellationToken
         );
     }
-
-    /// <summary>Reads the sbx version, like <c>v0.51.0</c> or <c>0.51.0</c>.</summary>
-    private static Version ParseVersion(string text)
-    {
-        var match = VersionPattern().Match(text);
-        if (!match.Success)
-        {
-            throw new AboxException($"Cannot read the sbx version from '{text}'.");
-        }
-
-        return new Version(
-            int.Parse(match.Groups[1].Value),
-            int.Parse(match.Groups[2].Value),
-            int.Parse(match.Groups[3].Value)
-        );
-    }
-
-    [GeneratedRegex(@"(\d+)\.(\d+)\.(\d+)")]
-    private static partial Regex VersionPattern();
 }

@@ -92,8 +92,7 @@ public static class AboxServiceCollection
         services.AddSingleton<IHostPrograms, HostPrograms>();
         services.AddSingleton<ISbxClient, SbxClient>();
         services.AddSingleton(provider => new SbxInvoker(
-            provider.GetRequiredService<IProcessRunner>(),
-            SbxClient.ExecutableName
+            provider.GetRequiredService<IProcessRunner>()
         ));
         services.AddSingleton<IApplicationPortPublisher, SbxApplicationPorts>();
         services.AddSingleton<ISandboxCleanup, SbxSandboxCleanup>();
@@ -103,6 +102,7 @@ public static class AboxServiceCollection
         services.AddSingleton<AppPorts>();
         services.AddSingleton<HostDevelopmentCertificate>();
         services.AddSingleton<SandboxHttps>();
+        services.AddSingleton<IPreflightChecks, SbxPreflightChecks>();
         services.AddSingleton<Preflight>();
         services.AddSingleton<SquadResolver>();
         services.AddSingleton<SecretValues>();

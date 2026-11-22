@@ -1,5 +1,4 @@
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Shared.Preflight;
 
@@ -7,7 +6,7 @@ namespace Abox.Features.Shared.Preflight;
 /// The checks every command runs before it does anything: sbx is installed, it is new
 /// enough for v3 kits, and it is healthy and signed in.
 /// </summary>
-public sealed class Preflight(IConsole console, ISbxClient sbx, IHostPrograms hostPrograms)
+public sealed class Preflight(IConsole console, IPreflightChecks checks)
 {
     /// <summary>
     /// Runs the checks. Returns false when a check failed and the command must not go on.
@@ -29,7 +28,7 @@ public sealed class Preflight(IConsole console, ISbxClient sbx, IHostPrograms ho
 
     private async Task<bool> EnsureInstalledAsync(CancellationToken cancellationToken)
     {
-        if (hostPrograms.Exists("sbx"))
+        if (checks.IsInstalled())
         {
             return true;
         }
@@ -45,10 +44,10 @@ public sealed class Preflight(IConsole console, ISbxClient sbx, IHostPrograms ho
 
     private async Task<bool> EnsureVersionAsync(CancellationToken cancellationToken)
     {
-        Version version;
+        RuntimeVersion version;
         try
         {
-            version = await sbx.GetVersionAsync(cancellationToken);
+            version = await checks.CheckVersionAsync(cancellationToken);
         }
         catch (AboxException exception)
         {
@@ -56,13 +55,13 @@ public sealed class Preflight(IConsole console, ISbxClient sbx, IHostPrograms ho
             return false;
         }
 
-        if (version >= new Version(ISbxClient.MinimumVersion))
+        if (version.Supported)
         {
             return true;
         }
 
         console.WriteError(
-            $"sbx {version} is too old. abox needs {ISbxClient.MinimumVersion} or later."
+            $"sbx {version.Installed} is too old. abox needs {version.Minimum} or later."
         );
         console.WriteError("Upgrade sbx and try again.");
         return false;
@@ -73,7 +72,7 @@ public sealed class Preflight(IConsole console, ISbxClient sbx, IHostPrograms ho
         DiagnoseReport report;
         try
         {
-            report = await sbx.DiagnoseAsync(cancellationToken);
+            report = await checks.DiagnoseAsync(cancellationToken);
         }
         catch (AboxException exception)
         {
@@ -81,15 +80,14 @@ public sealed class Preflight(IConsole console, ISbxClient sbx, IHostPrograms ho
             return false;
         }
 
-        var authentication = report.Find("Authentication");
-        if (authentication is { Failed: true })
+        if (report.SignedOut)
         {
             if (!await SignInAsync(cancellationToken))
             {
                 return false;
             }
 
-            report = await sbx.DiagnoseAsync(cancellationToken);
+            report = await checks.DiagnoseAsync(cancellationToken);
         }
 
         var failures = report.Failures;
@@ -120,7 +118,7 @@ public sealed class Preflight(IConsole console, ISbxClient sbx, IHostPrograms ho
 
         console.WriteLine("Signing in to Docker...");
 
-        var result = await sbx.SignInAsync(cancellationToken);
+        var result = await checks.SignInAsync(cancellationToken);
         if (!result)
         {
             console.WriteError("Signing in failed. Run 'sbx login' and try again.");

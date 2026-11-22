@@ -68,7 +68,7 @@ public sealed class PortsAngularTransportTests
             .AddSingleton(runner)
             .AddSingleton(programs)
             .AddSingleton<IApplicationPortPublisher>(
-                new SbxApplicationPorts(new SbxInvoker(runner, SbxClient.ExecutableName))
+                new SbxApplicationPorts(new SbxInvoker(runner))
             );
         var provider = application.Provider;
 

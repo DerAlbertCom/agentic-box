@@ -1,4 +1,4 @@
-using Abox.Infrastructure.Sbx;
+using Abox.Features.Shared.Preflight;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -21,15 +21,21 @@ public sealed class AuthenticationPreflightTests
         scenario.Console.Output.Should().Equal("Signing in to Docker...");
         scenario.Console.Errors.Should().BeEmpty();
         scenario
-            .SbxCalls.Should()
-            .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+            .Calls.Should()
+            .Equal(
+                "IsInstalled",
+                "CheckVersionAsync",
+                "DiagnoseAsync",
+                "SignInAsync",
+                "DiagnoseAsync"
+            );
         Received.InOrder(() =>
         {
-            scenario.Programs.Exists("sbx");
-            _ = scenario.Sbx.GetVersionAsync(token);
-            _ = scenario.Sbx.DiagnoseAsync(token);
-            _ = scenario.Sbx.SignInAsync(token);
-            _ = scenario.Sbx.DiagnoseAsync(token);
+            scenario.Checks.IsInstalled();
+            _ = scenario.Checks.CheckVersionAsync(token);
+            _ = scenario.Checks.DiagnoseAsync(token);
+            _ = scenario.Checks.SignInAsync(token);
+            _ = scenario.Checks.DiagnoseAsync(token);
         });
     }
 
@@ -38,7 +44,7 @@ public sealed class AuthenticationPreflightTests
     {
         // Arrange
         var scenario = new PreflightScenario();
-        scenario.Sbx.SignInAsync(Arg.Any<CancellationToken>()).Returns(false);
+        scenario.Checks.SignInAsync(Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var ready = await scenario.Preflight.EnsureReadyAsync(CancellationToken.None);
@@ -48,7 +54,9 @@ public sealed class AuthenticationPreflightTests
         scenario.Console.Output.Should().Equal("Signing in to Docker...");
         scenario.Console.Errors.Should().Equal("Signing in failed. Run 'sbx login' and try again.");
         scenario.Console.AllText.Should().NotContain("credential-sentinel");
-        scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync");
+        scenario
+            .Calls.Should()
+            .Equal("IsInstalled", "CheckVersionAsync", "DiagnoseAsync", "SignInAsync");
     }
 
     [Fact]
@@ -67,7 +75,7 @@ public sealed class AuthenticationPreflightTests
             .Console.Errors.Should()
             .Equal("sbx is not signed in. Run 'sbx login' and try again.");
         scenario.Console.AllText.Should().NotContain("credential-sentinel");
-        scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync");
+        scenario.Calls.Should().Equal("IsInstalled", "CheckVersionAsync", "DiagnoseAsync");
     }
 
     [Theory]
@@ -82,10 +90,13 @@ public sealed class AuthenticationPreflightTests
         // Arrange
         var scenario = new PreflightScenario();
         scenario
-            .Sbx.DiagnoseAsync(Arg.Any<CancellationToken>())
+            .Checks.DiagnoseAsync(Arg.Any<CancellationToken>())
             .Returns(
                 PreflightScenario.SignedOut(),
-                new DiagnoseReport([new DiagnosticCheck(check, "fail", message, hint)])
+                new DiagnoseReport(
+                    [new DiagnosticCheck(check, true, message, hint)],
+                    SignedOut: check == "Authentication"
+                )
             );
 
         // Act
@@ -96,8 +107,14 @@ public sealed class AuthenticationPreflightTests
         scenario.Console.Errors.Should().Equal($"sbx check '{check}' failed: {message}", hint);
         scenario.Console.AllText.Should().NotContain("credential-sentinel");
         scenario
-            .SbxCalls.Should()
-            .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+            .Calls.Should()
+            .Equal(
+                "IsInstalled",
+                "CheckVersionAsync",
+                "DiagnoseAsync",
+                "SignInAsync",
+                "DiagnoseAsync"
+            );
     }
 
     [Fact]
@@ -108,7 +125,7 @@ public sealed class AuthenticationPreflightTests
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
         scenario
-            .Sbx.SignInAsync(Arg.Any<CancellationToken>())
+            .Checks.SignInAsync(Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 cancellation.Cancel();
@@ -122,8 +139,10 @@ public sealed class AuthenticationPreflightTests
         var exception = await act.Should().ThrowAsync<OperationCanceledException>();
         exception.Which.CancellationToken.Should().Be(token);
         scenario.Console.Errors.Should().BeEmpty();
-        scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync");
-        await scenario.Sbx.Received(1).SignInAsync(token);
+        scenario
+            .Calls.Should()
+            .Equal("IsInstalled", "CheckVersionAsync", "DiagnoseAsync", "SignInAsync");
+        await scenario.Checks.Received(1).SignInAsync(token);
     }
 
     [Fact]
@@ -134,7 +153,7 @@ public sealed class AuthenticationPreflightTests
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
         scenario
-            .Sbx.DiagnoseAsync(Arg.Any<CancellationToken>())
+            .Checks.DiagnoseAsync(Arg.Any<CancellationToken>())
             .Returns(
                 _ => Task.FromResult(PreflightScenario.SignedOut()),
                 call =>
@@ -152,8 +171,14 @@ public sealed class AuthenticationPreflightTests
         exception.Which.CancellationToken.Should().Be(token);
         scenario.Console.Errors.Should().BeEmpty();
         scenario
-            .SbxCalls.Should()
-            .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
-        await scenario.Sbx.Received(2).DiagnoseAsync(token);
+            .Calls.Should()
+            .Equal(
+                "IsInstalled",
+                "CheckVersionAsync",
+                "DiagnoseAsync",
+                "SignInAsync",
+                "DiagnoseAsync"
+            );
+        await scenario.Checks.Received(2).DiagnoseAsync(token);
     }
 }

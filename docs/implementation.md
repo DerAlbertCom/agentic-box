@@ -1254,8 +1254,13 @@ abox-cli/src/Abox/
         IPublishedImageReader.cs  inspect and save published images for remote create
         RegistryManifest.cs     a registry manifest: its kit descriptor or its platform images
         ImageReferences.cs      digest, pinning and repository rules of image references
-      Preflight/        runtime preflight for sandbox commands, secrets and normal builds;
-                        checks the queried sbx version against the required minimum
+      Preflight/        runtime preflight for sandbox commands, secrets and normal builds
+        Preflight.cs            installed, new enough, healthy and signed in; the user messages
+        IPreflightChecks.cs     what preflight asks of the sandbox runtime
+        RuntimeVersion.cs       the installed version against the minimum
+        DiagnoseReport.cs       the runtime's diagnosis: its checks and whether it is signed out
+        DiagnosticCheck.cs      one check of the diagnosis
+        InstallInstructions.cs  how to install sbx on the current system
       SandboxCleanup/   ISandboxCleanup for abox prune: list sandboxes and template images,
                         stop a sandbox, remove a template image
       Naming/           sandbox and image names
@@ -1270,8 +1275,10 @@ abox-cli/src/Abox/
     PrivateStagingException.cs  structural protected-staging failure classification
     TemporaryDirectory.cs   temporary working directories and their cleanup
     Sbx/              every call to sbx: CLI arguments, settings and response models
-      SbxClient.cs    the public facade; owns the executable name and version query
-      SbxInvoker.cs   shared captured execution, JSON and failure handling
+      SbxClient.cs    the public facade of the sbx calls not yet behind a use-case interface
+      SbxInvoker.cs   the executable name, the minimum version and version query, shared
+                      captured execution, JSON and failure handling
+      SbxPreflightChecks.cs  IPreflightChecks: on PATH, sbx version, sbx diagnose, sbx login
       SbxSandboxExec.cs  ISandboxExec: sbx exec, privately wrapped in the HTTPS bootstrap
       SbxFailureHeadline.cs  the cause of a failed sbx call, ahead of its full output
       SbxDevelopmentCertificates.cs  protected HTTPS runtime and certificate operations

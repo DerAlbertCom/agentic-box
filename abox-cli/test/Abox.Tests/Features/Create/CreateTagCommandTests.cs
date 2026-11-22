@@ -41,13 +41,14 @@ public sealed class CreateTagCommandTests
         );
         var config = new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths));
         var console = new TestConsole();
+        var preflight = Substitute.For<IPreflightChecks>();
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
         var sbx = Substitute.For<ISbxClient>();
         var published = Substitute.For<IPublishedSquadSource>();
         var command = new CreateCommand(
             config,
-            new Preflight(console, sbx, programs),
+            new Preflight(console, preflight),
             new Lazy<SquadResolver>(() => new SquadResolver(config.Value)),
             new Lazy<SandboxCreator>(() =>
                 TestServiceGraphs.Creator(
@@ -78,6 +79,7 @@ public sealed class CreateTagCommandTests
         // Assert
         exitCode.Should().Be(1);
         console.AllText.Should().Contain("not a valid registry tag").And.Contain("1-128");
+        preflight.ReceivedCalls().Should().BeEmpty();
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
         sbx.ReceivedCalls().Should().BeEmpty();

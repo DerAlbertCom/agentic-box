@@ -2,8 +2,8 @@ using System.CommandLine;
 using Abox.Cli;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.SandboxCleanup;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -24,8 +24,14 @@ public sealed class PrunePreflightTests
         exitCode.Should().Be(0);
         cli.Scenario.Console.Errors.Should().BeEmpty();
         cli.Scenario.Console.Output.Should().Contain("Removed sbx-kit-src:old.");
-        cli.Scenario.SbxCalls.Should()
-            .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+        cli.Scenario.Calls.Should()
+            .Equal(
+                "IsInstalled",
+                "CheckVersionAsync",
+                "DiagnoseAsync",
+                "SignInAsync",
+                "DiagnoseAsync"
+            );
         cli.CleanupCalls.Should()
             .Equal(
                 "ListSandboxesAsync",
@@ -35,8 +41,8 @@ public sealed class PrunePreflightTests
             );
         Received.InOrder(() =>
         {
-            cli.Scenario.Sbx.DiagnoseAsync(Arg.Any<CancellationToken>());
-            cli.Scenario.Sbx.DiagnoseAsync(Arg.Any<CancellationToken>());
+            _ = cli.Scenario.Checks.DiagnoseAsync(Arg.Any<CancellationToken>());
+            _ = cli.Scenario.Checks.DiagnoseAsync(Arg.Any<CancellationToken>());
             cli.Cleanup.ListSandboxesAsync(Arg.Any<CancellationToken>());
         });
         await cli
@@ -55,7 +61,7 @@ public sealed class PrunePreflightTests
     {
         // Arrange
         using var cli = new PruneCli();
-        cli.Scenario.Sbx.SignInAsync(Arg.Any<CancellationToken>()).Returns(false);
+        cli.Scenario.Checks.SignInAsync(Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var exitCode = await cli.Root.InvokeAsync(["prune", "--full", "--sbx"]);
@@ -65,7 +71,8 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.Errors.Should()
             .Equal("Signing in failed. Run 'sbx login' and try again.");
         cli.Scenario.Console.AllText.Should().NotContain("credential-sentinel");
-        cli.Scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync");
+        cli.Scenario.Calls.Should()
+            .Equal("IsInstalled", "CheckVersionAsync", "DiagnoseAsync", "SignInAsync");
         cli.CleanupCalls.Should().BeEmpty();
     }
 
@@ -83,7 +90,7 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.Output.Should().BeEmpty();
         cli.Scenario.Console.Errors.Should()
             .Equal("sbx is not signed in. Run 'sbx login' and try again.");
-        cli.Scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync");
+        cli.Scenario.Calls.Should().Equal("IsInstalled", "CheckVersionAsync", "DiagnoseAsync");
         cli.CleanupCalls.Should().BeEmpty();
     }
 
@@ -94,10 +101,13 @@ public sealed class PrunePreflightTests
     {
         // Arrange
         using var cli = new PruneCli();
-        cli.Scenario.Sbx.DiagnoseAsync(Arg.Any<CancellationToken>())
+        cli.Scenario.Checks.DiagnoseAsync(Arg.Any<CancellationToken>())
             .Returns(
                 PreflightScenario.SignedOut(),
-                new DiagnoseReport([new DiagnosticCheck(check, "fail", "not ready", hint)])
+                new DiagnoseReport(
+                    [new DiagnosticCheck(check, true, "not ready", hint)],
+                    SignedOut: check == "Authentication"
+                )
             );
 
         // Act
@@ -107,8 +117,14 @@ public sealed class PrunePreflightTests
         exitCode.Should().Be(1);
         cli.Scenario.Console.Errors.Should().Equal($"sbx check '{check}' failed: not ready", hint);
         cli.Scenario.Console.AllText.Should().NotContain("credential-sentinel");
-        cli.Scenario.SbxCalls.Should()
-            .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+        cli.Scenario.Calls.Should()
+            .Equal(
+                "IsInstalled",
+                "CheckVersionAsync",
+                "DiagnoseAsync",
+                "SignInAsync",
+                "DiagnoseAsync"
+            );
         cli.CleanupCalls.Should().BeEmpty();
     }
 
@@ -117,7 +133,7 @@ public sealed class PrunePreflightTests
     {
         // Arrange
         using var cli = new PruneCli();
-        cli.Scenario.Sbx.DiagnoseAsync(Arg.Any<CancellationToken>())
+        cli.Scenario.Checks.DiagnoseAsync(Arg.Any<CancellationToken>())
             .Returns(
                 _ => Task.FromResult(PreflightScenario.SignedOut()),
                 _ =>
@@ -134,8 +150,14 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.Errors.Should()
             .Equal("error: Could not diagnose sbx. Check the daemon and try again.");
         cli.Scenario.Console.AllText.Should().NotContain("credential-sentinel");
-        cli.Scenario.SbxCalls.Should()
-            .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+        cli.Scenario.Calls.Should()
+            .Equal(
+                "IsInstalled",
+                "CheckVersionAsync",
+                "DiagnoseAsync",
+                "SignInAsync",
+                "DiagnoseAsync"
+            );
         cli.CleanupCalls.Should().BeEmpty();
     }
 
@@ -144,7 +166,7 @@ public sealed class PrunePreflightTests
     {
         // Arrange
         using var cli = new PruneCli();
-        cli.Scenario.Programs.Exists("sbx").Returns(false);
+        cli.Scenario.Checks.IsInstalled().Returns(false);
 
         // Act
         var exitCode = await cli.Root.InvokeAsync(["prune", "--full", "--sbx"]);
@@ -154,9 +176,8 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.AllText.Should()
             .Contain("not on PATH")
             .And.Contain("never installs anything itself");
-        cli.Scenario.SbxCalls.Should().BeEmpty();
+        cli.Scenario.Calls.Should().Equal("IsInstalled");
         cli.CleanupCalls.Should().BeEmpty();
-        cli.Scenario.Programs.Received(1).Exists("sbx");
     }
 
     [Fact]
@@ -164,8 +185,8 @@ public sealed class PrunePreflightTests
     {
         // Arrange
         using var cli = new PruneCli();
-        cli.Scenario.Sbx.GetVersionAsync(Arg.Any<CancellationToken>())
-            .Returns(new Version(0, 50, 0));
+        cli.Scenario.Checks.CheckVersionAsync(Arg.Any<CancellationToken>())
+            .Returns(ReadyPreflight.OldVersion);
 
         // Act
         var exitCode = await cli.Root.InvokeAsync(["prune", "--full", "--sbx"]);
@@ -175,7 +196,7 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.AllText.Should()
             .Contain("too old")
             .And.Contain("Upgrade sbx and try again.");
-        cli.Scenario.SbxCalls.Should().Equal("GetVersionAsync");
+        cli.Scenario.Calls.Should().Equal("IsInstalled", "CheckVersionAsync");
         cli.CleanupCalls.Should().BeEmpty();
     }
 
@@ -186,7 +207,7 @@ public sealed class PrunePreflightTests
         using var cli = new PruneCli();
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
-        cli.Scenario.Sbx.SignInAsync(Arg.Any<CancellationToken>())
+        cli.Scenario.Checks.SignInAsync(Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 cancellation.Cancel();
@@ -201,11 +222,12 @@ public sealed class PrunePreflightTests
         // Assert
         exitCode.Should().Be(130);
         cli.Scenario.Console.Errors.Should().Equal("error: the command was cancelled.");
-        cli.Scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync");
+        cli.Scenario.Calls.Should()
+            .Equal("IsInstalled", "CheckVersionAsync", "DiagnoseAsync", "SignInAsync");
         cli.CleanupCalls.Should().BeEmpty();
         // System.CommandLine links the invocation token; use the actual token seen at version checking.
         cli.Scenario.CommandToken.IsCancellationRequested.Should().BeTrue();
-        await cli.Scenario.Sbx.Received(1).SignInAsync(cli.Scenario.CommandToken);
+        await cli.Scenario.Checks.Received(1).SignInAsync(cli.Scenario.CommandToken);
     }
 
     [Fact]
@@ -215,7 +237,7 @@ public sealed class PrunePreflightTests
         using var cli = new PruneCli();
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
-        cli.Scenario.Sbx.DiagnoseAsync(Arg.Any<CancellationToken>())
+        cli.Scenario.Checks.DiagnoseAsync(Arg.Any<CancellationToken>())
             .Returns(
                 _ => Task.FromResult(PreflightScenario.SignedOut()),
                 call =>
@@ -233,11 +255,17 @@ public sealed class PrunePreflightTests
         // Assert
         exitCode.Should().Be(130);
         cli.Scenario.Console.Errors.Should().Equal("error: the command was cancelled.");
-        cli.Scenario.SbxCalls.Should()
-            .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+        cli.Scenario.Calls.Should()
+            .Equal(
+                "IsInstalled",
+                "CheckVersionAsync",
+                "DiagnoseAsync",
+                "SignInAsync",
+                "DiagnoseAsync"
+            );
         cli.CleanupCalls.Should().BeEmpty();
         cli.Scenario.CommandToken.IsCancellationRequested.Should().BeTrue();
-        await cli.Scenario.Sbx.Received(2).DiagnoseAsync(cli.Scenario.CommandToken);
+        await cli.Scenario.Checks.Received(2).DiagnoseAsync(cli.Scenario.CommandToken);
     }
 
     private sealed class PruneCli : IDisposable
@@ -255,8 +283,7 @@ public sealed class PrunePreflightTests
                 new TrailingArguments()
             );
             var services = _application.Services;
-            services.AddSingleton(Scenario.Sbx);
-            services.AddSingleton(Scenario.Programs);
+            services.AddSingleton(Scenario.Checks);
             services.AddSingleton(Cleanup);
             _ = _application.Provider;
         }

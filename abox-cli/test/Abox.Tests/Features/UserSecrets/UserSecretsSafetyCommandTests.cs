@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Preflight;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -21,8 +22,8 @@ public sealed class UserSecretsSafetyCommandTests
         fixture.Store("""{"Db":"Server=PROD.EXAMPLE;Password=synthetic"}""");
         if (result == "preflight")
             fixture
-                .Sbx.GetVersionAsync(Arg.Any<CancellationToken>())
-                .Returns(new Version(0, 50, 0));
+                .Preflight.CheckVersionAsync(Arg.Any<CancellationToken>())
+                .Returns(ReadyPreflight.OldVersion);
         if (result == "lookup")
             fixture
                 .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
@@ -144,6 +145,7 @@ public sealed class UserSecretsSafetyCommandTests
         );
         public TempDirectory Root => cli.Root;
         public TestConsole Console => cli.Console;
+        public IPreflightChecks Preflight => cli.Preflight;
         public ISbxClient Sbx => cli.Sbx;
         public string SourcePath =>
             Path.Combine(Root.Path, "appdata/Microsoft/UserSecrets/sample/secrets.json");
