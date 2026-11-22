@@ -3,7 +3,7 @@
 ## Scope and seam
 
 Synthetic-only verification through the existing CLI command with temporary
-workspace/host stores and a substituted `ISbxClient`, reusing
+workspace/host stores and a substituted `ISandboxUserSecrets`, reusing
 `UserSecretsCliHarness`. No real secrets, Oracle instance, sandbox, publication,
 global settings or `run-abox.ps1` changes are involved. These checks establish
 configuration output and safety, not authentication, query readiness or service

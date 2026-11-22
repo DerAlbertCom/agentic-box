@@ -8,7 +8,7 @@ registry publication or global sbx settings were accessed/changed for this work.
 ## Red/green evidence and seam
 
 `UserSecretsAppSettingsCommandTests` exercises the existing CLI with the existing
-`UserSecretsCliHarness` and a substituted `ISbxClient`. No production public test
+`UserSecretsCliHarness` and a substituted `ISandboxUserSecrets`. No production public test
 interface was added. The first tracer failed because a selected project-only
 store had no host secrets file; it then passed with the generated JSON override.
 Subsequent red/green slices covered development precedence, artifact/link

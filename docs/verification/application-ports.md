@@ -291,7 +291,7 @@ Red/green command tests first failed on absent `ports`, then on duplicate-warnin
 malformed/implicit-port, discovery-bound and failure/cancellation behavior before
 the corresponding implementation. Adapter tests first failed on unimplemented
 publishing, then on invalid mapping/inventory/conflict protection. Tests observe
-the composed CLI seam and `SbxClient` process seam, not private parser methods.
+the composed CLI seam and `SbxApplicationPorts` process seam, not private parser methods.
 
 Run `dotnet test abox-cli/agentic-box.slnx -c Debug`, `dotnet csharpier check abox-cli` and
 `git diff --check`. No Release verification is needed for this slice.

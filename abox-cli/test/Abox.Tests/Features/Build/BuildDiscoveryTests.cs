@@ -40,7 +40,6 @@ public sealed class BuildDiscoveryTests
             .Contain("owning-project-workload");
         if (metadataOnly)
         {
-            project.Sbx.ReceivedCalls().Should().BeEmpty();
             project.Inspector.ReceivedCalls().Should().BeEmpty();
             project.Runner.ReceivedCalls().Should().BeEmpty();
         }
@@ -88,6 +87,5 @@ public sealed class BuildDiscoveryTests
         project.LoadBuild("second", "two").Reference.Should().Be("agentic-box-rwest-two:release");
         project.LoadBuild().Should().BeNull("explicit selections replace defaultTeam 'sample'");
         project.Runner.ReceivedCalls().Should().BeEmpty();
-        project.Sbx.ReceivedCalls().Should().BeEmpty();
     }
 }

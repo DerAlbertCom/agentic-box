@@ -32,8 +32,8 @@ actual production provisioning from the separately configured manual Deals setup
 This synthetic run remains separate from that real-host evidence.
 
 All runtime tests here use a fresh `abox-issue46-activation-*` disposable sandbox
-created through a verification-only `SbxClient` partial with a cached template,
-`--pull never --static-mcp none`. Every sbx call stays in `SbxClient`. No install,
+created through a verification-only sbx helper with a cached template,
+`--pull never --static-mcp none`. Every sbx call stays in `Infrastructure/Sbx`. No install,
 upgrade, publication, global setting, credential/authentication change or billed
 model prompt is needed. Explicit core stop/start operations below were confined to
 that new disposable sandbox, never an existing user core/app.
@@ -48,8 +48,8 @@ those integration checks. The following describes its historical operation.
 
 The host helper publishes a self-contained synthetic ASP.NET Core/.NET 10 app into
 an otherwise fresh ignored workspace. A **separate setup process** exercises
-production `AppPorts` static Web SDK detection, `DevelopmentHttps`, host exporter
-validation/private cleanup, and real `SbxClient` activation. Only host dev-certs
+production `AppPorts` static Web SDK detection, `SandboxHttps`, host exporter
+validation/private cleanup, and real `SbxDevelopmentCertificates` activation. Only host dev-certs
 execution/metadata is mocked, using an in-memory generated RSA development PFX;
 no host certificate store is consulted. Private staging is outside the mounted
 workspace and removed on scope exit. Only public expected DER is written there.

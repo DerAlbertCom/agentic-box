@@ -31,7 +31,6 @@ public sealed class UserSecretsPreparationCancellationCommandTests
         // Assert
         await prepare.Should().ThrowAsync<OperationCanceledException>();
         await cli.NoWrites();
-        cli.Sbx.ReceivedCalls().Should().BeEmpty();
         cli.UserSecrets.ReceivedCalls().Should().BeEmpty();
         FileSnapshots.AssertUnchanged(originals);
     }

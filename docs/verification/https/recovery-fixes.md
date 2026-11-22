@@ -7,7 +7,7 @@ review-fixes verifier worktree. This record supplements, not replaces, the
 
 ## Behavior and red/green evidence
 
-Tests use the requested public seams: composed CLI commands, `SbxClient`'s public
+Tests use the requested public seams: composed CLI commands, `SbxDevelopmentCertificates`'
 certificate operations, and the exact embedded receiver/installed bootstrap and
 shell sources executed in fresh disposable Linux containers.
 

@@ -1,6 +1,5 @@
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -91,9 +90,6 @@ public sealed class ProjectSettingsCompositionCommandTests
             else
             {
                 await cli.NoWrites();
-                cli.Sbx.ReceivedCalls()
-                    .Should()
-                    .BeEmpty("association failed before runtime access");
                 cli.UserSecrets.ReceivedCalls()
                     .Should()
                     .BeEmpty("association failed before runtime access");

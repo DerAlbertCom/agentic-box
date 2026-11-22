@@ -360,7 +360,6 @@ public sealed class RunCommandTests
             application
                 .Services.AddSingleton(runner)
                 .AddSingleton<ILauncher, ProbeLauncher>()
-                .AddSingleton<ISbxClient, SbxClient>()
                 .AddSingleton(programs);
         }
 

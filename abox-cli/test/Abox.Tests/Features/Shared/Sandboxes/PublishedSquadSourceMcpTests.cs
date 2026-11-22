@@ -9,7 +9,6 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -70,7 +69,6 @@ public sealed class PublishedSquadSourceMcpTests
         var team = resolver.ResolveTeam(root.Path, "mti-ca");
         var store = new BuildStore(paths);
         var images = LocalWorkloadFactory.Images();
-        var sbx = Substitute.For<ISbxClient>();
         var lifecycle = Substitute.For<ISandboxLifecycle>();
         var mcp = Substitute.For<IMcpServerRegistry>();
         mcp.ListAsync(Arg.Any<CancellationToken>())
@@ -105,7 +103,6 @@ public sealed class PublishedSquadSourceMcpTests
         var creator = TestServiceGraphs.Creator(
             records,
             paths,
-            sbx,
             lifecycle,
             mcp,
             _console,

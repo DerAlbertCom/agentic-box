@@ -5,8 +5,10 @@ using ApplicationBinding = Abox.Infrastructure.Sbx.ApplicationPortInventory.Appl
 
 namespace Abox.Infrastructure.Sbx;
 
-internal sealed class SbxApplicationPorts(SbxInvoker invoker) : IApplicationPortPublisher
+internal sealed class SbxApplicationPorts(IProcessRunner runner) : IApplicationPortPublisher
 {
+    private readonly SbxInvoker _invoker = new(runner);
+
     public async Task PublishAsync(
         string sandbox,
         IReadOnlyList<ApplicationPortMapping> mappings,
@@ -19,9 +21,9 @@ internal sealed class SbxApplicationPorts(SbxInvoker invoker) : IApplicationPort
             return;
         // sbx 0.51.0 can race its own startup when publishing to a stopped sandbox.
         // A completed exec waits for startup and restores previously saved bindings first.
-        await invoker.RunOrThrowAsync(
+        await _invoker.RunOrThrowAsync(
             new ProcessRequest(
-                invoker.ExecutableName,
+                _invoker.ExecutableName,
                 ["exec", sandbox, "true"],
                 StandardInput: ""
             ),
@@ -109,8 +111,8 @@ internal sealed class SbxApplicationPorts(SbxInvoker invoker) : IApplicationPort
                 $"127.0.0.1:{mapping.HostPort}:{mapping.SandboxPort}/tcp4",
             ]);
         arguments.Add("--json");
-        await invoker.RunOrThrowAsync(
-            new ProcessRequest(invoker.ExecutableName, arguments),
+        await _invoker.RunOrThrowAsync(
+            new ProcessRequest(_invoker.ExecutableName, arguments),
             "sbx ports --publish",
             cancellationToken
         );
@@ -141,9 +143,9 @@ internal sealed class SbxApplicationPorts(SbxInvoker invoker) : IApplicationPort
                 "Abox.ApplicationPortsRelay"
             )!
         );
-        var result = await invoker.RunOrThrowAsync(
+        var result = await _invoker.RunOrThrowAsync(
             new ProcessRequest(
-                invoker.ExecutableName,
+                _invoker.ExecutableName,
                 ApplicationRelayArguments(sandbox, mappings, existing),
                 StandardInput: await source.ReadToEndAsync(token),
                 UseUtf8StandardInput: true
@@ -205,8 +207,8 @@ internal sealed class SbxApplicationPorts(SbxInvoker invoker) : IApplicationPort
         CancellationToken token
     )
     {
-        var result = await invoker.RunOrThrowAsync(
-            new ProcessRequest(invoker.ExecutableName, ["ports", sandbox, "--json"]),
+        var result = await _invoker.RunOrThrowAsync(
+            new ProcessRequest(_invoker.ExecutableName, ["ports", sandbox, "--json"]),
             "sbx ports --json",
             token
         );

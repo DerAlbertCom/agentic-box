@@ -6,7 +6,6 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -34,7 +33,6 @@ public sealed class LocalCreateTagSafetyTests
         var console = new TestConsole();
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
-        var sbx = Substitute.For<ISbxClient>();
         var lifecycle = Substitute.For<ISandboxLifecycle>();
         var mcp = Substitute.For<IMcpServerRegistry>();
         var kitSources = Substitute.For<IKitSourceTrust>();
@@ -47,7 +45,6 @@ public sealed class LocalCreateTagSafetyTests
         var creator = TestServiceGraphs.Creator(
             new SandboxRecordStore(paths),
             paths,
-            sbx,
             lifecycle,
             mcp,
             console,
@@ -80,7 +77,6 @@ public sealed class LocalCreateTagSafetyTests
             .BeEmpty("an invalid tag must not prompt for a squad or replacement");
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
-        sbx.ReceivedCalls().Should().BeEmpty();
         lifecycle.ReceivedCalls().Should().BeEmpty();
         mcp.ReceivedCalls().Should().BeEmpty();
         kitSources.ReceivedCalls().Should().BeEmpty();

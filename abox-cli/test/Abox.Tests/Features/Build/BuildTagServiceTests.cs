@@ -4,7 +4,6 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -22,7 +21,6 @@ public sealed class BuildTagServiceTests
             Path.Combine(root.Path, "config"),
             Path.Combine(root.Path, "state")
         );
-        var sbx = Substitute.For<ISbxClient>();
         var runner = Substitute.For<IProcessRunner>();
         var programs = Substitute.For<IHostPrograms>();
         var console = new TestConsole();
@@ -44,7 +42,6 @@ public sealed class BuildTagServiceTests
         );
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
-        sbx.ReceivedCalls().Should().BeEmpty();
         Directory.Exists(paths.StateDirectory).Should().BeFalse();
     }
 }

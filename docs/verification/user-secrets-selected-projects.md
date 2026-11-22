@@ -30,7 +30,7 @@ defines the intentionally static model:
 ## Red before green
 
 The existing CLI seam uses temporary synthetic files and `UserSecretsCliHarness`'s
-substituted `ISbxClient`; no real Deals project, developer secrets, sandbox or live
+substituted `ISandboxUserSecrets`; no real Deals project, developer secrets, sandbox or live
 service was used. Added the exact regression before editing production code:
 
 ```powershell

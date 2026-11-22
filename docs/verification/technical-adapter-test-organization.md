@@ -15,10 +15,10 @@ No production behavior or test-only production interface was changed.
 - Process output, cancellation, byte-preserving input and sensitive diagnostics
   live in `Infrastructure/`. Sbx arguments, source trust, user-secret policy and
   receiver/transport safeguards live in `Infrastructure/Sbx/`.
-- `UserSecretsPolicyTests` is a namespace-compatible partial: its composed
-  command/reporting case lives in `Features/UserSecrets/`, policy parsing and
-  authorization cases in `Infrastructure/Sbx/`, and process diagnostics in
-  `Infrastructure/`.
+- User-secret policy tests are split by owner: the composed command/reporting
+  case lives in `Features/UserSecrets/UserSecretsPolicyCommandTests`, policy parsing
+  and authorization cases in `Infrastructure/Sbx/SbxUserSecretsPolicyTests`, and
+  process diagnostics in `Infrastructure/UserSecretsPolicyProcessTests`.
 - The remaining eight `UserSecretsSafetyTests` methods were split by ownership:
   six sbx/receiver methods in `Infrastructure/Sbx/` (18 theory/fact cases) and two
   sensitive process methods in `Infrastructure/`. Their `Abox.Tests` namespace, partial
@@ -30,8 +30,10 @@ No production behavior or test-only production interface was changed.
   internal `UserSecretsTransportTests.ShellSandbox` remains unchanged and is
   reused by the safety suite through its existing alias, not copied or exposed
   through production code.
-- Integrated #22 already split OCI behavior among `Infrastructure/OciRegistryTests`,
-  `LocalState/LocalWorkloadImagesTests`, `Sandboxes/PublishedSquadSourceTests` and
+- Integrated #22 already split OCI behavior among the Docker adapter tests in
+  `Infrastructure/Docker/` (`DockerWorkloadImagesTests`, `DockerRegistryPublisherTests`,
+  `DockerPublishedImageReaderTests`), `Features/Shared/Builds/LocalWorkloadImagesTests`,
+  `Features/Shared/Sandboxes/PublishedSquadSourceTests` and
   `Features/Publish/PublishServiceTests`. Those supported-operation seams and
   Docker fixtures are preserved rather than duplicated. Existing composed
   launcher coverage remains with run/compatibility behavior; no new launcher
@@ -108,7 +110,7 @@ discovery-only `dotnet test` invocation, with a 30-minute outer timeout and
 
 Final focused/full execution completed in 22.534/30.395 seconds respectively.
 
-Final focused execution selects these 24 classes with repeated
+Final focused execution selects these classes (24 at the time) with repeated
 `-class Abox.Tests.<name>` arguments:
 
 ```text
@@ -116,10 +118,14 @@ AboxConfigLoaderTests AboxPathsTests PreflightTests ProcessOutputTests
 ProcessRunnerTests UserSecretsPolicyProcessTests YamlReaderTests
 KitDescriptorTests KitReferenceTests SquadResolverTests StateMixinGeneratorTests
 WorkloadFileTests WorkloadKitGeneratorTests ImageNameTests SandboxNameTests
-SbxKitSourceTrustTests SbxSandboxLifecycleTests UserSecretsPolicyTests
+SbxKitSourceTrustTests SbxSandboxLifecycleTests SbxUserSecretsPolicyTests
 UserSecretsTransportTests UserSecretsSafetyTests SbxSecretInputTests
-OciRegistryTests SquadDiscoveryTests SourceDefaultsTests
+DockerWorkloadImagesTests DockerRegistryPublisherTests DockerPublishedImageReaderTests
+SquadDiscoveryTests SourceDefaultsTests
 ```
+
+The list names the classes as they are today: at the time of the run the OCI
+cases were one class, since split into the three Docker adapter test classes.
 
 Discovery uses `-preEnumerateTheories -list full/json -noColor`, captured directly
 as raw stdout bytes. Execution uses `-noLogo -noColor -longRunning 120
@@ -145,7 +151,7 @@ was involved. No Release verification is claimed for this bounded test-only batc
 
 A repository-wide syntax inspection found no remaining missing phase markers in
 the technical-module batch. At that checkpoint it found two endpoint-generation
-lifecycle methods left in root `abox-cli/test/Abox.Tests/UserSecretsLifecycleTests.cs`:
+lifecycle methods left at the root of the test project:
 
 - `EveryCreationAndReplacementPathGeneratesCurrentProjectOverridesWithoutAHostFile`
   (five theory rows).
@@ -154,7 +160,7 @@ lifecycle methods left in root `abox-cli/test/Abox.Tests/UserSecretsLifecycleTes
 These endpoint cases belong to #35's endpoint/create-replacement coverage and were
 originally reported rather than changed outside #36's scope. The final integrated
 follow-up now moves both into
-`UserSecrets/UserSecretsLifecycleTests.EndpointGeneration.cs` and adds explicit
+`Features/Shared/Sandboxes/UserSecretsLifecycleEndpointGenerationTests.cs` and adds explicit
 Arrange/Act/Assert phases. All eight rows, identities, data, assertions and private
 fixture/partial access are preserved; the existing selection/lifecycle partial and
 `ShellSandbox` remain unchanged. The S1/S2 gap is resolved, not an open residual.
@@ -194,7 +200,7 @@ the staged result, then committed the conflict-free merge as
 | Check | Post-merge result |
 | --- | --- |
 | SDK 10 restore and Debug builds before/after merge | Passed; zero warnings/errors |
-| Focused technical-adapter executable, same 24 classes listed above | 389 passed, 4 skipped, zero failures/errors/not-run; 27.528 seconds |
+| Focused technical-adapter executable, same classes listed above | 389 passed, 4 skipped, zero failures/errors/not-run; 27.528 seconds |
 | Full Debug executable | 1,646 passed, 7 skipped, zero failures/errors/not-run; 100.478 seconds |
 | CSharpier | Passed; 209 C# files checked |
 | Working/staged/baseline diff whitespace checks | Passed |

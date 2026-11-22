@@ -5,7 +5,6 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -34,7 +33,6 @@ public sealed class AgentGuidanceBuildTests
         var store = new BuildStore(paths);
         var resolver = new SquadResolver(new AboxConfig());
         var runner = Substitute.For<IProcessRunner>();
-        var sbx = Substitute.For<ISbxClient>();
         var service = TestServiceGraphs.Build(
             resolver,
             new PersonalConfigurations(paths),
@@ -99,7 +97,6 @@ public sealed class AgentGuidanceBuildTests
         result.ExitCode.Should().Be(0, result.StandardError);
         result.StandardOutput.Should().Be("the runtime-mounted project" + Environment.NewLine);
         runner.ReceivedCalls().Should().BeEmpty();
-        sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     private static string FixtureKit(string name)

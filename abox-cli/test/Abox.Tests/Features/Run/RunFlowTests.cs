@@ -6,7 +6,6 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -16,7 +15,6 @@ public sealed class RunFlowTests
     private readonly RunFlowFixture _fixture = new();
     private TempDirectory _root => _fixture.Root;
     private TestConsole _console => _fixture.Console;
-    private ISbxClient _sbx => _fixture.Sbx;
     private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
     private IMcpServerRegistry _mcp => _fixture.Mcp;
     private ISandboxInspection _inspection => _fixture.Inspection;

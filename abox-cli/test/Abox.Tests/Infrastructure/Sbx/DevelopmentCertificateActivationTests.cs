@@ -46,7 +46,7 @@ public sealed class DevelopmentCertificateActivationTests
                     "synthetic private child output"
                 );
             });
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
 
         // Act
         var activation = await client.ActivateAsync(
@@ -86,7 +86,7 @@ public sealed class DevelopmentCertificateActivationTests
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(new ProcessResult(42, "private", "private"));
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
 
         // Act
         var status = await client.VerifyActivationAsync("actual", CancellationToken.None);
@@ -121,7 +121,7 @@ public sealed class DevelopmentCertificateActivationTests
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(new ProcessResult(code, "private child stdout", "private child stderr"));
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
 
         // Act
         var status = await client.VerifyActivationAsync("actual", CancellationToken.None);
@@ -150,7 +150,7 @@ public sealed class DevelopmentCertificateActivationTests
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(new ProcessResult(0, uid, "synthetic private identity"));
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
 
         // Act
         var activation = await client.ActivateAsync(
@@ -183,7 +183,7 @@ public sealed class DevelopmentCertificateActivationTests
                 calls.Add(process);
                 return new ProcessResult(0, process.Arguments.Contains("id") ? "1000\n" : "", "");
             });
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
 
         // Act
         var activation = await client.ActivateAsync(
@@ -236,7 +236,7 @@ public sealed class DevelopmentCertificateActivationTests
                     "private child stderr"
                 );
             });
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
 
         // Act
         var busy = mode switch
@@ -278,7 +278,7 @@ public sealed class DevelopmentCertificateActivationTests
                         : new AboxException("private child diagnostics")
                 )
             );
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
 
         // Act
         var status = await client.RefreshBootstrapAsync("actual", CancellationToken.None);

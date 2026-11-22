@@ -40,9 +40,9 @@ The original checkout's modified `run-abox.ps1` and the existing diagnostic
 worktree's untracked regression test were left untouched. The launcher retained
 SHA256 `F303DBA9D64E8B51D6BE9CC7F4F4ECCE59C0D1DD97A4CE71E292F71557E0D967`.
 
-Confirmed test interfaces: production `SbxClient.GetUserSecretsHostPortsAsync`
+Confirmed test interfaces: production `SbxUserSecrets.GetUserSecretsHostPortsAsync`
 with a substituted process runner, then the existing CLI harness with production
-policy discovery substituted into `ISbxClient`'s port-discovery method. All copied
+policy discovery substituted into `ISandboxUserSecrets`' port-discovery method. All copied
 configuration in tests is synthetic; no private parser interface was exposed.
 
 **Red before green:**
@@ -78,7 +78,7 @@ Runtime: **sbx v0.51.0**, build `7d55286de0c775148b985ed349f760f1eba06203`.
 Before each mutation, inventory was checked for an existing exact declaration,
 not merely effective `allowed: true`. Current folder name `rwe-abox-3C02C` was
 absent; runtime inspection confirmed legacy `rwe-ai-sbx-41bc30`'s workspace is
-exactly `D:\dev\rwe`. Production `SandboxResolver.FindAsync` independently
+exactly `D:\dev\rwe`. Production `FolderSandbox.FindAsync` independently
 confirmed that identity afterward.
 
 Read `kits/host-access-cape/host-access-cape.yaml` unchanged: it contains only nine
@@ -119,8 +119,8 @@ allows were neither removed nor treated as declarations.
 ## Read-only production verification
 
 A temporary console probe referenced the newly built application assembly and
-called only production `SandboxResolver.FindAsync` and
-`SbxClient.GetUserSecretsHostPortsAsync` with the real process runner. The probe
+called only production `FolderSandbox.FindAsync` and
+`SbxUserSecrets.GetUserSecretsHostPortsAsync` with the real process runner. The probe
 and generated build outputs were removed afterward; no public QA command was
 added. It asserted this exact sorted inventory:
 

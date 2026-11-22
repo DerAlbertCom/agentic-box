@@ -82,6 +82,6 @@ explicitly to finish it, or to refresh a certificate without replacing a sandbox
 
 Command/lifecycle tests use the real shared orchestration with synthetic files and
 certificate CLI output, substituted external adapters, and a process-substituted
-real `SbxClient` relay/reuse flow. They cover local/published creation, explicit and
+real `SbxApplicationPorts` relay/reuse flow. They cover local/published creation, explicit and
 accepted-run replacement, snapshots, legacy identity, mixtures, failure, cancellation
 and recovery. See [the scoped verification record](verification/application-ports-lifecycle.md).

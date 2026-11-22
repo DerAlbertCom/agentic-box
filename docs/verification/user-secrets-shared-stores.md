@@ -9,7 +9,7 @@ were performed. The main worktree's `run-abox.ps1` was not touched.
 ## Seam and red/green evidence
 
 The confirmed seam is the existing CLI with temporary synthetic workspace/store
-files and the existing `UserSecretsCliHarness`/substituted `ISbxClient`. No public
+files and the existing `UserSecretsCliHarness`/substituted `ISandboxUserSecrets`. No public
 testing interface or format-specific copying path was introduced.
 
 The first tracer, `CompatibleOverridesMergeOnceAcrossCaseInsensitiveKeys`, failed

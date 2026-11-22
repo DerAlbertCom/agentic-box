@@ -4,7 +4,6 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -12,7 +11,6 @@ namespace Abox.Tests;
 public sealed class StatePathBuildTests : IDisposable
 {
     private readonly TempDirectory _root = new();
-    private readonly ISbxClient _sbx = Substitute.For<ISbxClient>();
     private readonly IProcessRunner _runner = LocalWorkloadFactory.Runner();
     private readonly BuildStore _store;
     private readonly BuildService _build;
@@ -84,7 +82,6 @@ public sealed class StatePathBuildTests : IDisposable
         Directory.GetFileSystemEntries(Path.GetDirectoryName(sentinel)!).Should().ContainSingle();
         Directory.Exists(Path.Combine(_root.Path, "state")).Should().BeFalse();
         _runner.ReceivedCalls().Should().BeEmpty();
-        _sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     private Task<int> BuildAsync() =>
@@ -126,7 +123,6 @@ public sealed class StatePathBuildTests : IDisposable
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*state*");
         Directory.Exists(Path.Combine(_root.Path, "state")).Should().BeFalse();
         _runner.ReceivedCalls().Should().BeEmpty();
-        _sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     public void Dispose() => _root.Dispose();

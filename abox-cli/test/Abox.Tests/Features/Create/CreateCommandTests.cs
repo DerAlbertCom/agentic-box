@@ -6,7 +6,6 @@ using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -16,7 +15,6 @@ public sealed class CreateCommandTests
 {
     private readonly TempDirectory _root = new();
     private readonly TestConsole _console = new();
-    private readonly ISbxClient _sbx = Substitute.For<ISbxClient>();
     private readonly ISandboxLifecycle _lifecycle = Substitute.For<ISandboxLifecycle>();
     private readonly IKitSourceTrust _kitSources = Substitute.For<IKitSourceTrust>();
 
@@ -58,9 +56,6 @@ public sealed class CreateCommandTests
         // Assert
         exitCode.Should().Be(1);
         _console.AllText.Should().Contain("requires --squad").And.NotContain("There is no team");
-        _sbx.ReceivedCalls()
-            .Should()
-            .BeEmpty("missing selection must fail before preflight as before");
         await _lifecycle
             .DidNotReceive()
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
@@ -71,7 +66,6 @@ public sealed class CreateCommandTests
     {
         // Arrange
         var command = Command("");
-        _sbx.ClearReceivedCalls();
 
         // Act
         var exitCode = await InvokeAsync(
@@ -82,7 +76,6 @@ public sealed class CreateCommandTests
         // Assert
         exitCode.Should().Be(1);
         _console.AllText.Should().Contain("--root requires --local");
-        _sbx.ReceivedCalls().Should().BeEmpty();
         _lifecycle.ReceivedCalls().Should().BeEmpty();
         _kitSources.ReceivedCalls().Should().BeEmpty();
     }
@@ -316,7 +309,6 @@ public sealed class CreateCommandTests
                 TestServiceGraphs.Creator(
                     new SandboxRecordStore(paths),
                     paths,
-                    _sbx,
                     _lifecycle,
                     Substitute.For<IMcpServerRegistry>(),
                     _console,

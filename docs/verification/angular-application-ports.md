@@ -110,7 +110,7 @@ stories, not implied by Angular discovery.
 
 ## Automated evidence
 
-Tests observe the composed command and real `SbxClient` -> fake-process seam,
+Tests observe the composed command and real `SbxApplicationPorts` -> fake-process seam,
 never private parser methods:
 
 - Mixed .NET/options/named-config/start sources, all projects, both target container

@@ -60,7 +60,7 @@ process creation alone is never readiness. Startup failure is checked before
 `space.new`. Initial sandbox HTTPS gating still precedes every Herdr operation;
 the actual sandbox identity, runtime workspace and JSON argv remain authoritative.
 
-Synthetic launcher tests substitute only `IProcessRunner`/`ISbxClient`; controlled
+Synthetic launcher tests substitute only `IProcessRunner`/`ISandboxExec`; controlled
 desktop-child tests execute local shell processes with explicit teardown. Existing
 Run, legacy, stream-security and process regressions are executed separately. No
 live Herdr, display, sbx, Docker, trust, registry or secret operations are claimed.

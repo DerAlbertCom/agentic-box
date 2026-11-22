@@ -16,7 +16,6 @@ public sealed class StatePathCreationTests : IDisposable
 {
     private static readonly SquadBuildIdentity Identity = new("sample", "ac", "latest");
     private readonly TempDirectory _root = new();
-    private readonly ISbxClient _sbx = Substitute.For<ISbxClient>();
     private readonly ISandboxLifecycle _lifecycle = Substitute.For<ISandboxLifecycle>();
     private readonly IMcpServerRegistry _mcp = Substitute.For<IMcpServerRegistry>();
     private readonly IPublishedSquadSource _published = PublishedSquadFactory.Source();
@@ -34,7 +33,6 @@ public sealed class StatePathCreationTests : IDisposable
         _create = TestServiceGraphs.Creator(
             _records,
             _paths,
-            _sbx,
             _lifecycle,
             _mcp,
             _console,
@@ -104,7 +102,6 @@ public sealed class StatePathCreationTests : IDisposable
             .Should()
             .BeEquivalentTo(before);
         // Invalid state must fail even before MCP lookup or replacement discovery.
-        _sbx.ReceivedCalls().Should().BeEmpty();
         _lifecycle.ReceivedCalls().Should().BeEmpty();
         _mcp.ReceivedCalls().Should().BeEmpty();
         _records.Load(name).Should().BeNull();
@@ -144,7 +141,6 @@ public sealed class StatePathCreationTests : IDisposable
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*state*");
-        _sbx.ReceivedCalls().Should().BeEmpty();
         Directory
             .Exists(Path.Combine(_paths.StateDirectory, SandboxName.For(_root.Path)))
             .Should()
@@ -172,7 +168,6 @@ public sealed class StatePathCreationTests : IDisposable
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*state*");
-        _sbx.ReceivedCalls().Should().BeEmpty();
         Directory
             .Exists(Path.Combine(_paths.StateDirectory, SandboxName.For(_root.Path)))
             .Should()
@@ -201,7 +196,6 @@ public sealed class StatePathCreationTests : IDisposable
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*state*overlap*");
-        _sbx.ReceivedCalls().Should().BeEmpty();
         Directory
             .Exists(Path.Combine(_paths.StateDirectory, SandboxName.For(_root.Path)))
             .Should()

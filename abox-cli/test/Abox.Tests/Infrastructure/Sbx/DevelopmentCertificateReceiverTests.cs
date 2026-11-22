@@ -63,7 +63,7 @@ public sealed class DevelopmentCertificateReceiverTests
                     captured = request;
                 return new ProcessResult(0, request.Arguments.Contains("id") ? "1000\n" : "", "");
             });
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
         await client.ActivateAsync(
             "synthetic",
             identity.Export("synthetic-private-password"),

@@ -22,7 +22,7 @@ MAX_NODE_SOURCES = 16
 
 
 class DevelopmentCertificateOutcome(IntEnum):
-    # Private receiver contract, also named in SbxClient.DevelopmentCertificate.cs.
+    # Private receiver contract, also named in SbxDevelopmentCertificates.cs.
     StaleParents = 42
     ProcessEnvironmentsUnavailable = 43
     NodeExtraCaIncomplete = 44

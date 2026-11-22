@@ -8,9 +8,10 @@ namespace Abox.Infrastructure.Sbx;
 /// Protected development HTTPS through <c>sbx exec</c>: owns the embedded receiver, trust and
 /// exec scripts and maps their exit codes to the domain outcomes of each operation.
 /// </summary>
-internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
+internal sealed class SbxDevelopmentCertificates(IProcessRunner runner)
     : ISandboxDevelopmentCertificates
 {
+    private readonly SbxInvoker _invoker = new(runner);
     private static readonly Lazy<string> DevelopmentCertificateExecBootstrap = new(() =>
         ReadDevelopmentCertificateResource("Abox.DevelopmentCertificateExec")
     );
@@ -108,9 +109,9 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         CancellationToken cancellationToken
     )
     {
-        var user = await invoker.RunAsync(
+        var user = await _invoker.RunAsync(
             new ProcessRequest(
-                invoker.ExecutableName,
+                _invoker.ExecutableName,
                 ["exec", sandbox, "id", "-u"],
                 StandardInput: "",
                 OutputPolicy: ProcessOutputPolicy.CapturedSensitive
@@ -133,9 +134,9 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         CancellationToken cancellationToken
     )
     {
-        var trust = await invoker.RunAsync(
+        var trust = await _invoker.RunAsync(
             new ProcessRequest(
-                invoker.ExecutableName,
+                _invoker.ExecutableName,
                 [
                     "exec",
                     "-i",
@@ -166,7 +167,7 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         ProcessResult result;
         try
         {
-            result = await invoker.RunAsync(
+            result = await _invoker.RunAsync(
                 DevelopmentCertificateReceiverRequest(
                     sandbox,
                     "prepare",
@@ -342,7 +343,7 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
         string? frame,
         CancellationToken cancellationToken
     ) =>
-        invoker.RunAsync(
+        _invoker.RunAsync(
             DevelopmentCertificateReceiverRequest(sandbox, mode, transfer, frame),
             cancellationToken
         );
@@ -367,7 +368,7 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
             transfer,
         ]);
         return new ProcessRequest(
-            invoker.ExecutableName,
+            _invoker.ExecutableName,
             arguments,
             StandardInput: frame ?? string.Empty,
             OutputPolicy: ProcessOutputPolicy.Sensitive
@@ -385,7 +386,7 @@ internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
     private static string ReadDevelopmentCertificateResource(string name)
     {
         using var stream =
-            typeof(SbxClient).Assembly.GetManifestResourceStream(name)
+            typeof(SbxInvoker).Assembly.GetManifestResourceStream(name)
             ?? throw new InvalidOperationException("Missing certificate receiver resource.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();

@@ -7,7 +7,6 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;

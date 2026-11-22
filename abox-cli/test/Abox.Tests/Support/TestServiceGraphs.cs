@@ -9,7 +9,6 @@ using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using Abox.Infrastructure.Shell;
 using NSubstitute;
 
@@ -56,7 +55,6 @@ internal static class TestServiceGraphs
     internal static SandboxCreator Creator(
         SandboxRecordStore records,
         AboxPaths paths,
-        ISbxClient sbx,
         ISandboxLifecycle lifecycle,
         IMcpServerRegistry mcp,
         IConsole console,

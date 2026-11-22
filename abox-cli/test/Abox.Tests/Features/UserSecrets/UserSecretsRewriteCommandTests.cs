@@ -7,7 +7,6 @@ using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Dotnet;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -43,7 +42,6 @@ public sealed class UserSecretsRewriteCommandTests
              "Named":"http://named.internal:8004"}
             """
         );
-        var sbx = Substitute.For<ISbxClient>();
         var sbxUserSecrets = Substitute.For<ISandboxUserSecrets>();
         sbxUserSecrets
             .GetUserSecretsHostPortsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -69,7 +67,6 @@ public sealed class UserSecretsRewriteCommandTests
             new DotnetUserSecretStores(root.CreateDirectory("appdata"), null)
         );
         application.Services.AddSingleton(sbxUserSecrets);
-        application.Services.AddSingleton(sbx);
         application.Services.AddSingleton(programs);
         application.Services.AddSingleton(ReadyPreflight.Checks());
         application.Services.AddSingleton(PublishedSquadFactory.Source());

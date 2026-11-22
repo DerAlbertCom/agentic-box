@@ -204,7 +204,7 @@ raw-captured-result-retains-payload=True
 
 Full stdin and full lines are redacted; a child returning just one scalar from
 JSON is not. Escaping/reformatting values can also evade whole-input redaction.
-`ProcessRunner` returns unmodified captured output, and `SbxClient`'s existing
+`ProcessRunner` returns unmodified captured output, and the sbx adapters' existing
 outcome/error paths can surface it. The attached-console `ExecAsync` is not a
 secret-safe capture boundary. A metadata-only receiver succeeded quietly, but
 that does not prove arbitrary child failure output safe.

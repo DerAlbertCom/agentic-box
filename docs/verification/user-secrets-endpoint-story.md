@@ -15,7 +15,7 @@ Verified on Windows, 2026-11-15, in
   read-only `gh api`. No issue/PR writes were made.
 
 The agreed seam remains the existing CLI with temporary synthetic project/store
-files and `UserSecretsCliHarness`'s substituted `ISbxClient`. No real developer
+files and `UserSecretsCliHarness`'s substituted `ISandboxUserSecrets`. No real developer
 stores, existing sandboxes, databases or other live services were accessed.
 
 ## Spec review: reproduced before fixing

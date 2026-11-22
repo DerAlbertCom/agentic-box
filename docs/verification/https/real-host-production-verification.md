@@ -107,7 +107,7 @@ no readiness was inferred from it. Before/after in-memory comparisons observed:
   metadata. Private contents/hashes were not printed or preserved in evidence.
 - The exact public trust source and canonical system bundle retained their hashes,
   inode/timestamps/modes/ownership; unrelated local sources and the actual
-  `SbxClient` binding inventory were unchanged.
+  sbx binding inventory were unchanged.
 - A scoped `FileSystemWatcher` on the product's explicitly selected staging parent
   observed **zero** `abox-certificate-*` directory creation/deletion/rename events
   and **zero watcher errors**, with no before/after residue. Together with the
@@ -125,7 +125,7 @@ no readiness was inferred from it. Before/after in-memory comparisons observed:
 Only inside this owned disposable, a public caller bundle was made by prepending
 `# Überprüfung — öffentliche CA roots` plus newline to its already-existing public
 canonical system bundle. No host CA or system trust file was edited. Via
-`SbxClient.CertificateProbeExecAsync`, that file was selected **before** running
+a verification-only certificate probe exec, that file was selected **before** running
 the exact embedded production exec shell and its hash-checked installed reader;
 this verification-only seam was needed to supply the caller environment before
 bootstrap, rather than overriding Node's variable afterward.
@@ -190,7 +190,7 @@ Sandbox:   abox-issue46-activation-production-f26ae4db-abox-55F7F
 
 The environment, certificate-unaware fixture, precise commands and trust/TLS
 assertions described in the pinned record below were rerun, not inherited from
-that result. Fresh `SbxClient` reads verified no prior runtime/manual trust or
+that result. Fresh sbx reads verified no prior runtime/manual trust or
 host leaf. The initial system/Node input again had **256** certificates /
 **458886 bytes**. The unchanged cached template, host/sandbox SDKs, actual UID,
 Python/OpenSSL and Node versions are recorded below. Host **18443** was again
@@ -258,7 +258,7 @@ were exercised live with this private identity or that independent review passed
   Default build SDK **11.0.100**, CLI/test target **net10.0**, host runtime
   **10.0.15**. Installed compatible metadata/export tool: SDK **10.0.404**,
   dev-certs **10.0.15-servicing.26529.108**. No SDK selection/install workaround.
-- `SbxClient.GetVersionAsync`: **0.51.0**. Cached approved template
+- `sbx version`: **0.51.0**. Cached approved template
   `docker.io/library/cao-docker-ai-sandbox:latest`, inventory ID **685acd19ffe7**;
   helper uses `--pull never`, no state/credential copies and no static MCP servers.
 - Sandbox default user **UID 1000**; installed SDKs **10.0.404 / 11.0.100**,

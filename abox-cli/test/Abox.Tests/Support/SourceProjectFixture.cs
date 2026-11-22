@@ -85,7 +85,6 @@ internal sealed class SourceProjectFixture : IDisposable
         );
         services.AddSingleton(Programs);
         services.AddSingleton(Runner);
-        services.AddSingleton(Sbx);
         services.AddSingleton(Exec);
         services.AddSingleton(ReadyPreflight.Checks());
         services.AddSingleton(Inspector);
@@ -96,7 +95,6 @@ internal sealed class SourceProjectFixture : IDisposable
     public TestConsole Console { get; } = new();
     public IHostPrograms Programs { get; } = Substitute.For<IHostPrograms>();
     public IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
-    public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     public ISandboxLifecycle Lifecycle => _application.Lifecycle;
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public IKitInspector Inspector { get; } = TestServiceGraphs.AcceptingKitInspector();

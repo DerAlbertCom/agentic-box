@@ -28,7 +28,7 @@ public sealed class DevelopmentCertificateTransportTests
                     call.Arg<CancellationToken>()
                 )
             );
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
         var pfx = Pfx("Grüße 🔒");
 
         // Act
@@ -88,7 +88,7 @@ public sealed class DevelopmentCertificateTransportTests
                     new ProcessResult(0, "raw synthetic output", "raw synthetic error")
                 );
             });
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
         const string password = "synthetic-password-🔒";
         var pfx = Pfx(password);
 
@@ -145,7 +145,7 @@ public sealed class DevelopmentCertificateTransportTests
         using var root = new CertificateTestDirectory();
         using var scenario = new TransferFailureScenario(failure, cleanupSucceeds ? 0 : 1);
         const string privateText = "synthetic-password 123456789 true";
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(scenario.Runner));
+        var client = new SbxDevelopmentCertificates(scenario.Runner);
         var pfx = Pfx("synthetic-password");
 
         // Act
@@ -243,7 +243,7 @@ public sealed class DevelopmentCertificateTransportTests
                 await Task.Delay(Timeout.InfiniteTimeSpan, cleanupToken);
                 return new ProcessResult(0, "", "");
             });
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
         var pfx = Pfx("password");
 
         // Act
@@ -273,7 +273,7 @@ public sealed class DevelopmentCertificateTransportTests
         // Arrange
         using var root = new CertificateTestDirectory();
         var runner = Substitute.For<IProcessRunner>();
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 

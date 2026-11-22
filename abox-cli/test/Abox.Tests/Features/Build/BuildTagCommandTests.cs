@@ -7,7 +7,6 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -40,7 +39,6 @@ public sealed class BuildTagCommandTests
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists("docker").Returns(true);
         var runner = LocalWorkloadFactory.Runner();
-        var sbx = Substitute.For<ISbxClient>();
         var resolver = new SquadResolver(new AboxConfig());
         var store = new BuildStore(paths);
         var service = TestServiceGraphs.Build(
@@ -116,7 +114,6 @@ public sealed class BuildTagCommandTests
         var preflight = Substitute.For<IPreflightChecks>();
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
-        var sbx = Substitute.For<ISbxClient>();
         var console = new TestConsole();
         var config = new AboxConfig();
         var resolver = new SquadResolver(config);
@@ -153,7 +150,6 @@ public sealed class BuildTagCommandTests
         preflight.ReceivedCalls().Should().BeEmpty();
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
-        sbx.ReceivedCalls().Should().BeEmpty();
         File.ReadAllText(script).Should().Be("external script");
         File.ReadAllText(certificate).Should().Be("external certificate");
         Directory
