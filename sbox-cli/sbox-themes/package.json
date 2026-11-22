@@ -2,6 +2,9 @@
   "name": "sbox-themes",
   "private": true,
   "type": "module",
+  "sbox": {
+    "data": ["themes", "apps"]
+  },
   "scripts": {
     "sync-themes": "bun src/sync-themes.ts"
   },

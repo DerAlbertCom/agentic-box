@@ -1,0 +1,23 @@
+#!/bin/sh
+# Usage: data-folders <package>
+# Prints the data folders that <package>, a command's package of the Bun workspace given
+# relative to this folder (sbox-cli), declares under "sbox": { "data": [...] } in its
+# package.json, one per line. Fails when a declared folder is missing. Reads the manifest
+# with the Bun image of bundle, so the host needs only Docker.
+set -eu
+
+bun_image="oven/bun:1.4.4"
+workspace="$(cd "$(dirname "$0")" && pwd)"
+package="$1"
+
+folders="$(docker run --rm --volume "$workspace/$package/package.json:/package.json:ro" "$bun_image" \
+  bun -e 'for (const folder of require("/package.json").sbox?.data ?? []) console.log(folder)')"
+for folder in $folders; do
+  if [ ! -e "$workspace/$package/$folder" ]; then
+    echo "$package declares the data folder '$folder', but it is missing." >&2
+    exit 1
+  fi
+done
+if [ -n "$folders" ]; then
+  printf '%s\n' "$folders"
+fi

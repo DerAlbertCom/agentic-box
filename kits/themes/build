@@ -1,7 +1,8 @@
 #!/bin/sh
 # The kit build step of themes, run by abox build as `build <stagedKitDir>` from this folder.
-# Bundles the themes command into the staged kit with the palettes and app templates it
-# reads (see sbox-cli/bundle), and adds the login script that sets the terminal colors.
+# Bundles the themes command into the staged kit with the data folders its package declares
+# (see sbox-cli/bundle and sbox-cli/data-folders), and adds the login script that sets the
+# terminal colors.
 set -eu
 
 staged="$(cd "$1" && pwd)"
@@ -9,8 +10,11 @@ repo="$(cd ../.. && pwd)"
 themes="$repo/sbox-cli/sbox-themes"
 command="$staged/files/home/.local/share/sbox/commands/themes"
 
+data_folders="$("$repo/sbox-cli/data-folders" sbox-themes)"
 mkdir -p "$command"
-cp -R "$themes/themes" "$themes/apps" "$command/"
+for folder in $data_folders; do
+  cp -R "$themes/$folder" "$command/"
+done
 "$repo/sbox-cli/bundle" sbox-themes/src/command.ts "$command/command.js"
 mkdir -p "$staged/files/etc/profile.d"
 cp "$themes/profile/sbox-terminal-theme.sh" "$staged/files/etc/profile.d/"

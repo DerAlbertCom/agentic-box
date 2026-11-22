@@ -44,8 +44,10 @@ Bun in Docker through `sbox-cli/bundle` and keeps Bun's package cache in the vol
 ### Command kits
 
 A command kit adds one `sbox` command. Its build step bundles the command's package
-into `command.js`, and its recipe copies that file, with any data the command reads,
-into `~/.local/share/sbox/commands/<command>/`. The module default-exports a `Command`
+into `command.js` and stages it with the data folders that the package declares in its
+`package.json` (`"sbox": { "data": ["themes", "apps"] }`), read with
+`sbox-cli/data-folders`; a declared folder that is missing fails the build. Its recipe
+copies them into `~/.local/share/sbox/commands/<command>/`. The module default-exports a `Command`
 (`summary` and `run(args, ctx)`) from the command API in `sbox-cli/sbox/src/api.ts`; see
 the [TypeScript coding standards](../CODING_STANDARDS.md#typescript).
 
