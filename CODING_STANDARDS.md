@@ -20,8 +20,9 @@ or dogmatic application of patterns.
 ## Architecture
 
 The rules below guide code organization and are recorded, with the options we rejected,
-in [ADR 0003](docs/adr/0003-external-tools-behind-use-case-interfaces.md) and
-[ADR 0004](docs/adr/0004-core-and-infrastructure-projects.md);
+in [ADR 0003](docs/adr/0003-external-tools-behind-use-case-interfaces.md),
+[ADR 0004](docs/adr/0004-core-and-infrastructure-projects.md) and
+[ADR 0005](docs/adr/0005-commands-bind-parameters-handlers-run-them.md);
 [the implementation code map](docs/implementation.md#the-code) documents the current
 directory layout.
 
@@ -69,9 +70,11 @@ directory layout.
   tree, the command types the root command collects, the command-line types the host
   and the process runner use (`CommandLine`, `CommandHandling`, `TrailingArguments`,
   `Verbosity`), the command runner and the command base shape (`CommandRunner`,
-  `AboxCommand<TParameters>`), the two registration methods and `CreateSystemConsole`, which gives the
-  entry point its console. Adapters, `SystemConsole`, `ProcessOutput` and everything
-  else stay `internal`. Grant `InternalsVisibleTo` only to test code: the test
+  `AboxCommand<TParameters>`), the two registration methods and `CreateSystemConsole`,
+  which gives the entry point its console. Adapters, `SystemConsole`, `ProcessOutput`,
+  the handlers and `ICommandHandler<TParameters>`, the parameters records,
+  `InvocationDefaults`, `SandboxLocation`, `LocationOption` and everything else stay
+  `internal`. Grant `InternalsVisibleTo` only to test code: the test
   projects, the two TestUtilities projects (their helpers build internal services)
   and `DynamicProxyGenAssembly2`, the assembly in which NSubstitute builds substitutes
   of internal interfaces.
@@ -83,18 +86,45 @@ directory layout.
 - Each launcher is one class behind `ILauncher`, which lives in the shared `Launchers`
   feature; launchers that drive an external tool, such as Herdr, are adapters in
   `Infrastructure/<Tool>`.
-- Each command is a class that the container builds and that takes its dependencies
-  in its constructor; nothing looks the commands up by hand. The root command holds
-  every command the container has, one per slice.
+- **Commands and handlers:** each command describes only its syntax (options, arguments,
+  subcommands, help). It derives from `AboxCommand<TParameters>` and its `BindAsync`
+  maps the parse result to a `<Command>Parameters` record of effective values; checks
+  that depend only on the options throw `AboxException` there. The work runs in a
+  `<Command>Handler`, an `ICommandHandler<TParameters>` that takes its services in its
+  constructor, is registered in its slice next to its command and is picked by the
+  parameters type. `CommandRunner` is the only module that runs a command: it binds the
+  parameters, resolves the handler only when the action runs, and turns abox errors into
+  exit code 1 and cancellation into 130, so no action guards itself with
+  `CommandHandling`, which only the entry point uses around the composition. Preflight
+  stays in the handlers, in each command's own order. Recorded in
+  [ADR 0005](docs/adr/0005-commands-bind-parameters-handlers-run-them.md).
+- **Command constructor rule:** a command's constructor takes only the `CommandRunner`,
+  never a service its action needs and never a `Lazy<T>`. The only exception is in the
+  allow-list of `CommandConstructorTests` (`run` takes the `LauncherRegistry` for its help
+  and completions), which enforces the rule; a new entry is a reviewed decision. The
+  container builds the commands, and the root command holds every command it has, one
+  per slice.
+- **Invocation defaults:** options get their user configuration defaults only from
+  `InvocationDefaults` in binding: the sandbox location (as a `SandboxLocation`, which
+  carries its folder configuration, loaded once), the team or teams, the validated tag and
+  the arguments after `--`. Commands that work on a sandbox location use the shared
+  `LocationOption`. No handler resolves `--location`, loads the folder configuration or
+  reads a user configuration default itself.
+- **Lifetimes:** register every service as scoped. Only what must be shared beyond one
+  invocation is a singleton: today only the console the entry point creates. The entry
+  point and the CLI test application open one scope per process run and resolve the root
+  command from it, and build the provider with `ValidateScopes` and `ValidateOnBuild`.
 - Each layer registers its own services through one public extension method:
   `AddAboxCore` registers the shared services and calls one method per slice, which adds
-  its command and any slice-specific services; `AddAboxInfrastructure` registers every
-  adapter against its use-case interface, the process runner, the YAML parser and the
-  launchers that drive an external tool. The host's `AddAbox` calls both, so adding a
+  its command, its handlers and any slice-specific services; `AddAboxInfrastructure`
+  registers every adapter against its use-case interface, the process runner, the YAML
+  parser and the launchers that drive an external tool. The host's `AddAbox` calls both, so adding a
   service never changes the host.
 - The entry point builds a plain service provider, not a host: it does not load
-  `appsettings.json` from the working directory. Commands defer configuration-dependent
-  dependencies until their actions run, so help, `exec` and `pipe` need no user configuration.
+  `appsettings.json` from the working directory. The user configuration is loaded only once
+  an action runs: by `InvocationDefaults` on the first default asked for, or for a service
+  a handler takes, since handlers are built only then. So help, `exec` and `pipe` need no
+  user configuration.
 - The services take their dependencies in their constructor, so the tests can hand them
   substitutes of the use-case interfaces (NSubstitute in the test projects).
 - YAML is parsed behind `IYamlParser` (its only implementation, on YamlDotNet, is in

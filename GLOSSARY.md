@@ -18,8 +18,14 @@ _Avoid_: config, abox file
 **Workload**:
 A `.workload` file: the base image, its tools and scripts that a squad's workload kit is built from.
 
+**Base image**:
+The image built from a workload. Maintainers build it; users get it through their squad's kits.
+
 **Kit**:
 A v3 kit of the Docker Sandboxes kit spec: a workload (a full root filesystem) or a mixin (layers added on top).
+
+**Kit build step**:
+An executable `build` file in a local kit; `abox build` runs it on a staged copy of the kit, and that copy is what the sandbox gets.
 
 **Kit set**:
 The published or locally built result of one squad: one workload kit plus its mixins.

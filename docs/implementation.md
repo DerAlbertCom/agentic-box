@@ -1193,13 +1193,13 @@ After updating the approved repository bundle, rebuild the CLI/tool and workload
 abox-cli/src/       three projects; ADR 0004 records the split and the reference rules
   Abox/             the host (assembly abox, the rwest-agentic-box tool); references
                     Abox.Core and Abox.Infrastructure
-    Program.cs      runs the command line
+    Program.cs      runs the command line: builds the provider with scope validation,
+                    opens one scope per process run and invokes the root command from it
     Cli/            the root command and AddAbox, which calls AddAboxCore and
                     AddAboxInfrastructure
   Abox.Core/        the features; references nothing in the solution, nor YamlDotNet
     Features/       the command slices and the shared features
       CoreServiceCollection.cs  AddAboxCore: the shared services and one call per slice
-      LazyService.cs  resolves a Lazy<T> dependency only when its value is first used
       Build/          abox build: the command binds BuildParameters, BuildHandler resolves
                       the teams to squads and runs the service that does its work
         Assets/                     the inspection certificate chain, embedded in Abox.Core
@@ -1231,15 +1231,24 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
         Common/           IConsole, AboxException and TemporaryDirectory, used by every layer
         Yaml/             IYamlParser and its YamlNode tree; YamlReader, the strict reader
                           of abox's own files and the merge of abox.yaml with abox.user.yaml
-        CommandLine/      the trailing arguments after "--", the --verbose setting
-                          (Verbosity, set by the root command, read by ProcessOutput),
-                          command handling, which turns an abox error into a message and
-                          an exit code, and the way a command runs: AboxCommand binds its
-                          parameters, CommandRunner runs the ICommandHandler for them,
-                          InvocationDefaults applies the user configuration defaults
-                          (SandboxLocation, team, teams, tag) and hands binding the
-                          trailing arguments, and LocationOption is the
-                          shared --location
+        CommandLine/      how a command runs (ADR 0005)
+          AboxCommand.cs        the base shape of every command with an action: its syntax
+                                and BindAsync, which maps a parse result to its parameters
+          CommandRunner.cs      runs every action: binds the parameters, resolves and runs
+                                the handler for them, maps abox errors to exit code 1 and
+                                cancellation to 130
+          ICommandHandler.cs    a command's work: parameters in, exit code out
+          InvocationDefaults.cs the user configuration defaults of the options (sandbox
+                                location, team, teams, tag) and the arguments after "--"
+          SandboxLocation.cs    a sandbox location's full path and its folder configuration,
+                                loaded once
+          LocationOption.cs     the shared --location
+          CommandHandling.cs    the entry point's guard: an abox error to a message and
+                                an exit code
+          CommandLine.cs        splits the command line at "--"
+          TrailingArguments.cs  the arguments after "--", handed to binding
+          Verbosity.cs          the --verbose setting, set by the root command, read by
+                                ProcessOutput
         Configuration/    the directories and the user configuration
           FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
         UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
@@ -1394,7 +1403,8 @@ abox-cli/test/      one test project per source project, each mirroring its fold
   Abox.IntegrationTests/      real Core and real Infrastructure together: the whole CLI
                               through the CLI test application (Cli/ holds the composition
                               root, command location and source defaults), real YAML files
-                              and fixtures, and the ArchUnitNET architecture rules
+                              and fixtures, the ArchUnitNET architecture rules and the
+                              command constructor rule (CommandConstructorTests)
   Abox.Tests/                 the host's own tests that need no CLI test application:
                               the root command's --verbose handling and the executable
   Abox.TestUtilities/         shared helpers (test console, temporary directories,

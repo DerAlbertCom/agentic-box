@@ -13,12 +13,8 @@ Items marked *(proposed)* fill gaps that the decisions so far do not cover. "Ver
 
 ## Glossary
 
-- **Team**: uses one base image and has several squads. Different teams can use different base images.
-- **Squad**: a named configuration, selected with `--squad AC`. Publishes as one v3 kit set: one workload plus mixins.
-- **Workload**: a `.workload` file. Builds the squad's v3 workload kit: the base image, the mise tools, and the scripts.
-- **Base image**: the image built from a workload. Maintainers build it; users get it through their squad's layers.
-- **Kit**: a v3 kit, either a workload (full root filesystem) or a mixin (layers added on top). Used for team and squad customization, agent configuration, and auth. Spec: https://github.com/docker/sandbox-kit-spec
-- **Kit build step**: an executable `build` file in a local kit folder. `abox build` copies the kit into the build's staging folder, runs `build <stagedKitDir>` from the kit's folder in the repository, and uses the staged copy everywhere sbx sees the kit. Kits without one pass through unchanged; a `build` file that cannot run (not executable, or on a Windows host) fails the build. See [ADR 0001](adr/0001-kit-build-step.md).
+The domain terms (team, squad, squad configuration, workload, base image, kit, kit build step, kit set, sandbox, sandbox location, workspace, state, launcher, user configuration, folder configuration, secrets and user-secrets) are defined in the root [GLOSSARY.md](../GLOSSARY.md). This list keeps only the terms of `sbox`, the command line inside a sandbox, and of the organisation of the code.
+
 - **sbox**: the command line inside a sandbox for user-facing actions, such as switching the theme. Its core (`sbox-cli/sbox`, installed by the `sbox` kit) routes `sbox <command>` to an installed command kit; `sbox --help` lists them. Not to be confused with `sbx`, the Docker Sandboxes CLI on the host.
 - **Command kit**: a kit that installs one `sbox` command as a bundled module into the commands folder, `~/.local/share/sbox/commands/<command>/`. A squad chooses the commands of its sandboxes by choosing command kits.
 - **Broken command**: an installed command whose module throws while loading or does not export a command (a string `summary` and a `run` function). `sbox --help` lists it, marked as broken with a one-line reason; running it prints `sbox <command>:` with the reason and fails. Every other command keeps working.
@@ -29,12 +25,6 @@ Items marked *(proposed)* fill gaps that the decisions so far do not cover. "Ver
 - **App template**: the definition of how one app is themed, a folder with an `app.yaml` and Liquid templates. `app.yaml` names the files to render, the JSON settings to merge, and the commands to run afterwards. Every app gets one fixed theme named `sbox`, so switching only rewrites its content.
 - **Theme application**: applying a theme to the sandbox's apps, all or nothing: the palette and every app template are read, and every file and settings merge rendered in memory, before anything is written. Any error leaves every app, every settings file and the saved choice unchanged. Then the files are written, each atomically, the apps' commands run and, for a switch, the choice saved; a failing command is reported but does not undo the switch. `sbox themes <name>` and the picker switch to a theme; `--apply` applies the current theme (the saved choice, then `SBOX_THEME`, then `tokyo-night`) without saving it.
 - **Terminal color script**: `~/.config/sbox/terminal-colors.sh`, rendered by the `terminal` app template. It prints the OSC sequences that set the current terminal's 16 ANSI colors, foreground, background and cursor to the theme. A login script and `sbox themes` run it when `SBOX_TERMINAL_THEME=1` is set and the output is a terminal. See [ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
-- **Config**: an `.abox` file. Composes a sandbox from `base`, `workload`, `kits`, `parameters`, `mcp`, `state`, and `secrets`.
-- **Sandbox**: one per folder.
-- **Workspace**: the folder's files inside the sandbox, at the runtime-provided `WORKSPACE_DIR`.
-- **State**: host directories that persist when a sandbox is replaced.
-- **Secrets**: service declarations for host-side kit/proxy credentials; distinct from the runtime .NET store-copying command `user-secrets`.
-- **Launcher**: what `abox run` starts: a shell, or a desktop app on the host that works with the sandbox.
 - **Command slice**: the code of one `abox` command and its subcommands, together in `Features/<Command>` of `abox-cli`, including everything only that command uses.
 - **Shared feature**: a use case shared by commands, in `Features/Shared/<UseCase>` of `abox-cli`, named by what it does (such as `Sandboxes` or `Https`), never by the tool it calls. It owns the use-case interfaces for the external tools it needs. See [ADR 0003](adr/0003-external-tools-behind-use-case-interfaces.md).
 - **External tool**: a program abox runs (`sbx` and the scripts it runs in a sandbox, `docker`, `dotnet dev-certs`, `herdr`, `bash`, a kit's `build` script) or a file another tool owns (sbx's `credentials.yaml`, the .NET user-secrets store). abox's own files are not external.
@@ -48,7 +38,7 @@ Maintainers (team members who build base images) use `build` and `publish`. Ever
 Exit codes: 0 on success, 1 on an `abox` error, 130 on cancellation. `run` passes through the exit code of the shell or command it starts.
 
 - **`abox create --team <name> [--squad <name>] [--location <path>] [--root <dir>] [--tag <tag>] [--local] [--yes]`**
-  - `create`, `run`, `secrets`, `user-secrets` and `ports` resolve `--location`, then the user config `defaultLocation`, then the current folder. The team name defaults to `defaultTeam`. Only `--local` resolves team sources from the `teams` folder at the location or its parents; `--root` selects a separate source project. Without `--squad`, local create asks which squad of the team to use, when there is more than one; remote create requires it. `--tag` can be combined with `--local` to select a local build tag.
+  - `create`, `run`, `secrets`, `user-secrets` and `ports` resolve `--location`, then the user configuration's `defaultLocation`, then the current folder. The team name defaults to `defaultTeam`. Only `--local` resolves team sources from the `teams` folder at the location or its parents; `--root` selects a separate source project. Without `--squad`, local create asks which squad of the team to use, when there is more than one; remote create requires it. `--tag` can be combined with `--local` to select a local build tag.
   - Creates the sandbox from the squad's kit set in JFrog, under `rwest.jfrog.io/<pullRepository>`. The user setting `pullRepository` defaults to `mtiae-docker-release` and is independent of the workload's publish repository. The default tag is `latest`, pulled with `--pull always`, because sbx's default for kit sets is `missing`, which never refreshes a tag. `--tag` selects another tag. `--local` uses a prebuilt local workload image and its runtime kits with `--pull never`. Remote create needs no source repository or local build metadata: state and MCP settings come from the published set's bundled `squad.json`. Personal `.abox` kit customizations currently require `--local`.
   - A sandbox that already exists for the location is replaced after confirmation. The confirmation lists what will be lost. State directories are kept: the sandbox name does not change, so their host paths do not change either.
   - Before it replaces a sandbox, local create checks the credentials the squad's local kits ask for: a stored value and sbx's approval for every domain. On a terminal it asks for what is missing; without one it warns and goes on. sbx never asks itself (`--no-input`), and its `Note:` lines are shown after creation. See [the authoring guide](authoring.md#secrets).
@@ -59,7 +49,7 @@ Exit codes: 0 on success, 1 on an `abox` error, 130 on cancellation. `run` passe
   - `shell` works offline. Other launchers list their needs under Launchers.
   - If JFrog has a newer `latest`, asks whether to replace the sandbox now. Skipped offline. *(proposed placement)*
 - **`abox build --team <names> [--root <dir>]`** resolves each team's folder under `teams` (from now on) and builds the kit set of every squad of it that no other squad of the team names as its `base`: one workload and the mixins reached through the chain. Rejects duplicate kit repositories; checking file collisions between kits is not built yet. Layers are shared, not repacked, so squads with common kits share blobs.
-- **`abox publish --team <name> [--root <dir>]`** pushes the kit set to `rwest.jfrog.io/<publishRepository>` (selected by the squad's resolved `.workload`) under `agentic-box-rwest-<team>/<squad>:<tag>`, `latest` by default, with the resolved squad config. Every squad keeps the same name when others are added. Publication uses the v3 BuildKit frontend through Docker Buildx; its registry credentials stay in Docker's host credential store. Only builds explicitly excluding personal `.abox` configuration can be published.
+- **`abox publish --team <name> [--root <dir>]`** pushes the kit set to `rwest.jfrog.io/<publishRepository>` (selected by the squad's resolved `.workload`) under `agentic-box-rwest-<team>/<squad>:<tag>`, `latest` by default, with the resolved squad configuration. Every squad keeps the same name when others are added. Publication uses the v3 BuildKit frontend through Docker Buildx; its registry credentials stay in Docker's host credential store. Only builds explicitly excluding personal `.abox` configuration can be published.
 - **`abox prune [--full] [--sbx]`** removes the template images of sbx that stopped being used: it keeps the newest assembled kit set and the kit sources it is built from, and removes the older sets and the kit sources nothing uses. `--full` reaches for everything sbx holds: what a sandbox uses, sbx refuses and keeps. `--sbx` stops the running sandboxes first. Never touches secrets, or images of other repositories, nor anything an image of unknown age or id holds. *(proposed: also keep anything a stopped sandbox uses; also prune the local builds of the build store)*
 - **`abox secrets list|set|remove [--location <path>]`** manages the host-side secrets the kits of a folder's existing sandbox ask for, through `sbx secret` behind the scenes. It reads which services the kits ask for from the kit descriptors staged in the sandbox, and how to ask for each value from the `Secrets` of its bundled `squad.json`, so it works for published squads without team sources. It never creates or replaces a sandbox. Values are stored globally on the host. `set` and `remove` accept repeatable `--service <name>`.
 - **`abox user-secrets [--location <path>] [--force]`** copies explicitly selected local .NET user-secret stores into an existing sandbox. See [the safety contract](../README.md#copying-net-user-secrets).
@@ -149,18 +139,18 @@ Implement the contract above, register the launcher under its id, and add a row 
 
 ## Configuration files
 
-References never include a file extension. The teams of a project live in a folder per team under `teams/`: `abox build` resolves `--team` to such a folder (case-insensitive), and `abox create` resolves `--team` and `--squad` to an `.abox` file in the team folder: `AC` → `teams/<team>/ac.abox` (case-insensitive). `base` names are the file of the squad's own team folder first, then the team folders of the project; one that several other teams hold is an error. The `workload` named by the root config lives in the team folder, or, when it is shared, in the `kits` folder of the project.
+References never include a file extension. The teams of a project live in a folder per team under `teams/`: `abox build` resolves `--team` to such a folder (case-insensitive), and `abox create` resolves `--team` and `--squad` to an `.abox` file in the team folder: `AC` → `teams/<team>/ac.abox` (case-insensitive). `base` names are the file of the squad's own team folder first, then the team folders of the project; one that several other teams hold is an error. The `workload` named by the root squad configuration lives in the team folder, or, when it is shared, in the `kits` folder of the project.
 
 **`.workload`** (YAML)
 - `template`: container image to build on, as in `sbx run --template`. Default `docker.io/sbx/shell-docker-image`, a shell image with Docker Engine inside (`docker.io/sbx/shell-image` is the variant without it). Pin a tag or digest rather than `latest`. *(proposed)* Named `template` so `base` only means the parent `.abox`. *(name proposed)*
-- `publishRepository`: JFrog repository name on `rwest.jfrog.io`, required for publishing but optional for local builds. One lowercase registry path segment, without a host, slash or tag. Inherited with the root config's workload, recorded in the build manifest, and revalidated before publishing; changing it requires a rebuild. The included workloads use `mtiae-developer-container-images-local`.
+- `publishRepository`: JFrog repository name on `rwest.jfrog.io`, required for publishing but optional for local builds. One lowercase registry path segment, without a host, slash or tag. Inherited with the root squad configuration's workload, recorded in the build manifest, and revalidated before publishing; changing it requires a rebuild. The included workloads use `mtiae-developer-container-images-local`.
 - `apt`: package names, installed with one `apt-get install` before the tools.
 - `mise`: tools, installed in the order of the list, so runtimes come before the tools that need them. Of several versions of a tool, the last one is active; the generator passes a tool's versions to mise reversed, because mise activates the first entry.
 - `scripts`: run as the last steps of the generated Dockerfile, during the image build.
 
 **`.abox`** (YAML)
-- `base`: name of the parent config. Chains are allowed. Cycles are errors.
-- `workload`: name of a `.workload`. Only in the root config, the one without `base`.
+- `base`: name of the parent squad configuration. Chains are allowed. Cycles are errors.
+- `workload`: name of a `.workload`. Only in the root squad configuration, the one without `base`.
 - `kits`: kit names.
 - `parameters`: named values. Kits receive them in the form the Docker Sandbox kit spec expects. MCP declarations can use them too. Fixed when the set is published (inferred from the kit-set docs; verify).
 - `mcp`: neutral MCP configuration. Each server is provided to every agent in the sandbox, in that agent's config format.
@@ -255,7 +245,7 @@ Same rule for every XDG directory: use the variable if it is set, otherwise the 
 
 ## Agents
 
-- All four agents use GitHub Copilot on GitHub Enterprise with data residency. The tenant comes from the user config.
+- All four agents use GitHub Copilot on GitHub Enterprise with data residency. The tenant comes from the user configuration.
 - Claude Code: the documented way to change its backend is `ANTHROPIC_BASE_URL` (route requests through a proxy or gateway), with `ANTHROPIC_AUTH_TOKEN`. The Claude Code docs have no GitHub Copilot option (checked: env vars, model config, LLM gateway). Copilot access therefore needs a gateway, which must also respect data residency. *(proposed)*
 
 ## Implementation notes *(proposed)*
