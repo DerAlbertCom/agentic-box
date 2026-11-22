@@ -84,7 +84,3 @@ public static class CoreServiceCollection
         return services;
     }
 }
-
-internal sealed class LazyService<T>(IServiceProvider provider)
-    : Lazy<T>(provider.GetRequiredService<T>)
-    where T : notnull;

@@ -94,8 +94,11 @@ public sealed class ArchitectureTests
             .Should()
             .NotDependOnAny(CommandSlices);
 
-        // Act and assert
-        rule.Check(Architecture);
+        // Act
+        var check = () => rule.Check(Architecture);
+
+        // Assert
+        check.Should().NotThrow();
     }
 
     [Fact]
@@ -109,8 +112,11 @@ public sealed class ArchitectureTests
             .NotDependOnAnyTypesThat()
             .ResideInNamespaceMatching(@"^(Abox\.Infrastructure|YamlDotNet)(\..+)?$");
 
-        // Act and assert
-        rule.Check(Architecture);
+        // Act
+        var check = () => rule.Check(Architecture);
+
+        // Assert
+        check.Should().NotThrow();
     }
 
     [Fact]
@@ -127,8 +133,11 @@ public sealed class ArchitectureTests
             .Should()
             .ResideInNamespace("Abox.Cli");
 
-        // Act and assert
-        rule.Check(Architecture);
+        // Act
+        var check = () => rule.Check(Architecture);
+
+        // Assert
+        check.Should().NotThrow();
     }
 
     [Fact]
@@ -143,8 +152,11 @@ public sealed class ArchitectureTests
             .Should()
             .NotDependOnAny(typeof(IProcessRunner));
 
-        // Act and assert
-        rule.Check(Architecture);
+        // Act
+        var check = () => rule.Check(Architecture);
+
+        // Assert
+        check.Should().NotThrow();
     }
 
     [Fact]
@@ -158,8 +170,11 @@ public sealed class ArchitectureTests
             .Should()
             .HaveFullNameMatching($@"^Abox\.Infrastructure\.({helpers})(\+.*)?$");
 
-        // Act and assert
-        rule.Check(Architecture);
+        // Act
+        var check = () => rule.Check(Architecture);
+
+        // Assert
+        check.Should().NotThrow();
     }
 
     private static string InSlice(string slice) => $@"^Abox\.Features\.{slice}(\..+)?$";
