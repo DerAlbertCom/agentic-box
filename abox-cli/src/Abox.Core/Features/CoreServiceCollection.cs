@@ -55,6 +55,7 @@ public static class CoreServiceCollection
     {
         services.AddSingleton(console);
         services.AddSingleton(trailing);
+        services.AddSingleton<Verbosity>();
         services.AddSingleton(AboxPaths.Create());
         // Commands describe their syntax eagerly, but resolve configuration-dependent work only in actions.
         services.AddSingleton(typeof(Lazy<>), typeof(LazyService<>));

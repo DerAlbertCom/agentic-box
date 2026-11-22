@@ -1,5 +1,6 @@
 using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.KitBuildScripts;
@@ -64,4 +65,7 @@ public static class InfrastructureServiceCollection
         services.AddSingleton<ILauncher, HerdrAppLauncher>();
         return services;
     }
+
+    /// <summary>The console of the real terminal, for the entry point.</summary>
+    public static IConsole CreateSystemConsole() => new SystemConsole();
 }

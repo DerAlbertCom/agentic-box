@@ -1,3 +1,4 @@
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
@@ -22,7 +23,7 @@ public sealed class SbxUserSecretsPolicyProcessTests
         // Arrange
         using var root = new TempDirectory();
         var console = new TestConsole();
-        var output = new ProcessOutput(console) { Verbose = verbose };
+        var output = new ProcessOutput(console, new Verbosity { Verbose = verbose });
         var runner = new EchoPolicyRunner(new ProcessRunner(output), outcome);
         var client = new SbxUserSecrets(new SbxInvoker(runner));
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));

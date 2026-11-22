@@ -8,7 +8,7 @@ namespace Abox.Features.Shared.Https;
 /// refresh and the launch-readiness check. The only production caller of the sandbox
 /// certificate operations.
 /// </summary>
-public sealed class SandboxHttps(
+internal sealed class SandboxHttps(
     IHostDevelopmentCertificate exporter,
     ISandboxDevelopmentCertificates certificates,
     ISandboxExec exec,

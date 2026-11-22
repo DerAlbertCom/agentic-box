@@ -3,7 +3,7 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
-var console = new SystemConsole();
+var console = InfrastructureServiceCollection.CreateSystemConsole();
 
 return await CommandHandling.RunAsync(
     async () =>

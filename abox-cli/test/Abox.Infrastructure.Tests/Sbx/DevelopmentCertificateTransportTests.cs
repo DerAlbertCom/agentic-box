@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
 using Abox.Infrastructure;
@@ -17,7 +18,9 @@ public sealed class DevelopmentCertificateTransportTests
         // Arrange
         using var root = new CertificateTestDirectory();
         var console = new TestConsole();
-        var processes = new ProcessRunner(new ProcessOutput(console) { Verbose = true });
+        var processes = new ProcessRunner(
+            new ProcessOutput(console, new Verbosity { Verbose = true })
+        );
         var runner = Substitute.For<IProcessRunner>();
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())

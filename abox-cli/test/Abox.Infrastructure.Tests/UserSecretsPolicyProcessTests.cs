@@ -1,3 +1,4 @@
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Infrastructure;
 
@@ -12,7 +13,7 @@ public sealed class UserSecretsPolicyProcessTests
     {
         // Arrange
         var console = new TestConsole();
-        var output = new ProcessOutput(console) { Verbose = verbose };
+        var output = new ProcessOutput(console, new Verbosity { Verbose = verbose });
         var request = new ProcessRequest(
             OperatingSystem.IsWindows() ? "powershell" : "sh",
             OperatingSystem.IsWindows()

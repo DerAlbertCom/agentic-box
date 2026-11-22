@@ -1,3 +1,4 @@
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 
 namespace Abox.Infrastructure;
@@ -5,13 +6,15 @@ namespace Abox.Infrastructure;
 /// <summary>
 /// Opt-in process diagnostics. Captured results stay untouched for their consumers.
 /// </summary>
-public sealed class ProcessOutput(IConsole console)
+internal sealed class ProcessOutput(IConsole console, Verbosity verbosity)
 {
-    public bool Verbose { get; set; }
-
     internal void Write(ProcessRequest request, ProcessResult result)
     {
-        if (!Verbose || request.AttachConsole || request.OutputPolicy != ProcessOutputPolicy.Normal)
+        if (
+            !verbosity.Verbose
+            || request.AttachConsole
+            || request.OutputPolicy != ProcessOutputPolicy.Normal
+        )
         {
             return;
         }

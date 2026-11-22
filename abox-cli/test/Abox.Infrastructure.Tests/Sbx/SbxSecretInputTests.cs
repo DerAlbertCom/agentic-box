@@ -1,4 +1,5 @@
 using System.Text;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -45,7 +46,9 @@ public sealed class SbxSecretInputTests
             0x79,
         ];
         var console = new TestConsole();
-        var processRunner = new ProcessRunner(new ProcessOutput(console) { Verbose = true });
+        var processRunner = new ProcessRunner(
+            new ProcessOutput(console, new Verbosity { Verbose = true })
+        );
         var runner = Substitute.For<IProcessRunner>();
         ProcessRequest? emitted = null;
         runner

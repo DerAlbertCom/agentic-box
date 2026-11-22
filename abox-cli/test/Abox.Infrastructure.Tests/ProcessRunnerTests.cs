@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Infrastructure;
 
@@ -13,7 +14,9 @@ public sealed class ProcessRunnerTests
         // Arrange
         using var root = new TempDirectory();
         var console = new TestConsole();
-        var runner = new ProcessRunner(new ProcessOutput(console) { Verbose = true });
+        var runner = new ProcessRunner(
+            new ProcessOutput(console, new Verbosity { Verbose = true })
+        );
         var request = new ProcessRequest(
             OperatingSystem.IsWindows() ? "cmd" : "sh",
             OperatingSystem.IsWindows()
@@ -39,7 +42,9 @@ public sealed class ProcessRunnerTests
         // Arrange
         using var root = new TempDirectory();
         var console = new TestConsole();
-        var runner = new ProcessRunner(new ProcessOutput(console) { Verbose = true });
+        var runner = new ProcessRunner(
+            new ProcessOutput(console, new Verbosity { Verbose = true })
+        );
         var request = new ProcessRequest(
             Path.Combine(root.Path, "synthetic-private-missing-executable"),
             ["123456789 true"],
@@ -74,7 +79,7 @@ public sealed class ProcessRunnerTests
         using var root = new TempDirectory();
         const string input = "{\"Password\":\"Grüße 🔒\",\"Number\":123456789,\"Flag\":true}";
         var console = new TestConsole();
-        var output = new ProcessOutput(console) { Verbose = verbose };
+        var output = new ProcessOutput(console, new Verbosity { Verbose = verbose });
         var request = new ProcessRequest(
             OperatingSystem.IsWindows() ? "powershell" : "sh",
             OperatingSystem.IsWindows()
@@ -229,7 +234,7 @@ public sealed class ProcessRunnerTests
             WorkingDirectory: root.Path
         );
         var console = new TestConsole();
-        var output = new ProcessOutput(console) { Verbose = verbose };
+        var output = new ProcessOutput(console, new Verbosity { Verbose = verbose });
 
         // Act
         var result = await new ProcessRunner(output).RunAsync(request, CancellationToken.None);

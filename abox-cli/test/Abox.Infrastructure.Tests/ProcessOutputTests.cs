@@ -1,3 +1,4 @@
+using Abox.Features.Shared.CommandLine;
 using Abox.Infrastructure;
 
 namespace Abox.Tests;
@@ -9,7 +10,7 @@ public sealed class ProcessOutputTests
     {
         // Arrange
         var console = new TestConsole();
-        var output = new ProcessOutput(console) { Verbose = true };
+        var output = new ProcessOutput(console, new Verbosity { Verbose = true });
         var request = new ProcessRequest(
             "sbx",
             ["secret", "set", "private-service", "--token", "private-argument"],
@@ -34,7 +35,7 @@ public sealed class ProcessOutputTests
     {
         // Arrange
         var console = new TestConsole();
-        var output = new ProcessOutput(console) { Verbose = true };
+        var output = new ProcessOutput(console, new Verbosity { Verbose = true });
         var request = new ProcessRequest(
             "sbx",
             ["--password", "argument-password", "--api-key=argument-api-key"],
@@ -67,7 +68,7 @@ public sealed class ProcessOutputTests
             var console = new TestConsole();
 
             // Act
-            new ProcessOutput(console) { Verbose = true }.Write(
+            new ProcessOutput(console, new Verbosity { Verbose = true }).Write(
                 new ProcessRequest("docker", []),
                 new ProcessResult(0, "inherited-token-value", "")
             );
@@ -91,7 +92,7 @@ public sealed class ProcessOutputTests
         var url = $"https://someone:{password}@example.test/mcp?token={token}";
 
         // Act
-        new ProcessOutput(console) { Verbose = true }.Write(
+        new ProcessOutput(console, new Verbosity { Verbose = true }).Write(
             new ProcessRequest("sbx", ["mcp", "add", "private", "--url", url]),
             new ProcessResult(
                 1,
@@ -120,7 +121,7 @@ public sealed class ProcessOutputTests
         var result = new ProcessResult(0, text, text);
 
         // Act
-        new ProcessOutput(console) { Verbose = true }.Write(request, result);
+        new ProcessOutput(console, new Verbosity { Verbose = true }).Write(request, result);
 
         // Assert
         console.Errors.Should().Contain("before [REDACTED] [REDACTED] after");
@@ -148,7 +149,7 @@ public sealed class ProcessOutputTests
         var result = new ProcessResult(0, text, text);
 
         // Act
-        new ProcessOutput(console) { Verbose = true }.Write(request, result);
+        new ProcessOutput(console, new Verbosity { Verbose = true }).Write(request, result);
 
         // Assert
         console
@@ -166,7 +167,7 @@ public sealed class ProcessOutputTests
         var console = new TestConsole();
 
         // Act
-        new ProcessOutput(console) { Verbose = true }.Write(
+        new ProcessOutput(console, new Verbosity { Verbose = true }).Write(
             new ProcessRequest("tool", [], StandardInput: "Bearer "),
             new ProcessResult(0, "complete output", "")
         );
@@ -182,7 +183,7 @@ public sealed class ProcessOutputTests
         var console = new TestConsole();
 
         // Act
-        new ProcessOutput(console) { Verbose = true }.Write(
+        new ProcessOutput(console, new Verbosity { Verbose = true }).Write(
             new ProcessRequest("sbx", ["exec"], AttachConsole: true),
             new ProcessResult(0, "already visible", "already visible")
         );

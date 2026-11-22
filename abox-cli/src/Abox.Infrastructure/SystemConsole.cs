@@ -6,7 +6,7 @@ namespace Abox.Infrastructure;
 /// <summary>
 /// <see cref="IConsole"/> on top of <see cref="System.Console"/>.
 /// </summary>
-public sealed class SystemConsole : IConsole
+internal sealed class SystemConsole : IConsole
 {
     public bool IsInteractive => !Console.IsInputRedirected;
 

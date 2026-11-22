@@ -187,7 +187,8 @@ public sealed class AboxRootCommandTests
     {
         // Arrange
         var console = new TestConsole();
-        var output = new ProcessOutput(console);
+        var verbosity = new Verbosity();
+        var output = new ProcessOutput(console, verbosity);
         var build = new Command("build");
         build.Options.Add(new Option<string>("--team"));
         build.SetAction(_ => ShowOutput());
@@ -195,7 +196,7 @@ public sealed class AboxRootCommandTests
         var list = new Command("list");
         list.SetAction(_ => ShowOutput());
         secrets.Subcommands.Add(list);
-        var root = new AboxRootCommand([build, secrets], output);
+        var root = new AboxRootCommand([build, secrets], verbosity);
 
         // Act
         var exitCode = await root.InvokeAsync(args);
@@ -219,29 +220,29 @@ public sealed class AboxRootCommandTests
     public async Task VerboseIsOptInForEachInvocation()
     {
         // Arrange
-        var output = new ProcessOutput(new TestConsole());
+        var verbosity = new Verbosity();
         var build = new Command("build");
         build.SetAction(_ => 0);
-        var root = new AboxRootCommand([build], output);
+        var root = new AboxRootCommand([build], verbosity);
 
         // Act
         await root.InvokeAsync(["build", "--verbose"]);
         // Assert
-        output.Verbose.Should().BeTrue();
+        verbosity.Verbose.Should().BeTrue();
         // Act
         await root.InvokeAsync(["build"]);
         // Assert
-        output.Verbose.Should().BeFalse();
+        verbosity.Verbose.Should().BeFalse();
     }
 
     [Fact]
     public async Task VerboseAfterTheSeparatorBelongsToTheChildNotAbox()
     {
         // Arrange
-        var output = new ProcessOutput(new TestConsole());
+        var verbosity = new Verbosity();
         var run = new Command("run");
         run.SetAction(_ => 0);
-        var root = new AboxRootCommand([run], output);
+        var root = new AboxRootCommand([run], verbosity);
         var (arguments, trailing) = CommandLine.Split(["run", "--", "--verbose"]);
 
         // Act
@@ -249,7 +250,7 @@ public sealed class AboxRootCommandTests
 
         // Assert
         exitCode.Should().Be(0);
-        output.Verbose.Should().BeFalse();
+        verbosity.Verbose.Should().BeFalse();
         trailing.Should().Equal("--verbose");
     }
 }
