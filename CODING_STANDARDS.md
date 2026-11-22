@@ -103,7 +103,8 @@ workspace, `sbox-cli/`, with one lockfile (`sbox-cli/bun.lock`).
   picks up every `sbox-*` folder.
 - Commands depend on the core only through the command API in `sbox-cli/sbox/src/api.ts`,
   with type-only imports (`import type { Command } from "sbox"`), so nothing of
-  the core is bundled into a command. Keep that API small; change it only in
+  the core is bundled into a command. The core's second export, `sbox/testing`, is for
+  tests only (see below). Keep that API small; change it only in
   backward-compatible ways, because installed commands and the core evolve apart.
 - A command's module default-exports its `Command` and checks it with
   `satisfies Command`. It writes through `ctx.stdout`/`ctx.stderr` and reads
@@ -112,10 +113,15 @@ workspace, `sbox-cli/`, with one lockfile (`sbox-cli/bun.lock`).
   needs one.
 - Every package is bundled with `bun build --target=bun` into one file by its kit's
   build step, so the sandbox never runs `bun install` and nothing built is committed.
-- Test through the entry point (`sbox(argv, io)`) with `bun test`, against a
-  temporary home with its own commands folder, and assert on output, exit codes and
-  files. Keep tests in a `test` folder next to `src`, mirroring it, with the same
-  `// Arrange`, `// Act` and `// Assert` comments.
+- A command's package declares the data folders installed next to its module once, in
+  its `package.json` under `"sbox": { "data": [...] }`. The command home and the kit's
+  build step (through `sbox-cli/data-folders`) both read it; neither lists the folders.
+- Test through the entry point (`sbox(argv, io)`) with `bun test` and the command
+  home, `useCommandHome()` from the core's testing entry (`sbox/testing`), and assert
+  on output, exit codes and files. Do not write another temporary home, output capture
+  or install. Import `sbox/testing` in tests only, never in a command's source, so
+  nothing of the core is bundled into a command. Keep tests in a `test` folder next to
+  `src`, mirroring it, with the same `// Arrange`, `// Act` and `// Assert` comments.
 - `tsc` checks the types in strict mode: `bun run typecheck`. Run it and `bun test`
   from `sbox-cli/`; CI runs both.
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { useThemeHome } from "./theme-home";
+import { themesPackage, useThemeHome } from "./theme-home";
 
 const home = useThemeHome();
 
@@ -22,19 +22,22 @@ function probeApp(extra = "") {
 describe("palettes", () => {
   test("resolve legacy names, color aliases and derived colors like upstream", async () => {
     // Arrange
-    await home.install({
-      ...probeApp(),
-      "themes/legacy/colors.toml": [
-        'bg = "#ffffff"',
-        'fg = "#000000"',
-        'color1 = "#ff0000"',
-        'color3 = "#00ff00"',
-        'color4 = "#0000ff"',
-      ].join("\n"),
+    await home.install("themes", {
+      package: themesPackage,
+      files: {
+        ...probeApp(),
+        "themes/legacy/colors.toml": [
+          'bg = "#ffffff"',
+          'fg = "#000000"',
+          'color1 = "#ff0000"',
+          'color3 = "#00ff00"',
+          'color4 = "#0000ff"',
+        ].join("\n"),
+      },
     });
 
     // Act
-    const result = await home.run(["legacy"]);
+    const result = await home.run(["themes", "legacy"]);
 
     // Assert
     expect(result.stderr).toBe("");
@@ -50,25 +53,28 @@ light
 
   test("keep the colors a palette sets and its mode", async () => {
     // Arrange
-    await home.install({
-      ...probeApp(),
-      "themes/set/colors.toml": [
-        'mode = "dark"',
-        'accent = "#123456"',
-        'background = "#F0F0F0"',
-        'dark_background = "#010101"',
-        'darker_background = "#020202"',
-        'foreground = "#0F0F0F"',
-        'red = "#ff0000"',
-        'blue = "#0000ff"',
-        'orange = "#ff8000"',
-        'brown = "#030303"',
-        'bright_red = "#040404"',
-      ].join("\n"),
+    await home.install("themes", {
+      package: themesPackage,
+      files: {
+        ...probeApp(),
+        "themes/set/colors.toml": [
+          'mode = "dark"',
+          'accent = "#123456"',
+          'background = "#F0F0F0"',
+          'dark_background = "#010101"',
+          'darker_background = "#020202"',
+          'foreground = "#0F0F0F"',
+          'red = "#ff0000"',
+          'blue = "#0000ff"',
+          'orange = "#ff8000"',
+          'brown = "#030303"',
+          'bright_red = "#040404"',
+        ].join("\n"),
+      },
     });
 
     // Act
-    await home.run(["set"]);
+    await home.run(["themes", "set"]);
 
     // Assert
     expect(await home.file("probe.txt")).toBe(`mode=dark

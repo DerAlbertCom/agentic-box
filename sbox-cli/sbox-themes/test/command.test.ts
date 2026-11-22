@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { useThemeHome } from "./theme-home";
+import { themesPackage, useThemeHome } from "./theme-home";
 
 const home = useThemeHome();
 
 describe("sbox themes <name>", () => {
   test("saves the choice and tells that some apps show it only after a restart", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const result = await home.run(["nord"]);
+    const result = await home.run(["themes", "nord"]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -19,11 +19,11 @@ describe("sbox themes <name>", () => {
 
   test("fails for an unknown theme, lists the themes and changes nothing", async () => {
     // Arrange
-    await home.install();
-    await home.save("nord");
+    await home.install("themes", { package: themesPackage });
+    await home.writeState("themes", "current", "nord\n");
 
     // Act
-    const result = await home.run(["tokio-night"]);
+    const result = await home.run(["themes", "tokio-night"]);
 
     // Assert
     expect(result.code).toBe(1);
@@ -39,11 +39,11 @@ describe("sbox themes <name>", () => {
 describe("sbox themes --list", () => {
   test("lists the themes with the current one marked", async () => {
     // Arrange
-    await home.install();
-    await home.save("nord");
+    await home.install("themes", { package: themesPackage });
+    await home.writeState("themes", "current", "nord\n");
 
     // Act
-    const result = await home.run(["--list"]);
+    const result = await home.run(["themes", "--list"]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -56,11 +56,11 @@ describe("sbox themes --list", () => {
 
   test("is what sbox themes does without a name", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const list = await home.run(["--list"]);
-    const bare = await home.run([]);
+    const list = await home.run(["themes", "--list"]);
+    const bare = await home.run(["themes"]);
 
     // Assert
     expect(bare).toEqual(list);
@@ -72,12 +72,12 @@ describe("sbox themes --list", () => {
 describe("sbox themes --current and --apply", () => {
   test("use the saved choice first", async () => {
     // Arrange
-    await home.install();
-    await home.save("nord");
+    await home.install("themes", { package: themesPackage });
+    await home.writeState("themes", "current", "nord\n");
 
     // Act
-    const current = await home.run(["--current"], { SBOX_THEME: "white" });
-    const apply = await home.run(["--apply"], { SBOX_THEME: "white" });
+    const current = await home.run(["themes", "--current"], { env: { SBOX_THEME: "white" } });
+    const apply = await home.run(["themes", "--apply"], { env: { SBOX_THEME: "white" } });
 
     // Assert
     expect(current.stdout).toBe("nord\n");
@@ -88,11 +88,11 @@ describe("sbox themes --current and --apply", () => {
 
   test("use the kit's default SBOX_THEME without a saved choice", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const current = await home.run(["--current"], { SBOX_THEME: "white" });
-    const apply = await home.run(["--apply"], { SBOX_THEME: "white" });
+    const current = await home.run(["themes", "--current"], { env: { SBOX_THEME: "white" } });
+    const apply = await home.run(["themes", "--apply"], { env: { SBOX_THEME: "white" } });
 
     // Assert
     expect(current.stdout).toBe("white\n");
@@ -102,11 +102,11 @@ describe("sbox themes --current and --apply", () => {
 
   test("use tokyo-night without a saved choice or SBOX_THEME", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const current = await home.run(["--current"]);
-    const apply = await home.run(["--apply"]);
+    const current = await home.run(["themes", "--current"]);
+    const apply = await home.run(["themes", "--apply"]);
 
     // Assert
     expect(current.stdout).toBe("tokyo-night\n");
@@ -116,10 +116,10 @@ describe("sbox themes --current and --apply", () => {
 
   test("warn about an SBOX_THEME that is missing and apply tokyo-night", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const apply = await home.run(["--apply"], { SBOX_THEME: "tokio-night" });
+    const apply = await home.run(["themes", "--apply"], { env: { SBOX_THEME: "tokio-night" } });
 
     // Assert
     expect(apply.code).toBe(0);
@@ -131,11 +131,11 @@ describe("sbox themes --current and --apply", () => {
 
   test("warn about a saved theme that is missing, apply the fallback and keep the choice", async () => {
     // Arrange
-    await home.install();
-    await home.save("osaka-teal");
+    await home.install("themes", { package: themesPackage });
+    await home.writeState("themes", "current", "osaka-teal\n");
 
     // Act
-    const apply = await home.run(["--apply"], { SBOX_THEME: "nord" });
+    const apply = await home.run(["themes", "--apply"], { env: { SBOX_THEME: "nord" } });
 
     // Assert
     expect(apply.code).toBe(0);

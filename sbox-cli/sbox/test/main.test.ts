@@ -1,39 +1,27 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
+import { useCommandHome } from "../src/testing";
 
 const entry = join(import.meta.dir, "../src/main.ts");
 
-let home: string;
-
-beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "sbox-main-"));
-});
-
-afterEach(async () => {
-  await rm(home, { recursive: true, force: true });
-});
+const home = useCommandHome();
 
 describe("sbox on a pipe", () => {
   test("stops quietly when the reader closes the pipe early", async () => {
     // Arrange
-    const command = join(home, ".local/share/sbox/commands/many");
-    await mkdir(command, { recursive: true });
-    await writeFile(
-      join(command, "command.js"),
-      `export default {
+    await home.install("many", {
+      module: `export default {
   summary: "Prints many lines",
   run(args, ctx) {
     for (let i = 0; i < 100000; i++) ctx.stdout.write("line " + i + "\\n");
   },
 };
 `,
-    );
+    });
 
     // Act
     const result = Bun.spawnSync(["sh", "-c", `"$BUN" "$ENTRY" many | head -n 1`], {
-      env: { HOME: home, PATH: process.env.PATH, BUN: process.execPath, ENTRY: entry },
+      env: { HOME: home.path, PATH: process.env.PATH, BUN: process.execPath, ENTRY: entry },
     });
 
     // Assert

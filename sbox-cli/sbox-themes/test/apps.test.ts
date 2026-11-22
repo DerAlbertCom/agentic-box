@@ -1,17 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { useThemeHome } from "./theme-home";
+import { themesPackage, useThemeHome } from "./theme-home";
 
 const home = useThemeHome();
 
 describe("sbox themes <name> for OpenCode", () => {
   test("renders the OpenCode theme sbox from the palette and selects it", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const result = await home.run(["tokyo-night"]);
+    const result = await home.run(["themes", "tokyo-night"]);
 
     // Assert
     expect(result.stderr).toBe("");
@@ -30,10 +28,10 @@ describe("sbox themes <name> for OpenCode", () => {
 
   test("selects the light mode for a light theme", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["white"]);
+    await home.run(["themes", "white"]);
 
     // Assert
     expect((await home.json(".config/opencode/cli.json")).theme).toEqual({ name: "sbox", mode: "light" });
@@ -41,15 +39,15 @@ describe("sbox themes <name> for OpenCode", () => {
 
   test("keeps the other settings of OpenCode's cli.json", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
     await home.write(
       ".config/opencode/cli.json",
       JSON.stringify({ keybinds: { leader: "ctrl+x" }, theme: { name: "tokyo-night", mode: "light" } }),
     );
 
     // Act
-    await home.run(["nord"]);
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
+    await home.run(["themes", "nord"]);
 
     // Assert
     expect(await home.json(".config/opencode/cli.json")).toEqual({
@@ -63,10 +61,10 @@ describe("sbox themes <name> for OpenCode", () => {
 describe("sbox themes <name> for Claude Code", () => {
   test("renders the Claude Code theme sbox from the palette and selects it", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const result = await home.run(["tokyo-night"]);
+    const result = await home.run(["themes", "tokyo-night"]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -83,10 +81,10 @@ describe("sbox themes <name> for Claude Code", () => {
 
   test("uses the light base for a light theme", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["white"]);
+    await home.run(["themes", "white"]);
 
     // Assert
     const theme = await home.json(".claude/themes/sbox.json");
@@ -97,14 +95,14 @@ describe("sbox themes <name> for Claude Code", () => {
 
   test("keeps the other settings of Claude Code's settings.json", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
     const settings = { model: "opus", permissions: { allow: ["Bash(ls:*)"] }, theme: "dark" };
     await home.write(".claude/settings.json", JSON.stringify(settings, null, 2) + "\n");
 
     // Act
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
     const first = await home.file(".claude/settings.json");
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
 
     // Assert
     expect(JSON.parse(first)).toEqual({ ...settings, theme: "custom:sbox" });
@@ -116,10 +114,10 @@ describe("sbox themes <name> for Claude Code", () => {
 describe("sbox themes <name> for pi", () => {
   test("renders the pi theme sbox from the palette and selects it", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const result = await home.run(["tokyo-night"]);
+    const result = await home.run(["themes", "tokyo-night"]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -135,10 +133,10 @@ describe("sbox themes <name> for pi", () => {
 
   test("uses light colors for a light theme", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["white"]);
+    await home.run(["themes", "white"]);
 
     // Assert
     const theme = await home.json(".pi/agent/themes/sbox.json");
@@ -148,14 +146,14 @@ describe("sbox themes <name> for pi", () => {
 
   test("keeps the other settings of pi's settings.json", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
     const settings = { defaultProvider: "anthropic", packages: ["npm:pi-skills"], theme: "dark" };
     await home.write(".pi/agent/settings.json", JSON.stringify(settings, null, 2) + "\n");
 
     // Act
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
     const first = await home.file(".pi/agent/settings.json");
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
 
     // Assert
     expect(JSON.parse(first)).toEqual({ ...settings, theme: "sbox" });
@@ -167,11 +165,11 @@ describe("sbox themes <name> for pi", () => {
 describe("sbox themes <name> for the terminal tools", () => {
   test("renders the bat theme sbox and rebuilds bat's cache with it, leaving bat's config to the user", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
     await home.write(".config/bat/config", "--style=plain\n");
 
     // Act
-    const result = await home.run(["nord"]);
+    const result = await home.run(["themes", "nord"]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -187,10 +185,10 @@ describe("sbox themes <name> for the terminal tools", () => {
 
   test("renders delta's theme into its own git config with the bat theme sbox and the palette's diff colors", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
 
     // Assert
     const theme = await home.file(".config/git/sbox.gitconfig");
@@ -206,12 +204,12 @@ describe("sbox themes <name> for the terminal tools", () => {
 
   test("includes delta's theme once in the git config and keeps the user's settings", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
     await home.write(".config/git/config", "[user]\n\tname = Someone\n[delta]\n\tside-by-side = true\n");
 
     // Act
-    await home.run(["nord"]);
-    await home.run(["white"]);
+    await home.run(["themes", "nord"]);
+    await home.run(["themes", "white"]);
 
     // Assert
     expect(await home.file(".config/git/config")).toBe(
@@ -222,10 +220,10 @@ describe("sbox themes <name> for the terminal tools", () => {
 
   test("selects delta's light mode for a light theme", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["white"]);
+    await home.run(["themes", "white"]);
 
     // Assert
     expect(await home.file(".config/git/sbox.gitconfig")).toStartWith(
@@ -235,10 +233,10 @@ describe("sbox themes <name> for the terminal tools", () => {
 
   test("renders fzf's options file with the palette's colors", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
 
     // Assert
     expect(await home.file(".config/fzf/sbox")).toBe(
@@ -253,10 +251,10 @@ describe("sbox themes <name> for the terminal tools", () => {
 
   test("renders lazygit's theme into its own config file with the palette's colors", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
 
     // Assert
     const theme = Bun.YAML.parse(await home.file(".config/lazygit/sbox.yml")) as {
@@ -272,13 +270,13 @@ describe("sbox themes <name> for the terminal tools", () => {
 
   test("leaves lazygit's config.yml to the user and creates an empty one for LG_CONFIG_FILE", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
     const created = await home.file(".config/lazygit/config.yml");
     await home.write(".config/lazygit/config.yml", "gui:\n  showIcons: true\n");
-    await home.run(["white"]);
+    await home.run(["themes", "white"]);
 
     // Assert
     expect(created).toBe("");
@@ -287,10 +285,10 @@ describe("sbox themes <name> for the terminal tools", () => {
 
   test("renders yazi's theme with the palette's colors", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["nord"]);
+    await home.run(["themes", "nord"]);
 
     // Assert
     const theme = Bun.TOML.parse(await home.file(".config/yazi/theme.toml")) as Record<
@@ -322,17 +320,14 @@ function probeApp(extra = "") {
 describe("app templates", () => {
   test("run the app's commands after rendering", async () => {
     // Arrange
-    await home.install({ ...probeApp("run:\n  - fake-bat cache --build\n"), "themes/dusk/colors.toml": dusk });
-    const bin = join(home.path, "bin");
-    await mkdir(bin);
-    await writeFile(
-      join(bin, "fake-bat"),
-      `#!/bin/sh\necho "$PWD $@ $(cat probe.txt | head -1)" > ran.txt\n`,
-      { mode: 0o755 },
-    );
+    await home.install("themes", {
+      package: themesPackage,
+      files: { ...probeApp("run:\n  - fake-bat cache --build\n"), "themes/dusk/colors.toml": dusk },
+    });
+    await home.tool("fake-bat", `#!/bin/sh\necho "$PWD $@ $(cat probe.txt | head -1)" > ran.txt\n`);
 
     // Act
-    const result = await home.run(["dusk"], { PATH: `${bin}:${process.env.PATH}` });
+    const result = await home.run(["themes", "dusk"]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -341,10 +336,13 @@ describe("app templates", () => {
 
   test("report a failing command and fail after rendering", async () => {
     // Arrange
-    await home.install({ ...probeApp("run:\n  - echo broken >&2; exit 3\n"), "themes/dusk/colors.toml": dusk });
+    await home.install("themes", {
+      package: themesPackage,
+      files: { ...probeApp("run:\n  - echo broken >&2; exit 3\n"), "themes/dusk/colors.toml": dusk },
+    });
 
     // Act
-    const result = await home.run(["dusk"]);
+    const result = await home.run(["themes", "dusk"]);
 
     // Assert
     expect(result.code).toBe(1);
@@ -356,10 +354,13 @@ describe("app templates", () => {
 
   test("reject an app template with an unknown key", async () => {
     // Arrange
-    await home.install({ ...probeApp("colours: []\n"), "themes/dusk/colors.toml": dusk });
+    await home.install("themes", {
+      package: themesPackage,
+      files: { ...probeApp("colours: []\n"), "themes/dusk/colors.toml": dusk },
+    });
 
     // Act
-    const result = await home.run(["dusk"]);
+    const result = await home.run(["themes", "dusk"]);
 
     // Assert
     expect(result.code).toBe(1);
@@ -368,10 +369,13 @@ describe("app templates", () => {
 
   test("reject an app template that still names an app to restart", async () => {
     // Arrange
-    await home.install({ ...probeApp("restart: Probe\n"), "themes/dusk/colors.toml": dusk });
+    await home.install("themes", {
+      package: themesPackage,
+      files: { ...probeApp("restart: Probe\n"), "themes/dusk/colors.toml": dusk },
+    });
 
     // Act
-    const result = await home.run(["dusk"]);
+    const result = await home.run(["themes", "dusk"]);
 
     // Assert
     expect(result.code).toBe(1);
@@ -380,10 +384,13 @@ describe("app templates", () => {
 
   test("name the template that uses a color the palette lacks", async () => {
     // Arrange
-    await home.install({ ...probeApp(), "themes/bare/colors.toml": 'background = "#101010"\n' });
+    await home.install("themes", {
+      package: themesPackage,
+      files: { ...probeApp(), "themes/bare/colors.toml": 'background = "#101010"\n' },
+    });
 
     // Act
-    const result = await home.run(["bare"]);
+    const result = await home.run(["themes", "bare"]);
 
     // Assert
     expect(result.code).toBe(1);

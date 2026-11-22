@@ -1,90 +1,37 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { sbox } from "../../sbox/src/sbox";
+import { themesPackage, useThemeHome } from "./theme-home";
 
-class Capture {
-  constructor(readonly isTTY = false) {}
-  text = "";
-  write(chunk: string) {
-    this.text += chunk;
-  }
-}
-
-const packageFolder = join(import.meta.dir, "..");
-
-let home: string;
+const home = useThemeHome();
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "sbox-theme-picker-"));
-  await install();
+  await home.install("themes", { package: themesPackage });
 });
 
-afterEach(async () => {
-  await rm(home, { recursive: true, force: true });
-});
-
-const data = () => join(home, ".local/share/sbox/commands/themes");
-const state = () => join(home, ".local/state/sbox/themes");
-const bin = () => join(home, "bin");
-const fzfLog = () => join(home, "fzf.log");
-
-/** Installs the themes command with the palettes and app templates of this package. */
-async function install() {
-  await mkdir(data(), { recursive: true });
-  await writeFile(
-    join(data(), "command.js"),
-    `export { default } from ${JSON.stringify(join(packageFolder, "src/command.ts"))};\n`,
-  );
-  await cp(join(packageFolder, "themes"), join(data(), "themes"), { recursive: true });
-  await cp(join(packageFolder, "apps"), join(data(), "apps"), { recursive: true });
-}
-
-async function save(theme: string) {
-  await mkdir(state(), { recursive: true });
-  await writeFile(join(state(), "current"), theme + "\n");
-}
+const fzfLog = () => join(home.path, "fzf.log");
 
 /** Puts a fake `fzf` on PATH that logs its arguments and input, then prints `selection` or cancels. */
 async function fakeFzf(selection: string | null) {
-  await mkdir(bin(), { recursive: true });
   const answer = selection === null ? "exit 130" : `echo ${selection}`;
-  const script = `#!/bin/sh
+  await home.tool(
+    "fzf",
+    `#!/bin/sh
 for arg in "$@"; do echo "arg: $arg"; done >> "${fzfLog()}"
 while read -r line; do echo "item: $line"; done >> "${fzfLog()}"
 ${answer}
-`;
-  await writeFile(join(bin(), "fzf"), script);
-  await chmod(join(bin(), "fzf"), 0o755);
+`,
+  );
 }
 
 async function fzfCalls(): Promise<string[] | null> {
-  try {
-    return (await readFile(fzfLog(), "utf8")).trimEnd().split("\n");
-  } catch {
-    return null;
-  }
-}
-
-async function run(args: string[], options: { tty?: boolean; env?: Record<string, string> } = {}) {
-  const stdout = new Capture(options.tty);
-  const stderr = new Capture();
-  const code = await sbox(["themes", ...args], {
-    env: { HOME: home, PATH: `${bin()}:${process.env.PATH ?? ""}`, ...options.env },
-    stdout,
-    stderr,
-    stdin: { isTTY: options.tty },
-  });
-  return { code, stdout: stdout.text, stderr: stderr.text };
+  if (!(await home.exists("fzf.log"))) return null;
+  return (await home.file("fzf.log")).trimEnd().split("\n");
 }
 
 async function savedTheme(): Promise<string | null> {
-  try {
-    return (await readFile(join(state(), "current"), "utf8")).trim();
-  } catch {
-    return null;
-  }
+  const current = ".local/state/sbox/themes/current";
+  if (!(await home.exists(current))) return null;
+  return (await home.file(current)).trim();
 }
 
 const background = (r: number, g: number, b: number) => `\x1b[48;2;${r};${g};${b}m`;
@@ -93,7 +40,7 @@ const foreground = (r: number, g: number, b: number) => `\x1b[38;2;${r};${g};${b
 describe("sbox themes --preview <name>", () => {
   test("prints truecolor swatches of the palette", async () => {
     // Act
-    const result = await run(["--preview", "tokyo-night"]);
+    const result = await home.run(["themes", "--preview", "tokyo-night"]);
 
     // Assert
     expect(result.stderr).toBe("");
@@ -108,7 +55,7 @@ describe("sbox themes --preview <name>", () => {
 
   test("prints a code and diff sample in the theme's colors on its background", async () => {
     // Act
-    const result = await run(["--preview", "tokyo-night"]);
+    const result = await home.run(["themes", "--preview", "tokyo-night"]);
 
     // Assert
     const lines = result.stdout.split("\n");
@@ -124,8 +71,8 @@ describe("sbox themes --preview <name>", () => {
 
   test("uses the colors of a light theme", async () => {
     // Act
-    const tokyo = await run(["--preview", "tokyo-night"]);
-    const white = await run(["--preview", "white"]);
+    const tokyo = await home.run(["themes", "--preview", "tokyo-night"]);
+    const white = await home.run(["themes", "--preview", "white"]);
 
     // Assert
     expect(white.code).toBe(0);
@@ -136,7 +83,7 @@ describe("sbox themes --preview <name>", () => {
 
   test("fails for an unknown theme", async () => {
     // Act
-    const result = await run(["--preview", "no-such-theme"]);
+    const result = await home.run(["themes", "--preview", "no-such-theme"]);
 
     // Assert
     expect(result.code).toBe(1);
@@ -151,7 +98,7 @@ describe("sbox themes in a terminal", () => {
     await fakeFzf("nord");
 
     // Act
-    const result = await run([], { tty: true });
+    const result = await home.run(["themes"], { tty: true });
 
     // Assert
     expect(result.stderr).toBe("");
@@ -167,11 +114,11 @@ describe("sbox themes in a terminal", () => {
 
   test("preselects the current theme", async () => {
     // Arrange
-    await save("nord");
+    await home.writeState("themes", "current", "nord\n");
     await fakeFzf("nord");
 
     // Act
-    await run([], { tty: true });
+    await home.run(["themes"], { tty: true });
 
     // Assert
     const calls = (await fzfCalls())!;
@@ -182,18 +129,18 @@ describe("sbox themes in a terminal", () => {
 
   test("changes nothing when the choice is cancelled", async () => {
     // Arrange
-    await save("nord");
+    await home.writeState("themes", "current", "nord\n");
     await fakeFzf(null);
 
     // Act
-    const result = await run([], { tty: true });
+    const result = await home.run(["themes"], { tty: true });
 
     // Assert
     expect(result.code).toBe(0);
     expect(result.stdout).toBe("");
     expect(await savedTheme()).toBe("nord");
     expect(await fzfCalls()).not.toBeNull();
-    expect(await Bun.file(join(home, ".config/opencode/themes/sbox.json")).exists()).toBe(false);
+    expect(await home.exists(".config/opencode/themes/sbox.json")).toBe(false);
   });
 
   test("recolors the terminal with the chosen theme with SBOX_TERMINAL_THEME=1", async () => {
@@ -201,7 +148,7 @@ describe("sbox themes in a terminal", () => {
     await fakeFzf("nord");
 
     // Act
-    const result = await run([], { tty: true, env: { SBOX_TERMINAL_THEME: "1" } });
+    const result = await home.run(["themes"], { tty: true, env: { SBOX_TERMINAL_THEME: "1" } });
 
     // Assert
     expect(result.code).toBe(0);
@@ -214,9 +161,9 @@ describe("sbox themes in a terminal", () => {
     await fakeFzf("nord");
 
     // Act
-    const unset = await run([], { tty: true });
+    const unset = await home.run(["themes"], { tty: true });
     await fakeFzf(null);
-    const cancelled = await run([], { tty: true, env: { SBOX_TERMINAL_THEME: "1" } });
+    const cancelled = await home.run(["themes"], { tty: true, env: { SBOX_TERMINAL_THEME: "1" } });
 
     // Assert
     expect(unset.stdout).toStartWith("Switched to the theme 'nord'.");
@@ -228,8 +175,8 @@ describe("sbox themes in a terminal", () => {
     await fakeFzf("nord");
 
     // Act
-    const bare = await run([]);
-    const list = await run(["--list"]);
+    const bare = await home.run(["themes"]);
+    const list = await home.run(["themes", "--list"]);
 
     // Assert
     expect(bare).toEqual(list);

@@ -1,48 +1,8 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { sbox } from "../src/sbox";
+import { useCommandHome } from "../src/testing";
 
-class Capture {
-  text = "";
-  constructor(readonly isTTY = false) {}
-  write(chunk: string) {
-    this.text += chunk;
-  }
-}
-
-let home: string;
-
-beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "sbox-test-"));
-});
-
-afterEach(async () => {
-  await rm(home, { recursive: true, force: true });
-});
-
-async function run(argv: string[], options: { env?: Record<string, string>; tty?: boolean } = {}) {
-  const stdout = new Capture(options.tty);
-  const stderr = new Capture(options.tty);
-  const code = await sbox(argv, {
-    env: { HOME: home, ...options.env },
-    stdout,
-    stderr,
-    stdin: { isTTY: options.tty },
-  });
-  return { code, stdout: stdout.text, stderr: stderr.text };
-}
-
-function commandsFolder() {
-  return join(home, ".local/share/sbox/commands");
-}
-
-async function install(name: string, source: string) {
-  const folder = join(commandsFolder(), name);
-  await mkdir(folder, { recursive: true });
-  await writeFile(join(folder, "command.js"), source);
-}
+const home = useCommandHome();
 
 function withSummary(summary: string) {
   return `export default { summary: ${JSON.stringify(summary)}, run() {} };\n`;
@@ -51,9 +11,8 @@ function withSummary(summary: string) {
 describe("sbox <command>", () => {
   test("runs the command's module with the remaining arguments and returns its exit code", async () => {
     // Arrange
-    await install(
-      "hello",
-      `export default {
+    await home.install("hello", {
+      module: `export default {
         summary: "Say hello",
         run(args, ctx) {
           ctx.stdout.write("hello " + JSON.stringify(args) + "\\n");
@@ -61,10 +20,10 @@ describe("sbox <command>", () => {
           return 3;
         },
       };\n`,
-    );
+    });
 
     // Act
-    const result = await run(["hello", "world", "--loud"]);
+    const result = await home.run(["hello", "world", "--loud"]);
 
     // Assert
     expect(result.code).toBe(3);
@@ -74,13 +33,12 @@ describe("sbox <command>", () => {
 
   test("reports an error thrown by the command and fails", async () => {
     // Arrange
-    await install(
-      "hello",
-      `export default { summary: "Fail", run() { throw new Error("no theme named 'x'"); } };\n`,
-    );
+    await home.install("hello", {
+      module: `export default { summary: "Fail", run() { throw new Error("no theme named 'x'"); } };\n`,
+    });
 
     // Act
-    const result = await run(["hello"]);
+    const result = await home.run(["hello"]);
 
     // Assert
     expect(result.code).toBe(1);
@@ -96,17 +54,17 @@ describe("sbox <command>", () => {
 
   test("hands the command its state and data folders and the environment", async () => {
     // Arrange
-    await install("hello", reportContext);
+    await home.install("hello", { module: reportContext });
 
     // Act
-    const result = await run(["hello"], { env: { SBOX_THEME: "nord" } });
+    const result = await home.run(["hello"], { env: { SBOX_THEME: "nord" } });
 
     // Assert
     expect(JSON.parse(result.stdout)).toEqual({
       paths: {
-        home,
-        state: join(home, ".local/state/sbox/hello"),
-        data: join(home, ".local/share/sbox/commands/hello"),
+        home: home.path,
+        state: join(home.path, ".local/state/sbox/hello"),
+        data: join(home.path, ".local/share/sbox/commands/hello"),
       },
       theme: "nord",
       isTTY: false,
@@ -115,10 +73,10 @@ describe("sbox <command>", () => {
 
   test("tells the command when it runs in a terminal", async () => {
     // Arrange
-    await install("hello", reportContext);
+    await home.install("hello", { module: reportContext });
 
     // Act
-    const result = await run(["hello"], { tty: true });
+    const result = await home.run(["hello"], { tty: true });
 
     // Assert
     expect(JSON.parse(result.stdout).isTTY).toBe(true);
@@ -133,10 +91,10 @@ describe("sbox <command>", () => {
 
   test("styles the output in a terminal", async () => {
     // Arrange
-    await install("hello", styled);
+    await home.install("hello", { module: styled });
 
     // Act
-    const result = await run(["hello"], { tty: true });
+    const result = await home.run(["hello"], { tty: true });
 
     // Assert
     expect(result.stdout).toBe("\x1b[32mok\x1b[39m");
@@ -144,11 +102,11 @@ describe("sbox <command>", () => {
 
   test("leaves the output plain when it is not a terminal or NO_COLOR is set", async () => {
     // Arrange
-    await install("hello", styled);
+    await home.install("hello", { module: styled });
 
     // Act
-    const piped = await run(["hello"]);
-    const noColor = await run(["hello"], { tty: true, env: { NO_COLOR: "1" } });
+    const piped = await home.run(["hello"]);
+    const noColor = await home.run(["hello"], { tty: true, env: { NO_COLOR: "1" } });
 
     // Assert
     expect(piped.stdout).toBe("ok");
@@ -159,10 +117,10 @@ describe("sbox <command>", () => {
 describe("sbox <unknown>", () => {
   test("fails and lists the installed commands", async () => {
     // Arrange
-    await install("hello", withSummary("Say hello"));
+    await home.install("hello", { module: withSummary("Say hello") });
 
     // Act
-    const result = await run(["themes", "nord"]);
+    const result = await home.run(["themes", "nord"]);
 
     // Assert
     expect(result.code).toBe(1);
@@ -173,10 +131,10 @@ describe("sbox <unknown>", () => {
 
   test("does not treat a path as a command name", async () => {
     // Arrange
-    await install("hello", withSummary("Say hello"));
+    await home.install("hello", { module: withSummary("Say hello") });
 
     // Act
-    const result = await run(["../commands/hello"]);
+    const result = await home.run(["../commands/hello"]);
 
     // Assert
     expect(result.code).toBe(1);
@@ -187,11 +145,11 @@ describe("sbox <unknown>", () => {
 describe("sbox --help", () => {
   test("lists the installed commands with their summaries, sorted by name", async () => {
     // Arrange
-    await install("themes", withSummary("Switch the color theme"));
-    await install("hello", withSummary("Say hello"));
+    await home.install("themes", { module: withSummary("Switch the color theme") });
+    await home.install("hello", { module: withSummary("Say hello") });
 
     // Act
-    const result = await run(["--help"]);
+    const result = await home.run(["--help"]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -202,10 +160,10 @@ describe("sbox --help", () => {
 
   test("is also shown without arguments", async () => {
     // Arrange
-    await install("hello", withSummary("Say hello"));
+    await home.install("hello", { module: withSummary("Say hello") });
 
     // Act
-    const result = await run([]);
+    const result = await home.run([]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -216,7 +174,7 @@ describe("sbox --help", () => {
     // Arrange
 
     // Act
-    const result = await run(["-h"]);
+    const result = await home.run(["-h"]);
 
     // Assert
     expect(result.code).toBe(0);
@@ -227,7 +185,7 @@ describe("sbox --help", () => {
     // Arrange
 
     // Act
-    const result = await run(["--bogus"]);
+    const result = await home.run(["--bogus"]);
 
     // Assert
     expect(result.code).toBe(2);
@@ -240,7 +198,7 @@ describe("sbox --help", () => {
     // Arrange
 
     // Act
-    const result = await run(["--help"]);
+    const result = await home.run(["--help"]);
 
     // Assert
     expect(result.code).toBe(0);

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { useThemeHome } from "./theme-home";
+import { themesPackage, useThemeHome } from "./theme-home";
 
 const home = useThemeHome();
 
@@ -45,10 +45,10 @@ function runColorScript(): string {
 describe("the terminal color script", () => {
   test("prints the colors of a dark theme", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["tokyo-night"]);
+    await home.run(["themes", "tokyo-night"]);
 
     // Assert
     expect(runColorScript()).toBe(tokyoNight);
@@ -56,10 +56,10 @@ describe("the terminal color script", () => {
 
   test("prints the colors of a light theme", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["white"]);
+    await home.run(["themes", "white"]);
 
     // Assert
     expect(runColorScript()).toBe(white);
@@ -67,15 +67,15 @@ describe("the terminal color script", () => {
 
   test("is rendered by --apply for the saved choice, then SBOX_THEME, then tokyo-night", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    await home.run(["--apply"]);
+    await home.run(["themes", "--apply"]);
     const fallback = runColorScript();
-    await home.run(["--apply"], { SBOX_THEME: "white" });
+    await home.run(["themes", "--apply"], { env: { SBOX_THEME: "white" } });
     const preset = runColorScript();
-    await home.save("tokyo-night");
-    await home.run(["--apply"], { SBOX_THEME: "white" });
+    await home.writeState("themes", "current", "tokyo-night\n");
+    await home.run(["themes", "--apply"], { env: { SBOX_THEME: "white" } });
     const saved = runColorScript();
 
     // Assert
@@ -91,10 +91,10 @@ const switched = (name: string) => `Switched to the theme '${name}'. Some apps s
 describe("sbox themes <name> and the terminal colors", () => {
   test("recolors the terminal with SBOX_TERMINAL_THEME=1", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const result = await home.run(["white"], terminalTheme, { tty: true });
+    const result = await home.run(["themes", "white"], { env: terminalTheme, tty: true });
 
     // Assert
     expect(result.stderr).toBe("");
@@ -104,11 +104,11 @@ describe("sbox themes <name> and the terminal colors", () => {
 
   test("leaves the terminal alone without SBOX_TERMINAL_THEME=1", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const unset = await home.run(["white"], {}, { tty: true });
-    const off = await home.run(["white"], { SBOX_TERMINAL_THEME: "0" }, { tty: true });
+    const unset = await home.run(["themes", "white"], { tty: true });
+    const off = await home.run(["themes", "white"], { env: { SBOX_TERMINAL_THEME: "0" }, tty: true });
 
     // Assert
     expect(unset.stdout).toBe(switched("white"));
@@ -117,10 +117,10 @@ describe("sbox themes <name> and the terminal colors", () => {
 
   test("leaves the output alone when it is not a terminal", async () => {
     // Arrange
-    await home.install();
+    await home.install("themes", { package: themesPackage });
 
     // Act
-    const result = await home.run(["white"], terminalTheme);
+    const result = await home.run(["themes", "white"], { env: terminalTheme });
 
     // Assert
     expect(result.stdout).toBe(switched("white"));
@@ -129,12 +129,15 @@ describe("sbox themes <name> and the terminal colors", () => {
 
   test("switches the theme without colors when the terminal color script is missing", async () => {
     // Arrange
-    await home.install({
-      "themes/white/colors.toml": 'background = "#ffffff"\nforeground = "#000000"\n',
+    await home.install("themes", {
+      package: themesPackage,
+      files: {
+        "themes/white/colors.toml": 'background = "#ffffff"\nforeground = "#000000"\n',
+      },
     });
 
     // Act
-    const result = await home.run(["white"], terminalTheme, { tty: true });
+    const result = await home.run(["themes", "white"], { env: terminalTheme, tty: true });
 
     // Assert
     expect(result.stderr).toBe("");
@@ -146,14 +149,14 @@ describe("sbox themes <name> and the terminal colors", () => {
 describe("sbox themes --apply, --list, --current and --preview", () => {
   test("never recolor the terminal", async () => {
     // Arrange
-    await home.install();
-    await home.save("white");
+    await home.install("themes", { package: themesPackage });
+    await home.writeState("themes", "current", "white\n");
 
     // Act
-    const apply = await home.run(["--apply"], terminalTheme, { tty: true });
-    const list = await home.run(["--list"], terminalTheme, { tty: true });
-    const current = await home.run(["--current"], terminalTheme, { tty: true });
-    const preview = await home.run(["--preview", "white"], terminalTheme, { tty: true });
+    const apply = await home.run(["themes", "--apply"], { env: terminalTheme, tty: true });
+    const list = await home.run(["themes", "--list"], { env: terminalTheme, tty: true });
+    const current = await home.run(["themes", "--current"], { env: terminalTheme, tty: true });
+    const preview = await home.run(["themes", "--preview", "white"], { env: terminalTheme, tty: true });
 
     // Assert
     expect(apply.stdout).toBe("Applied the theme 'white'.\n");
