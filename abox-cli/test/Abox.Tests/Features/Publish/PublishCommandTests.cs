@@ -185,7 +185,7 @@ public sealed class PublishCommandTests
         new(
             new Lazy<AboxConfig>(() => config),
             new Lazy<SquadResolver>(() => new SquadResolver(config)),
-            new PublishService(_store, _programs, new OciRegistry(_runner), _console),
+            new PublishService(_store, new DockerRegistryPublisher(_programs, _runner), _console),
             _console
         );
 

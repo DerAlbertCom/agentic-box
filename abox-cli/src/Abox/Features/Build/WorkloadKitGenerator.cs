@@ -2,7 +2,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure.Docker;
 
 namespace Abox.Features.Build;
 
@@ -165,10 +164,10 @@ public sealed class WorkloadKitGenerator
             {
                 dockerfile
                     .AppendLine(
-                        $"RUN --mount=type=secret,id={OciRegistry.GitHubTokenSecret},required=false \\"
+                        $"RUN --mount=type=secret,id={WorkloadBuildSecrets.GitHubToken},required=false \\"
                     )
                     .AppendLine(
-                        $"    GITHUB_TOKEN=\"$(cat /run/secrets/{OciRegistry.GitHubTokenSecret} 2>/dev/null || true)\" \\"
+                        $"    GITHUB_TOKEN=\"$(cat /run/secrets/{WorkloadBuildSecrets.GitHubToken} 2>/dev/null || true)\" \\"
                     )
                     .AppendLine($"    mise use -g -y {string.Join(' ', versions)}");
             }

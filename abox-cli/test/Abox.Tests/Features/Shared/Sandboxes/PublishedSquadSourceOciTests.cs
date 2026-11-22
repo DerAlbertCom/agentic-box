@@ -201,7 +201,7 @@ public sealed class PublishedSquadSourceOciTests
                 schemaVersion = 2,
                 annotations = new Dictionary<string, string>
                 {
-                    [OciRegistry.DescriptorAnnotation] = JsonSerializer.Serialize(
+                    [DockerCommand.DescriptorAnnotation] = JsonSerializer.Serialize(
                         new
                         {
                             schemaVersion = "3",

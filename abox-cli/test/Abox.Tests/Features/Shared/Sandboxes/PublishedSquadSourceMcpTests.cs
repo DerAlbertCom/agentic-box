@@ -24,7 +24,11 @@ public sealed class PublishedSquadSourceMcpTests
     private JsonObject _metadata => _fixture.Metadata;
 
     private RemoteSquadSource Remote(AboxConfig config, ISbxClient sbx) =>
-        new(config, sbx, new PublishedSquadSource(new OciRegistry(_runner), _programs, _console));
+        new(
+            config,
+            sbx,
+            new PublishedSquadSource(new DockerPublishedImageReader(_programs, _runner), _console)
+        );
 
     [Theory]
     [InlineData(true)]

@@ -240,7 +240,10 @@ internal sealed class PublishedArchiveScenario
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(call => Respond(call.Arg<ProcessRequest>(), archive));
-        _source = new PublishedSquadSource(new OciRegistry(runner), programs, new TestConsole());
+        _source = new PublishedSquadSource(
+            new DockerPublishedImageReader(programs, runner),
+            new TestConsole()
+        );
     }
 
     public Task<PublishedSquad> LoadAsync() =>
@@ -289,7 +292,7 @@ internal sealed class PublishedArchiveScenario
                 schemaVersion = 2,
                 annotations = new Dictionary<string, string>
                 {
-                    [OciRegistry.DescriptorAnnotation] = JsonSerializer.Serialize(
+                    [DockerCommand.DescriptorAnnotation] = JsonSerializer.Serialize(
                         new
                         {
                             schemaVersion = "3",

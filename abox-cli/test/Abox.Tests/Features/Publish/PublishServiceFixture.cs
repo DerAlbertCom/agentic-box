@@ -24,7 +24,7 @@ internal sealed class PublishServiceFixture
     internal PublishServiceFixture()
     {
         Store = new BuildStore(AboxPaths.For(Root.Path, Path.Combine(Root.Path, "state")));
-        Service = new PublishService(Store, Programs, new OciRegistry(Runner), Console);
+        Service = new PublishService(Store, new DockerRegistryPublisher(Programs, Runner), Console);
         Programs.Exists("docker").Returns(true);
         Runner
             .When(runner =>

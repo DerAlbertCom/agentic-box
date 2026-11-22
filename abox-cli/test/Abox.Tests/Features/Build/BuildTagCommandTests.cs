@@ -50,7 +50,7 @@ public sealed class BuildTagCommandTests
             resolver,
             new PersonalConfigurations(paths),
             store,
-            new LocalWorkloadImages(programs, new OciRegistry(runner), console),
+            LocalWorkloadFactory.Images(programs, runner, console),
             sbx,
             console
         );
@@ -127,7 +127,7 @@ public sealed class BuildTagCommandTests
             resolver,
             new PersonalConfigurations(paths),
             new BuildStore(paths),
-            new LocalWorkloadImages(programs, new OciRegistry(runner), console),
+            LocalWorkloadFactory.Images(programs, runner, console),
             sbx,
             console
         );

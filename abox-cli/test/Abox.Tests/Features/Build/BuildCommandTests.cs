@@ -40,7 +40,7 @@ public sealed class BuildCommandTests
             resolver,
             new PersonalConfigurations(paths),
             store,
-            new LocalWorkloadImages(programs, new OciRegistry(runner), console),
+            LocalWorkloadFactory.Images(programs, runner, console),
             sbx,
             console
         );
