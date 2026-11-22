@@ -12,6 +12,23 @@ namespace Abox.Tests;
 
 public sealed class PortsCommandTests
 {
+    [Fact]
+    public async Task TheLocationOptionHasTheSharedHelpText()
+    {
+        // Arrange
+        using var fixture = new PortsCommandFixture();
+
+        // Act
+        var help = await fixture.Help();
+
+        // Assert
+        string.Join(' ', help.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            .Should()
+            .Contain(
+                "--location <location> The folder of the sandbox. Defaults to defaultLocation in the user configuration, then the current folder."
+            );
+    }
+
     [Theory]
     [InlineData("0", 8203)]
     [InlineData("10000", 18203)]

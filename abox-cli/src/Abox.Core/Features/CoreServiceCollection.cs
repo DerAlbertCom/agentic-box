@@ -65,6 +65,12 @@ public static class CoreServiceCollection
                 provider.GetRequiredService<IYamlParser>()
             )
         );
+        services.AddScoped<CommandRunner>();
+        // The user configuration is loaded only when an action first asks for a default.
+        services.AddScoped(provider => new InvocationDefaults(
+            new Lazy<AboxConfig>(provider.GetRequiredService<AboxConfig>),
+            provider.GetRequiredService<IYamlParser>()
+        ));
         services.AddSingleton<UserSecretsCopy>();
         services.AddSingleton<AppPorts>();
         services.AddSingleton<SandboxHttps>();

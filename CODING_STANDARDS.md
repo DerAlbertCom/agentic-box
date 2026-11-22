@@ -68,7 +68,8 @@ directory layout.
   interfaces and their models, `AboxException`, `IConsole`, the YAML parser and node
   tree, the command types the root command collects, the command-line types the host
   and the process runner use (`CommandLine`, `CommandHandling`, `TrailingArguments`,
-  `Verbosity`), the two registration methods and `CreateSystemConsole`, which gives the
+  `Verbosity`), the command runner and the command base shape (`CommandRunner`,
+  `AboxCommand<TParameters>`), the two registration methods and `CreateSystemConsole`, which gives the
   entry point its console. Adapters, `SystemConsole`, `ProcessOutput` and everything
   else stay `internal`. Grant `InternalsVisibleTo` only to test code: the test
   projects, the two TestUtilities projects (their helpers build internal services)

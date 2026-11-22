@@ -1213,7 +1213,8 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
       Secrets/        abox secrets: the command and the service that does its work
         SandboxSquadMetadata.cs  staged descriptors and squad.json Secrets of a sandbox
       UserSecrets/    abox user-secrets: on-demand command only
-      Ports/          abox ports: on-demand command only
+      Ports/          abox ports: on-demand command only; the command binds
+                      PortsParameters, PortsHandler does the work
       Prune/          abox prune: the command and the service that does its work
       Sandbox/        the commands other programs call: abox exec and abox pipe
         SandboxCommand.cs     shared hidden-command construction and argv validation;
@@ -1223,9 +1224,13 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
         Yaml/             IYamlParser and its YamlNode tree; YamlReader, the strict reader
                           of abox's own files and the merge of abox.yaml with abox.user.yaml
         CommandLine/      the trailing arguments after "--", the --verbose setting
-                          (Verbosity, set by the root command, read by ProcessOutput) and
+                          (Verbosity, set by the root command, read by ProcessOutput),
                           command handling, which turns an abox error into a message and
-                          an exit code
+                          an exit code, and the way a command runs: AboxCommand binds its
+                          parameters, CommandRunner runs the ICommandHandler for them,
+                          InvocationDefaults applies the user configuration defaults
+                          (SandboxLocation, team, teams, tag) and LocationOption is the
+                          shared --location
         Configuration/    the directories and the user configuration
           FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
         UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
