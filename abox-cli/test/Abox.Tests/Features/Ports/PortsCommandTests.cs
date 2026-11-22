@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
@@ -110,8 +111,8 @@ public sealed class PortsCommandTests
         exit.Should().Be(0);
         fixture.Console.AllText.Should().Contain($"| {sandboxPort} | {hostPort}");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(mappings =>
                     mappings[0].HostPort == hostPort
@@ -221,8 +222,8 @@ public sealed class PortsCommandTests
         exit.Should().Be(0);
         fixture.Console.AllText.Should().Contain($"| 8203 | {hostPort}");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(mappings =>
                     mappings.Count == 1 && mappings[0] == new ApplicationPortMapping(8203, hostPort)
@@ -286,8 +287,8 @@ public sealed class PortsCommandTests
         exit.Should().Be(0);
         fixture.Console.AllText.Should().Contain("| 55535 | 65535");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 SandboxName.For(link),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -442,8 +443,8 @@ public sealed class PortsCommandTests
         // Assert
         exit.Should().Be(0);
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 legacy ? legacyName : fixture.Name,
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -470,8 +471,8 @@ public sealed class PortsCommandTests
         // Assert
         exit.Should().Be(0);
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 SandboxName.For(other),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -584,7 +585,7 @@ public sealed class PortsCommandTests
             """{"profiles":{"app":{"applicationUrl":"http://localhost:8203"}}}"""
         );
         fixture
-            .Sbx.EnsureApplicationPortsAsync(
+            .Publisher.PublishAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -788,8 +789,8 @@ public sealed class PortsCommandTests
         fixture.Console.Output.Count(line => line.Contains($"| 8203 | {hostPort}")).Should().Be(3);
         fixture.Console.AllText.Should().Contain("Warning").And.Contain("3 occurrences");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(mappings =>
                     mappings.Count == 1 && mappings[0] == new ApplicationPortMapping(8203, hostPort)

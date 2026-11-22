@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -21,8 +22,8 @@ public sealed class AppPortsLifecycleTests
         // Assert
         exit.Should().Be(0, fixture.Console.AllText);
         await fixture
-            .Sbx.DidNotReceive()
-            .EnsureApplicationPortsAsync(
+            .Publisher.DidNotReceive()
+            .PublishAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -56,7 +57,7 @@ public sealed class AppPortsLifecycleTests
         fixture.Existing();
         fixture.Angular();
         fixture
-            .Sbx.EnsureApplicationPortsAsync(
+            .Publisher.PublishAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -158,7 +159,7 @@ public sealed class AppPortsLifecycleTests
         using var fixture = new AppPortsLifecycleFixture();
         fixture.Angular();
         fixture
-            .Sbx.EnsureApplicationPortsAsync(
+            .Publisher.PublishAsync(
                 fixture.Name,
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -176,8 +177,8 @@ public sealed class AppPortsLifecycleTests
         // Assert
         exit.Should().Be(0, fixture.Console.AllText);
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(ports =>
                     ports.Count == 1 && ports[0] == new ApplicationPortMapping(4200, 14200)

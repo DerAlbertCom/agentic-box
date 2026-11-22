@@ -38,13 +38,6 @@ public interface ISbxClient
 
     Task<IReadOnlyList<SandboxInfo>> ListSandboxesAsync(CancellationToken cancellationToken);
 
-    /// <summary>Starts the sandbox if needed and ensures loopback TCP app mappings without removing others.</summary>
-    Task EnsureApplicationPortsAsync(
-        string sandbox,
-        IReadOnlyList<ApplicationPortMapping> mappings,
-        CancellationToken cancellationToken
-    );
-
     Task<SbxOutcome> CreateAsync(SbxCreateRequest request, CancellationToken cancellationToken);
 
     /// <summary>Adds a validated repository prefix to kit.allowedSources if it is not already covered.</summary>

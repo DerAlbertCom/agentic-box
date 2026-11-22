@@ -1,5 +1,6 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -54,8 +55,8 @@ public sealed class AppPortsLifecycleHttpsTests
         certificate.Exports.Should().Be(1);
         fixture.Console.AllText.Should().Contain("Created sandbox");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(mappings =>
                     mappings.SequenceEqual(new[] { new ApplicationPortMapping(8203, 18203) })
@@ -86,7 +87,7 @@ public sealed class AppPortsLifecycleHttpsTests
                 return Task.CompletedTask;
             });
         fixture
-            .Sbx.EnsureApplicationPortsAsync(
+            .Publisher.PublishAsync(
                 fixture.Name,
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()

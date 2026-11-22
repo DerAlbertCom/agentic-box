@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -17,6 +18,9 @@ public sealed class AppPortsLifecycleTransportTests
         var transport = new Transport(fixture);
         fixture.Services.AddSingleton<ISbxClient>(
             new SbxClient(transport.Runner, AboxPaths.For(fixture.Root.Path, fixture.Root.Path))
+        );
+        fixture.Services.AddSingleton<IApplicationPortPublisher>(
+            new SbxApplicationPorts(new SbxInvoker(transport.Runner, SbxClient.ExecutableName))
         );
 
         // Act

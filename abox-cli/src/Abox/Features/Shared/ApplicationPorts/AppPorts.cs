@@ -3,7 +3,6 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Naming;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Shared.ApplicationPorts;
 
@@ -14,7 +13,11 @@ internal sealed record PreparedAppPorts(
 );
 
 /// <summary>Shared discovery, reporting and runtime publishing for an already selected sandbox.</summary>
-public sealed class AppPorts(ISbxClient sbx, IConsole console, SandboxHttps https)
+public sealed class AppPorts(
+    IApplicationPortPublisher publisher,
+    IConsole console,
+    SandboxHttps https
+)
 {
     public async Task PublishAsync(
         string location,
@@ -74,7 +77,7 @@ public sealed class AppPorts(ISbxClient sbx, IConsole console, SandboxHttps http
             );
         try
         {
-            await sbx.EnsureApplicationPortsAsync(
+            await publisher.PublishAsync(
                 sandbox,
                 occurrences
                     .Select(occurrence => new ApplicationPortMapping(

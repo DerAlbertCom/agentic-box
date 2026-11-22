@@ -1,4 +1,5 @@
 using Abox.Cli;
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
@@ -20,6 +21,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public string Name => SandboxName.For(Location);
     private readonly CliTestApplication application;
     public IServiceCollection Services => application.Services;
+    public IApplicationPortPublisher Publisher => application.Publisher;
     public ServiceProvider Provider => application.Provider;
 
     public UserSecretsCliHarness(

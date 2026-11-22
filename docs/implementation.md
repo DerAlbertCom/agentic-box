@@ -888,7 +888,9 @@ folder configuration is required, and no create/replacement occurs.
 The shared module statically discovers all explicit .NET launch-profile URL ports
 and Angular serve/start-script ports,
 validates the complete plan, prints source occurrences and duplicate warnings, then
-asks `SbxClient.EnsureApplicationPortsAsync` to ensure distinct offset mappings.
+asks `IApplicationPortPublisher.PublishAsync` to ensure distinct offset mappings; its sbx
+adapter `SbxApplicationPorts` owns the relay script, the `sbx ports` inventory and the
+mapping calls.
 Discovery/reporting/application orchestration stays outside the command slice so
 the HTTPS and lifecycle slices can reuse it without importing a command.
 `AppPortDiscovery` composes one ordered `BoundedDiscoveryFiles` walk, bounded ordinary-file
@@ -1210,6 +1212,7 @@ abox-cli/src/Abox/
       UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
                         endpoint override generation and runtime copy flow
       ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
+        IApplicationPortPublisher.cs  publishes ApplicationPortMappings of a sandbox on loopback
       Https/            shared host certificate preparation and sandbox HTTPS activation
       Credentials/      shared kit credential requests and their merge, secret value
                         prompting/storing (used by abox secrets) and the create-time
@@ -1261,7 +1264,8 @@ abox-cli/src/Abox/
       SbxInvoker.cs   shared captured execution, JSON and failure handling
       SbxFailureHeadline.cs  the cause of a failed sbx call, ahead of its full output
       SbxDevelopmentCertificates.cs  protected HTTPS runtime and certificate operations
-      SbxApplicationPorts.cs         application relay and port mapping operations
+      SbxApplicationPorts.cs         IApplicationPortPublisher: relay, sbx ports inventory and mapping
+      ApplicationPortInventory.cs    strict decoding of sbx ports and relay acknowledgments
       SbxUserSecrets.cs              secret transport and network-policy operations
       SbxKitSources.cs               repository-scoped kit-source trust settings
       SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm

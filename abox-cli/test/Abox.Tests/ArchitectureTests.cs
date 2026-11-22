@@ -26,7 +26,6 @@ public sealed class ArchitectureTests
         "Abox.Features.Sandbox.SandboxCommand -> Abox.Infrastructure.Sbx",
         "Abox.Features.Secrets.SandboxSquadMetadata -> Abox.Infrastructure.Sbx",
         "Abox.Features.Secrets.SecretsService -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.ApplicationPorts.AppPorts -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Builds.LocalWorkloadImages -> Abox.Infrastructure.Docker",
         "Abox.Features.Shared.Credentials.SecretSetting -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Credentials.SecretValues -> Abox.Infrastructure.Sbx",

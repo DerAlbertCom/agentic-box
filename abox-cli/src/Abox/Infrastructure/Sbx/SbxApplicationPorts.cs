@@ -1,12 +1,13 @@
 using System.Text.Json;
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Naming;
 using ApplicationBinding = Abox.Infrastructure.Sbx.ApplicationPortInventory.ApplicationBinding;
 
 namespace Abox.Infrastructure.Sbx;
 
-internal sealed class SbxApplicationPorts(SbxInvoker invoker)
+internal sealed class SbxApplicationPorts(SbxInvoker invoker) : IApplicationPortPublisher
 {
-    public async Task EnsureApplicationPortsAsync(
+    public async Task PublishAsync(
         string sandbox,
         IReadOnlyList<ApplicationPortMapping> mappings,
         CancellationToken cancellationToken
@@ -136,7 +137,9 @@ internal sealed class SbxApplicationPorts(SbxInvoker invoker)
     )
     {
         using var source = new StreamReader(
-            typeof(SbxClient).Assembly.GetManifestResourceStream("Abox.ApplicationPortsRelay")!
+            typeof(SbxApplicationPorts).Assembly.GetManifestResourceStream(
+                "Abox.ApplicationPortsRelay"
+            )!
         );
         var result = await invoker.RunOrThrowAsync(
             new ProcessRequest(

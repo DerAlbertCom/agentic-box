@@ -13,7 +13,6 @@ public sealed partial class SbxClient : ISbxClient
     internal const string ExecutableName = "sbx";
     private readonly SbxInvoker _invoker;
     private readonly SbxDevelopmentCertificates _certificates;
-    private readonly SbxApplicationPorts _applicationPorts;
     private readonly SbxUserSecrets _userSecrets;
     private readonly SbxKitSources _kitSources;
 
@@ -21,7 +20,6 @@ public sealed partial class SbxClient : ISbxClient
     {
         _invoker = new SbxInvoker(runner, ExecutableName);
         _certificates = new SbxDevelopmentCertificates(_invoker);
-        _applicationPorts = new SbxApplicationPorts(_invoker);
         _userSecrets = new SbxUserSecrets(_invoker);
         _kitSources = new SbxKitSources(_invoker, paths);
     }
@@ -53,12 +51,6 @@ public sealed partial class SbxClient : ISbxClient
         string sandbox,
         CancellationToken cancellationToken
     ) => _certificates.RefreshDevelopmentCertificateBootstrapAsync(sandbox, cancellationToken);
-
-    public Task EnsureApplicationPortsAsync(
-        string sandbox,
-        IReadOnlyList<ApplicationPortMapping> mappings,
-        CancellationToken cancellationToken
-    ) => _applicationPorts.EnsureApplicationPortsAsync(sandbox, mappings, cancellationToken);
 
     public Task ValidateUserSecretsDestinationAsync(
         string sandbox,
