@@ -254,4 +254,23 @@ public sealed class InvocationDefaultsTests
                 $"'{given ?? configured}' is not a valid registry tag. Use 1-128 ASCII letters, digits, underscores, periods or hyphens, starting with a letter, digit or underscore."
             );
     }
+
+    [Theory]
+    [InlineData("-leading-hyphen", "latest", "-leading-hyphen")]
+    [InlineData(null, "", "")]
+    public void TheTagWithoutValidationFallsBackToTheDefaultTagAndLeavesTheCheckToTheCaller(
+        string? given,
+        string configured,
+        string expected
+    )
+    {
+        // Arrange
+        var defaults = Defaults(new AboxConfig { DefaultTag = configured });
+
+        // Act
+        var tag = defaults.TagWithoutValidation(given);
+
+        // Assert
+        tag.Should().Be(expected);
+    }
 }

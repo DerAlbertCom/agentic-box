@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Abox.Features.Shared.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.Prune;
@@ -12,6 +13,7 @@ internal static class PruneFeature
     {
         services.AddSingleton<PruneService>();
         services.AddSingleton<Command, PruneCommand>();
+        services.AddScoped<ICommandHandler<PruneParameters>, PruneHandler>();
         return services;
     }
 }

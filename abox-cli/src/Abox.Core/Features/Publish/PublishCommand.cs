@@ -1,75 +1,56 @@
 using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
-using Abox.Features.Shared.Common;
-using Abox.Features.Shared.Configuration;
-using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Publish;
 
 /// <summary><c>abox publish</c>: publishes the local kit sets of a team to JFrog.</summary>
-internal sealed class PublishCommand : Command
+internal sealed class PublishCommand : AboxCommand<PublishParameters>
 {
-    public PublishCommand(
-        Lazy<AboxConfig> config,
-        Lazy<SquadResolver> resolver,
-        PublishService publish,
-        IConsole console
-    )
-        : base("publish", "Publish the local kit sets of a team to JFrog.")
+    private readonly Option<string[]> _teams = new("--team")
     {
-        var teams = new Option<string[]>("--team")
-        {
-            Description =
-                "The team to publish. Can be repeated. Defaults to the team of the user configuration.",
-            AllowMultipleArgumentsPerToken = false,
-        };
-        var root = new Option<string>("--root")
-        {
-            Description =
-                "The directory to start searching for team sources. Defaults to the current directory.",
-        };
-        var tag = new Option<string>("--tag")
-        {
-            Description =
-                "The local build and registry tag. Defaults to the tag of the user configuration, latest.",
-        };
-        var builder = new Option<string>("--builder")
-        {
-            Description =
-                "The Buildx builder to use. Defaults to Docker's selected builder (including BUILDX_BUILDER).",
-        };
-        Options.Add(teams);
-        Options.Add(root);
-        Options.Add(tag);
-        Options.Add(builder);
+        Description =
+            "The team to publish. Can be repeated. Defaults to the team of the user configuration.",
+        AllowMultipleArgumentsPerToken = false,
+    };
+    private readonly Option<string> _root = new("--root")
+    {
+        Description =
+            "The directory to start searching for team sources. Defaults to the current directory.",
+    };
+    private readonly Option<string> _tag = new("--tag")
+    {
+        Description =
+            "The local build and registry tag. Defaults to the tag of the user configuration, latest.",
+    };
+    private readonly Option<string> _builder = new("--builder")
+    {
+        Description =
+            "The Buildx builder to use. Defaults to Docker's selected builder (including BUILDX_BUILDER).",
+    };
 
-        SetAction(
-            async (parseResult, cancellationToken) =>
-                await CommandHandling.RunAsync(
-                    async () =>
-                    {
-                        var settings = config.Value;
-                        var wanted = settings.ResolveTeams(parseResult.GetValue(teams));
+    public PublishCommand(CommandRunner runner)
+        : base("publish", "Publish the local kit sets of a team to JFrog.", runner)
+    {
+        Options.Add(_teams);
+        Options.Add(_root);
+        Options.Add(_tag);
+        Options.Add(_builder);
+    }
 
-                        var resolved = wanted
-                            .Select(team =>
-                                resolver.Value.ResolveTeam(
-                                    parseResult.GetValue(root) ?? Directory.GetCurrentDirectory(),
-                                    team
-                                )
-                            )
-                            .ToList();
-                        return await publish.PublishAsync(
-                            new PublishRequest(
-                                resolved,
-                                parseResult.GetValue(tag) ?? settings.DefaultTag,
-                                parseResult.GetValue(builder)
-                            ),
-                            cancellationToken
-                        );
-                    },
-                    console
-                )
+    internal override Task<PublishParameters> BindAsync(
+        ParseResult parseResult,
+        InvocationDefaults defaults,
+        CancellationToken cancellationToken
+    )
+    {
+        var teams = defaults.Teams(parseResult.GetValue(_teams));
+        return Task.FromResult(
+            new PublishParameters(
+                teams,
+                parseResult.GetValue(_root) ?? Directory.GetCurrentDirectory(),
+                defaults.TagWithoutValidation(parseResult.GetValue(_tag)),
+                parseResult.GetValue(_builder)
+            )
         );
     }
 }

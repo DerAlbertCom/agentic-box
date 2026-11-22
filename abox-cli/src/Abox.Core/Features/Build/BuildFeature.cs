@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Abox.Features.Shared.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.Build;
@@ -15,6 +16,7 @@ internal static class BuildFeature
         services.AddSingleton<WorkloadKitGenerator>();
         services.AddSingleton<StateMixinGenerator>();
         services.AddSingleton<Command, BuildCommand>();
+        services.AddScoped<ICommandHandler<BuildParameters>, BuildHandler>();
         return services;
     }
 }
