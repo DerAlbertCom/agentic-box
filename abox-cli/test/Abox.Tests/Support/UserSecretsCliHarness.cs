@@ -2,6 +2,7 @@ using Abox.Cli;
 using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
@@ -28,6 +29,8 @@ internal sealed class UserSecretsCliHarness : IDisposable
     private readonly CliTestApplication application;
     public IServiceCollection Services => application.Services;
     public IApplicationPortPublisher Publisher => application.Publisher;
+    public IHostSecretStore HostSecrets => application.HostSecrets;
+    public ISandboxSquadFileReader SquadFiles => application.SquadFiles;
     public ServiceProvider Provider => application.Provider;
 
     public UserSecretsCliHarness(

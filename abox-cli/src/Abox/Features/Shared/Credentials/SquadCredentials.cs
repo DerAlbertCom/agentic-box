@@ -1,7 +1,6 @@
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Shared.Credentials;
 
@@ -15,8 +14,8 @@ namespace Abox.Features.Shared.Credentials;
 public sealed class SquadCredentials(
     SquadResolver resolver,
     PersonalConfigurations personalConfigurations,
-    ISbxClient sbx,
-    SbxCredentialBindings bindings,
+    IHostSecretStore secrets,
+    ICredentialApprovals approvals,
     SecretValues values,
     IConsole console
 )
@@ -63,7 +62,7 @@ public sealed class SquadCredentials(
                 return;
             }
 
-            var stored = await sbx.ListSecretsAsync(cancellationToken);
+            var stored = await secrets.ListAsync(cancellationToken);
             var missing = requests
                 .Select(request => Check(request, resolved.Secrets, stored))
                 .Concat(custom.Select(secret => CheckCustom(secret, stored)))
@@ -102,7 +101,7 @@ public sealed class SquadCredentials(
             request,
             declaration,
             stored.Holds(declaration ?? new SecretDeclaration(request.Service)),
-            bindings.Covers(request.Service, request.Domains)
+            approvals.Covers(request.Service, request.Domains)
         );
     }
 
@@ -153,7 +152,7 @@ public sealed class SquadCredentials(
                 var domains = string.Join(", ", state.Request.Domains);
                 if (console.Confirm($"Approve sending the credential '{name}' to {domains}?"))
                 {
-                    bindings.Approve(name, state.Request.Domains);
+                    approvals.Approve(name, state.Request.Domains);
                     console.WriteLine($"Approved the credential '{name}' for {domains}.");
                 }
                 else

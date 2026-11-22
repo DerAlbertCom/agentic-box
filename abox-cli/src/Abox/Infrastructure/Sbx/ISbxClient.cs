@@ -1,5 +1,3 @@
-using Abox.Features.Shared.Squads;
-
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>
@@ -38,15 +36,6 @@ public interface ISbxClient
 
     Task<SbxOutcome> RemoveSandboxAsync(string name, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Reads every staged kit descriptor and the bundled squad metadata of a sandbox in one
-    /// exec, starting the sandbox when it is stopped.
-    /// </summary>
-    Task<SandboxSquadFiles> ReadSquadFilesAsync(
-        string sandbox,
-        CancellationToken cancellationToken
-    );
-
     Task<bool> HasProgramAsync(string sandbox, string program, CancellationToken cancellationToken);
 
     /// <summary>Where the runtime put the workspace of the sandbox, when it says.</summary>
@@ -57,25 +46,6 @@ public interface ISbxClient
     Task<SbxOutcome> AddMcpServerAsync(
         string name,
         string url,
-        CancellationToken cancellationToken
-    );
-
-    Task<HostSecrets> ListSecretsAsync(CancellationToken cancellationToken);
-
-    Task<SbxOutcome> SetSecretAsync(
-        string service,
-        string value,
-        CancellationToken cancellationToken
-    );
-
-    Task<SbxOutcome> SetCustomSecretAsync(
-        SecretDeclaration declaration,
-        string? value,
-        CancellationToken cancellationToken
-    );
-
-    Task<SbxOutcome> RemoveSecretAsync(
-        SecretDeclaration declaration,
         CancellationToken cancellationToken
     );
 }

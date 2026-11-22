@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
@@ -13,12 +14,6 @@ public sealed class SandboxCreatorCredentialsTests
     public SandboxCreatorCredentialsTests()
     {
         _fixture.SaveBuild();
-        _fixture
-            .Sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
-            .Returns(new HostSecrets([], []));
-        _fixture
-            .Sbx.SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
         _fixture.Root.File(
             "teams/sample/ac.abox",
             "workload: mti-ca-dotnet\nkits:\n  - github-auth\nsecrets:\n  - service: github\n"
@@ -62,14 +57,18 @@ public sealed class SandboxCreatorCredentialsTests
         exitCode.Should().Be(0);
         Received.InOrder(() =>
         {
-            _fixture.Sbx.SetSecretAsync("github", "the-token", Arg.Any<CancellationToken>());
+            _fixture.HostSecrets.SetAsync("github", "the-token", Arg.Any<CancellationToken>());
             _fixture.Sbx.RemoveSandboxAsync(name, Arg.Any<CancellationToken>());
             _fixture.Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
         });
-        new SbxCredentialBindings(TestServiceGraphs.BindingsFile(_fixture.Paths))
-            .Covers("github", ["api.github.com"])
-            .Should()
-            .BeTrue();
+        _fixture
+            .Approvals.Received(1)
+            .Approve(
+                "github",
+                Arg.Is<IReadOnlyList<string>>(domains =>
+                    domains.SequenceEqual(new[] { "api.github.com" })
+                )
+            );
     }
 
     [Fact]
@@ -87,7 +86,7 @@ public sealed class SandboxCreatorCredentialsTests
 
         // Assert
         await action.Should().ThrowAsync<AboxException>();
-        await _fixture.Sbx.DidNotReceive().ListSecretsAsync(Arg.Any<CancellationToken>());
+        await _fixture.HostSecrets.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -2,8 +2,8 @@ using Abox.Cli;
 using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Credentials;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -18,13 +18,19 @@ internal sealed class CliTestApplication : IDisposable
     {
         Services = new ServiceCollection().AddAbox(console, trailing);
         Services.AddSingleton(paths);
-        Services.AddSingleton(new SbxCredentialBindings(TestServiceGraphs.BindingsFile(paths)));
         Services.AddSingleton(Publisher);
+        Services.AddSingleton(HostSecrets);
+        Services.AddSingleton(SquadFiles);
+        Services.AddSingleton(Approvals);
     }
 
     /// <summary>Substituted so that no CLI test publishes ports through a real runner by accident.</summary>
     internal IApplicationPortPublisher Publisher { get; } =
         Substitute.For<IApplicationPortPublisher>();
+    internal IHostSecretStore HostSecrets { get; } = TestServiceGraphs.HostSecretStore();
+    internal ISandboxSquadFileReader SquadFiles { get; } =
+        Substitute.For<ISandboxSquadFileReader>();
+    internal ICredentialApprovals Approvals { get; } = Substitute.For<ICredentialApprovals>();
 
     internal IServiceCollection Services { get; }
     internal ServiceProvider Provider => provider ??= Services.BuildServiceProvider();

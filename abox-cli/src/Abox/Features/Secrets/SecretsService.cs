@@ -3,7 +3,6 @@ using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Secrets;
 
@@ -24,7 +23,8 @@ public sealed record SecretsRequest(
 /// </summary>
 public sealed class SecretsService(
     FolderSandbox sandboxes,
-    ISbxClient sbx,
+    ISandboxSquadFileReader squadFiles,
+    IHostSecretStore store,
     SecretValues values,
     IConsole console
 )
@@ -33,7 +33,7 @@ public sealed class SecretsService(
     public async Task<int> ListAsync(SecretsRequest request, CancellationToken cancellationToken)
     {
         var metadata = await ReadAsync(request, cancellationToken);
-        var stored = await sbx.ListSecretsAsync(cancellationToken);
+        var stored = await store.ListAsync(cancellationToken);
 
         var names = metadata
             .Requests.Select(service => service.Service)
@@ -84,7 +84,7 @@ public sealed class SecretsService(
             return 1;
         }
 
-        var stored = await sbx.ListSecretsAsync(cancellationToken);
+        var stored = await store.ListAsync(cancellationToken);
         var failed = false;
         var unknown = false;
 
@@ -159,13 +159,13 @@ public sealed class SecretsService(
 
         foreach (var name in wanted)
         {
-            var outcome = await sbx.RemoveSecretAsync(
-                metadata.Declaration(name) ?? new SecretDeclaration(name),
+            var outcome = await store.RemoveAsync(
+                SecretIdentity.Of(metadata.Declaration(name) ?? new SecretDeclaration(name)),
                 cancellationToken
             );
             if (!outcome.Succeeded)
             {
-                console.WriteError($"The secret '{name}' was not removed: {outcome.Output.Trim()}");
+                console.WriteError($"The secret '{name}' was not removed: {outcome.Message}");
                 failed = true;
                 continue;
             }
@@ -203,7 +203,7 @@ public sealed class SecretsService(
                 + "(in the team's sources) or the command the team's README gives:"
         );
         console.WriteError(
-            "  " + SbxCustomSecretArguments.CommandLine(declaration, "<host command>")
+            "  " + store.ManualCustomSecretInstruction(declaration, "<host command>")
         );
         return false;
     }
@@ -227,7 +227,7 @@ public sealed class SecretsService(
             "secrets never creates or replaces one",
             cancellationToken
         );
-        var files = await sbx.ReadSquadFilesAsync(sandbox.Name, cancellationToken);
+        var files = await squadFiles.ReadAsync(sandbox.Name, cancellationToken);
         return SandboxSquadMetadata.Read(sandbox.Name, files);
     }
 

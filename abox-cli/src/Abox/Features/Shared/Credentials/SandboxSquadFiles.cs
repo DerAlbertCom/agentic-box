@@ -1,4 +1,4 @@
-namespace Abox.Infrastructure.Sbx;
+namespace Abox.Features.Shared.Credentials;
 
 /// <summary>
 /// The raw squad metadata of a sandbox: the kit descriptors the kit frontend staged and

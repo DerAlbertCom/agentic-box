@@ -2,28 +2,19 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace Abox.Tests;
 
 public sealed class SquadCredentialsTests
 {
     private readonly TempDirectory _root = new();
-    private readonly ISbxClient _sbx = Substitute.For<ISbxClient>();
+    private readonly IHostSecretStore _secrets = TestServiceGraphs.HostSecretStore();
+    private readonly ICredentialApprovals _approvals = Substitute.For<ICredentialApprovals>();
 
     public SquadCredentialsTests()
     {
-        _sbx.ListSecretsAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets([], []));
-        _sbx.SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
-        _sbx.SetCustomSecretAsync(
-                Arg.Any<SecretDeclaration>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(new SbxOutcome(0, string.Empty));
-
         _root.File(
             "teams/sample/mti-ca-dotnet.workload",
             "template: docker.io/sbx/shell-docker-image\n"
@@ -48,8 +39,6 @@ public sealed class SquadCredentialsTests
         WriteSquad(declared: true);
     }
 
-    private string BindingsFile => Path.Combine(_root.Path, "sbx", "credentials.yaml");
-
     private string Location => Path.Combine(_root.Path, "my folder");
 
     [Fact]
@@ -63,7 +52,8 @@ public sealed class SquadCredentialsTests
             .PrepareAsync(null, "sample", "ac", Location, CancellationToken.None);
 
         // Assert
-        _sbx.ReceivedCalls().Should().BeEmpty();
+        _secrets.ReceivedCalls().Should().BeEmpty();
+        _approvals.ReceivedCalls().Should().BeEmpty();
         console.AllText.Should().BeEmpty();
     }
 
@@ -73,7 +63,7 @@ public sealed class SquadCredentialsTests
         // Arrange
         var console = new TestConsole();
         StoreValue();
-        new SbxCredentialBindings(BindingsFile).Approve("github", ["api.github.com"]);
+        _approvals.Covers("github", Domains("api.github.com")).Returns(true);
 
         // Act
         await Prepare(console);
@@ -96,7 +86,7 @@ public sealed class SquadCredentialsTests
         console.AllText.Should().Contain("github").And.Contain("github-auth");
         console.AllText.Should().Contain("api.github.com").And.Contain("not set");
         console.Output.Should().Contain("The secret 'github': ");
-        await _sbx.Received(1).SetSecretAsync("github", "the-token", Arg.Any<CancellationToken>());
+        await _secrets.Received(1).SetAsync("github", "the-token", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -109,8 +99,9 @@ public sealed class SquadCredentialsTests
         await Prepare(console);
 
         // Assert
-        await _sbx.DidNotReceive()
-            .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _secrets
+            .DidNotReceive()
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         console.AllText.Should().Contain("not set");
     }
 
@@ -127,7 +118,7 @@ public sealed class SquadCredentialsTests
         console.Output.Should().Contain("Set the secret 'github' now?");
         console.Output.Should().NotContain(line => line.StartsWith("Approve sending"));
         console.Output.Should().Contain("The sandbox starts without the credential 'github'.");
-        File.Exists(BindingsFile).Should().BeFalse();
+        _approvals.DidNotReceiveWithAnyArgs().Approve(default!, default!);
     }
 
     [Fact]
@@ -144,8 +135,9 @@ public sealed class SquadCredentialsTests
         console.Output.Should().Contain(line => line.Contains("rwe-ghec (secrets, required)"));
         console.Output.Should().Contain("Set the secret 'rwe-ghec' now?");
         console.Output.Should().NotContain(line => line.StartsWith("Approve sending"));
-        await _sbx.Received(1)
-            .SetCustomSecretAsync(
+        await _secrets
+            .Received(1)
+            .SetCustomAsync(
                 Arg.Is<SecretDeclaration>(secret =>
                     secret.Command!.Line == "gh auth token -h rwe.ghe.com"
                     && secret.Hosts!.SequenceEqual(new[] { "rwe.ghe.com", "api.rwe.ghe.com" })
@@ -161,12 +153,13 @@ public sealed class SquadCredentialsTests
     {
         // Arrange
         WriteCommandSecretSquad();
-        _sbx.SetCustomSecretAsync(
+        _secrets
+            .SetCustomAsync(
                 Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(new SbxOutcome(1, "command failed: not logged in\n"));
+            .Returns(new HostSecretChange(false, "command failed: not logged in"));
         var console = new TestConsole(answer: true);
 
         // Act
@@ -184,7 +177,8 @@ public sealed class SquadCredentialsTests
     {
         // Arrange
         WriteCommandSecretSquad();
-        _sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
+        _secrets
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(
                 new HostSecrets(
                     [],
@@ -205,7 +199,8 @@ public sealed class SquadCredentialsTests
     {
         // Arrange
         WriteCommandSecretSquad();
-        _sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
+        _secrets
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new HostSecrets([], [new CustomSecret(["rwe.ghe.com"], "RWE_GHE_TOKEN")]));
         var console = new TestConsole(answer: true);
 
@@ -217,8 +212,9 @@ public sealed class SquadCredentialsTests
             .Errors.Should()
             .Contain(error => error.Contains("'rwe-ghec'") && error.Contains("conflicts with"));
         console.Output.Should().Contain("The sandbox starts without the credential 'rwe-ghec'.");
-        await _sbx.DidNotReceive()
-            .SetCustomSecretAsync(
+        await _secrets
+            .DidNotReceive()
+            .SetCustomAsync(
                 Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
@@ -239,25 +235,16 @@ public sealed class SquadCredentialsTests
         // Assert
         console.Output.Should().NotContain(line => line.StartsWith("The secret"));
         console.AllText.Should().Contain("not declared");
-        await _sbx.DidNotReceive()
-            .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _secrets
+            .DidNotReceive()
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task AnApprovalIsAddedToTheBindingsOfSbx()
+    public async Task AnAcceptedApprovalIsRecorded()
     {
         // Arrange
         StoreValue();
-        _root.File(
-            "sbx/credentials.yaml",
-            """
-            bindings:
-                elastic:
-                    apiKey:
-                        domains:
-                            - api.elastic.co
-            """
-        );
         var console = new TestConsole(answer: true);
 
         // Act
@@ -267,9 +254,8 @@ public sealed class SquadCredentialsTests
         console
             .Output.Should()
             .Contain("Approve sending the credential 'github' to api.github.com?");
-        var bindings = new SbxCredentialBindings(BindingsFile);
-        bindings.Covers("github", ["api.github.com"]).Should().BeTrue();
-        bindings.Covers("elastic", ["api.elastic.co"]).Should().BeTrue();
+        _approvals.Received(1).Approve("github", Domains("api.github.com"));
+        console.Output.Should().Contain("Approved the credential 'github' for api.github.com.");
     }
 
     [Fact]
@@ -286,7 +272,7 @@ public sealed class SquadCredentialsTests
         console
             .Output.Should()
             .Contain("Approve sending the credential 'github' to api.github.com?");
-        File.Exists(BindingsFile).Should().BeFalse();
+        _approvals.DidNotReceiveWithAnyArgs().Approve(default!, default!);
     }
 
     [Fact]
@@ -305,9 +291,10 @@ public sealed class SquadCredentialsTests
         warning.Should().Contain("github").And.Contain("not approved");
         warning.Should().Contain($"abox secrets set --location \"{Location}\" --service github");
         warning.Should().Contain("terminal");
-        await _sbx.DidNotReceive()
-            .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        File.Exists(BindingsFile).Should().BeFalse();
+        await _secrets
+            .DidNotReceive()
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        _approvals.DidNotReceiveWithAnyArgs().Approve(default!, default!);
     }
 
     [Fact]
@@ -335,11 +322,13 @@ public sealed class SquadCredentialsTests
     }
 
     [Fact]
-    public async Task ABrokenBindingsFileIsAWarningNotAFailure()
+    public async Task UnreadableApprovalsAreAWarningNotAFailure()
     {
         // Arrange
         StoreValue();
-        _root.File("sbx/credentials.yaml", "bindings: [github]\n");
+        _approvals
+            .Covers(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>())
+            .Throws(new AboxException("Cannot read the credential approvals: synthetic"));
         var console = new TestConsole();
 
         // Act
@@ -347,7 +336,12 @@ public sealed class SquadCredentialsTests
 
         // Assert
         await prepare.Should().NotThrowAsync();
-        console.Errors.Should().Contain(error => error.Contains(BindingsFile));
+        console
+            .Errors.Should()
+            .Contain(error =>
+                error.Contains("were not checked")
+                && error.Contains("Cannot read the credential approvals: synthetic")
+            );
     }
 
     private Task Prepare(TestConsole console) =>
@@ -360,15 +354,17 @@ public sealed class SquadCredentialsTests
             new PersonalConfigurations(
                 AboxPaths.For(Path.Combine(_root.Path, "config"), _root.Path)
             ),
-            _sbx,
-            new SbxCredentialBindings(BindingsFile),
-            new SecretValues(_sbx, console),
+            _secrets,
+            _approvals,
+            new SecretValues(_secrets, console),
             console
         );
 
+    private static IReadOnlyList<string> Domains(params string[] domains) =>
+        Arg.Is<IReadOnlyList<string>>(actual => actual.SequenceEqual(domains));
+
     private void StoreValue() =>
-        _sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
-            .Returns(new HostSecrets(["github"], []));
+        _secrets.ListAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets(["github"], []));
 
     private void WriteCommandSecretSquad() =>
         _root.File(

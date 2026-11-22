@@ -429,7 +429,7 @@ public sealed class BuildServiceTests
         // Act
         var metadata = Abox.Features.Secrets.SandboxSquadMetadata.Read(
             "sample-sandbox",
-            new SandboxSquadFiles([], json)
+            new Abox.Features.Shared.Credentials.SandboxSquadFiles([], json)
         );
 
         // Assert

@@ -67,7 +67,6 @@ internal sealed class SourceProjectFixture : IDisposable
             });
         Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, ""));
-        Sbx.ListSecretsAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets([], []));
         _application = new CliTestApplication(Console, paths, new TrailingArguments());
         var services = _application.Services;
         services.AddSingleton(
