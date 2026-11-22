@@ -20,7 +20,7 @@ public sealed class WorkloadKitGeneratorTests
     {
         // Arrange
         using var embedded = typeof(WorkloadKitGenerator).Assembly.GetManifestResourceStream(
-            "Abox.Assets.rwe_inspection_certificate_chain.pem"
+            "Abox.Features.Build.Assets.rwe_inspection_certificate_chain.pem"
         );
         embedded.Should().NotBeNull("installed tools cannot depend on the repository or host PEM");
         using var source = new MemoryStream();
@@ -47,7 +47,7 @@ public sealed class WorkloadKitGeneratorTests
     {
         // Arrange
         using var embedded = typeof(WorkloadKitGenerator).Assembly.GetManifestResourceStream(
-            "Abox.Assets.rwe_inspection_certificate_chain.pem"
+            "Abox.Features.Build.Assets.rwe_inspection_certificate_chain.pem"
         );
         embedded.Should().NotBeNull();
         using var reader = new StreamReader(embedded!);

@@ -4,9 +4,9 @@ using Abox.Features.Shared.Common;
 namespace Abox.Features.Shared.Naming;
 
 /// <summary>A portable user-secret store directory name, never a path.</summary>
-internal static partial class UserSecretId
+public static partial class UserSecretId
 {
-    internal static void Validate(string id)
+    public static void Validate(string id)
     {
         if (!IsValid(id))
             throw new AboxException(

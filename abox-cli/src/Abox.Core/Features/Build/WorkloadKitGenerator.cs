@@ -293,7 +293,7 @@ public sealed class WorkloadKitGenerator
         // Embed the approved bundle so an installed tool never needs the repository or host trust store.
         using var resource =
             typeof(WorkloadKitGenerator).Assembly.GetManifestResourceStream(
-                "Abox.Assets." + CertificateBundleName
+                "Abox.Features.Build.Assets." + CertificateBundleName
             )
             ?? throw new InvalidOperationException("The bundled RWE CA certificates are missing.");
         var bundlePath = Path.Combine(directory, CertificateBundleName);

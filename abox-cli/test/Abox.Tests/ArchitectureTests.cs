@@ -14,6 +14,44 @@ public sealed class ArchitectureTests
     private const string Infrastructure = "Abox.Infrastructure";
     private const string CompositionRoot = "Abox.Cli";
 
+    private static readonly Assembly[] Assemblies =
+    [
+        typeof(AboxException).Assembly,
+        typeof(InfrastructureServiceCollection).Assembly,
+        typeof(AboxRootCommand).Assembly,
+    ];
+
+    [Fact]
+    public void CoreReferencesNeitherInfrastructureNorYamlDotNet()
+    {
+        // Arrange
+        var core = typeof(AboxException).Assembly;
+
+        // Act
+        var references = core.GetReferencedAssemblies().Select(reference => reference.Name);
+
+        // Assert
+        core.GetName().Name.Should().Be("Abox.Core");
+        references.Should().NotContain(["Abox.Infrastructure", "YamlDotNet", "abox"]);
+    }
+
+    [Fact]
+    public void TheHostHoldsOnlyTheEntryPointAndTheCommandLineRoot()
+    {
+        // Arrange
+        var host = typeof(AboxRootCommand).Assembly;
+
+        // Act
+        var namespaces = host.GetTypes()
+            .Where(type => type.DeclaringType is null && !type.Name.StartsWith('<'))
+            .Where(type => type.Name != "Program")
+            .Select(type => type.Namespace)
+            .Distinct();
+
+        // Assert
+        namespaces.Should().Equal(CompositionRoot);
+    }
+
     [Fact]
     public void SharedFeaturesAndInfrastructureDoNotReferenceACommandSlice()
     {
@@ -107,7 +145,7 @@ public sealed class ArchitectureTests
     public void TheInfrastructureRootHoldsOnlyTheGenericHelpers()
     {
         // Arrange
-        var types = typeof(AboxRootCommand).Assembly.GetTypes();
+        var types = typeof(InfrastructureServiceCollection).Assembly.GetTypes();
 
         // Act
         var root = types
@@ -151,17 +189,16 @@ public sealed class ArchitectureTests
     }
 
     /// <summary>
-    /// Every namespace of the abox assembly that each top-level type uses: in its
+    /// Every namespace of the abox assemblies that each top-level type uses: in its
     /// signatures, its local variables and the instructions of its method bodies,
     /// including the compiler-generated types nested in it.
     /// </summary>
     private static IReadOnlyList<Reference> ProjectReferences()
     {
-        var assembly = typeof(AboxRootCommand).Assembly;
         var references = new HashSet<Reference>();
         foreach (var (owner, used) in TypeUses())
         {
-            foreach (var @namespace in Namespaces(used, assembly))
+            foreach (var @namespace in Namespaces(used))
             {
                 if (@namespace != owner.Namespace)
                 {
@@ -173,10 +210,10 @@ public sealed class ArchitectureTests
         return references.OrderBy(reference => reference.ToString()).ToList();
     }
 
-    /// <summary>Each type a top-level type of the abox assembly uses, as <see cref="ProjectReferences"/> sees it.</summary>
+    /// <summary>Each type a top-level type of the abox assemblies uses, as <see cref="ProjectReferences"/> sees it.</summary>
     private static IEnumerable<(Type Owner, Type Used)> TypeUses()
     {
-        foreach (var type in typeof(AboxRootCommand).Assembly.GetTypes())
+        foreach (var type in Assemblies.SelectMany(assembly => assembly.GetTypes()))
         {
             var owner = type;
             while (owner.DeclaringType is not null)
@@ -196,7 +233,7 @@ public sealed class ArchitectureTests
         }
     }
 
-    private static IEnumerable<string> Namespaces(Type type, Assembly assembly)
+    private static IEnumerable<string> Namespaces(Type type)
     {
         if (type.IsGenericParameter)
         {
@@ -205,7 +242,7 @@ public sealed class ArchitectureTests
 
         if (type.HasElementType)
         {
-            foreach (var @namespace in Namespaces(type.GetElementType()!, assembly))
+            foreach (var @namespace in Namespaces(type.GetElementType()!))
             {
                 yield return @namespace;
             }
@@ -217,14 +254,14 @@ public sealed class ArchitectureTests
         {
             foreach (var argument in type.GetGenericArguments())
             {
-                foreach (var @namespace in Namespaces(argument, assembly))
+                foreach (var @namespace in Namespaces(argument))
                 {
                     yield return @namespace;
                 }
             }
         }
 
-        if (type.Assembly == assembly && type.Namespace is not null)
+        if (Assemblies.Contains(type.Assembly) && type.Namespace is not null)
         {
             yield return type.Namespace;
         }

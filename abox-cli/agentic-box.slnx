@@ -4,5 +4,7 @@
     <File Path="../kits/README.md" />
   </Folder>
   <Project Path="src/Abox/Abox.csproj" />
+  <Project Path="src/Abox.Core/Abox.Core.csproj" />
+  <Project Path="src/Abox.Infrastructure/Abox.Infrastructure.csproj" />
   <Project Path="test/Abox.Tests/Abox.Tests.csproj" />
 </Solution>

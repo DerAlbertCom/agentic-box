@@ -1168,7 +1168,7 @@ so a failed download stops that build step instead of being hidden by a shell
 pipeline and causing `mise: not found` in the next step.
 
 Every generated workload (including one without tools) installs the approved
-`abox-cli/src/Abox/Assets/rwe_inspection_certificate_chain.pem` bundle before any apt,
+`abox-cli/src/Abox.Core/Features/Build/Assets/rwe_inspection_certificate_chain.pem` bundle before any apt,
 mise or script downloads. This is the supplied RWE inspection CA bundle: public
 certificates and CA metadata comments, not private keys. It is embedded in the
 CLI assembly, so global tool installations do not need the repository or

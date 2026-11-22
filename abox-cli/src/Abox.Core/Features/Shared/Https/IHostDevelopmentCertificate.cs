@@ -16,7 +16,7 @@ public sealed class ExportedDevelopmentCertificate : IDisposable
 {
     private readonly byte[] pfx;
 
-    internal ExportedDevelopmentCertificate(byte[] pfx, string password)
+    public ExportedDevelopmentCertificate(byte[] pfx, string password)
     {
         this.pfx = pfx;
         Password = password;
