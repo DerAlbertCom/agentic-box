@@ -35,6 +35,11 @@ Items marked *(proposed)* fill gaps that the decisions so far do not cover. "Ver
 - **State**: host directories that persist when a sandbox is replaced.
 - **Secrets**: service declarations for host-side kit/proxy credentials; distinct from the runtime .NET store-copying command `user-secrets`.
 - **Launcher**: what `abox run` starts: a shell, or a desktop app on the host that works with the sandbox.
+- **Command slice**: the code of one `abox` command and its subcommands, together in `Features/<Command>` of `abox-cli`, including everything only that command uses.
+- **Shared feature**: a use case shared by commands, in `Features/Shared/<UseCase>` of `abox-cli`, named by what it does (such as `Sandboxes` or `Https`), never by the tool it calls. It owns the use-case interfaces for the external tools it needs. See [ADR 0003](adr/0003-external-tools-behind-use-case-interfaces.md).
+- **External tool**: a program abox runs (`sbx` and the scripts it runs in a sandbox, `docker`, `dotnet dev-certs`, `herdr`, `bash`, a kit's `build` script) or a file another tool owns (sbx's `credentials.yaml`, the .NET user-secrets store). abox's own files are not external.
+- **Use-case interface**: a small interface in a shared feature through which features use an external tool, with its own parameter and result models in domain terms; no flags, exit codes, JSON shapes or process results cross it.
+- **Infrastructure adapter**: a class in `Infrastructure/<Tool>` of `abox-cli` that implements one (preferably) or a few use-case interfaces with one external tool. The sbx adapters share one **sbx invoker**, which owns the `sbx` executable, the minimum version check, JSON handling and the failure headline.
 
 ## Roles and commands
 
