@@ -57,6 +57,8 @@ internal static class TestServiceGraphs
         SandboxRecordStore records,
         AboxPaths paths,
         ISbxClient sbx,
+        ISandboxLifecycle lifecycle,
+        IMcpServerRegistry mcp,
         IConsole console,
         LocalSquadSource local,
         RemoteSquadSource remote,
@@ -68,10 +70,11 @@ internal static class TestServiceGraphs
             records,
             paths,
             SandboxFactory.Resolver(
-                sbx,
+                lifecycle,
                 SandboxFactory.Hints(new AboxConfig(), new BuildStore(paths), records)
             ),
-            sbx,
+            lifecycle,
+            mcp,
             console,
             local,
             remote,

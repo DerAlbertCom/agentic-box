@@ -34,7 +34,7 @@ public sealed class LegacySandboxCompatibilityTests
         Exception error = cancelled
             ? new OperationCanceledException()
             : new AboxException("runtime discovery failed");
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException<IReadOnlyList<SandboxInfo>>(error));
 
         // Act
@@ -48,11 +48,11 @@ public sealed class LegacySandboxCompatibilityTests
         // Assert
         exitCode.Should().Be(cancelled ? 130 : 1);
         await cli
-            .Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await cli
             .Exec.DidNotReceive()
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
@@ -66,10 +66,10 @@ public sealed class LegacySandboxCompatibilityTests
         // Arrange
         using var cli = new UserSecretsCliHarness(existingSandbox: false);
         var legacy = LegacyFolderFixture(cli.Location);
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(legacy, "stopped", null) });
-        cli.Sbx.HasProgramAsync(legacy, "hc", Arg.Any<CancellationToken>()).Returns(true);
-        cli.Sbx.GetWorkspaceDirectoryAsync(legacy, Arg.Any<CancellationToken>())
+        cli.Inspection.HasProgramAsync(legacy, "hc", Arg.Any<CancellationToken>()).Returns(true);
+        cli.Inspection.GetWorkspaceDirectoryAsync(legacy, Arg.Any<CancellationToken>())
             .Returns("/legacy/workspace");
         var runner = Substitute.For<IProcessRunner>();
         runner
@@ -89,7 +89,9 @@ public sealed class LegacySandboxCompatibilityTests
 
         // Assert
         exitCode.Should().Be(0);
-        await cli.Sbx.Received(1).HasProgramAsync(legacy, "hc", Arg.Any<CancellationToken>());
+        await cli
+            .Inspection.Received(1)
+            .HasProgramAsync(legacy, "hc", Arg.Any<CancellationToken>());
         await runner
             .Received(1)
             .RunAsync(
@@ -115,7 +117,7 @@ public sealed class LegacySandboxCompatibilityTests
         // Arrange
         using var cli = new UserSecretsCliHarness(existingSandbox: false);
         var legacy = LegacyFolderFixture(cli.Location);
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(legacy, "running", null) });
         cli.Configure("""{"userSecrets":["sample"]}""");
         cli.Store("sample", """{"Password":"synthetic-only"}""");
@@ -174,11 +176,11 @@ public sealed class LegacySandboxCompatibilityTests
         cli.Console.Answer = consent;
         if (consent)
             cli.Store("sample", "{}");
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 // A second candidate appearing after selection must not redirect consent.
-                cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+                cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
                     .Returns(
                         new[]
                         {
@@ -188,10 +190,10 @@ public sealed class LegacySandboxCompatibilityTests
                     );
                 return new[] { new SandboxInfo(name, "running", null) };
             });
-        cli.Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        cli.Sbx.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
+        cli.Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
+        cli.Lifecycle.RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxRemoval(true, ""));
 
         // Act
         var exitCode = await cli.Invoke("run", "--location", cli.Location);
@@ -200,14 +202,12 @@ public sealed class LegacySandboxCompatibilityTests
         exitCode.Should().Be(0, cli.Console.AllText);
         if (consent)
         {
-            await cli.Sbx.Received(1).RemoveSandboxAsync(name, Arg.Any<CancellationToken>());
+            await cli.Lifecycle.Received(1).RemoveAsync(name, Arg.Any<CancellationToken>());
+            await cli.Lifecycle.DidNotReceive().RemoveAsync(cli.Name, Arg.Any<CancellationToken>());
             await cli
-                .Sbx.DidNotReceive()
-                .RemoveSandboxAsync(cli.Name, Arg.Any<CancellationToken>());
-            await cli
-                .Sbx.Received(1)
+                .Lifecycle.Received(1)
                 .CreateAsync(
-                    Arg.Is<SbxCreateRequest>(request => request.Name == name),
+                    Arg.Is<SandboxDefinition>(request => request.Name == name),
                     Arg.Any<CancellationToken>()
                 );
             await cli
@@ -218,11 +218,11 @@ public sealed class LegacySandboxCompatibilityTests
         else
         {
             await cli
-                .Sbx.DidNotReceive()
-                .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+                .Lifecycle.DidNotReceive()
+                .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
             await cli
-                .Sbx.DidNotReceive()
-                .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+                .Lifecycle.DidNotReceive()
+                .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
             await cli.NoWrites();
             records.Load(name)!.BuildCreatedAt.Should().Be(DateTimeOffset.MinValue);
         }
@@ -248,12 +248,12 @@ public sealed class LegacySandboxCompatibilityTests
         using var cli = new UserSecretsCliHarness(existingSandbox: false);
         var name = LegacyFolderFixture(cli.Location);
         cli.Services.AddSingleton(PublishedSquadFactory.Source());
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", null) });
-        cli.Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        cli.Sbx.RemoveSandboxAsync(name, Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
+        cli.Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
+        cli.Lifecycle.RemoveAsync(name, Arg.Any<CancellationToken>())
+            .Returns(new SandboxRemoval(true, ""));
         cli.Console.Answer = consent;
         cli.Configure("""{"userSecrets":["sample"]}""");
         cli.Store("sample", "{}");
@@ -283,11 +283,11 @@ public sealed class LegacySandboxCompatibilityTests
         Directory.Exists(Path.Combine(cli.Root.Path, cli.Name)).Should().BeFalse();
         if (consent || assumeYes)
         {
-            await cli.Sbx.Received(1).RemoveSandboxAsync(name, Arg.Any<CancellationToken>());
+            await cli.Lifecycle.Received(1).RemoveAsync(name, Arg.Any<CancellationToken>());
             await cli
-                .Sbx.Received(1)
+                .Lifecycle.Received(1)
                 .CreateAsync(
-                    Arg.Is<SbxCreateRequest>(request =>
+                    Arg.Is<SandboxDefinition>(request =>
                         request.Name == name
                         && request.Mounts.All(mount =>
                             mount.HostPath.StartsWith(Path.Combine(cli.Root.Path, name))
@@ -303,11 +303,11 @@ public sealed class LegacySandboxCompatibilityTests
         else
         {
             await cli
-                .Sbx.DidNotReceive()
-                .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+                .Lifecycle.DidNotReceive()
+                .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
             await cli
-                .Sbx.DidNotReceive()
-                .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+                .Lifecycle.DidNotReceive()
+                .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
             records.Load(name).Should().BeNull();
             await cli.NoWrites();
         }
@@ -327,7 +327,7 @@ public sealed class LegacySandboxCompatibilityTests
         // Arrange
         using var cli = new UserSecretsCliHarness(existingSandbox: false);
         var name = LegacyFolderFixture(cli.Location);
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "stopped", null) });
         cli.Configure(
             hasSquad
@@ -376,11 +376,11 @@ public sealed class LegacySandboxCompatibilityTests
         records.Load(cli.Name).Should().BeNull();
         (records.Load(name)?.Squad).Should().Be(recordedSquad);
         await cli
-            .Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     // Test-data oracle for a temporary ordinary directory named 'folder'. The literal
@@ -400,9 +400,9 @@ public sealed class LegacySandboxCompatibilityTests
         using var cli = new UserSecretsCliHarness(existingSandbox: false);
         var location = LegacySandboxFixture.Location;
         var name = LegacySandboxFixture.Name;
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, status, null) });
-        cli.Sbx.GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>())
+        cli.Inspection.GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>())
             .Returns("/legacy/workspace");
 
         // Act
@@ -410,7 +410,9 @@ public sealed class LegacySandboxCompatibilityTests
 
         // Assert
         exitCode.Should().Be(0);
-        await cli.Sbx.Received(1).GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>());
+        await cli
+            .Inspection.Received(1)
+            .GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>());
         await cli
             .Exec.Received(1)
             .RunAsync(
@@ -420,11 +422,11 @@ public sealed class LegacySandboxCompatibilityTests
                 Arg.Any<CancellationToken>()
             );
         await cli
-            .Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         Directory.Exists(Path.Combine(cli.Root.Path, "sandboxes")).Should().BeFalse();
     }
 }

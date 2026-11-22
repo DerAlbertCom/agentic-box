@@ -30,7 +30,7 @@ public sealed class LegacySandboxPruneTests
         foreach (var name in names)
             await cleanup.Received(1).StopSandboxAsync(name, Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -27,7 +28,7 @@ public sealed class UserSecretsSafetyCommandTests
                 .Returns(ReadyPreflight.OldVersion);
         if (result == "lookup")
             fixture
-                .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+                .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
                 .Returns(Array.Empty<SandboxInfo>());
         if (result == "destination")
             fixture
@@ -149,6 +150,7 @@ public sealed class UserSecretsSafetyCommandTests
         public IPreflightChecks Preflight => cli.Preflight;
         public ISbxClient Sbx => cli.Sbx;
         public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
+        public ISandboxLifecycle Lifecycle => cli.Lifecycle;
         public string SourcePath =>
             Path.Combine(Root.Path, "appdata/Microsoft/UserSecrets/sample/secrets.json");
 

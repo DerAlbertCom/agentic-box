@@ -277,7 +277,7 @@ public sealed class PortsCommandTests
         var link = Path.Combine(fixture.Root.Path, "selected-root");
         await links.Add(link, fixture.Location);
         fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(SandboxName.For(link), "running", null) });
 
         // Act
@@ -430,7 +430,7 @@ public sealed class PortsCommandTests
             """{"profiles":{"app":{"applicationUrl":"http://localhost:8203"}}}"""
         );
         fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(
                 legacy
                     ? new[] { new SandboxInfo(legacyName, "stopped", null) }
@@ -462,7 +462,7 @@ public sealed class PortsCommandTests
             """{"profiles":{"app":{"applicationUrl":"http://localhost:8203"}}}"""
         );
         fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(SandboxName.For(other), "running", null) });
 
         // Act
@@ -490,18 +490,18 @@ public sealed class PortsCommandTests
 
         // Assert
         exit.Should().Be(1);
-        await fixture.Sbx.Received(1).ListSandboxesAsync(Arg.Any<CancellationToken>());
+        await fixture.Lifecycle.Received(1).ListAsync(Arg.Any<CancellationToken>());
         fixture
             .Console.AllText.Should()
             .Contain("Create it with: abox create")
             .And.Contain("never creates or replaces");
         await fixture.NoPublishing();
         await fixture
-            .Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await fixture
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -512,7 +512,7 @@ public sealed class PortsCommandTests
         // Arrange
         using var fixture = new PortsCommandFixture();
         fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(
                 Task.FromException<IReadOnlyList<SandboxInfo>>(
                     cancel
@@ -569,7 +569,7 @@ public sealed class PortsCommandTests
         // Assert
         exit.Should().Be(1);
         await fixture.NoPublishing();
-        await fixture.Sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
+        await fixture.Lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
     }
 
     [Theory]

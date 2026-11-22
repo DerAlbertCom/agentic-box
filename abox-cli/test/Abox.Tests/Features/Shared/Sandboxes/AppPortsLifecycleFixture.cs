@@ -20,6 +20,9 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
     public TestConsole Console => cli.Console;
     public IPreflightChecks Preflight => cli.Preflight;
     public ISbxClient Sbx => cli.Sbx;
+    public ISandboxLifecycle Lifecycle => cli.Lifecycle;
+    public IKitSourceTrust KitSources => cli.KitSources;
+    public ISandboxInspection Inspection => cli.Inspection;
     public IApplicationPortPublisher Publisher => cli.Publisher;
     public ISandboxExec Exec => cli.Exec;
     public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
@@ -46,10 +49,12 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
                 LocalWorkload = LocalWorkloadFactory.Artifact(Root),
             }
         );
-        Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        Sbx.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
+        Lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
+        Lifecycle
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxRemoval(true, ""));
         Services.AddSingleton(
             new AboxConfig { DefaultTeam = "sample", DefaultLocation = Location }
         );
@@ -107,7 +112,8 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
                 BuildCreatedAt = OldBuild,
             }
         );
-        Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        Lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(Name, "running", OldBuild) });
     }
 

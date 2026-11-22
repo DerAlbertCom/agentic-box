@@ -6,7 +6,6 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Shared.Sandboxes;
 
@@ -37,7 +36,8 @@ public sealed class SandboxCreator(
     SandboxRecordStore records,
     AboxPaths paths,
     FolderSandbox sandboxes,
-    ISbxClient sbx,
+    ISandboxLifecycle lifecycle,
+    IMcpServerRegistry mcpServers,
     IConsole console,
     LocalSquadSource local,
     RemoteSquadSource remote,
@@ -116,8 +116,8 @@ public sealed class SandboxCreator(
         cancellationToken.ThrowIfCancellationRequested();
         console.WriteLine($"Creating the sandbox '{name}'...");
         var streamed = false;
-        var outcome = await sbx.CreateAsync(
-            new SbxCreateRequest(
+        var outcome = await lifecycle.CreateAsync(
+            new SandboxDefinition(
                 prepared.KitSource,
                 location,
                 name,
@@ -136,7 +136,7 @@ public sealed class SandboxCreator(
             cancellationToken
         );
 
-        if (!outcome.Succeeded)
+        if (outcome.Failure is { } failure)
         {
             var retry = CreateRecoveryHints.Render(
                 request.Team.Name,
@@ -145,7 +145,9 @@ public sealed class SandboxCreator(
                 request.Local ? manifest : null,
                 location
             );
-            throw new AboxException(CreateFailure(name, outcome, replace, retry, streamed));
+            throw new AboxException(
+                CreateFailure(name, failure, outcome.Output, replace, retry, streamed)
+            );
         }
 
         WriteNotes(outcome);
@@ -254,21 +256,21 @@ public sealed class SandboxCreator(
     private async Task RemoveExistingSandboxAsync(string name, CancellationToken cancellationToken)
     {
         console.WriteLine($"Removing the sandbox '{name}'...");
-        var removal = await sbx.RemoveSandboxAsync(name, cancellationToken);
-        if (!removal.Succeeded)
+        var removal = await lifecycle.RemoveAsync(name, cancellationToken);
+        if (!removal.Removed)
         {
             throw new AboxException(
-                $"sbx could not remove the sandbox '{name}'." + Detail(removal)
+                $"sbx could not remove the sandbox '{name}'." + Detail(removal.Output)
             );
         }
     }
 
-    private IReadOnlyList<SbxMount> CreateStateDirectories(
+    private IReadOnlyList<SandboxMount> CreateStateDirectories(
         string name,
         IReadOnlyList<StateEntry> state
     )
     {
-        var mounts = new List<SbxMount>();
+        var mounts = new List<SandboxMount>();
 
         foreach (var entry in state)
         {
@@ -285,7 +287,7 @@ public sealed class SandboxCreator(
                     exception
                 );
             }
-            mounts.Add(new SbxMount(hostPath, entry.SandboxPath));
+            mounts.Add(new SandboxMount(hostPath, entry.SandboxPath));
         }
 
         return mounts;
@@ -303,7 +305,7 @@ public sealed class SandboxCreator(
 
         foreach (var server in manifest.Mcp)
             new McpDeclaration(server.Name, server.Url).Validate($"squad {manifest.Squad}");
-        var registered = (await sbx.ListMcpServersAsync(cancellationToken)).ToHashSet(
+        var registered = (await mcpServers.ListAsync(cancellationToken)).ToHashSet(
             StringComparer.Ordinal
         );
         var pending = new List<ManifestMcp>();
@@ -337,11 +339,16 @@ public sealed class SandboxCreator(
         foreach (var server in servers)
         {
             console.WriteLine($"Registering the MCP server '{server.Name}'...");
-            var outcome = await sbx.AddMcpServerAsync(server.Name, server.Url!, cancellationToken);
-            if (!outcome.Succeeded)
+            var registration = await mcpServers.AddAsync(
+                server.Name,
+                server.Url!,
+                cancellationToken
+            );
+            if (!registration.Registered)
             {
                 throw new AboxException(
-                    $"The MCP server '{server.Name}' could not be registered." + Detail(outcome)
+                    $"The MCP server '{server.Name}' could not be registered."
+                        + Detail(registration.Output)
                 );
             }
         }
@@ -349,17 +356,14 @@ public sealed class SandboxCreator(
 
     private static string CreateFailure(
         string name,
-        SbxOutcome outcome,
+        string failure,
+        string output,
         bool replaced,
         string retry,
         bool streamed
     )
     {
-        var lines = new List<string>
-        {
-            $"sbx could not create the sandbox '{name}'.",
-            SbxFailureHeadline.Describe(outcome),
-        };
+        var lines = new List<string> { $"sbx could not create the sandbox '{name}'.", failure };
         if (replaced)
         {
             lines.Add(
@@ -372,7 +376,7 @@ public sealed class SandboxCreator(
             lines.Add($"Retry with: {retry}");
         }
 
-        var output = outcome.Output.Trim();
+        output = output.Trim();
         if (streamed)
             lines.Add("The full sbx output is shown above.");
         else if (output.Length > 0)
@@ -381,7 +385,7 @@ public sealed class SandboxCreator(
     }
 
     /// <summary>The notes of sbx, such as a credential it did not inject, gathered after its progress.</summary>
-    private void WriteNotes(SbxOutcome outcome)
+    private void WriteNotes(SandboxCreation outcome)
     {
         foreach (var line in outcome.Output.Split('\n'))
         {
@@ -393,9 +397,9 @@ public sealed class SandboxCreator(
         }
     }
 
-    private static string Detail(SbxOutcome outcome)
+    private static string Detail(string output)
     {
-        var output = outcome.Output.Trim();
+        output = output.Trim();
         return output.Length > 0 ? $" {output}" : string.Empty;
     }
 }

@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -35,9 +36,9 @@ public sealed class CreateDiscoveryTests
         buildExit.Should().Be(0, project.Console.AllText);
         exitCode.Should().Be(0, project.Console.AllText);
         await project
-            .Sbx.Received(1)
+            .Lifecycle.Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource == build.LocalWorkload!.RuntimeKitDirectory
                     && request.Location == location
                     && request

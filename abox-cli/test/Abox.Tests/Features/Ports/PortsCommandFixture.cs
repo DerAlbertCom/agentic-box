@@ -24,6 +24,7 @@ internal sealed class PortsCommandFixture : IDisposable
     public string Location { get; }
     public string Name => SandboxName.For(Location);
     private readonly CliTestApplication application;
+    public ISandboxLifecycle Lifecycle => application.Lifecycle;
 
     public PortsCommandFixture(
         AboxConfig? config = null,
@@ -32,8 +33,6 @@ internal sealed class PortsCommandFixture : IDisposable
     )
     {
         Location = Root.CreateDirectory("folder");
-        Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
-            .Returns(new[] { new SandboxInfo(Name, "running", null) });
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists(Arg.Any<string>()).Returns(true);
         application = new CliTestApplication(
@@ -49,10 +48,20 @@ internal sealed class PortsCommandFixture : IDisposable
             .AddSingleton<ISandboxExec>(runner is null ? Exec : new SbxSandboxExec(runner))
             .AddSingleton(programs)
             .AddSingleton(Preflight);
-        if (runner is not null)
+        if (runner is null)
+        {
+            application.WithSandboxSubstitutes();
+            Lifecycle
+                .ListAsync(Arg.Any<CancellationToken>())
+                .Returns(new[] { new SandboxInfo(Name, "running", null) });
+        }
+        else
+        {
+            application.Services.AddSingleton<ISandboxLifecycle>(new SbxSandboxLifecycle(runner));
             application.Services.AddSingleton<IApplicationPortPublisher>(
                 new SbxApplicationPorts(new SbxInvoker(runner))
             );
+        }
         if (exporter is not null)
             application.Services.AddSingleton(exporter);
         _ = application.Provider;

@@ -1,6 +1,7 @@
 using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -36,11 +37,11 @@ public sealed class BuiltKitCreationTests
             );
         var mixins = new List<string>();
         _fixture
-            .Sbx.CreateAsync(
-                Arg.Do<SbxCreateRequest>(request => mixins.AddRange(request.Mixins)),
+            .Lifecycle.CreateAsync(
+                Arg.Do<SandboxDefinition>(request => mixins.AddRange(request.Mixins)),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(new SbxOutcome(0, string.Empty));
+            .Returns(new SandboxCreation(string.Empty));
 
         // Act
         var exitCode = await _fixture.Service.CreateAsync(
@@ -87,11 +88,11 @@ public sealed class BuiltKitCreationTests
             );
         var mixins = new List<string>();
         _fixture
-            .Sbx.CreateAsync(
-                Arg.Do<SbxCreateRequest>(request => mixins.AddRange(request.Mixins)),
+            .Lifecycle.CreateAsync(
+                Arg.Do<SandboxDefinition>(request => mixins.AddRange(request.Mixins)),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(new SbxOutcome(0, string.Empty));
+            .Returns(new SandboxCreation(string.Empty));
 
         // Act
         var exitCode = await _fixture.Service.CreateAsync(

@@ -75,11 +75,16 @@ public sealed class AppPortsLifecycleFailureTests
         fixture.Existing();
         fixture.Web();
         fixture
-            .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(
                 cancel
-                    ? Task.FromException<SbxOutcome>(new OperationCanceledException())
-                    : Task.FromResult(new SbxOutcome(1, "synthetic creation failure"))
+                    ? Task.FromException<SandboxCreation>(new OperationCanceledException())
+                    : Task.FromResult(
+                        new SandboxCreation(
+                            "synthetic creation failure",
+                            "synthetic creation failure"
+                        )
+                    )
             );
 
         // Act
@@ -197,10 +202,10 @@ public sealed class AppPortsLifecycleFailureTests
         retry.Should().Be(0, fixture.Console.AllText);
         certificate.Exports.Should().Be(2);
         await fixture
-            .Sbx.Received(1)
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.Received(1)
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await fixture
-            .Sbx.Received(1)
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.Received(1)
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

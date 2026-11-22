@@ -15,18 +15,7 @@ public sealed class ArchitectureTests
     // #147 move each use behind a use-case interface and remove its entry here.
     private static readonly string[] KnownToolAdapterReferences =
     [
-        "Abox.Features.Create.CreateCommand -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Ports.PortsCommand -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Run.RunFlow -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Secrets.SecretsService -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Https.SandboxHttps -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.Sandboxes.FolderSandbox -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.Sandboxes.LocalSquadSource -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.Sandboxes.PreparedSquad -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.Sandboxes.RemoteSquadSource -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.Sandboxes.SandboxCreationRequest -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.Sandboxes.SandboxCreator -> Abox.Infrastructure.Sbx",
-        "Abox.Features.UserSecrets.UserSecretsCommand -> Abox.Infrastructure.Sbx",
     ];
 
     [Fact]

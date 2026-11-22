@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -150,7 +151,7 @@ public sealed class UserSecretsDiscoveryCommandTests
         await links.Add(entry, cli.Location, symbolic);
         var location = Path.Combine(entry, "src");
         var name = SandboxName.For(location);
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", null) });
         cli.UserSecrets.GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });

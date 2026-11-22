@@ -17,6 +17,9 @@ public sealed class RunFlowTests
     private TempDirectory _root => _fixture.Root;
     private TestConsole _console => _fixture.Console;
     private ISbxClient _sbx => _fixture.Sbx;
+    private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
+    private IMcpServerRegistry _mcp => _fixture.Mcp;
+    private ISandboxInspection _inspection => _fixture.Inspection;
     private ISandboxExec _exec => _fixture.Exec;
     private RunFlow _service => _fixture.Service;
     private BuildStore _store => _fixture.Store;
@@ -28,9 +31,11 @@ public sealed class RunFlowTests
     {
         // Arrange
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _sbx.GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>())
+        _inspection
+            .GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>())
             .Returns("/home/agent/workspace");
 
         // Act
@@ -58,9 +63,12 @@ public sealed class RunFlowTests
     {
         // Arrange
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _sbx.GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>()).Returns((string?)null);
+        _inspection
+            .GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
 
         // Act
         await _service.RunAsync(new RunRequest("shell", _root.Path, []), CancellationToken.None);
@@ -79,7 +87,8 @@ public sealed class RunFlowTests
     {
         // Arrange
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
 
         // Act
@@ -171,10 +180,10 @@ public sealed class RunFlowTests
             _store,
             _records,
             _create,
-            _sbx,
+            _inspection,
             _exec,
             SandboxFactory.Https(_sbx, _exec, _console),
-            SandboxFactory.Resolver(_sbx, SandboxFactory.Hints(config, _store, _records)),
+            SandboxFactory.Resolver(_lifecycle, SandboxFactory.Hints(config, _store, _records)),
             SandboxFactory.Hints(config, _store, _records),
             Substitute.For<IHostPrograms>(),
             _console
@@ -254,9 +263,12 @@ public sealed class RunFlowTests
     {
         // Arrange
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _sbx.HasProgramAsync(name, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        _inspection
+            .HasProgramAsync(name, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(false);
         _records.Save(
             name,
             new SandboxRecord
@@ -300,10 +312,13 @@ public sealed class RunFlowTests
             _store,
             _records,
             _create,
-            _sbx,
+            _inspection,
             _exec,
             SandboxFactory.Https(_sbx, _exec, _console),
-            SandboxFactory.Resolver(_sbx, SandboxFactory.Hints(new AboxConfig(), _store, _records)),
+            SandboxFactory.Resolver(
+                _lifecycle,
+                SandboxFactory.Hints(new AboxConfig(), _store, _records)
+            ),
             SandboxFactory.Hints(new AboxConfig(), _store, _records),
             Substitute.For<IHostPrograms>(),
             _console
@@ -346,13 +361,16 @@ public sealed class RunFlowTests
         using var sources = new TempDirectory();
         var sourceRoot = separateSources ? sources : _root;
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _sbx.RemoveSandboxAsync(name, Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
-        _sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
-        _sbx.ListMcpServersAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
+        _lifecycle
+            .RemoveAsync(name, Arg.Any<CancellationToken>())
+            .Returns(new SandboxRemoval(true, string.Empty));
+        _lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(string.Empty));
+        _mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
         sourceRoot.File("teams/sample/ac.abox", "workload: sample\n");
         _records.Save(
             name,
@@ -386,10 +404,11 @@ public sealed class RunFlowTests
         // Assert
         exitCode.Should().Be(0);
         _console.AllText.Should().Contain("newer build");
-        await _sbx.Received(1).RemoveSandboxAsync(name, Arg.Any<CancellationToken>());
-        await _sbx.Received(1)
+        await _lifecycle.Received(1).RemoveAsync(name, Arg.Any<CancellationToken>());
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource == Path.Combine(_root.Path, "runtime", "workload")
                     && request.PullPolicy == PullPolicy.Never
                 ),
@@ -402,7 +421,8 @@ public sealed class RunFlowTests
     {
         // Arrange
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
         _records.Save(
             name,
@@ -435,8 +455,9 @@ public sealed class RunFlowTests
         // Assert
         exitCode.Should().Be(0);
         _console.AllText.Should().NotContain("newer build");
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -444,7 +465,8 @@ public sealed class RunFlowTests
     {
         // Arrange
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
         _records.Save(
             name,
@@ -476,8 +498,9 @@ public sealed class RunFlowTests
         // Assert
         exitCode.Should().Be(0);
         _console.AllText.Should().NotContain("newer build");
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _exec
             .Received(1)
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
@@ -489,7 +512,8 @@ public sealed class RunFlowTests
         // Arrange
         var name = SandboxName.For(_root.Path);
         _console.Answer = false;
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
         _root.File("teams/sample/ac.abox", "workload: sample\n");
         _records.Save(
@@ -518,7 +542,8 @@ public sealed class RunFlowTests
         await _service.RunAsync(new RunRequest("shell", _root.Path, []), CancellationToken.None);
 
         // Assert
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

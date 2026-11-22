@@ -3,6 +3,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -34,6 +35,20 @@ internal sealed class CliTestApplication : IDisposable
 
     internal IServiceCollection Services { get; }
     internal ServiceProvider Provider => provider ??= Services.BuildServiceProvider();
+    internal ISandboxLifecycle Lifecycle { get; } = Substitute.For<ISandboxLifecycle>();
+    internal IMcpServerRegistry Mcp { get; } = Substitute.For<IMcpServerRegistry>();
+    internal IKitSourceTrust KitSources { get; } = Substitute.For<IKitSourceTrust>();
+    internal ISandboxInspection Inspection { get; } = Substitute.For<ISandboxInspection>();
+
+    /// <summary>Registers the sandbox runtime substitutes, for tests that substitute sbx itself.</summary>
+    internal CliTestApplication WithSandboxSubstitutes()
+    {
+        Services.AddSingleton(Lifecycle);
+        Services.AddSingleton(Mcp);
+        Services.AddSingleton(KitSources);
+        Services.AddSingleton(Inspection);
+        return this;
+    }
 
     public void Dispose() => provider?.Dispose();
 }

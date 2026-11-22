@@ -19,6 +19,8 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
     public TestConsole Console => cli.Console;
     public IPreflightChecks Preflight => cli.Preflight;
     public ISbxClient Sbx => cli.Sbx;
+    public ISandboxLifecycle Lifecycle => cli.Lifecycle;
+    public ISandboxInspection Inspection => cli.Inspection;
     public ISandboxExec Exec => cli.Exec;
     public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
     public string Location => cli.Location;
@@ -45,10 +47,12 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
                 LocalWorkload = LocalWorkloadFactory.Artifact(Root),
             }
         );
-        Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        Sbx.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
+        Lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
+        Lifecycle
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxRemoval(true, ""));
         var services = cli.Services;
         services.AddSingleton(
             new AboxConfig
@@ -123,10 +127,12 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
 
     public async Task NoReplacementOrCopy()
     {
-        await Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await Lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await Lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await NoCopy();
     }
 

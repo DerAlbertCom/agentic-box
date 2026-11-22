@@ -23,10 +23,10 @@ public sealed class PublishedSquadSourceMcpTests
     private TestConsole _console => _fixture.Console;
     private JsonObject _metadata => _fixture.Metadata;
 
-    private RemoteSquadSource Remote(AboxConfig config, ISbxClient sbx) =>
+    private RemoteSquadSource Remote(AboxConfig config, IKitSourceTrust kitSources) =>
         new(
             config,
-            sbx,
+            kitSources,
             new PublishedSquadSource(new DockerPublishedImageReader(_programs, _runner), _console)
         );
 
@@ -71,14 +71,18 @@ public sealed class PublishedSquadSourceMcpTests
         var store = new BuildStore(paths);
         var images = LocalWorkloadFactory.Images();
         var sbx = Substitute.For<ISbxClient>();
-        sbx.ListMcpServersAsync(Arg.Any<CancellationToken>())
+        var lifecycle = Substitute.For<ISandboxLifecycle>();
+        var mcp = Substitute.For<IMcpServerRegistry>();
+        mcp.ListAsync(Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<string>)["azuredevops", "database"]);
-        sbx.AddMcpServerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        sbx.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
+        mcp.AddAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new McpServerRegistration(true, ""));
+        lifecycle
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxRemoval(true, ""));
+        lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
         var build = TestServiceGraphs.Build(
             resolver,
             new PersonalConfigurations(paths),
@@ -94,16 +98,19 @@ public sealed class PublishedSquadSourceMcpTests
         _metadata["Mcp"] = JsonSerializer.SerializeToNode(manifest.Mcp);
         _metadata["State"] = new JsonArray();
         var name = SandboxName.For(root.Path);
-        sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.UtcNow) });
         var records = new SandboxRecordStore(paths);
         var creator = TestServiceGraphs.Creator(
             records,
             paths,
             sbx,
+            lifecycle,
+            mcp,
             _console,
             new LocalSquadSource(store, images, _console),
-            Remote(config, sbx),
+            Remote(config, Substitute.For<IKitSourceTrust>()),
             new UserSecretsCopy(
                 config,
                 Substitute.For<IHostUserSecretStores>(),
@@ -138,16 +145,16 @@ public sealed class PublishedSquadSourceMcpTests
                 },
                 options => options.WithStrictOrdering()
             );
-        await sbx.Received(1)
-            .AddMcpServerAsync("elastic", "https://example.com/mcp", Arg.Any<CancellationToken>());
-        sbx.ReceivedCalls()
-            .Count(call => call.GetMethodInfo().Name == nameof(ISbxClient.AddMcpServerAsync))
-            .Should()
-            .Be(1, "name-only declarations must use existing registrations");
-        await sbx.Received(1).RemoveSandboxAsync(name, Arg.Any<CancellationToken>());
-        await sbx.Received(1)
+        // Name-only declarations use existing registrations.
+        await mcp.Received(1)
+            .AddAsync("elastic", "https://example.com/mcp", Arg.Any<CancellationToken>());
+        await mcp.Received(1)
+            .AddAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await lifecycle.Received(1).RemoveAsync(name, Arg.Any<CancellationToken>());
+        await lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.StaticMcpServers.SequenceEqual(
                         new[] { "azuredevops", "elastic", "database" }
                     )

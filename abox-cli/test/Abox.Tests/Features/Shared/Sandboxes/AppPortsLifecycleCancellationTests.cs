@@ -1,4 +1,5 @@
 using Abox.Features.Shared.ApplicationPorts;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -59,11 +60,11 @@ public sealed class AppPortsLifecycleCancellationTests
         fixture.Web();
         if (stage == "create")
             fixture
-                .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
+                .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
                 .Returns(_ =>
                 {
                     cancellation.Cancel();
-                    return new SbxOutcome(0, "");
+                    return new SandboxCreation("");
                 });
         else
             fixture

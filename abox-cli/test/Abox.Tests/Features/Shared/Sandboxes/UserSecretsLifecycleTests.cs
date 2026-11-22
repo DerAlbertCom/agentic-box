@@ -142,11 +142,9 @@ public sealed class UserSecretsLifecycleTests
         exitCode.Should().Be(1);
         fixture.Records.Load(fixture.Name)!.BuildCreatedAt.Should().BeAfter(OldBuild);
         await fixture
-            .Sbx.Received(1)
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
-        await fixture
-            .Sbx.Received(1)
-            .RemoveSandboxAsync(fixture.Name, Arg.Any<CancellationToken>());
+            .Lifecycle.Received(1)
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
+        await fixture.Lifecycle.Received(1).RemoveAsync(fixture.Name, Arg.Any<CancellationToken>());
         await fixture
             .Exec.DidNotReceive()
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
@@ -260,7 +258,7 @@ public sealed class UserSecretsLifecycleTests
         fixture.Store("sample", "{}");
         if (entry == "run")
             fixture
-                .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+                .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
                 .Returns(_ =>
                 {
                     fixture.Configure("""{"squad":"bd","userSecrets":["missing"]}""");
@@ -299,7 +297,7 @@ public sealed class UserSecretsLifecycleTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 cancellation.Cancel();
@@ -399,9 +397,7 @@ public sealed class UserSecretsLifecycleTests
         // Assert
         exitCode.Should().Be(0);
         copied.Should().BeTrue();
-        await fixture
-            .Sbx.Received(1)
-            .RemoveSandboxAsync(fixture.Name, Arg.Any<CancellationToken>());
+        await fixture.Lifecycle.Received(1).RemoveAsync(fixture.Name, Arg.Any<CancellationToken>());
         fixture
             .Console.AllText.Should()
             .Contain("Copied user-secret store 'sample'")
@@ -546,8 +542,10 @@ public sealed class UserSecretsLifecycleTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(1, "synthetic creation failure"));
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new SandboxCreation("synthetic creation failure", "synthetic creation failure")
+            );
 
         // Act
         var exitCode = await fixture.Create();
@@ -790,11 +788,11 @@ public sealed class UserSecretsLifecycleTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 cancellation.Cancel();
-                return new SbxOutcome(0, "");
+                return new SandboxCreation("");
             });
 
         // Act
@@ -818,9 +816,11 @@ public sealed class UserSecretsLifecycleTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(
-                Task.FromException<SbxOutcome>(new OperationCanceledException("synthetic-private"))
+                Task.FromException<SandboxCreation>(
+                    new OperationCanceledException("synthetic-private")
+                )
             );
 
         // Act

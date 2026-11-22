@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -201,7 +202,7 @@ public sealed class LegacySandboxWorkspaceInventoryTests
         RequireWindowsWorkspaceLookup();
         using var cli = new UserSecretsCliHarness(existingSandbox: false);
         var name = HistoricalFolderName(cli.Location);
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(
                 new[] { new SandboxInfo(name, "running", null) { Workspaces = [cli.Location] } }
             );
@@ -225,11 +226,11 @@ public sealed class LegacySandboxWorkspaceInventoryTests
             .Contain($"The sandbox '{name}' already exists")
             .And.Contain("not replaced");
         await cli
-            .Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     private static string WindowsLocationSpelling(string original, string spelling) =>

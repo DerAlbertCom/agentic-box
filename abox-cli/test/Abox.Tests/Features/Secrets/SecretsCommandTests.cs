@@ -37,7 +37,7 @@ public sealed class SecretsCommandTests : IDisposable
     public async Task AStoppedSandboxIsReadThroughTheExecThatStartsIt()
     {
         // Arrange
-        _cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(_cli.Name, "stopped", null) });
         Sandbox([Kit("jfrog", ("jfrog", false))], SquadJson("""{"Service":"jfrog"}"""));
 

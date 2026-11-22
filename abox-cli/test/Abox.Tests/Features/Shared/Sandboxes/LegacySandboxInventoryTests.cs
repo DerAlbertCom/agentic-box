@@ -30,7 +30,7 @@ public sealed class LegacySandboxInventoryTests
         var otherName = OperatingSystem.IsWindows()
             ? "case_name-ai-sbx-0c1bf5"
             : "case_name-ai-sbx-e14841";
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(
                 new[]
                 {

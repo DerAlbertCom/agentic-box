@@ -1,7 +1,5 @@
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
-using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Shared.Sandboxes;
 
@@ -9,12 +7,16 @@ namespace Abox.Features.Shared.Sandboxes;
 /// Answers "this folder's Sandbox": current names win over exact legacy names, matched
 /// against one sandbox listing. Without one, it gives the create-recovery hint.
 /// </summary>
-public sealed class FolderSandbox(ISbxClient sbx, IProcessRunner runner, CreateRecoveryHints hints)
+public sealed class FolderSandbox(
+    ISandboxLifecycle lifecycle,
+    IFolderRealPath realPaths,
+    CreateRecoveryHints hints
+)
 {
     /// <summary>Returns the actual identity, or null when no supported identity exists. Discovery errors propagate.</summary>
     public async Task<SandboxInfo?> FindAsync(string location, CancellationToken cancellationToken)
     {
-        var sandboxes = await sbx.ListSandboxesAsync(cancellationToken);
+        var sandboxes = await lifecycle.ListAsync(cancellationToken);
         SandboxInfo? Named(string name) =>
             sandboxes.FirstOrDefault(sandbox =>
                 sandbox.Name.Equals(name, StringComparison.Ordinal)
@@ -30,7 +32,7 @@ public sealed class FolderSandbox(ISbxClient sbx, IProcessRunner runner, CreateR
             if (current is not null)
                 return current;
         }
-        var realPath = await LegacyRealPathAsync(location, cancellationToken);
+        var realPath = await realPaths.ResolveAsync(location, cancellationToken);
         var legacy = Named(LegacySandboxName.For(location, realPath));
         if (legacy is not null || !OperatingSystem.IsWindows())
             return legacy;
@@ -77,7 +79,7 @@ public sealed class FolderSandbox(ISbxClient sbx, IProcessRunner runner, CreateR
             if (workspace is null || !SameWindowsWorkspace(workspace, location))
                 continue;
             // Recompute the historical identity from recorded spelling, never guessed casing.
-            var realPath = await LegacyRealPathAsync(workspace, cancellationToken);
+            var realPath = await realPaths.ResolveAsync(workspace, cancellationToken);
             if (sandbox.Name == LegacySandboxName.For(workspace, realPath))
                 matches.Add(sandbox);
         }
@@ -104,33 +106,6 @@ public sealed class FolderSandbox(ISbxClient sbx, IProcessRunner runner, CreateR
         {
             return false;
         }
-    }
-
-    private async Task<string> LegacyRealPathAsync(
-        string location,
-        CancellationToken cancellationToken
-    )
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            var full = Path.GetFullPath(location);
-            try
-            {
-                return Directory.ResolveLinkTarget(full, returnFinalTarget: true)?.FullName ?? full;
-            }
-            catch (Exception exception)
-                when (exception is IOException or UnauthorizedAccessException)
-            {
-                return full;
-            }
-        }
-
-        var result = await runner.RunAsync(
-            new ProcessRequest("bash", ["-c", "cd \"$1\" 2>/dev/null && pwd -P", "bash", location]),
-            cancellationToken
-        );
-        var output = result.StandardOutput.TrimEnd('\r', '\n');
-        return result.ExitCode == 0 && output.Length > 0 ? output.Split('\n')[^1] : location;
     }
 }
 

@@ -46,7 +46,7 @@ public sealed class SandboxCreatorCredentialsTests
         // Arrange
         var name = SandboxName.For(_fixture.Root.Path);
         _fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
         _fixture.Console.Answers.Add("the-token");
 
@@ -58,8 +58,11 @@ public sealed class SandboxCreatorCredentialsTests
         Received.InOrder(() =>
         {
             _fixture.HostSecrets.SetAsync("github", "the-token", Arg.Any<CancellationToken>());
-            _fixture.Sbx.RemoveSandboxAsync(name, Arg.Any<CancellationToken>());
-            _fixture.Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            _fixture.Lifecycle.RemoveAsync(name, Arg.Any<CancellationToken>());
+            _fixture.Lifecycle.CreateAsync(
+                Arg.Any<SandboxDefinition>(),
+                Arg.Any<CancellationToken>()
+            );
         });
         _fixture
             .Approvals.Received(1)
@@ -77,7 +80,7 @@ public sealed class SandboxCreatorCredentialsTests
         // Arrange
         var name = SandboxName.For(_fixture.Root.Path);
         _fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
         _fixture.Console.Answer = false;
 
@@ -94,10 +97,9 @@ public sealed class SandboxCreatorCredentialsTests
     {
         // Arrange
         _fixture
-            .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(
-                new SbxOutcome(
-                    0,
+                new SandboxCreation(
                     "Creating sandbox...\n"
                         + "Note: no binding authorizes elastic — the credential was not injected.\n"
                         + "Sandbox created\n"

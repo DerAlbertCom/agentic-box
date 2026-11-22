@@ -27,7 +27,7 @@ public sealed class AppPortsLifecycleSelectionTests
             fixture.Configure("""{"portOffset":20000}""");
         if (entry == "run")
             fixture
-                .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+                .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
                 .Returns(_ =>
                 {
                     fixture.Configure("""{"portOffset":30000}""");
@@ -76,15 +76,15 @@ public sealed class AppPortsLifecycleSelectionTests
         fixture.Existing();
         fixture.Angular();
         fixture
-            .Sbx.RemoveSandboxAsync(fixture.Name, Arg.Any<CancellationToken>())
+            .Lifecycle.RemoveAsync(fixture.Name, Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 fixture
-                    .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+                    .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
                     .Returns(
                         new[] { new SandboxInfo("another-current-candidate", "running", null) }
                     );
-                return new SbxOutcome(0, "");
+                return new SandboxRemoval(true, "");
             });
 
         // Act
@@ -101,9 +101,9 @@ public sealed class AppPortsLifecycleSelectionTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.Received(1)
+            .Lifecycle.Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request => request.Name == fixture.Name),
+                Arg.Is<SandboxDefinition>(request => request.Name == fixture.Name),
                 Arg.Any<CancellationToken>()
             );
         if (entry == "run")
@@ -157,7 +157,7 @@ public sealed class AppPortsLifecycleSelectionTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

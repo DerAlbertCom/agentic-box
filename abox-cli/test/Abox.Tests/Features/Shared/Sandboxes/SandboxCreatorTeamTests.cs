@@ -16,6 +16,8 @@ public sealed class SandboxCreatorTeamTests
     private TempDirectory _root => _fixture.Root;
     private TestConsole _console => _fixture.Console;
     private ISbxClient _sbx => _fixture.Sbx;
+    private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
+    private IMcpServerRegistry _mcp => _fixture.Mcp;
     private IPublishedSquadSource _published => _fixture.Published;
     private AboxPaths _paths => _fixture.Paths;
     private BuildStore _store => _fixture.Store;
@@ -56,9 +58,10 @@ public sealed class SandboxCreatorTeamTests
         {
             var build = _store.Load(new SquadBuildIdentity(team.Name, "ac", "latest"))!;
             var location = Path.Combine(_root.Path, "locations", team.Name);
-            await _sbx.Received(1)
+            await _lifecycle
+                .Received(1)
                 .CreateAsync(
-                    Arg.Is<SbxCreateRequest>(request =>
+                    Arg.Is<SandboxDefinition>(request =>
                         request.Name == SandboxName.For(location)
                         && request.KitSource == build.LocalWorkload!.RuntimeKitDirectory
                         && request.Mixins.Contains(build.StateMixinDirectory!)
@@ -96,9 +99,12 @@ public sealed class SandboxCreatorTeamTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request => request.KitSource == image.RuntimeKitDirectory),
+                Arg.Is<SandboxDefinition>(request =>
+                    request.KitSource == image.RuntimeKitDirectory
+                ),
                 Arg.Any<CancellationToken>()
             );
         File.ReadAllText(legacy).Should().Be(original);
@@ -133,6 +139,8 @@ public sealed class SandboxCreatorTeamTests
             "*abox build --team sample --tag latest*"
         );
         _sbx.ReceivedCalls().Should().BeEmpty();
+        _lifecycle.ReceivedCalls().Should().BeEmpty();
+        _mcp.ReceivedCalls().Should().BeEmpty();
         _records.Load(SandboxName.For(_root.Path)).Should().BeNull();
     }
 

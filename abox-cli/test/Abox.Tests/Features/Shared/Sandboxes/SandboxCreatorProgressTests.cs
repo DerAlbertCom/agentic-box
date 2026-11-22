@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -8,19 +9,15 @@ public sealed class SandboxCreatorProgressTests : IDisposable
 {
     private const string FailedKitOutput = """
         Creating sandbox...
-          ✓ apt-get install -y git (kit=git, user=root, 2.1s)
           ✗ /opt/kits/rwe-ghec/install.sh --check (kit=rwe-ghec, user=agent, exit 1)
-            ── captured output ──
-            RWE_GHE_TOKEN is not bound.
-            Configure the four-host RWE_GHE_TOKEN binding; see teams/mti-ca/README.md.
-            ─────────────────────
-          ✗ /opt/kits/other/install.sh (kit=other-kit, user=agent, exit 2)
-            ── captured output ──
-            other failure
-            ─────────────────────
         WARN: kit 'rwe-ghec' left the sandbox incomplete
         error: failed to apply kit to sandbox
 
+        """;
+
+    private const string Failure = """
+        The kit 'rwe-ghec' failed (exit 1): /opt/kits/rwe-ghec/install.sh --check
+            RWE_GHE_TOKEN is not bound.
         """;
 
     private readonly SandboxCreatorFixture _fixture = new();
@@ -28,7 +25,7 @@ public sealed class SandboxCreatorProgressTests : IDisposable
     public void Dispose() => _fixture.Root.Dispose();
 
     [Fact]
-    public async Task AFailedKitStepLeadsTheErrorWithItsKitAndCapturedOutput()
+    public async Task TheFailureLeadsTheErrorAndTheFullOutputFollows()
     {
         // Arrange
         _fixture.SaveBuild();
@@ -39,40 +36,15 @@ public sealed class SandboxCreatorProgressTests : IDisposable
 
         // Assert
         var message = (await action.Should().ThrowAsync<AboxException>()).Which.Message;
-        var headline = message[..message.IndexOf("Full sbx output:", StringComparison.Ordinal)];
-        headline
+        var lines = message.Split(Environment.NewLine);
+        lines[0]
             .Should()
-            .StartWith($"sbx could not create the sandbox '{SandboxName.For(_fixture.Root.Path)}'.")
-            .And.Contain(
-                "The kit 'rwe-ghec' failed (exit 1): /opt/kits/rwe-ghec/install.sh --check"
-            )
-            .And.Contain("    RWE_GHE_TOKEN is not bound.")
-            .And.Contain(
-                "    Configure the four-host RWE_GHE_TOKEN binding; see teams/mti-ca/README.md."
-            )
-            .And.NotContain("other-kit")
-            .And.NotContain("error: failed to apply kit");
-        message
+            .Be($"sbx could not create the sandbox '{SandboxName.For(_fixture.Root.Path)}'.");
+        message.Should().Contain(Environment.NewLine + Failure + Environment.NewLine);
+        message[message.IndexOf("Full sbx output:", StringComparison.Ordinal)..]
             .Should()
-            .Contain("Full sbx output:")
-            .And.Contain("WARN: kit 'rwe-ghec' left the sandbox incomplete");
-    }
-
-    [Fact]
-    public async Task UnrecognizedFailureOutputFallsBackToTheLastErrorLine()
-    {
-        // Arrange
-        _fixture.SaveBuild();
-        FailCreate(
-            "Pulling image...\nerror: first problem\nmore detail\nerror: network policy denied\n"
-        );
-
-        // Act
-        var action = () => _fixture.Service.CreateAsync(_fixture.Request(), CancellationToken.None);
-
-        // Assert
-        var message = (await action.Should().ThrowAsync<AboxException>()).Which.Message;
-        message.Split(Environment.NewLine)[1].Should().Be("error: network policy denied");
+            .Contain("WARN: kit 'rwe-ghec' left the sandbox incomplete")
+            .And.Contain("error: failed to apply kit to sandbox");
     }
 
     [Fact]
@@ -82,7 +54,7 @@ public sealed class SandboxCreatorProgressTests : IDisposable
         _fixture.SaveBuild();
         var name = SandboxName.For(_fixture.Root.Path);
         _fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
         FailCreate(FailedKitOutput);
 
@@ -127,16 +99,15 @@ public sealed class SandboxCreatorProgressTests : IDisposable
         _fixture.SaveBuild();
         var seenDuringCreate = new List<string>();
         _fixture
-            .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                var progress = call.Arg<SbxCreateRequest>().Progress!;
+                var progress = call.Arg<SandboxDefinition>().Progress!;
                 progress("Building kit 'git'");
                 progress("WARN: slow mirror");
                 progress("Note: no binding authorizes elastic.");
                 seenDuringCreate.AddRange(_fixture.Console.Output);
-                return new SbxOutcome(
-                    0,
+                return new SandboxCreation(
                     "Building kit 'git'\nWARN: slow mirror\nNote: no binding authorizes elastic.\n"
                 );
             });
@@ -170,13 +141,13 @@ public sealed class SandboxCreatorProgressTests : IDisposable
         // Arrange
         _fixture.SaveBuild();
         _fixture
-            .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                var progress = call.Arg<SbxCreateRequest>().Progress!;
+                var progress = call.Arg<SandboxDefinition>().Progress!;
                 foreach (var line in FailedKitOutput.Split('\n'))
                     progress(line);
-                return new SbxOutcome(1, FailedKitOutput);
+                return new SandboxCreation(FailedKitOutput, Failure);
             });
 
         // Act
@@ -186,7 +157,7 @@ public sealed class SandboxCreatorProgressTests : IDisposable
         var message = (await action.Should().ThrowAsync<AboxException>()).Which.Message;
         message
             .Should()
-            .Contain("The kit 'rwe-ghec' failed (exit 1)")
+            .Contain(Failure)
             .And.Contain("The full sbx output is shown above.")
             .And.NotContain("Full sbx output:")
             .And.NotContain("error: failed to apply kit");
@@ -195,6 +166,6 @@ public sealed class SandboxCreatorProgressTests : IDisposable
 
     private void FailCreate(string output) =>
         _fixture
-            .Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(1, output));
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(output, Failure));
 }

@@ -206,6 +206,9 @@ public sealed class FolderSandboxCommandTests
                 );
             Cli.Services.AddSingleton(runner);
             Cli.Services.AddSingleton<ISbxClient, SbxClient>();
+            Cli.Services.AddSingleton<ISandboxLifecycle, SbxSandboxLifecycle>();
+            Cli.Services.AddSingleton<IMcpServerRegistry, SbxMcpServerRegistry>();
+            Cli.Services.AddSingleton<ISandboxInspection, SbxSandboxInspection>();
         }
 
         public UserSecretsCliHarness Cli { get; } =

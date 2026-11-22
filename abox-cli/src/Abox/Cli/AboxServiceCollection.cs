@@ -105,6 +105,11 @@ public static class AboxServiceCollection
         services.AddSingleton<ISandboxUserSecrets, SbxUserSecrets>();
         services.AddSingleton<IHostSecretStore, SbxHostSecretStore>();
         services.AddSingleton<ISandboxSquadFileReader, SbxSandboxSquadFileReader>();
+        services.AddSingleton<ISandboxLifecycle, SbxSandboxLifecycle>();
+        services.AddSingleton<IMcpServerRegistry, SbxMcpServerRegistry>();
+        services.AddSingleton<IKitSourceTrust, SbxKitSourceTrust>();
+        services.AddSingleton<ISandboxInspection, SbxSandboxInspection>();
+        services.AddSingleton<IFolderRealPath, ShellFolderRealPath>();
         services.AddSingleton<UserSecretsCopy>();
         services.AddSingleton<AppPorts>();
         services.AddSingleton<HostDevelopmentCertificate>();

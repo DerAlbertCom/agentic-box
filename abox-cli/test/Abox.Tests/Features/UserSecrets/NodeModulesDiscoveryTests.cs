@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -197,7 +198,7 @@ public sealed class NodeModulesDiscoveryTests
         var location = cli.Root.CreateDirectory($"folder/{selectedRoot}");
         cli.Root.File($"folder/{selectedRoot}/abox.yaml", """{"userSecrets":["shared"]}""");
         var name = SandboxName.For(location);
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", null) });
         cli.UserSecrets.GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });

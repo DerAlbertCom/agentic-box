@@ -1,9 +1,9 @@
-namespace Abox.Infrastructure.Sbx;
+namespace Abox.Features.Shared.Sandboxes;
 
-/// <summary>A sandbox as sbx reports it.</summary>
+/// <summary>A sandbox as the sandbox runtime reports it.</summary>
 /// <param name="Name">The sandbox name.</param>
 /// <param name="Status">The sandbox status, for example "running" or "stopped".</param>
-/// <param name="CreatedAt">When the sandbox was created, when sbx reports it.</param>
+/// <param name="CreatedAt">When the sandbox was created, when the runtime reports it.</param>
 public sealed record SandboxInfo(string Name, string Status, DateTimeOffset? CreatedAt)
 {
     /// <summary>Host workspace paths in runtime order; the first is the primary workspace.</summary>

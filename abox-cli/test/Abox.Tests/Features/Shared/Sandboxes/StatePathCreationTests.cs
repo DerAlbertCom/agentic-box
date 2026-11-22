@@ -17,6 +17,8 @@ public sealed class StatePathCreationTests : IDisposable
     private static readonly SquadBuildIdentity Identity = new("sample", "ac", "latest");
     private readonly TempDirectory _root = new();
     private readonly ISbxClient _sbx = Substitute.For<ISbxClient>();
+    private readonly ISandboxLifecycle _lifecycle = Substitute.For<ISandboxLifecycle>();
+    private readonly IMcpServerRegistry _mcp = Substitute.For<IMcpServerRegistry>();
     private readonly IPublishedSquadSource _published = PublishedSquadFactory.Source();
     private readonly AboxPaths _paths;
     private readonly BuildStore _store;
@@ -33,22 +35,26 @@ public sealed class StatePathCreationTests : IDisposable
             _records,
             _paths,
             _sbx,
+            _lifecycle,
+            _mcp,
             _console,
             new LocalSquadSource(_store, LocalWorkloadFactory.Images(), _console),
-            new RemoteSquadSource(new AboxConfig(), _sbx, _published),
+            new RemoteSquadSource(new AboxConfig(), Substitute.For<IKitSourceTrust>(), _published),
             new UserSecretsCopy(
                 new AboxConfig(),
                 Substitute.For<IHostUserSecretStores>(),
                 Substitute.For<ISandboxUserSecrets>()
             )
         );
-        _sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        _sbx.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        _sbx.AddMcpServerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        _sbx.ListMcpServersAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
+        _lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
+        _lifecycle
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxRemoval(true, ""));
+        _mcp.AddAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new McpServerRegistration(true, ""));
+        _mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
     }
 
     [Theory]
@@ -82,7 +88,8 @@ public sealed class StatePathCreationTests : IDisposable
             "*",
             SearchOption.AllDirectories
         );
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.UtcNow) });
 
         // Act
@@ -96,12 +103,10 @@ public sealed class StatePathCreationTests : IDisposable
             .GetFileSystemEntries(_paths.StateDirectory, "*", SearchOption.AllDirectories)
             .Should()
             .BeEquivalentTo(before);
-        _sbx.ReceivedCalls()
-            .Where(call =>
-                call.GetMethodInfo().Name != nameof(ISbxClient.EnsureKitSourceAllowedAsync)
-            )
-            .Should()
-            .BeEmpty("invalid state must fail even before MCP lookup or replacement discovery");
+        // Invalid state must fail even before MCP lookup or replacement discovery.
+        _sbx.ReceivedCalls().Should().BeEmpty();
+        _lifecycle.ReceivedCalls().Should().BeEmpty();
+        _mcp.ReceivedCalls().Should().BeEmpty();
         _records.Load(name).Should().BeNull();
     }
 
@@ -274,16 +279,17 @@ public sealed class StatePathCreationTests : IDisposable
             .GetEntries("capabilities")
             .Single();
         generated.GetEntry("config")!.GetString("path").Should().Be(sandboxPath);
-        await _sbx.Received(2)
+        await _lifecycle
+            .Received(2)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.Mounts.Count == 1
                     && request.Mounts[0].SandboxPath == sandboxPath
                     && request.Mounts[0].HostPath == hostPath
                 ),
                 Arg.Any<CancellationToken>()
             );
-        await _sbx.Received(1).RemoveSandboxAsync(name, Arg.Any<CancellationToken>());
+        await _lifecycle.Received(1).RemoveAsync(name, Arg.Any<CancellationToken>());
     }
 
     private SandboxCreationRequest Request() =>

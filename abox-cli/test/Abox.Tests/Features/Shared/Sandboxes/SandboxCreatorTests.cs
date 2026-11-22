@@ -24,6 +24,9 @@ public sealed class SandboxCreatorTests
     private TempDirectory _root => _fixture.Root;
     private TestConsole _console => _fixture.Console;
     private ISbxClient _sbx => _fixture.Sbx;
+    private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
+    private IMcpServerRegistry _mcp => _fixture.Mcp;
+    private IKitSourceTrust _kitSources => _fixture.KitSources;
     private IPublishedSquadSource _published => _fixture.Published;
     private AboxPaths _paths => _fixture.Paths;
     private BuildStore _store => _fixture.Store;
@@ -42,11 +45,13 @@ public sealed class SandboxCreatorTests
         // Assert
         exitCode.Should().Be(0);
         _published.ReceivedCalls().Should().BeEmpty("--local must not pull registry metadata");
-        await _sbx.DidNotReceive()
-            .EnsureKitSourceAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _sbx.Received(1)
+        await _kitSources
+            .DidNotReceive()
+            .EnsureTrustedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource
                         == _store
                             .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
@@ -107,9 +112,10 @@ public sealed class SandboxCreatorTests
 
             // Assert
             exitCode.Should().Be(0);
-            await _sbx.Received(1)
+            await _lifecycle
+                .Received(1)
                 .CreateAsync(
-                    Arg.Is<SbxCreateRequest>(request =>
+                    Arg.Is<SandboxDefinition>(request =>
                         request.KitArguments.Count == 1 && request.KitArguments["mode"] == "team"
                     ),
                     Arg.Any<CancellationToken>()
@@ -124,9 +130,10 @@ public sealed class SandboxCreatorTests
             (await action.Should().ThrowAsync<AboxException>()).WithMessage(
                 "*mode*pi-config*other-kit*"
             );
-            await _sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
-            await _sbx.DidNotReceive()
-                .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            await _lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+            await _lifecycle
+                .DidNotReceive()
+                .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         }
     }
 
@@ -140,7 +147,7 @@ public sealed class SandboxCreatorTests
         var service = Creator(
             new RemoteSquadSource(
                 new AboxConfig { PullRepository = repository },
-                _sbx,
+                _kitSources,
                 PublishedSquadFactory.Source([
                     new ManifestMcp { Name = "elastic", Url = "https://example.com/mcp" },
                 ])
@@ -158,14 +165,13 @@ public sealed class SandboxCreatorTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
-            .EnsureKitSourceAllowedAsync(
-                $"rwest.jfrog.io/{repository}/",
-                Arg.Any<CancellationToken>()
-            );
-        await _sbx.Received(1)
+        await _kitSources
+            .Received(1)
+            .EnsureTrustedAsync($"rwest.jfrog.io/{repository}/", Arg.Any<CancellationToken>());
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource
                         == $"rwest.jfrog.io/{repository}/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
                     && request.PullPolicy == PullPolicy.Always
@@ -190,8 +196,9 @@ public sealed class SandboxCreatorTests
     {
         // Arrange
         SaveBuild();
-        _sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(1, "registry access denied"));
+        _lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation("registry access denied", "registry access denied"));
 
         // Act
         var action = () =>
@@ -199,8 +206,9 @@ public sealed class SandboxCreatorTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*registry access denied*");
-        await _sbx.Received(1)
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .Received(1)
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         _records.Load(SandboxName.For(_root.Path)).Should().BeNull();
     }
 
@@ -219,7 +227,11 @@ public sealed class SandboxCreatorTests
     {
         // Arrange
         var service = Creator(
-            new RemoteSquadSource(new AboxConfig { PullRepository = repository }, _sbx, _published)
+            new RemoteSquadSource(
+                new AboxConfig { PullRepository = repository },
+                _kitSources,
+                _published
+            )
         );
         var request = new SandboxCreationRequest(
             new SquadResolver.ResolvedTeam(team, "teams/sample", [squad]),
@@ -234,14 +246,17 @@ public sealed class SandboxCreatorTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage($"*{error}*");
-        await _sbx.DidNotReceive()
-            .EnsureKitSourceAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _kitSources
+            .DidNotReceive()
+            .EnsureTrustedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         _published.ReceivedCalls().Should().BeEmpty();
-        await _sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await _lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -345,7 +360,8 @@ public sealed class SandboxCreatorTests
         // Arrange
         SaveBuild();
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
 
         // Act
@@ -353,7 +369,7 @@ public sealed class SandboxCreatorTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1).RemoveSandboxAsync(name, Arg.Any<CancellationToken>());
+        await _lifecycle.Received(1).RemoveAsync(name, Arg.Any<CancellationToken>());
         _console.AllText.Should().Contain("already exists");
     }
 
@@ -364,7 +380,8 @@ public sealed class SandboxCreatorTests
         SaveBuild();
         _console.Answer = false;
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
 
         // Act
@@ -374,10 +391,12 @@ public sealed class SandboxCreatorTests
         var exception = await action.Should().ThrowAsync<AboxException>();
 
         exception.Which.Message.Should().Contain("not replaced");
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -392,11 +411,12 @@ public sealed class SandboxCreatorTests
         };
         SaveBuild(mcp);
         var service = Creator(
-            new RemoteSquadSource(new AboxConfig(), _sbx, PublishedSquadFactory.Source(mcp))
+            new RemoteSquadSource(new AboxConfig(), _kitSources, PublishedSquadFactory.Source(mcp))
         );
         _console.Answer = false;
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.UtcNow) });
 
         // Act
@@ -405,13 +425,15 @@ public sealed class SandboxCreatorTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*not replaced*");
-        await _sbx.DidNotReceive()
-            .AddMcpServerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _mcp.DidNotReceive()
+            .AddAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         Directory.Exists(Path.Combine(_paths.StateDirectory, name)).Should().BeFalse();
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -420,13 +442,14 @@ public sealed class SandboxCreatorTests
         // Arrange
         SaveBuild([new ManifestMcp { Name = "elastic", Url = "https://example.com/mcp" }]);
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.UtcNow) });
-        _sbx.AddMcpServerAsync("elastic", Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _mcp.AddAsync("elastic", Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 _console.AllText.Should().Contain("Replace the sandbox?");
-                return new SbxOutcome(1, "registration failed");
+                return new McpServerRegistration(false, "registration failed");
             });
 
         // Act
@@ -436,8 +459,9 @@ public sealed class SandboxCreatorTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*could not be registered*"
         );
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         Directory.Exists(Path.Combine(_paths.StateDirectory, name)).Should().BeFalse();
     }
 
@@ -466,9 +490,9 @@ public sealed class SandboxCreatorTests
             .WithMessage(error)
             .Which.Message.Should()
             .NotContain("password");
-        await _sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .AddMcpServerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _mcp.DidNotReceive()
+            .AddAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         Directory
             .Exists(Path.Combine(_paths.StateDirectory, SandboxName.For(_root.Path)))
             .Should()
@@ -489,9 +513,10 @@ public sealed class SandboxCreatorTests
         var hostPath = Path.Combine(_paths.StateDirectory, name, ".config", "opencode", "state");
         Directory.Exists(hostPath).Should().BeTrue();
 
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.Mounts.Count == 1
                     && Path.GetFullPath(request.Mounts[0].HostPath) == Path.GetFullPath(hostPath)
                     && request.Mounts[0].SandboxPath == "/home/agent/.config/opencode/state"
@@ -510,11 +535,12 @@ public sealed class SandboxCreatorTests
         await _service.CreateAsync(Request(), CancellationToken.None);
 
         // Assert
-        await _sbx.Received(1)
-            .AddMcpServerAsync("elastic", "https://example.com/mcp", Arg.Any<CancellationToken>());
-        await _sbx.Received(1)
+        await _mcp.Received(1)
+            .AddAsync("elastic", "https://example.com/mcp", Arg.Any<CancellationToken>());
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.StaticMcpServers.SequenceEqual(new[] { "elastic" })
                 ),
                 Arg.Any<CancellationToken>()
@@ -570,9 +596,10 @@ public sealed class SandboxCreatorTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*no prebuilt local workload*abox build*without --metadata-only*"
         );
-        await _sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await _lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -592,9 +619,10 @@ public sealed class SandboxCreatorTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*runtime kit changed*");
-        await _sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -623,9 +651,10 @@ public sealed class SandboxCreatorTests
         await runner
             .DidNotReceive()
             .RunAsync(Arg.Any<Abox.Infrastructure.ProcessRequest>(), Arg.Any<CancellationToken>());
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource
                         == $"rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
                     && request.Mixins.Count == 0
@@ -666,12 +695,11 @@ public sealed class SandboxCreatorTests
             CancellationToken.None
         );
         _store.Load(Identity)!.LocalWorkload.Should().BeNull();
-        _sbx.ListMcpServersAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<string>)["elastic"]);
+        _mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)["elastic"]);
         var service = Creator(
             new RemoteSquadSource(
                 new AboxConfig(),
-                _sbx,
+                _kitSources,
                 PublishedSquadFactory.Source([new ManifestMcp { Name = "elastic" }])
             ),
             images
@@ -689,9 +717,10 @@ public sealed class SandboxCreatorTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource
                         == $"rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
                     && request.Mixins.Count == 0
@@ -707,6 +736,8 @@ public sealed class SandboxCreatorTests
 
         // Arrange
         _sbx.ClearReceivedCalls();
+        _lifecycle.ClearReceivedCalls();
+        _mcp.ClearReceivedCalls();
 
         // Act
         var local = () =>
@@ -717,6 +748,8 @@ public sealed class SandboxCreatorTests
             "*no prebuilt local workload*abox build --team sample --tag latest*without --metadata-only*"
         );
         _sbx.ReceivedCalls().Should().BeEmpty();
+        _lifecycle.ReceivedCalls().Should().BeEmpty();
+        _mcp.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -735,9 +768,10 @@ public sealed class SandboxCreatorTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.Mounts[0].SandboxPath == "/home/agent/.published"
                 ),
                 Arg.Any<CancellationToken>()
@@ -759,7 +793,8 @@ public sealed class SandboxCreatorTests
                 throw new AboxException("Invalid bundled metadata; republish the set.")
             );
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.UtcNow) });
 
         // Act
@@ -775,15 +810,11 @@ public sealed class SandboxCreatorTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*republish*");
-        _sbx.ReceivedCalls()
-            .Should()
-            .ContainSingle()
-            .Which.GetMethodInfo()
-            .Name.Should()
-            .Be(
-                nameof(ISbxClient.EnsureKitSourceAllowedAsync),
-                "only repository trust may be updated before published metadata is validated"
-            );
+        // Only repository trust may be updated before published metadata is validated.
+        _kitSources.ReceivedCalls().Should().ContainSingle();
+        _sbx.ReceivedCalls().Should().BeEmpty();
+        _mcp.ReceivedCalls().Should().BeEmpty();
+        _lifecycle.ReceivedCalls().Should().BeEmpty();
         _records.Load(name).Should().BeNull();
     }
 
@@ -792,8 +823,9 @@ public sealed class SandboxCreatorTests
     {
         // Arrange
         var calls = new List<string>();
-        _sbx.When(client =>
-                client.EnsureKitSourceAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _kitSources
+            .When(trust =>
+                trust.EnsureTrustedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             )
             .Do(_ => calls.Add("trust"));
         _published
@@ -805,15 +837,18 @@ public sealed class SandboxCreatorTests
                 )
             )
             .Do(_ => calls.Add("registry"));
-        _sbx.When(client =>
-                client.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _lifecycle
+            .When(lifecycle =>
+                lifecycle.RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             )
             .Do(_ => calls.Add("remove"));
-        _sbx.When(client =>
-                client.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
+        _lifecycle
+            .When(lifecycle =>
+                lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             )
             .Do(_ => calls.Add("create"));
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(
                 new[]
                 {
@@ -840,9 +875,11 @@ public sealed class SandboxCreatorTests
     {
         // Arrange
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.UtcNow) });
-        _sbx.EnsureKitSourceAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _kitSources
+            .EnsureTrustedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
                 throw new AboxException("Administrator policy denies kit.allowedSources update.")
             );
@@ -863,11 +900,13 @@ public sealed class SandboxCreatorTests
             "*Administrator policy*kit.allowedSources*"
         );
         _published.ReceivedCalls().Should().BeEmpty();
-        await _sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await _lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         _records.Load(name).Should().BeNull();
         Directory.Exists(Path.Combine(_paths.StateDirectory, name)).Should().BeFalse();
     }
@@ -902,9 +941,10 @@ public sealed class SandboxCreatorTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*not registered*");
-        await _sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -912,7 +952,8 @@ public sealed class SandboxCreatorTests
     {
         // Arrange
         var name = SandboxName.For(_root.Path);
-        _sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        _lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.UtcNow) });
         _root.File($"state/{name}/.published", "a file blocks the state directory");
 
@@ -931,9 +972,10 @@ public sealed class SandboxCreatorTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*state director*not replaced*"
         );
-        await _sbx.Received(1).ListSandboxesAsync(Arg.Any<CancellationToken>());
-        await _sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _lifecycle.Received(1).ListAsync(Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     private void SaveBuild(List<ManifestMcp>? mcp = null, string? reference = null) =>

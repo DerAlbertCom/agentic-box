@@ -17,6 +17,8 @@ public sealed class CreateCommandTests
     private readonly TempDirectory _root = new();
     private readonly TestConsole _console = new();
     private readonly ISbxClient _sbx = Substitute.For<ISbxClient>();
+    private readonly ISandboxLifecycle _lifecycle = Substitute.For<ISandboxLifecycle>();
+    private readonly IKitSourceTrust _kitSources = Substitute.For<IKitSourceTrust>();
 
     [Fact]
     public async Task RemoteCreateFromAnArbitraryDirectoryDoesNotNeedTeamsOrABuild()
@@ -33,9 +35,10 @@ public sealed class CreateCommandTests
         // Assert
         _console.AllText.Should().NotContain("There is no team 'mti-ca'");
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource.Contains("agentic-box-rwest-mti-ca/ac")
                 ),
                 Arg.Any<CancellationToken>()
@@ -58,8 +61,9 @@ public sealed class CreateCommandTests
         _sbx.ReceivedCalls()
             .Should()
             .BeEmpty("missing selection must fail before preflight as before");
-        await _sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -79,6 +83,8 @@ public sealed class CreateCommandTests
         exitCode.Should().Be(1);
         _console.AllText.Should().Contain("--root requires --local");
         _sbx.ReceivedCalls().Should().BeEmpty();
+        _lifecycle.ReceivedCalls().Should().BeEmpty();
+        _kitSources.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -94,8 +100,9 @@ public sealed class CreateCommandTests
         // Assert
         exitCode.Should().Be(1);
         _console.AllText.Should().Contain("There is no team 'mti-ca'");
-        await _sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+        await _lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -114,9 +121,10 @@ public sealed class CreateCommandTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource
                         == $"rwest.jfrog.io/{repository}/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
                     && request.PullPolicy == PullPolicy.Always
@@ -137,9 +145,10 @@ public sealed class CreateCommandTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource == Path.Combine(_root.Path, "runtime", "workload")
                     && request.PullPolicy == PullPolicy.Never
                 ),
@@ -177,9 +186,10 @@ public sealed class CreateCommandTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request => request.Location == project.Path),
+                Arg.Is<SandboxDefinition>(request => request.Location == project.Path),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -222,9 +232,10 @@ public sealed class CreateCommandTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request =>
+                Arg.Is<SandboxDefinition>(request =>
                     request.KitSource
                     == $"rwest.jfrog.io/team-docker-release/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
                 ),
@@ -247,9 +258,10 @@ public sealed class CreateCommandTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
+        await _lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request => request.Location == workspace.Path),
+                Arg.Is<SandboxDefinition>(request => request.Location == workspace.Path),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -305,9 +317,11 @@ public sealed class CreateCommandTests
                     new SandboxRecordStore(paths),
                     paths,
                     _sbx,
+                    _lifecycle,
+                    Substitute.For<IMcpServerRegistry>(),
                     _console,
                     new LocalSquadSource(store, LocalWorkloadFactory.Images(), _console),
-                    new RemoteSquadSource(config, _sbx, PublishedSquadFactory.Source()),
+                    new RemoteSquadSource(config, _kitSources, PublishedSquadFactory.Source()),
                     new UserSecretsCopy(
                         config,
                         Substitute.For<IHostUserSecretStores>(),
@@ -321,7 +335,8 @@ public sealed class CreateCommandTests
 
     private void ReadyRuntime()
     {
-        _sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
+        _lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(string.Empty));
     }
 }

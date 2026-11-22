@@ -3,6 +3,7 @@ using Abox.Cli;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Dotnet;
@@ -47,15 +48,21 @@ public sealed class UserSecretsRewriteCommandTests
         sbxUserSecrets
             .GetUserSecretsHostPortsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
-        sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        if (!automatic)
-            sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
-                .Returns(new[] { new SandboxInfo(SandboxName.For(location), "running", null) });
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists(Arg.Any<string>()).Returns(true);
         var paths = AboxPaths.For(root.CreateDirectory("config"), root.CreateDirectory("state"));
-        using var application = new CliTestApplication(console, paths, new TrailingArguments());
+        using var application = new CliTestApplication(
+            console,
+            paths,
+            new TrailingArguments()
+        ).WithSandboxSubstitutes();
+        application
+            .Lifecycle.CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
+        if (!automatic)
+            application
+                .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
+                .Returns(new[] { new SandboxInfo(SandboxName.For(location), "running", null) });
         var config = new AboxConfig { DefaultTeam = "sample", DefaultLocation = location };
         application.Services.AddSingleton(config);
         application.Services.AddSingleton<IHostUserSecretStores>(

@@ -6,14 +6,15 @@ using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
+using Abox.Infrastructure.Shell;
 using NSubstitute;
 
 namespace Abox.Tests;
 
 internal static class SandboxFactory
 {
-    public static FolderSandbox Resolver(ISbxClient sbx, CreateRecoveryHints hints) =>
-        new(sbx, new ProcessRunner(), hints);
+    public static FolderSandbox Resolver(ISandboxLifecycle lifecycle, CreateRecoveryHints hints) =>
+        new(lifecycle, new ShellFolderRealPath(new ProcessRunner()), hints);
 
     public static CreateRecoveryHints Hints(
         AboxConfig config,
