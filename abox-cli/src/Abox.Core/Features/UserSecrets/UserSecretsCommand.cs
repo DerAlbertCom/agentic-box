@@ -2,98 +2,47 @@ using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
-using Abox.Features.Shared.Preflight;
-using Abox.Features.Shared.Sandboxes;
-using Abox.Features.Shared.UserSecrets;
-using Abox.Features.Shared.Yaml;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.UserSecrets;
 
-internal sealed class UserSecretsCommand : Command
+/// <summary>
+/// <c>abox user-secrets</c>: copies the .NET user-secret stores the folder configuration
+/// selects into the existing sandbox of the folder.
+/// </summary>
+internal sealed class UserSecretsCommand : AboxCommand<UserSecretsParameters>
 {
-    public UserSecretsCommand(
-        Lazy<AboxConfig> config,
-        Preflight preflight,
-        Lazy<UserSecretsCopy> copy,
-        Lazy<FolderSandbox> sandboxes,
-        IConsole console,
-        IYamlParser parser
-    )
+    private readonly LocationOption _location = new();
+    private readonly Option<bool> _force = new("--force")
+    {
+        Description = "Override only the global user-secret value deny list.",
+    };
+
+    public UserSecretsCommand(CommandRunner runner)
         : base(
             "user-secrets",
-            "Copy explicitly selected .NET user-secret stores into this folder's existing sandbox."
+            "Copy explicitly selected .NET user-secret stores into this folder's existing sandbox.",
+            runner
         )
     {
-        var location = new Option<string>("--location")
-        {
-            Description = "Sandbox folder. Defaults to defaultLocation, then the current folder.",
-        };
-        var force = new Option<bool>("--force")
-        {
-            Description = "Override only the global user-secret value deny list.",
-        };
-        Options.Add(location);
-        Options.Add(force);
-        SetAction(
-            async (parseResult, cancellationToken) =>
-                await CommandHandling.RunAsync(
-                    async () =>
-                    {
-                        var folder = config.Value.ResolveLocation(parseResult.GetValue(location));
-                        var folderConfig =
-                            await FolderConfig.LoadAsync(folder, parser, cancellationToken)
-                            ?? throw new AboxException(
-                                $"No {FolderConfig.FileNames} in this folder. Declare 'userSecrets' explicitly before copying."
-                            );
-                        var prepared = await copy.Value.PrepareAsync(
-                            folderConfig,
-                            parseResult.GetValue(force),
-                            cancellationToken
-                        );
-                        if (!await preflight.EnsureReadyAsync(cancellationToken))
-                            return 1;
-                        var sandbox = (
-                            await sandboxes.Value.RequireAsync(
-                                folder,
-                                folderConfig,
-                                "user-secrets never creates or replaces one",
-                                cancellationToken
-                            )
-                        ).Name;
-                        UserSecretsReport report;
-                        try
-                        {
-                            report = await copy.Value.CopyAsync(
-                                prepared,
-                                sandbox,
-                                cancellationToken
-                            );
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            console.WriteError(
-                                "User-secret copying was cancelled. Completed files may remain replaced; retry 'abox user-secrets' for this folder. No cross-store rollback is attempted."
-                            );
-                            throw;
-                        }
-                        if (report.SafetyOverride)
-                            console.WriteLine(
-                                "Warning: Safety override used (--force): selected original values matched the global deny list; copy completed."
-                            );
-                        UserSecretsReportWriter.WriteStores(report, console);
-                        if (report.Stores.Count == 0)
-                            console.WriteLine("No user-secret stores selected; nothing copied.");
-                        return 0;
-                    },
-                    console
-                )
-        );
+        Options.Add(_location);
+        Options.Add(_force);
     }
-}
 
-internal static class UserSecretsFeature
-{
-    public static IServiceCollection AddUserSecretsFeature(this IServiceCollection services) =>
-        services.AddSingleton<Command, UserSecretsCommand>();
+    internal override async Task<UserSecretsParameters> BindAsync(
+        ParseResult parseResult,
+        InvocationDefaults defaults,
+        CancellationToken cancellationToken
+    )
+    {
+        var location = await defaults.SandboxLocationAsync(
+            parseResult.GetValue(_location),
+            FolderConfigurationLoading.Now,
+            cancellationToken
+        );
+        if (await location.FolderConfigurationAsync(cancellationToken) is null)
+            throw new AboxException(
+                $"No {FolderConfig.FileNames} in this folder. Declare 'userSecrets' explicitly before copying."
+            );
+        return new UserSecretsParameters(location, parseResult.GetValue(_force));
+    }
 }

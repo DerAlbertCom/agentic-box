@@ -8,6 +8,7 @@ using NSubstitute;
 
 namespace Abox.Tests;
 
+[Collection("Create command working directory")]
 public sealed class CommandLocationTests
 {
     [Theory]
@@ -38,7 +39,7 @@ public sealed class CommandLocationTests
         lifecycle
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(new SandboxCreation(""));
-        application.Services.AddSingleton(new Lazy<AboxConfig>(() => config));
+        application.Services.AddSingleton(config);
         application.Services.AddSingleton(programs);
         application.Services.AddSingleton(ReadyPreflight.Checks());
         application.Services.AddSingleton(PublishedSquadFactory.Source());

@@ -1,10 +1,5 @@
 using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
-using Abox.Features.Shared.Common;
-using Abox.Features.Shared.Configuration;
-using Abox.Features.Shared.Naming;
-using Abox.Features.Shared.Preflight;
-using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Build;
 
@@ -12,98 +7,72 @@ namespace Abox.Features.Build;
 /// <c>abox build</c>: builds the kit set of a team, every squad of it that no other
 /// squad names as its base.
 /// </summary>
-internal sealed class BuildCommand : Command
+internal sealed class BuildCommand : AboxCommand<BuildParameters>
 {
-    public BuildCommand(
-        Lazy<AboxConfig> config,
-        Preflight preflight,
-        Lazy<SquadResolver> resolver,
-        Lazy<BuildService> build,
-        IConsole console
-    )
-        : base("build", "Build the kit set of a team: its workload and the kits of its squads.")
+    private readonly Option<string[]> _teams = new("--team")
     {
-        var teams = new Option<string[]>("--team")
-        {
-            Description =
-                "The team to build. Can be given more than once. Defaults to the team of the user configuration.",
-            AllowMultipleArgumentsPerToken = false,
-        };
+        Description =
+            "The team to build. Can be given more than once. Defaults to the team of the user configuration.",
+        AllowMultipleArgumentsPerToken = false,
+    };
+    private readonly Option<string> _root = new("--root")
+    {
+        Description =
+            "The directory to start searching for team sources. Defaults to the current directory.",
+    };
+    private readonly Option<string> _tag = new("--tag")
+    {
+        Description =
+            "The tag the build is stored under. Defaults to the tag of the user configuration, latest.",
+    };
+    private readonly Option<bool> _noVerify = new("--no-verify")
+    {
+        Description =
+            "Skip additional local kit inspection with sbx. Normal builds still build the workload image.",
+    };
+    private readonly Option<bool> _noPersonal = new("--no-personal")
+    {
+        Description = "Exclude personal .abox files to make a build safe to publish.",
+    };
+    private readonly Option<bool> _metadataOnly = new("--metadata-only")
+    {
+        Description =
+            "Prepare source metadata without Docker or sbx (maintainers). Replaces the manifest and clears its local image selection; remote create does not need this.",
+    };
 
-        var root = new Option<string>("--root")
-        {
-            Description =
-                "The directory to start searching for team sources. Defaults to the current directory.",
-        };
+    public BuildCommand(CommandRunner runner)
+        : base(
+            "build",
+            "Build the kit set of a team: its workload and the kits of its squads.",
+            runner
+        )
+    {
+        Options.Add(_teams);
+        Options.Add(_root);
+        Options.Add(_tag);
+        Options.Add(_noVerify);
+        Options.Add(_noPersonal);
+        Options.Add(_metadataOnly);
+    }
 
-        var tag = new Option<string>("--tag")
-        {
-            Description =
-                "The tag the build is stored under. Defaults to the tag of the user configuration, latest.",
-        };
-
-        var verify = new Option<bool>("--no-verify")
-        {
-            Description =
-                "Skip additional local kit inspection with sbx. Normal builds still build the workload image.",
-        };
-
-        var personal = new Option<bool>("--no-personal")
-        {
-            Description = "Exclude personal .abox files to make a build safe to publish.",
-        };
-
-        var metadata = new Option<bool>("--metadata-only")
-        {
-            Description =
-                "Prepare source metadata without Docker or sbx (maintainers). Replaces the manifest and clears its local image selection; remote create does not need this.",
-        };
-
-        Options.Add(teams);
-        Options.Add(root);
-        Options.Add(tag);
-        Options.Add(verify);
-        Options.Add(personal);
-        Options.Add(metadata);
-
-        SetAction(
-            async (parseResult, cancellationToken) =>
-            {
-                return await CommandHandling.RunAsync(
-                    async () =>
-                    {
-                        var settings = config.Value;
-                        var selectedTag = parseResult.GetValue(tag) ?? settings.DefaultTag;
-                        RegistryImageName.ValidateTag(selectedTag);
-                        var wanted = settings.ResolveTeams(parseResult.GetValue(teams));
-
-                        var rootDirectory = Path.GetFullPath(
-                            parseResult.GetValue(root) ?? Directory.GetCurrentDirectory()
-                        );
-                        var request = new BuildRequest(
-                            wanted
-                                .Select(team => resolver.Value.ResolveTeam(rootDirectory, team))
-                                .ToList(),
-                            rootDirectory,
-                            selectedTag,
-                            !parseResult.GetValue(verify),
-                            !parseResult.GetValue(personal),
-                            parseResult.GetValue(metadata)
-                        );
-
-                        if (
-                            !request.MetadataOnly
-                            && !await preflight.EnsureReadyAsync(cancellationToken)
-                        )
-                        {
-                            return 1;
-                        }
-
-                        return await build.Value.BuildAsync(request, cancellationToken);
-                    },
-                    console
-                );
-            }
+    internal override Task<BuildParameters> BindAsync(
+        ParseResult parseResult,
+        InvocationDefaults defaults,
+        CancellationToken cancellationToken
+    )
+    {
+        var tag = defaults.Tag(parseResult.GetValue(_tag));
+        var teams = defaults.Teams(parseResult.GetValue(_teams));
+        var root = Path.GetFullPath(parseResult.GetValue(_root) ?? Directory.GetCurrentDirectory());
+        return Task.FromResult(
+            new BuildParameters(
+                teams,
+                root,
+                tag,
+                !parseResult.GetValue(_noVerify),
+                !parseResult.GetValue(_noPersonal),
+                parseResult.GetValue(_metadataOnly)
+            )
         );
     }
 }

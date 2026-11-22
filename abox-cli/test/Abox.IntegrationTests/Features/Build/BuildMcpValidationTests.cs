@@ -1,5 +1,6 @@
-using Abox.Features.Build;
+using Abox.Cli;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
@@ -7,6 +8,7 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -18,7 +20,7 @@ public sealed class BuildMcpValidationTests : IDisposable
     private readonly TestConsole _console = new();
     private readonly AboxPaths _paths;
     private readonly BuildStore _store;
-    private readonly BuildCommand _command;
+    private readonly CliTestApplication _application;
 
     public BuildMcpValidationTests()
     {
@@ -37,13 +39,11 @@ public sealed class BuildMcpValidationTests : IDisposable
             LocalWorkloadFactory.Images(programs, _runner, _console),
             _console
         );
-        _command = new BuildCommand(
-            new Lazy<AboxConfig>(() => config),
-            new Preflight(_console, ReadyPreflight.Checks()),
-            new Lazy<SquadResolver>(() => resolver),
-            new Lazy<BuildService>(() => build),
-            _console
-        );
+        _application = new CliTestApplication(_console, _paths, new TrailingArguments());
+        _application.Services.AddSingleton(config);
+        _application.Services.AddSingleton(ReadyPreflight.Checks());
+        _application.Services.AddSingleton(resolver);
+        _application.Services.AddSingleton(build);
     }
 
     [Theory]
@@ -205,10 +205,12 @@ public sealed class BuildMcpValidationTests : IDisposable
 
     private Task<int> BuildAsync(bool metadataOnly)
     {
-        var arguments = new List<string> { "--team", "sample", "--root", _root.Path };
+        var arguments = new List<string> { "build", "--team", "sample", "--root", _root.Path };
         if (metadataOnly)
             arguments.Add("--metadata-only");
-        return _command.Parse(arguments.ToArray()).InvokeAsync();
+        return _application
+            .Provider.GetRequiredService<AboxRootCommand>()
+            .InvokeAsync(arguments.ToArray());
     }
 
     private Dictionary<string, string> FilesInState() =>
@@ -216,5 +218,9 @@ public sealed class BuildMcpValidationTests : IDisposable
             .GetFiles(_paths.StateDirectory, "*", SearchOption.AllDirectories)
             .ToDictionary(path => path, File.ReadAllText);
 
-    public void Dispose() => _root.Dispose();
+    public void Dispose()
+    {
+        _application.Dispose();
+        _root.Dispose();
+    }
 }

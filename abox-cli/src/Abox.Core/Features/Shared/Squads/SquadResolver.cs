@@ -23,6 +23,14 @@ internal sealed class SquadResolver(AboxConfig config, IYamlParser parser)
         return _sources.ResolveTeam(rootDirectory, teamName);
     }
 
+    /// <summary>Resolves every team, in the order given, from the same directory.</summary>
+    /// <param name="rootDirectory">The directory to start searching for the teams' projects.</param>
+    /// <param name="teamNames">The names of the teams.</param>
+    public IReadOnlyList<ResolvedTeam> ResolveTeams(
+        string rootDirectory,
+        IReadOnlyList<string> teamNames
+    ) => teamNames.Select(team => ResolveTeam(rootDirectory, team)).ToList();
+
     public sealed record ResolvedTeam(string Name, string Folder, IReadOnlyList<string> Squads)
     {
         /// <summary>The owning project root; absent for a remote selection without local sources.</summary>

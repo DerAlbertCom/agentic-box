@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
@@ -7,18 +8,17 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
-using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Run;
 
 /// <summary>What to run.</summary>
 /// <param name="LauncherId">The launcher to start.</param>
-/// <param name="Location">The folder whose sandbox is opened.</param>
+/// <param name="Location">The folder whose sandbox is opened, with its folder configuration.</param>
 /// <param name="Argv">The arguments after <c>--</c>.</param>
 /// <param name="TerminalTheme">Whether the sandbox recolors the terminal, or null to follow the configuration.</param>
 internal sealed record RunRequest(
     string LauncherId,
-    string Location,
+    SandboxLocation Location,
     IReadOnlyList<string> Argv,
     bool? TerminalTheme = null
 );
@@ -40,8 +40,7 @@ internal sealed class RunFlow(
     FolderSandbox sandboxes,
     CreateRecoveryHints recoveryHints,
     IHostPrograms hostPrograms,
-    IConsole console,
-    IYamlParser parser
+    IConsole console
 )
 {
     /// <summary>Tells the sandbox's login shell to set the terminal colors (ADR 0002).</summary>
@@ -67,8 +66,8 @@ internal sealed class RunFlow(
             return 1;
         }
 
-        var location = Path.GetFullPath(request.Location);
-        var folderConfig = await FolderConfig.LoadAsync(location, parser, cancellationToken);
+        var location = request.Location.FullPath;
+        var folderConfig = await request.Location.FolderConfigurationAsync(cancellationToken);
         var terminalTheme = FolderConfig.SelectTerminalTheme(
             folderConfig,
             config.TerminalTheme,

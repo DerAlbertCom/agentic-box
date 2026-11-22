@@ -1,52 +1,37 @@
 using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
-using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Launchers;
-using Abox.Features.Shared.Preflight;
 
 namespace Abox.Features.Run;
 
 /// <summary>
 /// <c>abox run</c>: starts a launcher for the sandbox of a folder.
 /// </summary>
-internal sealed class RunCommand : Command
+internal sealed class RunCommand : AboxCommand<RunParameters>
 {
-    public RunCommand(
-        Lazy<AboxConfig> config,
-        LauncherRegistry launchers,
-        Preflight preflight,
-        Lazy<RunFlow> run,
-        TrailingArguments trailing,
-        IConsole console
-    )
-        : base("run", "Start a launcher for the sandbox of a folder.")
+    private readonly Argument<string> _launcher = new("launcher")
     {
-        var launcher = new Argument<string>("launcher")
-        {
-            Arity = ArgumentArity.ZeroOrOne,
-            Description = "The launcher to start. Defaults to the shell.",
-        };
+        Arity = ArgumentArity.ZeroOrOne,
+        Description = "The launcher to start. Defaults to the shell.",
+    };
+    private readonly LocationOption _location = new();
+    private readonly Option<bool?> _terminalTheme = new("--terminal-theme")
+    {
+        Arity = ArgumentArity.ExactlyOne,
+        HelpName = "true|false",
+        Description =
+            $"Whether the sandbox sets the terminal colors from its theme. Overrides terminalTheme in the folder configuration ({FolderConfig.FileNames}) and in the user configuration; defaults to true.",
+    };
 
-        launcher.CompletionSources.Add(launchers.All.Select(item => item.Id).ToArray());
+    public RunCommand(CommandRunner runner, LauncherRegistry launchers)
+        : base("run", "Start a launcher for the sandbox of a folder.", runner)
+    {
+        _launcher.CompletionSources.Add(launchers.All.Select(item => item.Id).ToArray());
 
-        var location = new Option<string>("--location")
-        {
-            Description =
-                "The folder whose sandbox is opened. Defaults to the location of the user configuration, or the current directory.",
-        };
-
-        var terminalTheme = new Option<bool?>("--terminal-theme")
-        {
-            Arity = ArgumentArity.ExactlyOne,
-            HelpName = "true|false",
-            Description =
-                $"Whether the sandbox sets the terminal colors from its theme. Overrides terminalTheme in the folder configuration ({FolderConfig.FileNames}) and in the user configuration; defaults to true.",
-        };
-
-        Arguments.Add(launcher);
-        Options.Add(location);
-        Options.Add(terminalTheme);
+        Arguments.Add(_launcher);
+        Options.Add(_location);
+        Options.Add(_terminalTheme);
 
         Description =
             "Start a launcher for the sandbox of a folder."
@@ -58,30 +43,21 @@ internal sealed class RunCommand : Command
                 Environment.NewLine,
                 launchers.All.Select(item => $"  {item.Id, -10} {item.Summary}")
             );
-
-        SetAction(
-            async (parseResult, cancellationToken) =>
-            {
-                return await CommandHandling.RunAsync(
-                    async () =>
-                    {
-                        var request = new RunRequest(
-                            parseResult.GetValue(launcher) ?? "shell",
-                            config.Value.ResolveLocation(parseResult.GetValue(location)),
-                            trailing.Values,
-                            parseResult.GetValue(terminalTheme)
-                        );
-
-                        if (!await preflight.EnsureReadyAsync(cancellationToken))
-                        {
-                            return 1;
-                        }
-
-                        return await run.Value.RunAsync(request, cancellationToken);
-                    },
-                    console
-                );
-            }
-        );
     }
+
+    internal override async Task<RunParameters> BindAsync(
+        ParseResult parseResult,
+        InvocationDefaults defaults,
+        CancellationToken cancellationToken
+    ) =>
+        new(
+            parseResult.GetValue(_launcher) ?? "shell",
+            await defaults.SandboxLocationAsync(
+                parseResult.GetValue(_location),
+                FolderConfigurationLoading.OnFirstUse,
+                cancellationToken
+            ),
+            defaults.TrailingArguments,
+            parseResult.GetValue(_terminalTheme)
+        );
 }

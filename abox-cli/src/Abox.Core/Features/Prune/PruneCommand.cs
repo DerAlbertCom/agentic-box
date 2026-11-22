@@ -1,56 +1,40 @@
 using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
-using Abox.Features.Shared.Common;
-using Abox.Features.Shared.Preflight;
 
 namespace Abox.Features.Prune;
 
 /// <summary>
 /// <c>abox prune</c>: removes the sbx template images that stopped being used.
 /// </summary>
-internal sealed class PruneCommand : Command
+internal sealed class PruneCommand : AboxCommand<PruneParameters>
 {
-    public PruneCommand(Preflight preflight, PruneService prune, IConsole console)
+    private readonly Option<bool> _full = new("--full")
+    {
+        Description =
+            "Reach for everything sbx holds, not only the stale sets. What a sandbox uses, sbx keeps.",
+    };
+    private readonly Option<bool> _sbx = new("--sbx")
+    {
+        Description = "Stop the running sandboxes before the prune.",
+    };
+
+    public PruneCommand(CommandRunner runner)
         : base(
             "prune",
-            "Remove the stale template images of sbx: everything but the newest set and its kit sources."
+            "Remove the stale template images of sbx: everything but the newest set and its kit sources.",
+            runner
         )
     {
-        var full = new Option<bool>("--full")
-        {
-            Description =
-                "Reach for everything sbx holds, not only the stale sets. What a sandbox uses, sbx keeps.",
-        };
-
-        var stop = new Option<bool>("--sbx")
-        {
-            Description = "Stop the running sandboxes before the prune.",
-        };
-
-        Options.Add(full);
-        Options.Add(stop);
-
-        SetAction(
-            async (parseResult, cancellationToken) =>
-            {
-                var request = new PruneRequest(
-                    parseResult.GetValue(full),
-                    parseResult.GetValue(stop)
-                );
-
-                return await CommandHandling.RunAsync(
-                    async () =>
-                    {
-                        if (!await preflight.EnsureReadyAsync(cancellationToken))
-                        {
-                            return 1;
-                        }
-
-                        return await prune.PruneTemplatesAsync(request, cancellationToken);
-                    },
-                    console
-                );
-            }
-        );
+        Options.Add(_full);
+        Options.Add(_sbx);
     }
+
+    internal override Task<PruneParameters> BindAsync(
+        ParseResult parseResult,
+        InvocationDefaults defaults,
+        CancellationToken cancellationToken
+    ) =>
+        Task.FromResult(
+            new PruneParameters(parseResult.GetValue(_full), parseResult.GetValue(_sbx))
+        );
 }

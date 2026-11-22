@@ -21,7 +21,7 @@ public sealed class AboxServiceCollectionTests
         var console = new TestConsole();
         var paths = AboxPaths.For(root.Path, root.Path);
         using var application = new CliTestApplication(console, paths, new TrailingArguments());
-        application.Services.AddSingleton<Command>(provider =>
+        application.Services.AddScoped<Command>(provider =>
         {
             var command = new Command("test-tool");
             command.SetAction(

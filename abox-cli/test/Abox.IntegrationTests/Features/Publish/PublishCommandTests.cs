@@ -1,5 +1,7 @@
+using Abox.Cli;
 using Abox.Features.Publish;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
@@ -7,6 +9,7 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -33,10 +36,10 @@ public sealed class PublishCommandTests
     {
         // Arrange
         SaveBuild("sample", "ac", "release");
-        var command = Command(new AboxConfig { DefaultTeam = "sample", DefaultTag = "release" });
+        var config = new AboxConfig { DefaultTeam = "sample", DefaultTag = "release" };
 
         // Act
-        var exitCode = await command.Parse(["--root", _root.Path]).InvokeAsync();
+        var exitCode = await Publish(config, "--root", _root.Path);
 
         // Assert
         exitCode.Should().Be(0);
@@ -51,20 +54,19 @@ public sealed class PublishCommandTests
         SaveBuild("two", "bd", "test");
 
         // Act
-        var exitCode = await Command(new AboxConfig())
-            .Parse([
-                "--team",
-                "one",
-                "--team",
-                "two",
-                "--root",
-                _root.Path,
-                "--tag",
-                "test",
-                "--builder",
-                "publisher",
-            ])
-            .InvokeAsync();
+        var exitCode = await Publish(
+            new AboxConfig(),
+            "--team",
+            "one",
+            "--team",
+            "two",
+            "--root",
+            _root.Path,
+            "--tag",
+            "test",
+            "--builder",
+            "publisher"
+        );
 
         // Assert
         exitCode.Should().Be(0);
@@ -112,7 +114,7 @@ public sealed class PublishCommandTests
         );
 
         // Act
-        var exitCode = await Command(config).Parse(["--root", _root.Path]).InvokeAsync();
+        var exitCode = await Publish(config, "--root", _root.Path);
 
         // Assert
         exitCode.Should().Be(0);
@@ -136,7 +138,7 @@ public sealed class PublishCommandTests
     {
         // Arrange: the fixture supplies a command with no configured default team.
         // Act
-        var exitCode = await Command(new AboxConfig()).Parse([]).InvokeAsync();
+        var exitCode = await Publish(new AboxConfig());
 
         // Assert
         exitCode.Should().Be(1);
@@ -154,9 +156,11 @@ public sealed class PublishCommandTests
         _programs.Exists("sbx").Returns(false);
 
         // Act
-        var exitCode = await Command(new AboxConfig { DefaultTeam = "sample" })
-            .Parse(["--root", _root.Path])
-            .InvokeAsync();
+        var exitCode = await Publish(
+            new AboxConfig { DefaultTeam = "sample" },
+            "--root",
+            _root.Path
+        );
 
         // Assert
         exitCode.Should().Be(0);
@@ -173,27 +177,37 @@ public sealed class PublishCommandTests
             .Returns(new ProcessResult(1, string.Empty, "buildx is unavailable"));
 
         // Act
-        var exitCode = await Command(new AboxConfig { DefaultTeam = "sample" })
-            .Parse(["--root", _root.Path])
-            .InvokeAsync();
+        var exitCode = await Publish(
+            new AboxConfig { DefaultTeam = "sample" },
+            "--root",
+            _root.Path
+        );
 
         // Assert
         exitCode.Should().Be(1);
         _console.AllText.Should().Contain("buildx is unavailable");
     }
 
-    private PublishCommand Command(AboxConfig config) =>
-        new(
-            new Lazy<AboxConfig>(() => config),
-            new Lazy<SquadResolver>(() => new SquadResolver(config, new YamlDotNetParser())),
+    private async Task<int> Publish(AboxConfig config, params string[] arguments)
+    {
+        using var application = new CliTestApplication(
+            _console,
+            AboxPaths.For(_root.Path, Path.Combine(_root.Path, "state")),
+            new TrailingArguments()
+        );
+        application.Services.AddSingleton(config);
+        application.Services.AddSingleton(
             new PublishService(
                 _store,
                 new DockerRegistryPublisher(_programs, _runner),
                 _console,
                 new YamlDotNetParser()
-            ),
-            _console
+            )
         );
+        return await application
+            .Provider.GetRequiredService<AboxRootCommand>()
+            .InvokeAsync(["publish", .. arguments]);
+    }
 
     [Fact]
     public async Task EverySelectedTeamIsValidatedBeforeTheFirstPush()
@@ -203,9 +217,15 @@ public sealed class PublishCommandTests
         _root.File("teams/two/bd.abox", "workload: sample\n");
 
         // Act
-        var exitCode = await Command(new AboxConfig())
-            .Parse(["--team", "one", "--team", "two", "--root", _root.Path])
-            .InvokeAsync();
+        var exitCode = await Publish(
+            new AboxConfig(),
+            "--team",
+            "one",
+            "--team",
+            "two",
+            "--root",
+            _root.Path
+        );
 
         // Assert
         exitCode.Should().Be(1);

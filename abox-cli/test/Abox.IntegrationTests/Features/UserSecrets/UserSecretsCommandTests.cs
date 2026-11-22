@@ -23,6 +23,26 @@ public sealed class UserSecretsCommandTests
     }
 
     [Fact]
+    public async Task AFolderWithoutFolderConfigurationIsRejectedBeforePreflight()
+    {
+        // Arrange
+        using var fixture = new UserSecretsCliHarness();
+
+        // Act
+        var exitCode = await fixture.Run();
+
+        // Assert
+        exitCode.Should().Be(1);
+        fixture
+            .Console.Errors.Should()
+            .Equal(
+                "error: No abox.yaml or abox.user.yaml in this folder. Declare 'userSecrets' explicitly before copying."
+            );
+        fixture.Preflight.ReceivedCalls().Should().BeEmpty();
+        await fixture.NoWrites();
+    }
+
+    [Fact]
     public async Task TheUserFileAloneSelectsTheUserSecrets()
     {
         // Arrange

@@ -5,46 +5,39 @@ using Abox.Features.Shared.Sandboxes;
 
 namespace Abox.Features.Sandbox;
 
-/// <summary>Common construction for the hidden commands that exec into a named sandbox.</summary>
-internal static class SandboxCommand
+/// <summary>The syntax of the hidden commands that exec into a named sandbox.</summary>
+internal abstract class SandboxCommand : AboxCommand<SandboxExecParameters>
 {
-    internal static void Configure(
-        Command command,
-        ISandboxExec exec,
-        TrailingArguments trailing,
-        IConsole console,
-        SandboxExecInput input = SandboxExecInput.None
+    private readonly Argument<string> _sandbox = new("sandbox")
+    {
+        Description = "The sandbox to run the command in.",
+    };
+    private readonly SandboxExecInput _input;
+
+    protected SandboxCommand(
+        string name,
+        string description,
+        CommandRunner runner,
+        SandboxExecInput input
+    )
+        : base(name, description, runner)
+    {
+        _input = input;
+        Hidden = true;
+        Arguments.Add(_sandbox);
+    }
+
+    internal override Task<SandboxExecParameters> BindAsync(
+        ParseResult parseResult,
+        InvocationDefaults defaults,
+        CancellationToken cancellationToken
     )
     {
-        command.Hidden = true;
-        var sandbox = new Argument<string>("sandbox")
-        {
-            Description = "The sandbox to run the command in.",
-        };
-        command.Arguments.Add(sandbox);
-        command.SetAction(
-            async (parseResult, cancellationToken) =>
-            {
-                var argv = trailing.Values;
-                if (argv.Count == 0)
-                {
-                    console.WriteError(
-                        $"error: no command given. Use: abox {command.Name} <sandbox> -- <command>"
-                    );
-                    return 1;
-                }
-
-                return await CommandHandling.RunAsync(
-                    async () =>
-                        (
-                            await exec.RunAsync(
-                                new SandboxExecRequest(parseResult.GetValue(sandbox)!, argv, input),
-                                cancellationToken
-                            )
-                        ).ExitCode,
-                    console
-                );
-            }
+        var command = defaults.TrailingArguments;
+        if (command.Count == 0)
+            throw new AboxException($"no command given. Use: abox {Name} <sandbox> -- <command>");
+        return Task.FromResult(
+            new SandboxExecParameters(parseResult.GetValue(_sandbox)!, command, _input)
         );
     }
 }

@@ -1,6 +1,7 @@
 using System.Text.Json;
-using Abox.Features.Build;
+using Abox.Cli;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
@@ -8,6 +9,7 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -49,21 +51,20 @@ public sealed class BuildTagCommandTests
             LocalWorkloadFactory.Images(programs, runner, console),
             console
         );
-        var command = new BuildCommand(
-            new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths, new YamlDotNetParser())),
-            new Preflight(console, ReadyPreflight.Checks()),
-            new Lazy<SquadResolver>(() => resolver),
-            new Lazy<BuildService>(() => service),
-            console
-        );
-        var arguments = new List<string> { "--team", "sample", "--root", root.Path };
+        using var application = new CliTestApplication(console, paths, new TrailingArguments());
+        application.Services.AddSingleton(ReadyPreflight.Checks());
+        application.Services.AddSingleton(resolver);
+        application.Services.AddSingleton(service);
+        var arguments = new List<string> { "build", "--team", "sample", "--root", root.Path };
         if (!configuredTag)
             arguments.AddRange(["--tag", tag]);
         if (metadataOnly)
             arguments.Add("--metadata-only");
 
         // Act
-        var exitCode = await command.Parse(arguments.ToArray()).InvokeAsync();
+        var exitCode = await application
+            .Provider.GetRequiredService<AboxRootCommand>()
+            .InvokeAsync(arguments.ToArray());
 
         // Assert
         exitCode.Should().Be(0, console.AllText);
@@ -125,14 +126,11 @@ public sealed class BuildTagCommandTests
             LocalWorkloadFactory.Images(programs, runner, console),
             console
         );
-        var command = new BuildCommand(
-            new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths, new YamlDotNetParser())),
-            new Preflight(console, preflight),
-            new Lazy<SquadResolver>(() => resolver),
-            new Lazy<BuildService>(() => build),
-            console
-        );
-        var arguments = new List<string> { "--team", "sample", "--root", root.Path };
+        using var application = new CliTestApplication(console, paths, new TrailingArguments());
+        application.Services.AddSingleton(preflight);
+        application.Services.AddSingleton(resolver);
+        application.Services.AddSingleton(build);
+        var arguments = new List<string> { "build", "--team", "sample", "--root", root.Path };
         if (!configuredTag)
         {
             arguments.AddRange(["--tag", tag]);
@@ -143,7 +141,9 @@ public sealed class BuildTagCommandTests
         }
 
         // Act
-        var exitCode = await command.Parse(arguments.ToArray()).InvokeAsync();
+        var exitCode = await application
+            .Provider.GetRequiredService<AboxRootCommand>()
+            .InvokeAsync(arguments.ToArray());
 
         // Assert
         exitCode.Should().Be(1);

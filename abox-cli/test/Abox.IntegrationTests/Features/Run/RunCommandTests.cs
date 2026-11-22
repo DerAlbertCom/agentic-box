@@ -301,6 +301,28 @@ public sealed class RunCommandTests
     }
 
     [Fact]
+    public async Task AnInvalidFolderConfigurationIsReadOnlyAfterPreflightAndTheHostRequirements()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        File.WriteAllText(Path.Combine(fixture.Location, "abox.yaml"), "terminalTheme: yes\n");
+        fixture.MissingOnHost.Add("hc");
+
+        // Act
+        var exitCode = await fixture.Run("herdr-app");
+
+        // Assert
+        exitCode.Should().Be(1);
+        fixture
+            .Console.Errors.Should()
+            .Equal(
+                "The launcher 'herdr-app' needs 'hc' on the host.",
+                "Install herdr-core: it comes with the Herdr desktop app."
+            );
+        fixture.Calls.Should().Contain(call => call.Arguments[0] == "version");
+    }
+
+    [Fact]
     public async Task ANonBooleanTerminalThemeInTheUserConfigurationIsAConfigurationError()
     {
         // Arrange
@@ -368,7 +390,7 @@ public sealed class RunCommandTests
         public TestConsole Console { get; } = new();
         public string Location { get; }
         public string Name => SandboxName.For(Location);
-        public ServiceProvider Provider => application.Provider;
+        public IServiceProvider Provider => application.Provider;
         public string Workspace { get; init; } = "/home/agent/workspace";
         public int ExecExitCode { get; init; }
         public HashSet<string> MissingOnHost { get; } = [];

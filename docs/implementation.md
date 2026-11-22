@@ -1193,39 +1193,66 @@ After updating the approved repository bundle, rebuild the CLI/tool and workload
 abox-cli/src/       three projects; ADR 0004 records the split and the reference rules
   Abox/             the host (assembly abox, the rwest-agentic-box tool); references
                     Abox.Core and Abox.Infrastructure
-    Program.cs      runs the command line
+    Program.cs      runs the command line: builds the provider with scope validation,
+                    opens one scope per process run and invokes the root command from it
     Cli/            the root command and AddAbox, which calls AddAboxCore and
                     AddAboxInfrastructure
   Abox.Core/        the features; references nothing in the solution, nor YamlDotNet
     Features/       the command slices and the shared features
       CoreServiceCollection.cs  AddAboxCore: the shared services and one call per slice
-      LazyService.cs  resolves a Lazy<T> dependency only when its value is first used
-      Build/          abox build: the command and the service that does its work
+      Build/          abox build: the command binds BuildParameters, BuildHandler resolves
+                      the teams to squads and runs the service that does its work
         Assets/                     the inspection certificate chain, embedded in Abox.Core
         KitBuildStep.cs             stages a kit with a build file and runs its build (ADR 0001)
         StateMixinGenerator.cs      the state mixin of a built squad
         WorkloadKitGenerator.cs     turns a workload into a sandbox kit
         SquadConfigurationMixin.cs  the squad.json allowlist and its mixin
-      Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly
-      Create/         abox create: the command and its slice registration
-      Run/            abox run: the command and the Run flow (common Launcher steps)
+      Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly;
+                      the command binds PublishParameters, PublishHandler does the work
+      Create/         abox create: the command binds CreateParameters, CreateHandler
+                      does the work
+      Run/            abox run: the command binds RunParameters, RunHandler runs the
+                      Run flow (common Launcher steps)
         ShellLauncher.cs  the default launcher: a shell in the workspace
-      Secrets/        abox secrets: the command and the service that does its work
+      Secrets/        abox secrets: the command, one parameters record and handler per
+                      subcommand (list, set, remove) and the service that does its work
+        SecretsAction.cs         the steps the three handlers share: folder configuration,
+                                 preflight, then the service
         SandboxSquadMetadata.cs  staged descriptors and squad.json Secrets of a sandbox
-      UserSecrets/    abox user-secrets: on-demand command only
-      Ports/          abox ports: on-demand command only
-      Prune/          abox prune: the command and the service that does its work
+      UserSecrets/    abox user-secrets: on-demand command only; the command binds
+                      UserSecretsParameters, UserSecretsHandler does the work
+      Ports/          abox ports: on-demand command only; the command binds
+                      PortsParameters, PortsHandler does the work
+      Prune/          abox prune: the command binds PruneParameters, PruneHandler runs
+                      the service that does its work
       Sandbox/        the commands other programs call: abox exec and abox pipe
-        SandboxCommand.cs     shared hidden-command construction and argv validation;
-                              passes the named sandbox to sbx exec
+        SandboxCommand.cs     their shared hidden syntax; binds SandboxExecParameters and
+                              rejects a missing command after "--"
+        SandboxExecHandler.cs passes the named sandbox to sbx exec, for both commands
       Shared/         everything shared by commands, one folder per use case
         Common/           IConsole, AboxException and TemporaryDirectory, used by every layer
         Yaml/             IYamlParser and its YamlNode tree; YamlReader, the strict reader
                           of abox's own files and the merge of abox.yaml with abox.user.yaml
-        CommandLine/      the trailing arguments after "--", the --verbose setting
-                          (Verbosity, set by the root command, read by ProcessOutput) and
-                          command handling, which turns an abox error into a message and
-                          an exit code
+        CommandLine/      how a command runs (ADR 0005)
+          AboxCommand.cs        the base shape of every command with an action: its syntax
+                                and BindAsync, which maps a parse result to its parameters
+          CommandRunner.cs      runs every action: binds the parameters, resolves and runs
+                                the handler for them, maps abox errors to exit code 1 and
+                                cancellation to 130
+          ICommandHandler.cs    a command's work: parameters in, exit code out
+          InvocationDefaults.cs the user configuration defaults of the options (sandbox
+                                location, team, teams, tag) and the arguments after "--"
+          SandboxLocation.cs    a sandbox location's full path and its folder configuration,
+                                loaded once
+          FolderConfigurationLoading.cs  when a sandbox location loads it: now, on first
+                                use or never
+          LocationOption.cs     the shared --location
+          CommandHandling.cs    the entry point's guard: an abox error to a message and
+                                an exit code
+          CommandLine.cs        splits the command line at "--"
+          TrailingArguments.cs  the arguments after "--", handed to binding
+          Verbosity.cs          the --verbose setting, set by the root command, read by
+                                ProcessOutput
         Configuration/    the directories and the user configuration
           FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
         UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
@@ -1380,7 +1407,8 @@ abox-cli/test/      one test project per source project, each mirroring its fold
   Abox.IntegrationTests/      real Core and real Infrastructure together: the whole CLI
                               through the CLI test application (Cli/ holds the composition
                               root, command location and source defaults), real YAML files
-                              and fixtures, and the ArchUnitNET architecture rules
+                              and fixtures, the ArchUnitNET architecture rules and the
+                              command constructor rule (CommandConstructorTests)
   Abox.Tests/                 the host's own tests that need no CLI test application:
                               the root command's --verbose handling and the executable
   Abox.TestUtilities/         shared helpers (test console, temporary directories,

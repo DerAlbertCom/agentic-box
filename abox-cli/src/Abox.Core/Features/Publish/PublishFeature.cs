@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Abox.Features.Shared.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.Publish;
@@ -10,8 +11,9 @@ internal static class PublishFeature
 {
     public static IServiceCollection AddPublishFeature(this IServiceCollection services)
     {
-        services.AddSingleton<PublishService>();
-        services.AddSingleton<Command, PublishCommand>();
+        services.AddScoped<PublishService>();
+        services.AddScoped<Command, PublishCommand>();
+        services.AddScoped<ICommandHandler<PublishParameters>, PublishHandler>();
         return services;
     }
 }

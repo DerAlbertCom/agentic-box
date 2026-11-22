@@ -41,7 +41,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -72,7 +72,10 @@ public sealed class RunFlowTests
             .Returns((string?)null);
 
         // Act
-        await _service.RunAsync(new RunRequest("shell", _root.Path, []), CancellationToken.None);
+        await _service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+            CancellationToken.None
+        );
 
         // Assert
         await _exec
@@ -94,7 +97,7 @@ public sealed class RunFlowTests
 
         // Act
         await _service.RunAsync(
-            new RunRequest("shell", _root.Path, ["ls", "-la"]),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), ["ls", "-la"]),
             CancellationToken.None
         );
 
@@ -115,7 +118,7 @@ public sealed class RunFlowTests
         // Arrange: the fixture has no existing sandbox.
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -156,7 +159,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -187,13 +190,12 @@ public sealed class RunFlowTests
             SandboxFactory.Resolver(_lifecycle, SandboxFactory.Hints(config, _store, _records)),
             SandboxFactory.Hints(config, _store, _records),
             Substitute.For<IHostPrograms>(),
-            _console,
-            new YamlDotNetParser()
+            _console
         );
 
         // Act
         var exitCode = await service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -215,7 +217,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -250,7 +252,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -284,7 +286,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("app", _root.Path, []),
+            new RunRequest("app", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -323,13 +325,12 @@ public sealed class RunFlowTests
             ),
             SandboxFactory.Hints(new AboxConfig(), _store, _records),
             Substitute.For<IHostPrograms>(),
-            _console,
-            new YamlDotNetParser()
+            _console
         );
 
         // Act
         var exitCode = await service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -347,7 +348,10 @@ public sealed class RunFlowTests
         // Arrange: the fixture registers only the shell and app launchers.
         // Act
         var action = () =>
-            _service.RunAsync(new RunRequest("nope", _root.Path, []), CancellationToken.None);
+            _service.RunAsync(
+                new RunRequest("nope", RunFlowFixture.Location(_root.Path), []),
+                CancellationToken.None
+            );
 
         // Assert
         var exception = await action.Should().ThrowAsync<AboxException>();
@@ -400,7 +404,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -451,7 +455,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -494,7 +498,7 @@ public sealed class RunFlowTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -542,7 +546,10 @@ public sealed class RunFlowTests
         );
 
         // Act
-        await _service.RunAsync(new RunRequest("shell", _root.Path, []), CancellationToken.None);
+        await _service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+            CancellationToken.None
+        );
 
         // Assert
         await _lifecycle

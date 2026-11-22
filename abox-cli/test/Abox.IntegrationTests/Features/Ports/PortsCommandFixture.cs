@@ -1,3 +1,4 @@
+using System.CommandLine;
 using Abox.Cli;
 using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
@@ -81,6 +82,17 @@ internal sealed class PortsCommandFixture : IDisposable
             .Provider.GetRequiredService<AboxRootCommand>()
             .Parse(["ports", .. args])
             .InvokeAsync(cancellationToken: cancellationToken);
+
+    /// <summary>Shows the help of <c>ports</c> and returns it as written.</summary>
+    public async Task<string> Help()
+    {
+        using var output = new StringWriter();
+        await application
+            .Provider.GetRequiredService<AboxRootCommand>()
+            .Parse(["ports", "--help"])
+            .InvokeAsync(new InvocationConfiguration { Output = output });
+        return output.ToString();
+    }
 
     public async Task NoPublishing() =>
         await Publisher

@@ -32,9 +32,9 @@ internal static class LegacySandboxInventoryFixture
                 };
             });
         cli.Services.AddSingleton(runner);
-        cli.Services.AddSingleton<ISandboxLifecycle, SbxSandboxLifecycle>();
-        cli.Services.AddSingleton<IMcpServerRegistry, SbxMcpServerRegistry>();
-        cli.Services.AddSingleton<ISandboxInspection, SbxSandboxInspection>();
+        cli.Services.AddScoped<ISandboxLifecycle, SbxSandboxLifecycle>();
+        cli.Services.AddScoped<IMcpServerRegistry, SbxMcpServerRegistry>();
+        cli.Services.AddScoped<ISandboxInspection, SbxSandboxInspection>();
         return requests;
     }
 }

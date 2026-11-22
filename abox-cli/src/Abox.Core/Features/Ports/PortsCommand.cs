@@ -1,93 +1,57 @@
 using System.CommandLine;
-using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
-using Abox.Features.Shared.Https;
-using Abox.Features.Shared.Preflight;
-using Abox.Features.Shared.Sandboxes;
-using Abox.Features.Shared.Yaml;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.Ports;
 
-internal sealed class PortsCommand : Command
+/// <summary>
+/// <c>abox ports</c>: publishes the discovered application ports of a folder's sandbox on
+/// host loopback, or refreshes only its HTTPS bootstrap.
+/// </summary>
+internal sealed class PortsCommand : AboxCommand<PortsParameters>
 {
-    public PortsCommand(
-        Lazy<AboxConfig> config,
-        Preflight preflight,
-        Lazy<FolderSandbox> sandboxes,
-        AppPorts ports,
-        SandboxHttps https,
-        IConsole console,
-        IYamlParser parser
-    )
-        : base("ports", "Publish discovered application ports on host loopback with an offset.")
+    private readonly LocationOption _location = new();
+    private readonly Option<int?> _offset = new("--offset")
     {
-        var location = new Option<string>("--location")
-        {
-            Description = "Sandbox folder. Defaults to defaultLocation, then the current folder.",
-        };
-        var offset = new Option<int?>("--offset")
-        {
-            Description =
-                $"One-run port offset (-65534..65534). Overrides the folder portOffset ({FolderConfig.FileNames}), then default 10000.",
-        };
-        Options.Add(location);
-        Options.Add(offset);
-        var refreshBootstrap = new Option<bool>("--refresh-https-bootstrap")
-        {
-            Description =
-                "Refresh only the verified HTTPS reader after a CLI upgrade; no discovery, host export, root trust or port changes.",
-        };
-        Options.Add(refreshBootstrap);
-        SetAction(
-            async (parseResult, cancellationToken) =>
-                await CommandHandling.RunAsync(
-                    async () =>
-                    {
-                        var folder = config.Value.ResolveLocation(parseResult.GetValue(location));
-                        var refresh = parseResult.GetValue(refreshBootstrap);
-                        if (refresh && parseResult.GetValue(offset) is not null)
-                            throw new AboxException(
-                                "--refresh-https-bootstrap cannot be combined with --offset; it changes no ports."
-                            );
-                        var folderConfig = refresh
-                            ? null
-                            : await FolderConfig.LoadAsync(folder, parser, cancellationToken);
-                        var selectedOffset = FolderConfig.SelectPortOffset(
-                            folderConfig,
-                            parseResult.GetValue(offset)
-                        );
-                        if (!await preflight.EnsureReadyAsync(cancellationToken))
-                            return 1;
-                        var sandbox = await sandboxes.Value.RequireAsync(
-                            folder,
-                            folderConfig,
-                            "ports never creates or replaces one",
-                            cancellationToken
-                        );
-                        if (refresh)
-                        {
-                            await https.RefreshBootstrapAsync(sandbox.Name, cancellationToken);
-                            return 0;
-                        }
-                        await ports.PublishAsync(
-                            folder,
-                            sandbox.Name,
-                            selectedOffset,
-                            cancellationToken
-                        );
-                        return 0;
-                    },
-                    console
-                )
-        );
-    }
-}
+        Description =
+            $"One-run port offset (-65534..65534). Overrides the folder portOffset ({FolderConfig.FileNames}), then default 10000.",
+    };
+    private readonly Option<bool> _refreshBootstrap = new("--refresh-https-bootstrap")
+    {
+        Description =
+            "Refresh only the verified HTTPS reader after a CLI upgrade; no discovery, host export, root trust or port changes.",
+    };
 
-internal static class PortsFeature
-{
-    public static IServiceCollection AddPortsFeature(this IServiceCollection services) =>
-        services.AddSingleton<Command, PortsCommand>();
+    public PortsCommand(CommandRunner runner)
+        : base(
+            "ports",
+            "Publish discovered application ports on host loopback with an offset.",
+            runner
+        )
+    {
+        Options.Add(_location);
+        Options.Add(_offset);
+        Options.Add(_refreshBootstrap);
+    }
+
+    internal override async Task<PortsParameters> BindAsync(
+        ParseResult parseResult,
+        InvocationDefaults defaults,
+        CancellationToken cancellationToken
+    )
+    {
+        var offset = parseResult.GetValue(_offset);
+        var refresh = parseResult.GetValue(_refreshBootstrap);
+        if (refresh && offset is not null)
+            throw new AboxException(
+                "--refresh-https-bootstrap cannot be combined with --offset; it changes no ports."
+            );
+        var location = await defaults.SandboxLocationAsync(
+            parseResult.GetValue(_location),
+            refresh ? FolderConfigurationLoading.Never : FolderConfigurationLoading.Now,
+            cancellationToken
+        );
+        return new PortsParameters(location, offset, refresh);
+    }
 }

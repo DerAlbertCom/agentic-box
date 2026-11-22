@@ -1,5 +1,7 @@
 # Core and infrastructure projects
 
+[ADR 0005](0005-commands-bind-parameters-handlers-run-them.md) extends the visibility list below with the command runner and the command base shape (`CommandRunner` and `AboxCommand<TParameters>`).
+
 [ADR 0003](0003-external-tools-behind-use-case-interfaces.md) sorted the CLI into `Features` and `Infrastructure`, but both lived in one project, so the boundary was a naming convention checked by a hand-written test that scanned IL by namespace. A feature could still compile against YamlDotNet or an adapter, features used generic helpers that lived in Infrastructure (the console, the YAML reader, temporary directories), and the host wired every adapter by hand. So the CLI is split into three projects and the compiler enforces the boundary:
 
 - **Projects.** `Abox.Core` holds only the `Features` folder: command slices, shared features, their use-case interfaces and domain models. `Abox.Infrastructure` holds every adapter for an external tool and the generic technical helpers that use an external library or the real system: the system console, the process runner, the YamlDotNet parser, secret redaction and protected staging; its root holds only these helpers and `InfrastructureServiceCollection`, its registration. `Abox` (the host, assembly `abox`, packaged as the `rwest-agentic-box` .NET tool) holds only `Program.cs` and `Cli/`, the root command and the composition. Namespaces are unchanged: `Abox.Features.<Command>`, `Abox.Features.Shared.<UseCase>`, `Abox.Infrastructure.<Tool>`, `Abox.Cli`.

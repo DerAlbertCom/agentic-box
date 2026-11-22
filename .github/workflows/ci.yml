@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: read
+  # The test reporter publishes the results as check runs.
+  checks: write
 
 jobs:
   sbox:
@@ -22,8 +24,22 @@ jobs:
           # Matches bun in the mise tools of the workload and the image of kits/sbox/build.
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
-      - run: bun test
+      - run: mkdir -p test-results && bun test --reporter=junit --reporter-outfile=test-results/sbox.xml
       - run: bun run typecheck
+      - name: Publish test results
+        if: ${{ !cancelled() }}
+        uses: dorny/test-reporter@v3
+        with:
+          name: sbox test results
+          path: sbox-cli/test-results/*.xml
+          reporter: java-junit
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbox-test-results
+          path: sbox-cli/test-results/
+          if-no-files-found: ignore
 
   abox:
     name: abox (.NET)
@@ -35,9 +51,29 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet tool restore
       - run: dotnet csharpier check abox-cli
-      - run: dotnet build abox-cli/agentic-box.slnx
+      - id: build
+        run: dotnet build abox-cli/agentic-box.slnx
       # The xUnit v3 executables run the suites; see docs/verification/synthetic-cli-tests.md.
-      - run: dotnet abox-cli/test/Abox.Core.Tests/bin/Debug/net10.0/Abox.Core.Tests.dll -noColor
-      - run: dotnet abox-cli/test/Abox.Infrastructure.Tests/bin/Debug/net10.0/Abox.Infrastructure.Tests.dll -noColor
-      - run: dotnet abox-cli/test/Abox.IntegrationTests/bin/Debug/net10.0/Abox.IntegrationTests.dll -noColor
-      - run: dotnet abox-cli/test/Abox.Tests/bin/Debug/net10.0/Abox.Tests.dll -noColor
+      # Each suite runs even when an earlier one fails, so every result gets published.
+      - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: dotnet abox-cli/test/Abox.Core.Tests/bin/Debug/net10.0/Abox.Core.Tests.dll -noColor -result-trx test-results/Abox.Core.Tests.trx
+      - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: dotnet abox-cli/test/Abox.Infrastructure.Tests/bin/Debug/net10.0/Abox.Infrastructure.Tests.dll -noColor -result-trx test-results/Abox.Infrastructure.Tests.trx
+      - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: dotnet abox-cli/test/Abox.IntegrationTests/bin/Debug/net10.0/Abox.IntegrationTests.dll -noColor -result-trx test-results/Abox.IntegrationTests.trx
+      - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: dotnet abox-cli/test/Abox.Tests/bin/Debug/net10.0/Abox.Tests.dll -noColor -result-trx test-results/Abox.Tests.trx
+      - name: Publish test results
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: dorny/test-reporter@v3
+        with:
+          name: abox test results
+          path: test-results/*.trx
+          reporter: dotnet-trx
+      - name: Upload test results
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: abox-test-results
+          path: test-results/
+          if-no-files-found: ignore
