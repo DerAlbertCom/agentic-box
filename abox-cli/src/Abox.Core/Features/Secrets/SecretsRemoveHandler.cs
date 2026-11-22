@@ -3,21 +3,19 @@ using Abox.Features.Shared.Preflight;
 
 namespace Abox.Features.Secrets;
 
+/// <summary>Runs <c>abox secrets remove</c>: removes the secrets of the sandbox from the host.</summary>
 internal sealed class SecretsRemoveHandler(Preflight preflight, SecretsService secrets)
     : ICommandHandler<SecretsRemoveParameters>
 {
-    public async Task<int> HandleAsync(
+    public Task<int> HandleAsync(
         SecretsRemoveParameters parameters,
         CancellationToken cancellationToken
-    )
-    {
-        var location = parameters.Location;
-        var folderConfig = await location.FolderConfigurationAsync(cancellationToken);
-        if (!await preflight.EnsureReadyAsync(cancellationToken))
-            return 1;
-        return await secrets.RemoveAsync(
-            new SecretsRequest(location.FullPath, folderConfig, parameters.Services),
+    ) =>
+        SecretsAction.RunAsync(
+            preflight,
+            parameters.Location,
+            parameters.Services,
+            secrets.RemoveAsync,
             cancellationToken
         );
-    }
 }

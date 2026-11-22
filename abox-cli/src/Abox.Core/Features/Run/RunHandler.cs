@@ -3,6 +3,7 @@ using Abox.Features.Shared.Preflight;
 
 namespace Abox.Features.Run;
 
+/// <summary>Runs <c>abox run</c>: runs preflight, then starts the launcher.</summary>
 internal sealed class RunHandler(Preflight preflight, RunFlow run) : ICommandHandler<RunParameters>
 {
     public async Task<int> HandleAsync(

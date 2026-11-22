@@ -76,6 +76,7 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
         var team = defaults.Team(parseResult.GetValue(_team));
         var location = await defaults.SandboxLocationAsync(
             parseResult.GetValue(_location),
+            FolderConfigurationLoading.Now,
             cancellationToken
         );
         return new CreateParameters(

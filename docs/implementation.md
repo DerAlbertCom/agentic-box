@@ -1216,6 +1216,8 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
         ShellLauncher.cs  the default launcher: a shell in the workspace
       Secrets/        abox secrets: the command, one parameters record and handler per
                       subcommand (list, set, remove) and the service that does its work
+        SecretsAction.cs         the steps the three handlers share: folder configuration,
+                                 preflight, then the service
         SandboxSquadMetadata.cs  staged descriptors and squad.json Secrets of a sandbox
       UserSecrets/    abox user-secrets: on-demand command only; the command binds
                       UserSecretsParameters, UserSecretsHandler does the work
@@ -1242,6 +1244,8 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
                                 location, team, teams, tag) and the arguments after "--"
           SandboxLocation.cs    a sandbox location's full path and its folder configuration,
                                 loaded once
+          FolderConfigurationLoading.cs  when a sandbox location loads it: now, on first
+                                use or never
           LocationOption.cs     the shared --location
           CommandHandling.cs    the entry point's guard: an abox error to a message and
                                 an exit code

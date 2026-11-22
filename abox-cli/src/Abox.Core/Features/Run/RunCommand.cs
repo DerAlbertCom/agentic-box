@@ -45,19 +45,19 @@ internal sealed class RunCommand : AboxCommand<RunParameters>
             );
     }
 
-    internal override Task<RunParameters> BindAsync(
+    internal override async Task<RunParameters> BindAsync(
         ParseResult parseResult,
         InvocationDefaults defaults,
         CancellationToken cancellationToken
     ) =>
-        Task.FromResult(
-            new RunParameters(
-                parseResult.GetValue(_launcher) ?? "shell",
-                defaults.SandboxLocationWithDeferredFolderConfiguration(
-                    parseResult.GetValue(_location)
-                ),
-                defaults.TrailingArguments,
-                parseResult.GetValue(_terminalTheme)
-            )
+        new(
+            parseResult.GetValue(_launcher) ?? "shell",
+            await defaults.SandboxLocationAsync(
+                parseResult.GetValue(_location),
+                FolderConfigurationLoading.OnFirstUse,
+                cancellationToken
+            ),
+            defaults.TrailingArguments,
+            parseResult.GetValue(_terminalTheme)
         );
 }

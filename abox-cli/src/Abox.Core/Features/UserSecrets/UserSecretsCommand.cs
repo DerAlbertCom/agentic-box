@@ -5,6 +5,10 @@ using Abox.Features.Shared.Configuration;
 
 namespace Abox.Features.UserSecrets;
 
+/// <summary>
+/// <c>abox user-secrets</c>: copies the .NET user-secret stores the folder configuration
+/// selects into the existing sandbox of the folder.
+/// </summary>
 internal sealed class UserSecretsCommand : AboxCommand<UserSecretsParameters>
 {
     private readonly LocationOption _location = new();
@@ -32,17 +36,13 @@ internal sealed class UserSecretsCommand : AboxCommand<UserSecretsParameters>
     {
         var location = await defaults.SandboxLocationAsync(
             parseResult.GetValue(_location),
+            FolderConfigurationLoading.Now,
             cancellationToken
         );
-        var folderConfiguration =
-            await location.FolderConfigurationAsync(cancellationToken)
-            ?? throw new AboxException(
+        if (await location.FolderConfigurationAsync(cancellationToken) is null)
+            throw new AboxException(
                 $"No {FolderConfig.FileNames} in this folder. Declare 'userSecrets' explicitly before copying."
             );
-        return new UserSecretsParameters(
-            location,
-            folderConfiguration,
-            parseResult.GetValue(_force)
-        );
+        return new UserSecretsParameters(location, parseResult.GetValue(_force));
     }
 }

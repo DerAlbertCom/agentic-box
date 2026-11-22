@@ -3,6 +3,7 @@ using Abox.Features.Shared.Preflight;
 
 namespace Abox.Features.Prune;
 
+/// <summary>Runs <c>abox prune</c>: runs preflight, then prunes the template images.</summary>
 internal sealed class PruneHandler(Preflight preflight, PruneService prune)
     : ICommandHandler<PruneParameters>
 {

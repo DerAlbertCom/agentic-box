@@ -4,6 +4,10 @@ using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Build;
 
+/// <summary>
+/// Runs <c>abox build</c>: resolves the teams to their squads, runs preflight unless only
+/// metadata is prepared, then builds.
+/// </summary>
 internal sealed class BuildHandler(Preflight preflight, SquadResolver resolver, BuildService build)
     : ICommandHandler<BuildParameters>
 {
@@ -13,9 +17,7 @@ internal sealed class BuildHandler(Preflight preflight, SquadResolver resolver, 
     )
     {
         var request = new BuildRequest(
-            parameters
-                .Teams.Select(team => resolver.ResolveTeam(parameters.RootDirectory, team))
-                .ToList(),
+            resolver.ResolveTeams(parameters.RootDirectory, parameters.Teams),
             parameters.RootDirectory,
             parameters.Tag,
             parameters.Verify,

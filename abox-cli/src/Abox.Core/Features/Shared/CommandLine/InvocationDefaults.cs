@@ -21,34 +21,26 @@ internal sealed class InvocationDefaults(
 
     /// <summary>
     /// The sandbox location (the given location, then <c>defaultLocation</c>, then the
-    /// current folder) with its folder configuration, loaded now.
+    /// current folder) with its folder configuration, loaded as <paramref name="loading"/>
+    /// says.
     /// </summary>
     public async Task<SandboxLocation> SandboxLocationAsync(
         string? location,
+        FolderConfigurationLoading loading,
         CancellationToken cancellationToken
     )
     {
-        var sandboxLocation = SandboxLocationWithDeferredFolderConfiguration(location);
-        await sandboxLocation.FolderConfigurationAsync(cancellationToken);
+        var fullPath = FullPath(location);
+        var sandboxLocation = new SandboxLocation(
+            fullPath,
+            loading == FolderConfigurationLoading.Never
+                ? _ => Task.FromResult<FolderConfig?>(null)
+                : token => FolderConfig.LoadAsync(fullPath, parser, token)
+        );
+        if (loading == FolderConfigurationLoading.Now)
+            await sandboxLocation.FolderConfigurationAsync(cancellationToken);
         return sandboxLocation;
     }
-
-    /// <summary>
-    /// The sandbox location, whose folder configuration is loaded only when it is first
-    /// asked for.
-    /// </summary>
-    public SandboxLocation SandboxLocationWithDeferredFolderConfiguration(string? location)
-    {
-        var fullPath = FullPath(location);
-        return new SandboxLocation(
-            fullPath,
-            cancellationToken => FolderConfig.LoadAsync(fullPath, parser, cancellationToken)
-        );
-    }
-
-    /// <summary>The sandbox location without reading its folder configuration.</summary>
-    public SandboxLocation SandboxLocationWithoutFolderConfiguration(string? location) =>
-        new(FullPath(location), _ => Task.FromResult<FolderConfig?>(null));
 
     /// <summary>The given team, otherwise the required <c>defaultTeam</c>.</summary>
     public string Team(string? team) =>

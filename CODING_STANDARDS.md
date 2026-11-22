@@ -106,10 +106,11 @@ directory layout.
   per slice.
 - **Invocation defaults:** options get their user configuration defaults only from
   `InvocationDefaults` in binding: the sandbox location (as a `SandboxLocation`, which
-  carries its folder configuration, loaded once), the team or teams, the validated tag and
-  the arguments after `--`. Commands that work on a sandbox location use the shared
-  `LocationOption`. No handler resolves `--location`, loads the folder configuration or
-  reads a user configuration default itself.
+  carries its folder configuration, loaded once, at the `FolderConfigurationLoading` the
+  binding names), the team or teams, the validated tag and the arguments after `--`.
+  Parameters never carry a second copy of the folder configuration. Commands that work on
+  a sandbox location use the shared `LocationOption`. No handler resolves `--location`,
+  loads the folder configuration or reads a user configuration default itself.
 - **Lifetimes:** register every service as scoped. Only what must be shared beyond one
   invocation is a singleton: today only the console the entry point creates. The entry
   point and the CLI test application open one scope per process run and resolve the root

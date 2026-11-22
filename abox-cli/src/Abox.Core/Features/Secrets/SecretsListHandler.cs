@@ -3,21 +3,19 @@ using Abox.Features.Shared.Preflight;
 
 namespace Abox.Features.Secrets;
 
+/// <summary>Runs <c>abox secrets list</c>: lists the services of the sandbox and whether they are stored.</summary>
 internal sealed class SecretsListHandler(Preflight preflight, SecretsService secrets)
     : ICommandHandler<SecretsListParameters>
 {
-    public async Task<int> HandleAsync(
+    public Task<int> HandleAsync(
         SecretsListParameters parameters,
         CancellationToken cancellationToken
-    )
-    {
-        var location = parameters.Location;
-        var folderConfig = await location.FolderConfigurationAsync(cancellationToken);
-        if (!await preflight.EnsureReadyAsync(cancellationToken))
-            return 1;
-        return await secrets.ListAsync(
-            new SecretsRequest(location.FullPath, folderConfig, []),
+    ) =>
+        SecretsAction.RunAsync(
+            preflight,
+            parameters.Location,
+            [],
+            secrets.ListAsync,
             cancellationToken
         );
-    }
 }

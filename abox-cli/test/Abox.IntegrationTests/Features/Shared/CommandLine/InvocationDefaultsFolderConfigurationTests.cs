@@ -34,7 +34,11 @@ public sealed class InvocationDefaultsFolderConfigurationTests : IDisposable
         _root.File(FolderConfig.SharedFile, "squad: ac\nportOffset: 20000\n");
 
         // Act
-        var location = await _defaults.SandboxLocationAsync(_root.Path, CancellationToken.None);
+        var location = await _defaults.SandboxLocationAsync(
+            _root.Path,
+            FolderConfigurationLoading.Now,
+            CancellationToken.None
+        );
         _root.File(FolderConfig.SharedFile, "squad: changed\n");
         var folderConfiguration = await location.FolderConfigurationAsync(CancellationToken.None);
 
@@ -46,11 +50,15 @@ public sealed class InvocationDefaultsFolderConfigurationTests : IDisposable
     }
 
     [Fact]
-    public async Task TheDeferredFolderConfigurationIsLoadedWhenFirstAskedForAndThenOnce()
+    public async Task AFolderConfigurationLoadedOnFirstUseIsLoadedWhenFirstAskedForAndThenOnce()
     {
         // Arrange
         _root.File(FolderConfig.SharedFile, "squad: before\n");
-        var location = _defaults.SandboxLocationWithDeferredFolderConfiguration(_root.Path);
+        var location = await _defaults.SandboxLocationAsync(
+            _root.Path,
+            FolderConfigurationLoading.OnFirstUse,
+            CancellationToken.None
+        );
         _root.File(FolderConfig.SharedFile, "squad: ac\n");
 
         // Act

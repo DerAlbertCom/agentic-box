@@ -7,6 +7,10 @@ using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Create;
 
+/// <summary>
+/// Runs <c>abox create</c>: selects the squad, resolves the team for a local build, runs
+/// preflight, then creates the sandbox.
+/// </summary>
 internal sealed class CreateHandler(
     Preflight preflight,
     SquadResolver resolver,

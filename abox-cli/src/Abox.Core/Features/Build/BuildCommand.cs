@@ -25,16 +25,16 @@ internal sealed class BuildCommand : AboxCommand<BuildParameters>
         Description =
             "The tag the build is stored under. Defaults to the tag of the user configuration, latest.",
     };
-    private readonly Option<bool> _verify = new("--no-verify")
+    private readonly Option<bool> _noVerify = new("--no-verify")
     {
         Description =
             "Skip additional local kit inspection with sbx. Normal builds still build the workload image.",
     };
-    private readonly Option<bool> _personal = new("--no-personal")
+    private readonly Option<bool> _noPersonal = new("--no-personal")
     {
         Description = "Exclude personal .abox files to make a build safe to publish.",
     };
-    private readonly Option<bool> _metadata = new("--metadata-only")
+    private readonly Option<bool> _metadataOnly = new("--metadata-only")
     {
         Description =
             "Prepare source metadata without Docker or sbx (maintainers). Replaces the manifest and clears its local image selection; remote create does not need this.",
@@ -50,9 +50,9 @@ internal sealed class BuildCommand : AboxCommand<BuildParameters>
         Options.Add(_teams);
         Options.Add(_root);
         Options.Add(_tag);
-        Options.Add(_verify);
-        Options.Add(_personal);
-        Options.Add(_metadata);
+        Options.Add(_noVerify);
+        Options.Add(_noPersonal);
+        Options.Add(_metadataOnly);
     }
 
     internal override Task<BuildParameters> BindAsync(
@@ -69,9 +69,9 @@ internal sealed class BuildCommand : AboxCommand<BuildParameters>
                 teams,
                 root,
                 tag,
-                !parseResult.GetValue(_verify),
-                !parseResult.GetValue(_personal),
-                parseResult.GetValue(_metadata)
+                !parseResult.GetValue(_noVerify),
+                !parseResult.GetValue(_noPersonal),
+                parseResult.GetValue(_metadataOnly)
             )
         );
     }

@@ -24,7 +24,11 @@ public sealed class InvocationDefaultsTests
         );
 
         // Act
-        var location = await defaults.SandboxLocationAsync(option, CancellationToken.None);
+        var location = await defaults.SandboxLocationAsync(
+            option,
+            FolderConfigurationLoading.Now,
+            CancellationToken.None
+        );
 
         // Assert
         location.FullPath.Should().Be(option);
@@ -39,20 +43,28 @@ public sealed class InvocationDefaultsTests
         var defaults = Defaults(new AboxConfig { DefaultLocation = configured });
 
         // Act
-        var location = await defaults.SandboxLocationAsync(null, CancellationToken.None);
+        var location = await defaults.SandboxLocationAsync(
+            null,
+            FolderConfigurationLoading.Now,
+            CancellationToken.None
+        );
 
         // Assert
         location.FullPath.Should().Be(configured);
     }
 
     [Fact]
-    public void TheSandboxLocationFallsBackToTheCurrentFolder()
+    public async Task TheSandboxLocationFallsBackToTheCurrentFolder()
     {
         // Arrange
         var defaults = Defaults(new AboxConfig());
 
         // Act
-        var location = defaults.SandboxLocationWithoutFolderConfiguration(null);
+        var location = await defaults.SandboxLocationAsync(
+            null,
+            FolderConfigurationLoading.Never,
+            CancellationToken.None
+        );
 
         // Assert
         location.FullPath.Should().Be(Directory.GetCurrentDirectory());
@@ -66,7 +78,11 @@ public sealed class InvocationDefaultsTests
         var relative = Path.Combine("some", "..", "folder");
 
         // Act
-        var location = await defaults.SandboxLocationAsync(relative, CancellationToken.None);
+        var location = await defaults.SandboxLocationAsync(
+            relative,
+            FolderConfigurationLoading.Now,
+            CancellationToken.None
+        );
 
         // Assert
         location.FullPath.Should().Be(Path.Combine(Directory.GetCurrentDirectory(), "folder"));
@@ -80,7 +96,11 @@ public sealed class InvocationDefaultsTests
         var defaults = Defaults(new AboxConfig());
 
         // Act
-        var location = await defaults.SandboxLocationAsync(root.Path, CancellationToken.None);
+        var location = await defaults.SandboxLocationAsync(
+            root.Path,
+            FolderConfigurationLoading.Now,
+            CancellationToken.None
+        );
 
         // Assert
         (await location.FolderConfigurationAsync(CancellationToken.None))
@@ -89,7 +109,7 @@ public sealed class InvocationDefaultsTests
     }
 
     [Fact]
-    public async Task TheVariantWithoutFolderConfigurationDoesNotReadTheFolderConfiguration()
+    public async Task ALocationThatNeverLoadsDoesNotReadTheFolderConfiguration()
     {
         // Arrange
         using var root = new TempDirectory();
@@ -97,7 +117,11 @@ public sealed class InvocationDefaultsTests
         var defaults = Defaults(new AboxConfig());
 
         // Act
-        var location = defaults.SandboxLocationWithoutFolderConfiguration(root.Path);
+        var location = await defaults.SandboxLocationAsync(
+            root.Path,
+            FolderConfigurationLoading.Never,
+            CancellationToken.None
+        );
 
         // Assert
         location.FullPath.Should().Be(root.Path);
@@ -106,7 +130,7 @@ public sealed class InvocationDefaultsTests
     }
 
     [Fact]
-    public void TheDeferredVariantDoesNotReadTheFolderConfigurationBeforeItIsAskedFor()
+    public async Task ALocationThatLoadsOnFirstUseDoesNotReadTheFolderConfigurationBeforeItIsAskedFor()
     {
         // Arrange
         using var root = new TempDirectory();
@@ -114,7 +138,11 @@ public sealed class InvocationDefaultsTests
         var defaults = Defaults(new AboxConfig());
 
         // Act
-        var location = defaults.SandboxLocationWithDeferredFolderConfiguration(root.Path);
+        var location = await defaults.SandboxLocationAsync(
+            root.Path,
+            FolderConfigurationLoading.OnFirstUse,
+            CancellationToken.None
+        );
 
         // Assert
         location.FullPath.Should().Be(root.Path);

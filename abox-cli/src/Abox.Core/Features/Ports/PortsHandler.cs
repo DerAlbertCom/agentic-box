@@ -7,6 +7,10 @@ using Abox.Features.Shared.Sandboxes;
 
 namespace Abox.Features.Ports;
 
+/// <summary>
+/// Runs <c>abox ports</c>: selects the port offset, runs preflight and publishes the ports
+/// of the existing sandbox, or refreshes only its HTTPS bootstrap.
+/// </summary>
 internal sealed class PortsHandler(
     Preflight preflight,
     FolderSandbox sandboxes,
@@ -21,26 +25,38 @@ internal sealed class PortsHandler(
     {
         var location = parameters.Location;
         var folderConfiguration = await location.FolderConfigurationAsync(cancellationToken);
+        if (parameters.RefreshHttpsBootstrap)
+        {
+            if (!await preflight.EnsureReadyAsync(cancellationToken))
+                return 1;
+            var refreshed = await RequireSandboxAsync(
+                location,
+                folderConfiguration,
+                cancellationToken
+            );
+            await https.RefreshBootstrapAsync(refreshed, cancellationToken);
+            return 0;
+        }
+
         var selectedOffset = FolderConfig.SelectPortOffset(folderConfiguration, parameters.Offset);
         if (!await preflight.EnsureReadyAsync(cancellationToken))
             return 1;
-        var sandbox = await sandboxes.RequireAsync(
-            location.FullPath,
-            folderConfiguration,
-            "ports never creates or replaces one",
-            cancellationToken
-        );
-        if (parameters.RefreshHttpsBootstrap)
-        {
-            await https.RefreshBootstrapAsync(sandbox.Name, cancellationToken);
-            return 0;
-        }
-        await ports.PublishAsync(
-            location.FullPath,
-            sandbox.Name,
-            selectedOffset,
-            cancellationToken
-        );
+        var sandbox = await RequireSandboxAsync(location, folderConfiguration, cancellationToken);
+        await ports.PublishAsync(location.FullPath, sandbox, selectedOffset, cancellationToken);
         return 0;
     }
+
+    private async Task<string> RequireSandboxAsync(
+        SandboxLocation location,
+        FolderConfig? folderConfiguration,
+        CancellationToken cancellationToken
+    ) =>
+        (
+            await sandboxes.RequireAsync(
+                location.FullPath,
+                folderConfiguration,
+                "ports never creates or replaces one",
+                cancellationToken
+            )
+        ).Name;
 }

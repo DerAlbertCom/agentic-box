@@ -13,7 +13,7 @@ internal sealed class PruneCommand : AboxCommand<PruneParameters>
         Description =
             "Reach for everything sbx holds, not only the stale sets. What a sandbox uses, sbx keeps.",
     };
-    private readonly Option<bool> _stop = new("--sbx")
+    private readonly Option<bool> _sbx = new("--sbx")
     {
         Description = "Stop the running sandboxes before the prune.",
     };
@@ -26,7 +26,7 @@ internal sealed class PruneCommand : AboxCommand<PruneParameters>
         )
     {
         Options.Add(_full);
-        Options.Add(_stop);
+        Options.Add(_sbx);
     }
 
     internal override Task<PruneParameters> BindAsync(
@@ -35,6 +35,6 @@ internal sealed class PruneCommand : AboxCommand<PruneParameters>
         CancellationToken cancellationToken
     ) =>
         Task.FromResult(
-            new PruneParameters(parseResult.GetValue(_full), parseResult.GetValue(_stop))
+            new PruneParameters(parseResult.GetValue(_full), parseResult.GetValue(_sbx))
         );
 }

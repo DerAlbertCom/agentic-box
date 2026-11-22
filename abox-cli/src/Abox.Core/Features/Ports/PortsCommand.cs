@@ -5,6 +5,10 @@ using Abox.Features.Shared.Configuration;
 
 namespace Abox.Features.Ports;
 
+/// <summary>
+/// <c>abox ports</c>: publishes the discovered application ports of a folder's sandbox on
+/// host loopback, or refreshes only its HTTPS bootstrap.
+/// </summary>
 internal sealed class PortsCommand : AboxCommand<PortsParameters>
 {
     private readonly LocationOption _location = new();
@@ -43,12 +47,11 @@ internal sealed class PortsCommand : AboxCommand<PortsParameters>
             throw new AboxException(
                 "--refresh-https-bootstrap cannot be combined with --offset; it changes no ports."
             );
-        var location = refresh
-            ? defaults.SandboxLocationWithoutFolderConfiguration(parseResult.GetValue(_location))
-            : await defaults.SandboxLocationAsync(
-                parseResult.GetValue(_location),
-                cancellationToken
-            );
+        var location = await defaults.SandboxLocationAsync(
+            parseResult.GetValue(_location),
+            refresh ? FolderConfigurationLoading.Never : FolderConfigurationLoading.Now,
+            cancellationToken
+        );
         return new PortsParameters(location, offset, refresh);
     }
 }

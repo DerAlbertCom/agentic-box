@@ -6,6 +6,10 @@ using Abox.Features.Shared.UserSecrets;
 
 namespace Abox.Features.UserSecrets;
 
+/// <summary>
+/// Runs <c>abox user-secrets</c>: prepares the selected stores, then copies them into the
+/// existing sandbox of the folder.
+/// </summary>
 internal sealed class UserSecretsHandler(
     Preflight preflight,
     UserSecretsCopy copy,
@@ -18,7 +22,7 @@ internal sealed class UserSecretsHandler(
         CancellationToken cancellationToken
     )
     {
-        var folderConfig = parameters.FolderConfiguration;
+        var folderConfig = (await parameters.Location.FolderConfigurationAsync(cancellationToken))!;
         var prepared = await copy.PrepareAsync(folderConfig, parameters.Force, cancellationToken);
         if (!await preflight.EnsureReadyAsync(cancellationToken))
             return 1;

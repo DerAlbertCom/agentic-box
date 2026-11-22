@@ -3,7 +3,6 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Yaml;
-using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -12,31 +11,32 @@ public sealed class CommandRunnerTests
 {
     private readonly TestConsole _console = new();
     private readonly EchoHandler _handler = new();
-    private readonly IServiceCollection _services = new ServiceCollection();
+    private readonly IServiceProvider _services = Substitute.For<IServiceProvider>();
+    private readonly EchoCommand _command;
 
     public CommandRunnerTests()
     {
-        _services.AddSingleton<IConsole>(_console);
-        _services.AddSingleton(
-            new InvocationDefaults(
-                new Lazy<AboxConfig>(() => new AboxConfig { DefaultTeam = "sample" }),
-                Substitute.For<IYamlParser>(),
-                new TrailingArguments()
-            )
-        );
-        _services.AddSingleton<CommandRunner>();
-        _services.AddSingleton<ICommandHandler<EchoParameters>>(_handler);
+        _services
+            .GetService(typeof(InvocationDefaults))
+            .Returns(
+                new InvocationDefaults(
+                    new Lazy<AboxConfig>(() => new AboxConfig { DefaultTeam = "sample" }),
+                    Substitute.For<IYamlParser>(),
+                    new TrailingArguments()
+                )
+            );
+        _services.GetService(typeof(ICommandHandler<EchoParameters>)).Returns(_handler);
+        _command = new EchoCommand(new CommandRunner(_services, _console));
     }
 
     [Fact]
     public async Task TheHandlerGetsTheBoundParameters()
     {
         // Arrange
-        using var provider = _services.BuildServiceProvider();
-        var command = new EchoCommand(provider.GetRequiredService<CommandRunner>());
+        var parsed = _command.Parse(["--value", "hello"]);
 
         // Act
-        var exitCode = await command.Parse(["--value", "hello"]).InvokeAsync();
+        var exitCode = await parsed.InvokeAsync();
 
         // Assert
         exitCode.Should().Be(7);
@@ -48,11 +48,10 @@ public sealed class CommandRunnerTests
     public async Task AnAboxErrorFromTheBindingIsReportedWithExitCodeOne()
     {
         // Arrange
-        using var provider = _services.BuildServiceProvider();
-        var command = new EchoCommand(provider.GetRequiredService<CommandRunner>());
+        var parsed = _command.Parse(["--fail-binding"]);
 
         // Act
-        var exitCode = await command.Parse(["--fail-binding"]).InvokeAsync();
+        var exitCode = await parsed.InvokeAsync();
 
         // Assert
         exitCode.Should().Be(1);
@@ -65,11 +64,9 @@ public sealed class CommandRunnerTests
     {
         // Arrange
         _handler.Work = (_, _) => throw new AboxException("the handler failed.");
-        using var provider = _services.BuildServiceProvider();
-        var command = new EchoCommand(provider.GetRequiredService<CommandRunner>());
 
         // Act
-        var exitCode = await command.Parse([]).InvokeAsync();
+        var exitCode = await _command.Parse([]).InvokeAsync();
 
         // Assert
         exitCode.Should().Be(1);
@@ -87,11 +84,9 @@ public sealed class CommandRunnerTests
             cancellationToken.ThrowIfCancellationRequested();
             return 0;
         };
-        using var provider = _services.BuildServiceProvider();
-        var command = new EchoCommand(provider.GetRequiredService<CommandRunner>());
 
         // Act
-        var exitCode = await command.Parse([]).InvokeAsync(cancellationToken: cancellation.Token);
+        var exitCode = await _command.Parse([]).InvokeAsync(cancellationToken: cancellation.Token);
 
         // Assert
         exitCode.Should().Be(130);
@@ -102,23 +97,17 @@ public sealed class CommandRunnerTests
     public async Task TheHandlerIsResolvedOnlyWhenTheActionRuns()
     {
         // Arrange
-        var resolutions = 0;
-        _services.AddTransient<ICommandHandler<EchoParameters>>(_ =>
-        {
-            resolutions++;
-            return _handler;
-        });
-        using var provider = _services.BuildServiceProvider();
-        var command = new EchoCommand(provider.GetRequiredService<CommandRunner>());
-        var parsed = command.Parse([]);
-        var resolutionsBeforeTheAction = resolutions;
+        var parsed = _command.Parse([]);
+        var resolutionsBeforeTheAction = _services
+            .ReceivedCalls()
+            .Count(call => Equals(call.GetArguments()[0], typeof(ICommandHandler<EchoParameters>)));
 
         // Act
         await parsed.InvokeAsync();
 
         // Assert
         resolutionsBeforeTheAction.Should().Be(0);
-        resolutions.Should().Be(1);
+        _services.Received(1).GetService(typeof(ICommandHandler<EchoParameters>));
     }
 
     private sealed record EchoParameters(string? Value, string Team);
