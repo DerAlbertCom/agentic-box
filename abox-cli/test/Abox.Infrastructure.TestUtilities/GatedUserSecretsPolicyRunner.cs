@@ -4,6 +4,7 @@ using System.Threading.Channels;
 using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
+using AwesomeAssertions;
 
 namespace Abox.Tests;
 

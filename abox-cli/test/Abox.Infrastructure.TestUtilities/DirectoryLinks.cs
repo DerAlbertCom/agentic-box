@@ -1,4 +1,5 @@
 using Abox.Infrastructure;
+using AwesomeAssertions;
 
 namespace Abox.Tests;
 

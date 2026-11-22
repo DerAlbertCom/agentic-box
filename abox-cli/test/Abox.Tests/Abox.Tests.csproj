@@ -3,24 +3,4 @@
     <ProjectReference Include="../../src/Abox/Abox.csproj" />
     <ProjectReference Include="../Abox.TestUtilities/Abox.TestUtilities.csproj" />
   </ItemGroup>
-
-  <!-- The CLI test application lives in Abox.IntegrationTests; the host tests compile it in. -->
-  <ItemGroup>
-    <Compile
-      Include="../Abox.IntegrationTests/Support/CliTestApplication.cs"
-      Link="Support/CliTestApplication.cs"
-    />
-    <Compile
-      Include="../Abox.IntegrationTests/Support/LocalWorkloadFactory.cs"
-      Link="Support/LocalWorkloadFactory.cs"
-    />
-    <Compile
-      Include="../Abox.IntegrationTests/Support/SandboxFactory.cs"
-      Link="Support/SandboxFactory.cs"
-    />
-    <Compile
-      Include="../Abox.IntegrationTests/Support/TestServiceGraphs.cs"
-      Link="Support/TestServiceGraphs.cs"
-    />
-  </ItemGroup>
 </Project>

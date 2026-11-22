@@ -7,6 +7,7 @@
   <Project Path="src/Abox.Core/Abox.Core.csproj" />
   <Project Path="src/Abox.Infrastructure/Abox.Infrastructure.csproj" />
   <Project Path="test/Abox.Core.Tests/Abox.Core.Tests.csproj" />
+  <Project Path="test/Abox.Infrastructure.TestUtilities/Abox.Infrastructure.TestUtilities.csproj" />
   <Project Path="test/Abox.Infrastructure.Tests/Abox.Infrastructure.Tests.csproj" />
   <Project Path="test/Abox.IntegrationTests/Abox.IntegrationTests.csproj" />
   <Project Path="test/Abox.TestUtilities/Abox.TestUtilities.csproj" />

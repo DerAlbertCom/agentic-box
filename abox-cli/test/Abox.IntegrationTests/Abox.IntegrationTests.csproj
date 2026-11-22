@@ -8,27 +8,8 @@
     <ProjectReference Include="../../src/Abox/Abox.csproj" />
     <ProjectReference Include="../../src/Abox.Core/Abox.Core.csproj" />
     <ProjectReference Include="../../src/Abox.Infrastructure/Abox.Infrastructure.csproj" />
+    <ProjectReference Include="../Abox.Infrastructure.TestUtilities/Abox.Infrastructure.TestUtilities.csproj" />
     <ProjectReference Include="../Abox.TestUtilities/Abox.TestUtilities.csproj" />
-  </ItemGroup>
-
-  <!-- Infrastructure test helpers, shared with Abox.Infrastructure.Tests. -->
-  <ItemGroup>
-    <Compile
-      Include="../Abox.Infrastructure.Tests/Support/DirectoryLinks.cs"
-      Link="Support/DirectoryLinks.cs"
-    />
-    <Compile
-      Include="../Abox.Infrastructure.Tests/Support/DisposableCertificateRuntime.cs"
-      Link="Support/DisposableCertificateRuntime.cs"
-    />
-    <Compile
-      Include="../Abox.Infrastructure.Tests/Support/GatedUserSecretsPolicyRunner.cs"
-      Link="Support/GatedUserSecretsPolicyRunner.cs"
-    />
-    <Compile
-      Include="../Abox.Infrastructure.Tests/Support/UserSecretsPolicyFixture.cs"
-      Link="Support/UserSecretsPolicyFixture.cs"
-    />
   </ItemGroup>
 
   <ItemGroup>

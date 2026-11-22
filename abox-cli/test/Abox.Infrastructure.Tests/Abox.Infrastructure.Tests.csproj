@@ -1,19 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../../src/Abox.Infrastructure/Abox.Infrastructure.csproj" />
+    <ProjectReference Include="../Abox.Infrastructure.TestUtilities/Abox.Infrastructure.TestUtilities.csproj" />
     <ProjectReference Include="../Abox.TestUtilities/Abox.TestUtilities.csproj" />
-  </ItemGroup>
-
-  <!-- Fakes built on Core and Infrastructure, shared with Abox.IntegrationTests. -->
-  <ItemGroup>
-    <Compile
-      Include="../Abox.IntegrationTests/Support/LocalWorkloadFactory.cs"
-      Link="Support/LocalWorkloadFactory.cs"
-    />
-    <Compile
-      Include="../Abox.IntegrationTests/Support/SandboxFactory.cs"
-      Link="Support/SandboxFactory.cs"
-    />
   </ItemGroup>
 
   <ItemGroup>
