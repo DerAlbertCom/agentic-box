@@ -25,7 +25,6 @@ public sealed class ArchitectureTests
         "Abox.Features.Shared.Credentials.SecretValues -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Credentials.SquadCredentials -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Https.SandboxHttps -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.Preflight.Preflight -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Sandboxes.FolderSandbox -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Sandboxes.LocalSquadSource -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Sandboxes.PreparedSquad -> Abox.Infrastructure.Sbx",

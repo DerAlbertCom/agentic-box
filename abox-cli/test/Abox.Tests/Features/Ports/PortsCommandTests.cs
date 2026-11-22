@@ -171,11 +171,11 @@ public sealed class PortsCommandTests
         if (!initiallyAbsent)
             fixture.Root.File("folder/abox.yaml", """{"portOffset":20000}""");
         fixture
-            .Sbx.GetVersionAsync(Arg.Any<CancellationToken>())
+            .Preflight.CheckVersionAsync(Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 File.WriteAllText(file, """{"portOffset":30000}""");
-                return new Version(0, 51, 0);
+                return ReadyPreflight.SupportedVersion;
             });
 
         // Act
@@ -559,7 +559,9 @@ public sealed class PortsCommandTests
     {
         // Arrange
         using var fixture = new PortsCommandFixture();
-        fixture.Sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 50, 0));
+        fixture
+            .Preflight.CheckVersionAsync(Arg.Any<CancellationToken>())
+            .Returns(ReadyPreflight.OldVersion);
 
         // Act
         var exit = await fixture.Run();

@@ -4,6 +4,7 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -16,6 +17,7 @@ internal sealed class PortsCommandFixture : IDisposable
 {
     public TempDirectory Root { get; } = new();
     public TestConsole Console { get; } = new();
+    public IPreflightChecks Preflight { get; } = ReadyPreflight.Checks();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     public IApplicationPortPublisher Publisher => application.Publisher;
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
@@ -30,8 +32,6 @@ internal sealed class PortsCommandFixture : IDisposable
     )
     {
         Location = Root.CreateDirectory("folder");
-        Sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 51, 0));
-        Sbx.DiagnoseAsync(Arg.Any<CancellationToken>()).Returns(new DiagnoseReport([]));
         Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(Name, "running", null) });
         var programs = Substitute.For<IHostPrograms>();
@@ -47,10 +47,11 @@ internal sealed class PortsCommandFixture : IDisposable
                 runner is null ? Sbx : new SbxClient(runner, AboxPaths.For(Root.Path, Root.Path))
             )
             .AddSingleton<ISandboxExec>(runner is null ? Exec : new SbxSandboxExec(runner))
-            .AddSingleton(programs);
+            .AddSingleton(programs)
+            .AddSingleton(Preflight);
         if (runner is not null)
             application.Services.AddSingleton<IApplicationPortPublisher>(
-                new SbxApplicationPorts(new SbxInvoker(runner, SbxClient.ExecutableName))
+                new SbxApplicationPorts(new SbxInvoker(runner))
             );
         if (exporter is not null)
             application.Services.AddSingleton(exporter);

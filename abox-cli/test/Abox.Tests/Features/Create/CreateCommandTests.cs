@@ -295,10 +295,10 @@ public sealed class CreateCommandTests
                 LocalWorkload = LocalWorkloadFactory.Artifact(_root),
             }
         );
-        var programs = ReadyRuntime();
+        ReadyRuntime();
         return new CreateCommand(
             new Lazy<AboxConfig>(() => config),
-            new Preflight(_console, _sbx, programs),
+            new Preflight(_console, ReadyPreflight.Checks()),
             new Lazy<SquadResolver>(() => new SquadResolver(config)),
             new Lazy<SandboxCreator>(() =>
                 TestServiceGraphs.Creator(
@@ -315,14 +315,9 @@ public sealed class CreateCommandTests
         );
     }
 
-    private IHostPrograms ReadyRuntime()
+    private void ReadyRuntime()
     {
-        var programs = Substitute.For<IHostPrograms>();
-        programs.Exists("sbx").Returns(true);
-        _sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 51, 0));
-        _sbx.DiagnoseAsync(Arg.Any<CancellationToken>()).Returns(new DiagnoseReport([]));
         _sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, string.Empty));
-        return programs;
     }
 }

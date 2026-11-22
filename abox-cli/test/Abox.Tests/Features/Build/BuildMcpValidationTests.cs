@@ -28,10 +28,7 @@ public sealed class BuildMcpValidationTests : IDisposable
         _root.File("teams/sample/ac.abox", "workload: sample\n");
         _root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
         var programs = Substitute.For<IHostPrograms>();
-        programs.Exists("sbx").Returns(true);
         programs.Exists("docker").Returns(true);
-        _sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 51, 0));
-        _sbx.DiagnoseAsync(Arg.Any<CancellationToken>()).Returns(new DiagnoseReport([]));
         var config = new AboxConfig();
         var resolver = new SquadResolver(config);
         var build = TestServiceGraphs.Build(
@@ -44,7 +41,7 @@ public sealed class BuildMcpValidationTests : IDisposable
         );
         _command = new BuildCommand(
             new Lazy<AboxConfig>(() => config),
-            new Preflight(_console, _sbx, programs),
+            new Preflight(_console, ReadyPreflight.Checks()),
             new Lazy<SquadResolver>(() => resolver),
             new Lazy<BuildService>(() => build),
             _console
@@ -108,12 +105,7 @@ public sealed class BuildMcpValidationTests : IDisposable
             .Should()
             .BeEquivalentTo(before, "a failed build must preserve previous output");
         _runner.ReceivedCalls().Should().BeEmpty();
-        _sbx.ReceivedCalls()
-            .Should()
-            .OnlyContain(call =>
-                call.GetMethodInfo().Name == nameof(ISbxClient.GetVersionAsync)
-                || call.GetMethodInfo().Name == nameof(ISbxClient.DiagnoseAsync)
-            );
+        _sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     public static IEnumerable<object[]> UnsupportedDeclarations()

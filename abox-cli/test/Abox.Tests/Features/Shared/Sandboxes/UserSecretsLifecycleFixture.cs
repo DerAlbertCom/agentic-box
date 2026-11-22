@@ -2,6 +2,7 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -15,6 +16,7 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
     private readonly UserSecretsCliHarness cli = new(existingSandbox: false);
     public TempDirectory Root => cli.Root;
     public TestConsole Console => cli.Console;
+    public IPreflightChecks Preflight => cli.Preflight;
     public ISbxClient Sbx => cli.Sbx;
     public ISandboxExec Exec => cli.Exec;
     public string Location => cli.Location;

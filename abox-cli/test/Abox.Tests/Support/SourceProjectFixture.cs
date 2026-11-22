@@ -64,8 +64,6 @@ internal sealed class SourceProjectFixture : IDisposable
                     ? PublishTestProcess.Run(request)
                     : LocalWorkloadFactory.Result(request);
             });
-        Sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 51, 0));
-        Sbx.DiagnoseAsync(Arg.Any<CancellationToken>()).Returns(new DiagnoseReport([]));
         Sbx.InspectKitAsync(
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>(),
@@ -90,6 +88,7 @@ internal sealed class SourceProjectFixture : IDisposable
         services.AddSingleton(Runner);
         services.AddSingleton(Sbx);
         services.AddSingleton(Exec);
+        services.AddSingleton(ReadyPreflight.Checks());
         _ = _application.Provider;
     }
 

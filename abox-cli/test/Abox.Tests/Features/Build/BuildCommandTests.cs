@@ -26,6 +26,7 @@ public sealed class BuildCommandTests
         );
         root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
         var console = new TestConsole();
+        var preflight = Substitute.For<IPreflightChecks>();
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
         var sbx = Substitute.For<ISbxClient>();
@@ -46,7 +47,7 @@ public sealed class BuildCommandTests
         );
         var command = new BuildCommand(
             new Lazy<AboxConfig>(() => config),
-            new Preflight(console, sbx, programs),
+            new Preflight(console, preflight),
             new Lazy<SquadResolver>(() => resolver),
             new Lazy<BuildService>(() => service),
             console
@@ -80,6 +81,7 @@ public sealed class BuildCommandTests
         manifest.SourceHashes.Should().NotBeEmpty();
         File.Exists(Path.Combine(manifest.WorkloadKitDirectory, "workload.yaml")).Should().BeTrue();
         console.AllText.Should().Contain("metadata only").And.NotContain("--tag remote --local");
+        preflight.ReceivedCalls().Should().BeEmpty();
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
         sbx.ReceivedCalls().Should().BeEmpty();

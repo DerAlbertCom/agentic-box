@@ -47,7 +47,9 @@ public sealed class UserSecretsCommandTests
         using var fixture = new UserSecretsCliHarness();
         fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
-        fixture.Sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 50, 0));
+        fixture
+            .Preflight.CheckVersionAsync(Arg.Any<CancellationToken>())
+            .Returns(ReadyPreflight.OldVersion);
 
         // Act
         var exitCode = await fixture.Run();

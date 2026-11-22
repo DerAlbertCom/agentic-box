@@ -42,8 +42,6 @@ public sealed class UserSecretsRewriteCommandTests
             """
         );
         var sbx = Substitute.For<ISbxClient>();
-        sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 51, 0));
-        sbx.DiagnoseAsync(Arg.Any<CancellationToken>()).Returns(new DiagnoseReport([]));
         sbx.GetUserSecretsHostPortsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
@@ -61,6 +59,7 @@ public sealed class UserSecretsRewriteCommandTests
         application.Services.AddSingleton(host);
         application.Services.AddSingleton(sbx);
         application.Services.AddSingleton(programs);
+        application.Services.AddSingleton(ReadyPreflight.Checks());
         application.Services.AddSingleton(PublishedSquadFactory.Source());
         var provider = application.Provider;
 

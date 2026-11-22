@@ -5,7 +5,7 @@ namespace Abox.Infrastructure.Sbx;
 /// <summary>Sandbox cleanup through <c>sbx ls</c>, <c>sbx stop</c> and <c>sbx template</c>.</summary>
 public sealed class SbxSandboxCleanup(IProcessRunner runner) : ISandboxCleanup
 {
-    private readonly SbxInvoker _invoker = new(runner, SbxClient.ExecutableName);
+    private readonly SbxInvoker _invoker = new(runner);
 
     public async Task<IReadOnlyList<SandboxSummary>> ListSandboxesAsync(
         CancellationToken cancellationToken

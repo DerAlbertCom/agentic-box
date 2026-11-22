@@ -38,11 +38,11 @@ public sealed class AppPortsLifecycleSelectionTests
                 });
         else
             fixture
-                .Sbx.GetVersionAsync(Arg.Any<CancellationToken>())
+                .Preflight.CheckVersionAsync(Arg.Any<CancellationToken>())
                 .Returns(_ =>
                 {
                     fixture.Configure("""{"portOffset":30000}""");
-                    return new Version(0, 51, 0);
+                    return ReadyPreflight.SupportedVersion;
                 });
 
         // Act

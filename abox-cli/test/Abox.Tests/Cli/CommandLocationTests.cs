@@ -27,8 +27,6 @@ public sealed class CommandLocationTests
         var location = explicitLocation ? root.CreateDirectory("explicit") : null;
         var expected = location ?? config.DefaultLocation ?? Directory.GetCurrentDirectory();
         var sbx = Substitute.For<ISbxClient>();
-        sbx.GetVersionAsync(Arg.Any<CancellationToken>()).Returns(new Version(0, 51, 0));
-        sbx.DiagnoseAsync(Arg.Any<CancellationToken>()).Returns(new DiagnoseReport([]));
         sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, ""));
         var programs = Substitute.For<IHostPrograms>();
@@ -38,6 +36,7 @@ public sealed class CommandLocationTests
         application.Services.AddSingleton(new Lazy<AboxConfig>(() => config));
         application.Services.AddSingleton(sbx);
         application.Services.AddSingleton(programs);
+        application.Services.AddSingleton(ReadyPreflight.Checks());
         application.Services.AddSingleton(PublishedSquadFactory.Source());
         var provider = application.Provider;
         var command = provider.GetRequiredService<AboxRootCommand>();

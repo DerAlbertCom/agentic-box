@@ -20,7 +20,7 @@ public sealed class AppPortsLifecycleTransportTests
             new SbxClient(transport.Runner, AboxPaths.For(fixture.Root.Path, fixture.Root.Path))
         );
         fixture.Services.AddSingleton<IApplicationPortPublisher>(
-            new SbxApplicationPorts(new SbxInvoker(transport.Runner, SbxClient.ExecutableName))
+            new SbxApplicationPorts(new SbxInvoker(transport.Runner))
         );
 
         // Act
