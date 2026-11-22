@@ -7,7 +7,7 @@ namespace Abox.Features.Run;
 /// <summary>
 /// The run slice: <c>abox run</c> and the service that does its work.
 /// </summary>
-public static class RunFeature
+internal static class RunFeature
 {
     public static IServiceCollection AddRunFeature(this IServiceCollection services)
     {

@@ -6,7 +6,7 @@ namespace Abox.Features.Run;
 /// <summary>
 /// The default launcher: a shell in the workspace of the sandbox.
 /// </summary>
-public sealed class ShellLauncher : ILauncher
+internal sealed class ShellLauncher : ILauncher
 {
     public string Id => "shell";
 

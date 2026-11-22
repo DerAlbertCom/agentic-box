@@ -8,7 +8,7 @@ namespace Abox.Features.Shared.Squads;
 /// only marked. The build writes it and <c>abox secrets</c> reads it back from a sandbox,
 /// so the fields are nullable for reading and checked by <see cref="ToDeclaration"/>.
 /// </summary>
-public sealed record SquadMetadataSecret(
+internal sealed record SquadMetadataSecret(
     string? Service,
     string? Prompt,
     IReadOnlyList<string?>? Hosts,
@@ -83,4 +83,4 @@ public sealed record SquadMetadataSecret(
 }
 
 /// <summary>A part of a secret as <c>squad.json</c> holds it.</summary>
-public sealed record SquadMetadataSecretInput(string? Name, string? Prompt);
+internal sealed record SquadMetadataSecretInput(string? Name, string? Prompt);

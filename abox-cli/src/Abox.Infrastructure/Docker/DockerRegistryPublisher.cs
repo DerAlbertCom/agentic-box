@@ -6,7 +6,7 @@ using Abox.Features.Shared.Registry;
 namespace Abox.Infrastructure.Docker;
 
 /// <summary>Publishes images with <c>docker buildx</c>; Docker output is part of every failure.</summary>
-public sealed class DockerRegistryPublisher(IHostPrograms programs, IProcessRunner runner)
+internal sealed class DockerRegistryPublisher(IHostPrograms programs, IProcessRunner runner)
     : IRegistryPublisher
 {
     private static readonly DockerFailure OperationFailure = new(exitCode =>

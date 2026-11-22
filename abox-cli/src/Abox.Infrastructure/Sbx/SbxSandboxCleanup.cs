@@ -4,7 +4,7 @@ using Abox.Features.Shared.SandboxCleanup;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>Sandbox cleanup through <c>sbx ls</c>, <c>sbx stop</c> and <c>sbx template</c>.</summary>
-public sealed partial class SbxSandboxCleanup(SbxInvoker invoker) : ISandboxCleanup
+internal sealed partial class SbxSandboxCleanup(SbxInvoker invoker) : ISandboxCleanup
 {
     /// <summary>The repository sbx keeps the assembled kit sets in.</summary>
     private const string AssembledRepository = "sandbox-kit-assembled";

@@ -8,7 +8,7 @@ namespace Abox.Features.Shared.Sandboxes;
 /// Keeps what abox knows about the sandboxes it created: the squad they come from and
 /// the build they were made of.
 /// </summary>
-public sealed class SandboxRecordStore(AboxPaths paths)
+internal sealed class SandboxRecordStore(AboxPaths paths)
 {
     /// <summary>The directory the records live in.</summary>
     public string RecordsDirectory => Path.Combine(paths.StateDirectory, "sandboxes");

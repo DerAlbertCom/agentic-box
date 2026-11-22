@@ -9,7 +9,7 @@ namespace Abox.Features.Build;
 /// Writes the squad configuration mixin of a build: <c>/usr/share/abox/squad.json</c> and
 /// its declaration-only descriptor. Local creation and publication use the same mixin.
 /// </summary>
-public static class SquadConfigurationMixin
+internal static class SquadConfigurationMixin
 {
     /// <summary>The name of the generated mixin, without the extension.</summary>
     public const string MixinName = "config";

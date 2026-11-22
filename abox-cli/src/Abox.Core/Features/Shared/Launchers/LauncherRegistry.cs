@@ -5,7 +5,7 @@ namespace Abox.Features.Shared.Launchers;
 /// <summary>
 /// The launchers abox knows.
 /// </summary>
-public sealed class LauncherRegistry
+internal sealed class LauncherRegistry
 {
     private readonly IReadOnlyDictionary<string, ILauncher> _launchers;
 

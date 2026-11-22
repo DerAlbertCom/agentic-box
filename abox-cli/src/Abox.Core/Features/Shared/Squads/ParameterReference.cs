@@ -6,7 +6,7 @@ namespace Abox.Features.Shared.Squads;
 /// <summary>
 /// The <c>${{ parameters.NAME }}</c> references a kit or an MCP declaration may use.
 /// </summary>
-public static partial class ParameterReference
+internal static partial class ParameterReference
 {
     /// <summary>
     /// Replaces every parameter reference with its value. A reference to a parameter no

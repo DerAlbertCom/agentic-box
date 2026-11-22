@@ -119,12 +119,12 @@ public sealed class HerdrDesktopProcessTests
     }
 
     [Theory]
-    [InlineData(ProcessOutputPolicy.Sensitive, true, null)]
-    [InlineData(ProcessOutputPolicy.CapturedSensitive, true, null)]
-    [InlineData(ProcessOutputPolicy.Normal, false, null)]
-    [InlineData(ProcessOutputPolicy.Normal, true, "secret")]
+    [InlineData(nameof(ProcessOutputPolicy.Sensitive), true, null)]
+    [InlineData(nameof(ProcessOutputPolicy.CapturedSensitive), true, null)]
+    [InlineData(nameof(ProcessOutputPolicy.Normal), false, null)]
+    [InlineData(nameof(ProcessOutputPolicy.Normal), true, "secret")]
     public async Task DesktopStartupCannotBypassStreamSafety(
-        ProcessOutputPolicy policy,
+        string policy,
         bool attach,
         string? input
     )
@@ -136,7 +136,7 @@ public sealed class HerdrDesktopProcessTests
             [],
             AttachConsole: attach,
             StandardInput: input,
-            OutputPolicy: policy
+            OutputPolicy: Enum.Parse<ProcessOutputPolicy>(policy)
         );
 
         // Act

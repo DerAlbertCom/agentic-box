@@ -18,7 +18,7 @@ namespace Abox.Infrastructure;
 /// independently of console encoding. Does not change output diagnostics or inherited streams.</param>
 /// <param name="OutputLineSink">Receives each captured line as it arrives, in arrival order, while
 /// the output is still captured. Only for normal captured calls; called one line at a time.</param>
-public sealed record ProcessRequest(
+internal sealed record ProcessRequest(
     string FileName,
     IReadOnlyList<string> Arguments,
     bool AttachConsole = false,
@@ -33,16 +33,16 @@ public sealed record ProcessRequest(
     public override string ToString() => "ProcessRequest (arguments, environment and input hidden)";
 }
 
-public enum ProcessStream
+internal enum ProcessStream
 {
     StandardOutput,
     StandardError,
 }
 
 /// <summary>One line a child wrote, and the stream it wrote it to.</summary>
-public sealed record ProcessOutputLine(ProcessStream Stream, string Text);
+internal sealed record ProcessOutputLine(ProcessStream Stream, string Text);
 
-public enum ProcessOutputPolicy
+internal enum ProcessOutputPolicy
 {
     Normal,
     Sensitive,

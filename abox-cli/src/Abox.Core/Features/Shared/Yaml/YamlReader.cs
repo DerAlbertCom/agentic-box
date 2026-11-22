@@ -6,7 +6,7 @@ namespace Abox.Features.Shared.Yaml;
 /// Reads the small YAML documents abox uses. The shapes are known, so the reader is
 /// strict: an unknown key or a value of the wrong shape is an error, not a surprise.
 /// </summary>
-public sealed class YamlReader
+internal sealed class YamlReader
 {
     private readonly YamlMapping _mapping;
     private readonly YamlEntry _root;
@@ -101,7 +101,7 @@ public sealed class YamlReader
 }
 
 /// <summary>Reads YAML through a parser into a strict <see cref="YamlReader"/>.</summary>
-public static class YamlParserReading
+internal static class YamlParserReading
 {
     /// <summary>Reads a YAML document.</summary>
     public static YamlReader Read(this IYamlParser parser, string yaml, string source) =>
@@ -115,7 +115,7 @@ public static class YamlParserReading
 /// <summary>
 /// A YAML value or mapping, including the root of a document.
 /// </summary>
-public sealed class YamlEntry
+internal sealed class YamlEntry
 {
     private readonly string? _key;
 

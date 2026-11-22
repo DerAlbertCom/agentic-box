@@ -16,7 +16,7 @@ namespace Abox.Features.Run;
 /// <param name="Location">The folder whose sandbox is opened.</param>
 /// <param name="Argv">The arguments after <c>--</c>.</param>
 /// <param name="TerminalTheme">Whether the sandbox recolors the terminal, or null to follow the configuration.</param>
-public sealed record RunRequest(
+internal sealed record RunRequest(
     string LauncherId,
     string Location,
     IReadOnlyList<string> Argv,
@@ -27,7 +27,7 @@ public sealed record RunRequest(
 /// Starts a launcher for the sandbox of a folder: the common Launcher steps in order, then
 /// the launcher itself with a Launcher session.
 /// </summary>
-public sealed class RunFlow(
+internal sealed class RunFlow(
     AboxConfig config,
     LauncherRegistry launchers,
     SquadResolver resolver,

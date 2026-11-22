@@ -7,10 +7,10 @@ using Abox.Features.Shared.Squads;
 namespace Abox.Features.Shared.Sandboxes;
 
 /// <summary>A squad identity resolved before validating the sandbox location.</summary>
-public sealed record SquadSelection(SquadBuildIdentity Identity, string? Reference = null);
+internal sealed record SquadSelection(SquadBuildIdentity Identity, string? Reference = null);
 
 /// <summary>The source-specific inputs to the shared sandbox creation steps.</summary>
-public sealed record PreparedSquad(
+internal sealed record PreparedSquad(
     BuildManifest Metadata,
     string KitSource,
     IReadOnlyList<string> Mixins,
@@ -21,15 +21,18 @@ public sealed record PreparedSquad(
 );
 
 /// <summary>Resolves a squad identity, then prepares its kits after location validation.</summary>
-public interface ISquadSource
+internal interface ISquadSource
 {
     SquadSelection Resolve(SandboxCreationRequest request);
     Task<PreparedSquad> LoadAsync(SquadSelection selection, CancellationToken cancellationToken);
 }
 
 /// <summary>Uses only validated local build metadata and prebuilt workload images.</summary>
-public sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages images, IConsole console)
-    : ISquadSource
+internal sealed class LocalSquadSource(
+    BuildStore store,
+    LocalWorkloadImages images,
+    IConsole console
+) : ISquadSource
 {
     public SquadSelection Resolve(SandboxCreationRequest request)
     {
@@ -114,7 +117,7 @@ public sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages image
 }
 
 /// <summary>Uses a published squad set, with no local build metadata fallback.</summary>
-public sealed class RemoteSquadSource(
+internal sealed class RemoteSquadSource(
     AboxConfig config,
     IKitSourceTrust kitSources,
     IPublishedSquadSource published

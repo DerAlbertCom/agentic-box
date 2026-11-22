@@ -13,7 +13,7 @@ namespace Abox.Features.Build;
 /// <param name="Verify">Whether additional local kit declarations are checked with sbx.</param>
 /// <param name="IncludePersonalConfigurations">Whether personal .abox files are merged into this local build.</param>
 /// <param name="MetadataOnly">Prepare only source/configuration metadata, without sbx, Docker or selecting a local image. Kit build steps still run, since publishing uses their output.</param>
-public sealed record BuildRequest(
+internal sealed record BuildRequest(
     IReadOnlyList<SquadResolver.ResolvedTeam> Teams,
     string RootDirectory,
     string Tag,
@@ -26,7 +26,7 @@ public sealed record BuildRequest(
 /// Builds the squads of the teams: resolves each squad, writes the workload kit and
 /// the state mixin, prebuilds the workload image and keeps the manifest of the result.
 /// </summary>
-public sealed class BuildService(
+internal sealed class BuildService(
     SquadResolver resolver,
     WorkloadKitGenerator workloadGenerator,
     StateMixinGenerator stateGenerator,

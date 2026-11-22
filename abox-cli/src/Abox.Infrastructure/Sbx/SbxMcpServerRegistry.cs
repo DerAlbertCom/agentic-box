@@ -3,7 +3,7 @@ using Abox.Features.Shared.Sandboxes;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>The host's MCP servers through <c>sbx mcp ls</c> and <c>sbx mcp add</c>.</summary>
-public sealed class SbxMcpServerRegistry(SbxInvoker invoker) : IMcpServerRegistry
+internal sealed class SbxMcpServerRegistry(SbxInvoker invoker) : IMcpServerRegistry
 {
     public async Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken)
     {

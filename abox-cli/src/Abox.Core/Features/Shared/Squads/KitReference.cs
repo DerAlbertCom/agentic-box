@@ -4,7 +4,7 @@ namespace Abox.Features.Shared.Squads;
 /// How a kit is written down: a local directory under the kits folder, or a registry
 /// reference such as <c>docker.io/acme/pi-config:1.0</c>.
 /// </summary>
-public static class KitReference
+internal static class KitReference
 {
     /// <summary>
     /// The repository of a reference: the name without its tag. A local kit has no tag,

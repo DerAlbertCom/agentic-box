@@ -3,7 +3,7 @@ using Abox.Features.Shared.Preflight;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>Preflight against sbx: on PATH, <c>sbx version</c>, <c>sbx diagnose</c> and <c>sbx login</c>.</summary>
-public sealed class SbxPreflightChecks(SbxInvoker invoker, IHostPrograms programs)
+internal sealed class SbxPreflightChecks(SbxInvoker invoker, IHostPrograms programs)
     : IPreflightChecks
 {
     private const string AuthenticationCheck = "Authentication";

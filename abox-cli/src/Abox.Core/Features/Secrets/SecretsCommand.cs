@@ -10,7 +10,7 @@ namespace Abox.Features.Secrets;
 /// <summary>
 /// <c>abox secrets</c>: the secrets of the host that the kits of a folder's sandbox ask for.
 /// </summary>
-public sealed class SecretsCommand : Command
+internal sealed class SecretsCommand : Command
 {
     public SecretsCommand(
         Lazy<AboxConfig> config,

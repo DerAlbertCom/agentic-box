@@ -10,7 +10,7 @@ namespace Abox.Features.Run;
 /// <summary>
 /// <c>abox run</c>: starts a launcher for the sandbox of a folder.
 /// </summary>
-public sealed class RunCommand : Command
+internal sealed class RunCommand : Command
 {
     public RunCommand(
         Lazy<AboxConfig> config,

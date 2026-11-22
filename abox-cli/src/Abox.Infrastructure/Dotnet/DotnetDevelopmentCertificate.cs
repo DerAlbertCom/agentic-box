@@ -7,7 +7,7 @@ namespace Abox.Infrastructure.Dotnet;
 /// CLI-only export of an already eligible, exactly correlated trusted identity through an
 /// installed SDK's <c>dotnet dev-certs</c> tool.
 /// </summary>
-public sealed class DotnetDevelopmentCertificate(IProcessRunner runner, IConsole console)
+internal sealed class DotnetDevelopmentCertificate(IProcessRunner runner, IConsole console)
     : IHostDevelopmentCertificate
 {
     private readonly string temporaryParent = Path.GetTempPath();

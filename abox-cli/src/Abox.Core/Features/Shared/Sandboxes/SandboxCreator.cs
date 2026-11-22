@@ -18,7 +18,7 @@ namespace Abox.Features.Shared.Sandboxes;
 /// <param name="AssumeYes">Whether the replacement of an existing sandbox is confirmed already.</param>
 /// <param name="Local">Whether to use local kits instead of pulling the published set.</param>
 /// <param name="ExistingSandbox">The actual identity already selected for an accepted run replacement, if any.</param>
-public sealed record SandboxCreationRequest(
+internal sealed record SandboxCreationRequest(
     SquadResolver.ResolvedTeam Team,
     string? Squad,
     string Location,
@@ -32,7 +32,7 @@ public sealed record SandboxCreationRequest(
 /// <summary>
 /// Creates the sandbox of a folder from its squad's published set or local build.
 /// </summary>
-public sealed class SandboxCreator(
+internal sealed class SandboxCreator(
     SandboxRecordStore records,
     AboxPaths paths,
     FolderSandbox sandboxes,

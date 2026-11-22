@@ -4,7 +4,7 @@ using Abox.Features.Shared.Squads;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>The host secrets through <c>sbx secret</c>.</summary>
-public sealed class SbxHostSecretStore(SbxInvoker invoker) : IHostSecretStore
+internal sealed class SbxHostSecretStore(SbxInvoker invoker) : IHostSecretStore
 {
     public async Task<HostSecrets> ListAsync(CancellationToken cancellationToken)
     {

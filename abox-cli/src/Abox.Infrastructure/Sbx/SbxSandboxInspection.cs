@@ -3,7 +3,7 @@ using Abox.Features.Shared.Sandboxes;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>Looks inside a sandbox through <c>sbx exec</c>, which starts a stopped sandbox.</summary>
-public sealed class SbxSandboxInspection(SbxInvoker invoker) : ISandboxInspection
+internal sealed class SbxSandboxInspection(SbxInvoker invoker) : ISandboxInspection
 {
     public async Task<bool> HasProgramAsync(
         string sandbox,

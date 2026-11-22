@@ -10,7 +10,7 @@ namespace Abox.Infrastructure.Sbx;
 /// Kit-source trust through sbx's <c>kit.allowedSources</c> setting; updates are serialized
 /// by a lock file under the state directory.
 /// </summary>
-public sealed class SbxKitSourceTrust(SbxInvoker invoker, AboxPaths paths) : IKitSourceTrust
+internal sealed class SbxKitSourceTrust(SbxInvoker invoker, AboxPaths paths) : IKitSourceTrust
 {
     /// <summary>Preserves the evaluated allowlist, adding only the requested repository prefix.</summary>
     public async Task EnsureTrustedAsync(

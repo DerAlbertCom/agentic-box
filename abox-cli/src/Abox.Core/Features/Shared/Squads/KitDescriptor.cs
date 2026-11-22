@@ -5,7 +5,7 @@ namespace Abox.Features.Shared.Squads;
 /// <summary>
 /// The descriptor of a kit: what the kit needs from the host.
 /// </summary>
-public sealed class KitDescriptor
+internal sealed class KitDescriptor
 {
     /// <summary>The capability a kit uses to ask for a credential.</summary>
     public const string CredentialCapability = "com.docker.sandbox/credential@1";
@@ -116,7 +116,7 @@ public sealed class KitDescriptor
 /// <param name="Service">The name of the service in the host credential store.</param>
 /// <param name="Domains">The domains the API key is sent to; empty without an <c>apiKey</c> mechanism.</param>
 /// <param name="Optional">Whether the sandbox starts without the credential.</param>
-public sealed record KitService(
+internal sealed record KitService(
     string Service,
     IReadOnlyList<string> Domains,
     bool Optional = false

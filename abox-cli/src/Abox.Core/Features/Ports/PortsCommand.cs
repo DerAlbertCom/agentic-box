@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.Ports;
 
-public sealed class PortsCommand : Command
+internal sealed class PortsCommand : Command
 {
     public PortsCommand(
         Lazy<AboxConfig> config,
@@ -86,7 +86,7 @@ public sealed class PortsCommand : Command
     }
 }
 
-public static class PortsFeature
+internal static class PortsFeature
 {
     public static IServiceCollection AddPortsFeature(this IServiceCollection services) =>
         services.AddSingleton<Command, PortsCommand>();

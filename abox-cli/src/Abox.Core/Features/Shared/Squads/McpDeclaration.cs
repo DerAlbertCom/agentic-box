@@ -8,7 +8,7 @@ namespace Abox.Features.Shared.Squads;
 /// </summary>
 /// <param name="Name">The server name, as sbx knows it.</param>
 /// <param name="Url">The endpoint of a remote server, when the squad declares one.</param>
-public sealed partial record McpDeclaration(string Name, string? Url = null)
+internal sealed partial record McpDeclaration(string Name, string? Url = null)
 {
     /// <summary>Rejects declarations the runtime cannot register or pass as a static MCP name.</summary>
     public void Validate(string source)

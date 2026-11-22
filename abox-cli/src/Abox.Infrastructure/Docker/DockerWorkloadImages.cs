@@ -7,7 +7,7 @@ using Abox.Features.Shared.Registry;
 namespace Abox.Infrastructure.Docker;
 
 /// <summary>Builds and inspects workload images with host Docker and Buildx.</summary>
-public sealed class DockerWorkloadImages(IHostPrograms programs, IProcessRunner runner)
+internal sealed class DockerWorkloadImages(IHostPrograms programs, IProcessRunner runner)
     : IWorkloadImageBuilder,
         ILocalWorkloadImageStore
 {

@@ -4,7 +4,7 @@ namespace Abox.Features.Shared.Squads;
 /// A squad with its whole configuration chain resolved: one workload, its kits, its
 /// MCP servers and its state.
 /// </summary>
-public sealed class ResolvedSquad(
+internal sealed class ResolvedSquad(
     string name,
     string rootDirectory,
     WorkloadFile workload,

@@ -10,7 +10,7 @@ namespace Abox.Features.Secrets;
 /// What the squad metadata of a sandbox says about its credentials: the services its
 /// staged kits ask for, and how the squad declares their values in <c>squad.json</c>.
 /// </summary>
-public sealed class SandboxSquadMetadata
+internal sealed class SandboxSquadMetadata
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

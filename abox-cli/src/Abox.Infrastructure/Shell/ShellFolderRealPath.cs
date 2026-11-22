@@ -6,7 +6,7 @@ namespace Abox.Infrastructure.Shell;
 /// The real path of a folder as <c>bash</c>'s <c>pwd -P</c> prints it; on Windows, the
 /// final link target of the full path.
 /// </summary>
-public sealed class ShellFolderRealPath(IProcessRunner runner) : IFolderRealPath
+internal sealed class ShellFolderRealPath(IProcessRunner runner) : IFolderRealPath
 {
     public async Task<string> ResolveAsync(string location, CancellationToken cancellationToken)
     {

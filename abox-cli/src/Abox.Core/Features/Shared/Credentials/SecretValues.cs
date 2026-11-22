@@ -7,7 +7,7 @@ namespace Abox.Features.Shared.Credentials;
 /// The values of the services on the host: asked for as the <c>secrets</c> section of
 /// the squad declares, and kept by the host secret store.
 /// </summary>
-public sealed class SecretValues(IHostSecretStore store, IConsole console)
+internal sealed class SecretValues(IHostSecretStore store, IConsole console)
 {
     /// <summary>Why a custom secret is not stored over a conflicting one.</summary>
     public static string DescribeConflict(SecretDeclaration declaration, CustomSecret conflict)
@@ -113,7 +113,7 @@ public sealed class SecretValues(IHostSecretStore store, IConsole console)
 }
 
 /// <summary>How setting a secret ended.</summary>
-public enum SecretSettingResult
+internal enum SecretSettingResult
 {
     /// <summary>The host keeps the value now.</summary>
     Stored,
@@ -131,7 +131,7 @@ public enum SecretSettingResult
 /// <summary>How setting a secret went.</summary>
 /// <param name="Result">How it ended.</param>
 /// <param name="Message">Why it was refused, or what the host store said.</param>
-public sealed record SecretSetting(SecretSettingResult Result, string Message)
+internal sealed record SecretSetting(SecretSettingResult Result, string Message)
 {
     /// <summary>Nothing was given, so nothing was stored.</summary>
     public static SecretSetting Skipped { get; } = new(SecretSettingResult.Skipped, string.Empty);

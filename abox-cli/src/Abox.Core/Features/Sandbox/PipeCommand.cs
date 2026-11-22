@@ -10,7 +10,7 @@ namespace Abox.Features.Sandbox;
 /// attached, and prints nothing else. The Herdr app calls it to reach a sandbox.
 /// It is not a user command and stays out of the help.
 /// </summary>
-public sealed class PipeCommand : Command
+internal sealed class PipeCommand : Command
 {
     public PipeCommand(ISandboxExec exec, TrailingArguments trailing, IConsole console)
         : base("pipe", "Run a command in a sandbox, with the standard streams attached.") =>

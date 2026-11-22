@@ -8,7 +8,7 @@ using Abox.Features.Shared.UserSecrets;
 
 namespace Abox.Infrastructure.Sbx;
 
-public sealed class SbxUserSecrets(SbxInvoker invoker) : ISandboxUserSecrets
+internal sealed class SbxUserSecrets(SbxInvoker invoker) : ISandboxUserSecrets
 {
     private const int MaximumConcurrentUserSecretsPolicyChecks = 4;
 

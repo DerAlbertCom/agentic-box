@@ -4,7 +4,7 @@ using Abox.Features.Shared.Credentials;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>Reads the squad files of a sandbox through <c>sbx exec</c>.</summary>
-public sealed class SbxSandboxSquadFileReader(SbxInvoker invoker) : ISandboxSquadFileReader
+internal sealed class SbxSandboxSquadFileReader(SbxInvoker invoker) : ISandboxSquadFileReader
 {
     private const string Script = """
         for descriptor in /usr/share/sandbox/kit/*/kit.yaml; do

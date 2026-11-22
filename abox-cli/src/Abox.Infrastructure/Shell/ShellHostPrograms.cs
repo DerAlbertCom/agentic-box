@@ -3,7 +3,7 @@ using Abox.Features.Shared.Preflight;
 namespace Abox.Infrastructure.Shell;
 
 /// <summary>Finds programs in the directories of the host's PATH, as a shell would.</summary>
-public sealed class ShellHostPrograms(string pathDirectories) : IHostPrograms
+internal sealed class ShellHostPrograms(string pathDirectories) : IHostPrograms
 {
     public ShellHostPrograms()
         : this(Environment.GetEnvironmentVariable("PATH") ?? string.Empty) { }

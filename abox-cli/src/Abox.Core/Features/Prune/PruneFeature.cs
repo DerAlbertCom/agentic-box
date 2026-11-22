@@ -6,7 +6,7 @@ namespace Abox.Features.Prune;
 /// <summary>
 /// The prune slice: <c>abox prune</c> and the service that does its work.
 /// </summary>
-public static class PruneFeature
+internal static class PruneFeature
 {
     public static IServiceCollection AddPruneFeature(this IServiceCollection services)
     {

@@ -7,7 +7,7 @@ namespace Abox.Features.Sandbox;
 /// The sandbox slice: the commands that reach an existing sandbox directly. They are
 /// not user commands; other programs call them and they stay out of the help.
 /// </summary>
-public static class SandboxFeature
+internal static class SandboxFeature
 {
     public static IServiceCollection AddSandboxFeature(this IServiceCollection services)
     {

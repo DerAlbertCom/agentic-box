@@ -8,7 +8,7 @@ namespace Abox.Features.Prune;
 /// <summary>
 /// <c>abox prune</c>: removes the sbx template images that stopped being used.
 /// </summary>
-public sealed class PruneCommand : Command
+internal sealed class PruneCommand : Command
 {
     public PruneCommand(Preflight preflight, PruneService prune, IConsole console)
         : base(

@@ -7,7 +7,7 @@ using Abox.Features.Shared.Squads;
 namespace Abox.Features.Shared.Sandboxes;
 
 /// <summary>Resolves recovery provenance without writing diagnostics while rendering a command.</summary>
-public sealed class CreateRecoveryHints(
+internal sealed class CreateRecoveryHints(
     AboxConfig config,
     SquadResolver resolver,
     BuildStore store,
@@ -95,7 +95,7 @@ public sealed class CreateRecoveryHints(
 }
 
 /// <summary>A rendered recovery instruction and any safe, nonfatal build-provenance diagnostic.</summary>
-public sealed record CreateRecoveryHint(string Command, string? Diagnostic)
+internal sealed record CreateRecoveryHint(string Command, string? Diagnostic)
 {
     /// <summary>The diagnostic, if any, then the command after the prefix.</summary>
     public IEnumerable<string> Lines(string prefix) =>

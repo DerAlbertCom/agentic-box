@@ -8,7 +8,7 @@ namespace Abox.Infrastructure;
 /// <summary>
 /// <see cref="IProcessRunner"/> on top of <see cref="Process"/>.
 /// </summary>
-public sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
+internal sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
 {
     private readonly Action<Process> kill = process => process.Kill(entireProcessTree: true);
 

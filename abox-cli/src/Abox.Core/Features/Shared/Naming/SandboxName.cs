@@ -6,7 +6,7 @@ namespace Abox.Features.Shared.Naming;
 /// <summary>
 /// The name of a sandbox: the folder it works on, a marker, and a hash of its path.
 /// </summary>
-public static class SandboxName
+internal static class SandboxName
 {
     private const string Marker = "abox";
 

@@ -3,7 +3,7 @@ using Abox.Features.Shared.Sandboxes;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>The sandbox lifecycle through <c>sbx ls</c>, <c>sbx create</c> and <c>sbx rm</c>.</summary>
-public sealed class SbxSandboxLifecycle(SbxInvoker invoker) : ISandboxLifecycle
+internal sealed class SbxSandboxLifecycle(SbxInvoker invoker) : ISandboxLifecycle
 {
     public async Task<IReadOnlyList<SandboxInfo>> ListAsync(CancellationToken cancellationToken)
     {

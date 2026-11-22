@@ -3,7 +3,7 @@ namespace Abox.Features.Shared.Sandboxes;
 /// <summary>
 /// What abox knows about a sandbox it created.
 /// </summary>
-public sealed class SandboxRecord
+internal sealed class SandboxRecord
 {
     /// <summary>The team the sandbox was created from.</summary>
     public string Team { get; set; } = string.Empty;

@@ -5,7 +5,7 @@ using Abox.Features.Shared.Yaml;
 namespace Abox.Features.Shared.Configuration;
 
 /// <summary>Runtime-only opt-in in the sandbox folder, never a build input.</summary>
-public sealed class FolderConfig
+internal sealed class FolderConfig
 {
     private FolderConfig(
         string location,

@@ -9,7 +9,7 @@ namespace Abox.Features.Shared.Builds;
 /// Keeps the local builds: one directory per team, squad and tag, each with the manifest that
 /// says what the build holds.
 /// </summary>
-public sealed class BuildStore(AboxPaths paths)
+internal sealed class BuildStore(AboxPaths paths)
 {
     private const string ManifestFileName = "build.json";
 

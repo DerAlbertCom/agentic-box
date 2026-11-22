@@ -12,7 +12,7 @@ namespace Abox.Features.Shared.Credentials;
 /// itself. The custom secrets the squad declares are checked too, so a kit's setup that
 /// reads one from its variable does not fail on a value that was never set.
 /// </summary>
-public sealed class SquadCredentials(
+internal sealed class SquadCredentials(
     SquadResolver resolver,
     PersonalConfigurations personalConfigurations,
     IHostSecretStore secrets,

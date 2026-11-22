@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Abox.Tests" />
+    <!-- NSubstitute builds its substitutes of internal interfaces in this assembly. -->
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
     <EmbeddedResource Include="Sbx/application_ports.py" LogicalName="Abox.ApplicationPortsRelay" />
     <EmbeddedResource
       Include="Sbx/development_certificate.py"

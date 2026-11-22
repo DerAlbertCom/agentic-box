@@ -5,7 +5,7 @@ namespace Abox.Features.Shared.Configuration;
 /// <summary>
 /// The settings abox keeps for the user.
 /// </summary>
-public sealed class AboxConfig
+internal sealed class AboxConfig
 {
     /// <summary>The team used when the command line does not name one. Null means none.</summary>
     public string? DefaultTeam { get; init; }

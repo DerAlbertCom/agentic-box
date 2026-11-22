@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Abox.Features.Shared.Builds;
 
 /// <summary>What a local build holds.</summary>
-public sealed class BuildManifest
+internal sealed class BuildManifest
 {
     /// <summary>The squad the build belongs to.</summary>
     public string Squad { get; set; } = string.Empty;
@@ -61,7 +61,7 @@ public sealed class BuildManifest
 }
 
 /// <summary>A unique local tag guarded by its immutable content ID.</summary>
-public sealed class LocalWorkloadImage
+internal sealed class LocalWorkloadImage
 {
     public string Reference { get; set; } = string.Empty;
     public string ImageId { get; set; } = string.Empty;
@@ -74,7 +74,7 @@ public sealed class LocalWorkloadImage
 }
 
 /// <summary>A kit of a local build.</summary>
-public sealed class ManifestKit
+internal sealed class ManifestKit
 {
     /// <summary>The name the configuration gave the kit.</summary>
     public string Name { get; set; } = string.Empty;
@@ -90,7 +90,7 @@ public sealed class ManifestKit
 }
 
 /// <summary>An MCP server of a local build.</summary>
-public sealed class ManifestMcp
+internal sealed class ManifestMcp
 {
     /// <summary>The name of the server.</summary>
     public string Name { get; set; } = string.Empty;
@@ -100,7 +100,7 @@ public sealed class ManifestMcp
 }
 
 /// <summary>A state directory of a local build.</summary>
-public sealed class ManifestState
+internal sealed class ManifestState
 {
     /// <summary>Where the directory is in the sandbox.</summary>
     public string SandboxPath { get; set; } = string.Empty;

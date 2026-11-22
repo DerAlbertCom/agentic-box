@@ -7,7 +7,7 @@ using Abox.Features.Shared.Squads;
 namespace Abox.Features.Publish;
 
 /// <summary><c>abox publish</c>: publishes the local kit sets of a team to JFrog.</summary>
-public sealed class PublishCommand : Command
+internal sealed class PublishCommand : Command
 {
     public PublishCommand(
         Lazy<AboxConfig> config,

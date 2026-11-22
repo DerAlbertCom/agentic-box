@@ -6,7 +6,7 @@ using Abox.Features.Shared.Registry;
 namespace Abox.Infrastructure.Docker;
 
 /// <summary>Reads published images with Docker; Docker handles credentials, so failures never echo its output.</summary>
-public sealed class DockerPublishedImageReader(IHostPrograms programs, IProcessRunner runner)
+internal sealed class DockerPublishedImageReader(IHostPrograms programs, IProcessRunner runner)
     : IPublishedImageReader
 {
     private readonly DockerCommand _docker = new(runner);

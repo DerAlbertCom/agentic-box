@@ -7,7 +7,7 @@ namespace Abox.Features.Shared.Configuration;
 /// <summary>
 /// Reads the user configuration file.
 /// </summary>
-public static class AboxConfigLoader
+internal static class AboxConfigLoader
 {
     private static readonly string[] KnownKeys =
     [

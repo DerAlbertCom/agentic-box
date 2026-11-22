@@ -6,7 +6,7 @@ namespace Abox.Features.Shared.Preflight;
 /// The checks every command runs before it does anything: sbx is installed, it is new
 /// enough for v3 kits, and it is healthy and signed in.
 /// </summary>
-public sealed class Preflight(IConsole console, IPreflightChecks checks)
+internal sealed class Preflight(IConsole console, IPreflightChecks checks)
 {
     /// <summary>
     /// Runs the checks. Returns false when a check failed and the command must not go on.

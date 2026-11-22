@@ -10,7 +10,7 @@ namespace Abox.Infrastructure.Sbx;
 /// captured execution, JSON handling and the failure headline. Every sbx adapter
 /// calls sbx through it.
 /// </summary>
-public sealed partial class SbxInvoker(IProcessRunner runner)
+internal sealed partial class SbxInvoker(IProcessRunner runner)
 {
     private const string Executable = "sbx";
 

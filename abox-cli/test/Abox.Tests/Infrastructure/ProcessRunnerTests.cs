@@ -253,16 +253,14 @@ public sealed class ProcessRunnerTests
     }
 
     [Theory]
-    [InlineData(0, ProcessOutputPolicy.Normal)]
-    [InlineData(0, ProcessOutputPolicy.Sensitive)]
-    [InlineData(23, ProcessOutputPolicy.Normal)]
-    [InlineData(23, ProcessOutputPolicy.Sensitive)]
-    public async Task StandardInputCompletionReturnsTheChildResult(
-        int exitCode,
-        ProcessOutputPolicy outputPolicy
-    )
+    [InlineData(0, nameof(ProcessOutputPolicy.Normal))]
+    [InlineData(0, nameof(ProcessOutputPolicy.Sensitive))]
+    [InlineData(23, nameof(ProcessOutputPolicy.Normal))]
+    [InlineData(23, nameof(ProcessOutputPolicy.Sensitive))]
+    public async Task StandardInputCompletionReturnsTheChildResult(int exitCode, string policy)
     {
         // Arrange
+        var outputPolicy = Enum.Parse<ProcessOutputPolicy>(policy);
         var exitsEarly = exitCode != 0;
         var command = exitsEarly ? "echo input rejected >&2 & exit /b 23" : "sort";
         var request = new ProcessRequest(

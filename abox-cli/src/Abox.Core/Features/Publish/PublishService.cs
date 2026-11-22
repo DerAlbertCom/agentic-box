@@ -9,14 +9,14 @@ using Abox.Features.Shared.Yaml;
 namespace Abox.Features.Publish;
 
 /// <summary>All teams to validate before publishing, and the optional Buildx builder.</summary>
-public sealed record PublishRequest(
+internal sealed record PublishRequest(
     IReadOnlyList<SquadResolver.ResolvedTeam> Teams,
     string Tag,
     string? Builder = null
 );
 
 /// <summary>Publishes verified source snapshots as v3 kits, then promotes a verified set.</summary>
-public sealed class PublishService(
+internal sealed class PublishService(
     BuildStore store,
     IRegistryPublisher registry,
     IConsole console,

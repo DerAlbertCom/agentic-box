@@ -4,7 +4,7 @@ namespace Abox.Features.Shared.Preflight;
 /// How to install sbx on the current system, as documented at
 /// https://docs.docker.com/ai/sandboxes/install/.
 /// </summary>
-public static class InstallInstructions
+internal static class InstallInstructions
 {
     public static IReadOnlyList<string> ForCurrentSystem()
     {

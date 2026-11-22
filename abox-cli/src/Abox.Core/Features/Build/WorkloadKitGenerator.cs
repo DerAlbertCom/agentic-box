@@ -9,7 +9,7 @@ namespace Abox.Features.Build;
 /// <summary>
 /// Turns a workload into a sandbox kit: a descriptor and the Dockerfile the image is built from.
 /// </summary>
-public sealed class WorkloadKitGenerator
+internal sealed class WorkloadKitGenerator
 {
     private const string CertificatesDirectoryName = "certificates";
     private const string CertificateBundleName = "rwe_inspection_certificate_chain.pem";

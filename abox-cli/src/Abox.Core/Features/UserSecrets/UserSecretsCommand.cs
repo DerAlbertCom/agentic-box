@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.UserSecrets;
 
-public sealed class UserSecretsCommand : Command
+internal sealed class UserSecretsCommand : Command
 {
     public UserSecretsCommand(
         Lazy<AboxConfig> config,
@@ -92,7 +92,7 @@ public sealed class UserSecretsCommand : Command
     }
 }
 
-public static class UserSecretsFeature
+internal static class UserSecretsFeature
 {
     public static IServiceCollection AddUserSecretsFeature(this IServiceCollection services) =>
         services.AddSingleton<Command, UserSecretsCommand>();

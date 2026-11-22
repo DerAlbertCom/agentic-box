@@ -7,7 +7,7 @@ namespace Abox.Features.Shared.Squads;
 /// <param name="Directory">The local kit directory, for a kit from the kits folder.</param>
 /// <param name="RegistryReference">The registry reference, for a kit that is published.</param>
 /// <param name="Arguments">The values for the kit's arguments.</param>
-public sealed record KitSource(
+internal sealed record KitSource(
     string Name,
     string? Directory,
     string? RegistryReference,

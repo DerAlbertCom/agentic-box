@@ -10,7 +10,7 @@ namespace Abox.Features.Shared.Credentials;
 /// <param name="Kits">The kits that ask for it.</param>
 /// <param name="Domains">The domains its API key is sent to; empty without an <c>apiKey</c> mechanism.</param>
 /// <param name="Optional">Whether every kit that asks starts without it.</param>
-public sealed record CredentialRequest(
+internal sealed record CredentialRequest(
     string Service,
     IReadOnlyList<string> Kits,
     IReadOnlyList<string> Domains,

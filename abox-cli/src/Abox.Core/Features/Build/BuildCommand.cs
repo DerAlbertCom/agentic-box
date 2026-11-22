@@ -12,7 +12,7 @@ namespace Abox.Features.Build;
 /// <c>abox build</c>: builds the kit set of a team, every squad of it that no other
 /// squad names as its base.
 /// </summary>
-public sealed class BuildCommand : Command
+internal sealed class BuildCommand : Command
 {
     public BuildCommand(
         Lazy<AboxConfig> config,

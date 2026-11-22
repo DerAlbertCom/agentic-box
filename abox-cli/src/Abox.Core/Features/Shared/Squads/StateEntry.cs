@@ -8,7 +8,7 @@ namespace Abox.Features.Shared.Squads;
 /// </summary>
 /// <param name="SandboxPath">Where the directory is in the sandbox.</param>
 /// <param name="RelativePath">The portable path below the sandbox's host state root.</param>
-public sealed record StateEntry(string SandboxPath, string RelativePath)
+internal sealed record StateEntry(string SandboxPath, string RelativePath)
 {
     /// <summary>The home directory of the sandbox user.</summary>
     public const string SandboxHome = "/home/agent";

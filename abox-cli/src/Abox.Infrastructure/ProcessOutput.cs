@@ -9,7 +9,7 @@ public sealed class ProcessOutput(IConsole console)
 {
     public bool Verbose { get; set; }
 
-    public void Write(ProcessRequest request, ProcessResult result)
+    internal void Write(ProcessRequest request, ProcessResult result)
     {
         if (!Verbose || request.AttachConsole || request.OutputPolicy != ProcessOutputPolicy.Normal)
         {

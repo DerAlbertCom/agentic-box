@@ -7,7 +7,7 @@ using Abox.Features.Shared.Common;
 namespace Abox.Infrastructure;
 
 /// <summary>Owner-only staging, protected before an exporter can write private material.</summary>
-public sealed class ProtectedTemporaryDirectory : IDisposable
+internal sealed class ProtectedTemporaryDirectory : IDisposable
 {
     private readonly IConsole console;
     private bool disposed;

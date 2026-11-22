@@ -9,7 +9,7 @@ namespace Abox.Features.Shared.Squads;
 /// A parsed <c>.workload</c> file: the apt packages, the tools and the scripts the base
 /// image is built from.
 /// </summary>
-public sealed partial class WorkloadFile
+internal sealed partial class WorkloadFile
 {
     /// <summary>The image a workload builds on when it does not name one.</summary>
     public const string DefaultTemplate = "docker.io/sbx/shell-docker-image";

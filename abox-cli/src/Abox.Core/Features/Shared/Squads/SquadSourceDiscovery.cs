@@ -271,4 +271,4 @@ internal sealed class SquadSourceDiscovery(AboxConfig config, IYamlParser parser
 /// </summary>
 /// <param name="Directory">The directory the configuration lives in.</param>
 /// <param name="Name">The name of the configuration, without the file extension.</param>
-public sealed record ConfigRoot(string Directory, string Name);
+internal sealed record ConfigRoot(string Directory, string Name);

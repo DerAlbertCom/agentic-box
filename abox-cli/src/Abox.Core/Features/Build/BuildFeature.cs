@@ -6,7 +6,7 @@ namespace Abox.Features.Build;
 /// <summary>
 /// The build slice: <c>abox build</c> and the service that does its work.
 /// </summary>
-public static class BuildFeature
+internal static class BuildFeature
 {
     public static IServiceCollection AddBuildFeature(this IServiceCollection services)
     {

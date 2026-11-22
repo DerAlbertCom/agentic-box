@@ -5,7 +5,7 @@ using Abox.Features.Shared.Configuration;
 namespace Abox.Features.Shared.UserSecrets;
 
 /// <summary>Shared on-demand/lifecycle flow. Preparation never contacts or writes a sandbox.</summary>
-public sealed class UserSecretsCopy(
+internal sealed class UserSecretsCopy(
     AboxConfig config,
     IHostUserSecretStores host,
     ISandboxUserSecrets sandboxes
@@ -174,7 +174,7 @@ public sealed class UserSecretsCopy(
 }
 
 /// <summary>Opaque, in-memory validated snapshot; no payload-bearing generated ToString.</summary>
-public sealed class PreparedUserSecrets
+internal sealed class PreparedUserSecrets
 {
     internal PreparedUserSecrets(
         IReadOnlyList<UserSecretSnapshot> stores,
@@ -200,14 +200,14 @@ public sealed class PreparedUserSecrets
         $"Prepared user secrets ({Stores.Count} stores; values hidden)";
 }
 
-public sealed record UserSecretsStoreReport(string Id, int KeyCount)
+internal sealed record UserSecretsStoreReport(string Id, int KeyCount)
 {
     public IReadOnlyList<string> RewrittenKeys { get; init; } = [];
     public int RewrittenKeyCount => RewrittenKeys.Count;
 }
 
 /// <summary>Successful copy summary; SafetyOverride records actual selected-original deny matches allowed by --force.</summary>
-public sealed record UserSecretsReport(
+internal sealed record UserSecretsReport(
     IReadOnlyList<UserSecretsStoreReport> Stores,
     bool SafetyOverride
 );

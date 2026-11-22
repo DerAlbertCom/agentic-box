@@ -5,7 +5,7 @@ using Abox.Features.Shared.Common;
 namespace Abox.Features.Shared.Builds;
 
 /// <summary>Fingerprints local build inputs and snapshots those exact inputs for publication.</summary>
-public static class BuildSources
+internal static class BuildSources
 {
     public static Dictionary<string, string> Capture(BuildManifest manifest)
     {

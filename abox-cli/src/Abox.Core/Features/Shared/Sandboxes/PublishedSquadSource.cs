@@ -8,10 +8,10 @@ using Abox.Features.Shared.Registry;
 namespace Abox.Features.Shared.Sandboxes;
 
 /// <summary>A pinned squad set and its authoritative runtime metadata.</summary>
-public sealed record PublishedSquad(string Reference, BuildManifest Metadata);
+internal sealed record PublishedSquad(string Reference, BuildManifest Metadata);
 
 /// <summary>Reads authoritative runtime metadata from a processed, digest-pinned squad set.</summary>
-public interface IPublishedSquadSource
+internal interface IPublishedSquadSource
 {
     Task<PublishedSquad> LoadAsync(
         string reference,
@@ -21,7 +21,7 @@ public interface IPublishedSquadSource
 }
 
 /// <summary>Only registry reads: inspect the set, pull its small config mixin, and read its saved layers without executing or extracting them.</summary>
-public sealed class PublishedSquadSource(IPublishedImageReader registry, IConsole console)
+internal sealed class PublishedSquadSource(IPublishedImageReader registry, IConsole console)
     : IPublishedSquadSource
 {
     public async Task<PublishedSquad> LoadAsync(

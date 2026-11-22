@@ -8,7 +8,7 @@ namespace Abox.Features.Shared.Squads;
 /// Resolves a squad: reads its <c>.abox</c> file, follows its base chain, checks that
 /// nothing is declared twice, and resolves the workload and the kits it names.
 /// </summary>
-public sealed class SquadResolver(AboxConfig config, IYamlParser parser)
+internal sealed class SquadResolver(AboxConfig config, IYamlParser parser)
 {
     private readonly SquadSourceDiscovery _sources = new(config, parser);
 

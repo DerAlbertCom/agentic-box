@@ -5,7 +5,7 @@ namespace Abox.Infrastructure.Sbx;
 /// <summary>
 /// Runs commands with <c>sbx exec</c>, each wrapped in the protected HTTPS bootstrap.
 /// </summary>
-public sealed class SbxSandboxExec(SbxInvoker invoker) : ISandboxExec
+internal sealed class SbxSandboxExec(SbxInvoker invoker) : ISandboxExec
 {
     public async Task<SandboxExecOutcome> RunAsync(
         SandboxExecRequest request,

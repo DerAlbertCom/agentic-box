@@ -6,7 +6,7 @@ using Abox.Features.Shared.UserSecrets;
 namespace Abox.Infrastructure.Dotnet;
 
 /// <summary>The host's .NET store convention, independent of abox's config directory.</summary>
-public sealed class DotnetUserSecretStores(string? appData, string? home) : IHostUserSecretStores
+internal sealed class DotnetUserSecretStores(string? appData, string? home) : IHostUserSecretStores
 {
     public static DotnetUserSecretStores Create() =>
         new(

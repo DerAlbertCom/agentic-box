@@ -6,7 +6,7 @@ namespace Abox.Features.Shared.Builds;
 /// Prebuilds workload content into the host image store; at create, the sandbox runtime
 /// only wraps it as a thin runtime kit.
 /// </summary>
-public sealed class LocalWorkloadImages(
+internal sealed class LocalWorkloadImages(
     IWorkloadImageBuilder builder,
     ILocalWorkloadImageStore store,
     IConsole console

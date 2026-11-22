@@ -7,7 +7,7 @@ namespace Abox.Features.Prune;
 /// <summary>What a prune removes and what it keeps.</summary>
 /// <param name="Remove">The template images to remove.</param>
 /// <param name="Keep">The template images to keep.</param>
-public sealed record PrunePlan(
+internal sealed record PrunePlan(
     IReadOnlyList<TemplateImage> Remove,
     IReadOnlyList<TemplateImage> Keep
 );
@@ -15,14 +15,14 @@ public sealed record PrunePlan(
 /// <summary>How far a prune goes.</summary>
 /// <param name="Everything">Whether it reaches for everything, for the mode of a full prune.</param>
 /// <param name="StopSandboxes">Whether it stops the running sandboxes first.</param>
-public sealed record PruneRequest(bool Everything, bool StopSandboxes);
+internal sealed record PruneRequest(bool Everything, bool StopSandboxes);
 
 /// <summary>
 /// Prunes the template images of the local sandbox runtime. Keeps the newest assembled kit set
 /// and the kit sources it is built from, removes the older sets and the kit sources
 /// nothing uses. Never touches sandboxes, secrets, or images of any other repository.
 /// </summary>
-public sealed class PruneService(ISandboxCleanup cleanup, IConsole console)
+internal sealed class PruneService(ISandboxCleanup cleanup, IConsole console)
 {
     /// <summary>Prunes the template images and returns the exit code of the command.</summary>
     public async Task<int> PruneTemplatesAsync(

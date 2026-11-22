@@ -5,7 +5,7 @@ using Abox.Features.Shared.Yaml;
 namespace Abox.Features.Shared.Configuration;
 
 /// <summary>An exact store ID or literal prefix selection, optionally restricted to effective .NET keys.</summary>
-public sealed class UserSecretSelection
+internal sealed class UserSecretSelection
 {
     private readonly string[][]? patterns;
 

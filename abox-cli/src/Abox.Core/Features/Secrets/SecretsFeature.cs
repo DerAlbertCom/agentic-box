@@ -6,7 +6,7 @@ namespace Abox.Features.Secrets;
 /// <summary>
 /// The secrets slice: <c>abox secrets</c> and the service that does its work.
 /// </summary>
-public static class SecretsFeature
+internal static class SecretsFeature
 {
     public static IServiceCollection AddSecretsFeature(this IServiceCollection services)
     {

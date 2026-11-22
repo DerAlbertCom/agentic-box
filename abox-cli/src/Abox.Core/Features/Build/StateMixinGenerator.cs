@@ -7,7 +7,7 @@ namespace Abox.Features.Build;
 /// Writes the mixin that declares the host directories the sandbox keeps. sbx mounts a
 /// host directory only where a kit asks for it, so abox writes the ask itself.
 /// </summary>
-public sealed class StateMixinGenerator
+internal sealed class StateMixinGenerator
 {
     /// <summary>The name of the generated mixin, without the extension.</summary>
     public const string MixinName = "state";

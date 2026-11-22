@@ -10,7 +10,7 @@ namespace Abox.Features.Build;
 /// without a <c>build</c> file pass through unchanged; a <c>build</c> file that cannot run
 /// (not executable, or on Windows) fails the build.
 /// </summary>
-public sealed class KitBuildStep(IKitBuildScript script, IConsole console)
+internal sealed class KitBuildStep(IKitBuildScript script, IConsole console)
 {
     /// <summary>The executable file that marks a kit with a build step.</summary>
     public const string BuildFileName = "build";

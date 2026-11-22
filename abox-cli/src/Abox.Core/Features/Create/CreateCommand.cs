@@ -13,7 +13,7 @@ namespace Abox.Features.Create;
 /// <summary>
 /// <c>abox create</c>: creates the sandbox of a folder from a published or local squad kit set.
 /// </summary>
-public sealed class CreateCommand : Command
+internal sealed class CreateCommand : Command
 {
     public CreateCommand(
         Lazy<AboxConfig> config,

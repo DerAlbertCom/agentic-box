@@ -6,7 +6,7 @@ namespace Abox.Features.Shared.Squads;
 /// <summary>
 /// A parsed <c>.abox</c> file: the configuration of a squad, or of a base it inherits from.
 /// </summary>
-public sealed class AboxFile
+internal sealed class AboxFile
 {
     private AboxFile(
         string path,

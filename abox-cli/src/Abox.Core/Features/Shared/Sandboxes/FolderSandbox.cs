@@ -8,7 +8,7 @@ namespace Abox.Features.Shared.Sandboxes;
 /// Answers "this folder's Sandbox": current names win over exact legacy names, matched
 /// against one sandbox listing. Without one, it gives the create-recovery hint.
 /// </summary>
-public sealed class FolderSandbox(
+internal sealed class FolderSandbox(
     ISandboxLifecycle lifecycle,
     IFolderRealPath realPaths,
     CreateRecoveryHints hints
@@ -111,4 +111,4 @@ public sealed class FolderSandbox(
 }
 
 /// <summary>The folder has no Sandbox; the message carries the create-recovery hint.</summary>
-public sealed class MissingFolderSandboxException(string message) : AboxException(message);
+internal sealed class MissingFolderSandboxException(string message) : AboxException(message);

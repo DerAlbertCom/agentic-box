@@ -11,7 +11,7 @@ namespace Abox.Features.Secrets;
 /// <param name="Location">The folder whose sandbox is meant.</param>
 /// <param name="FolderConfig">The folder configuration, for the create-recovery hint.</param>
 /// <param name="Services">The services to act on. All declared ones when the list is empty.</param>
-public sealed record SecretsRequest(
+internal sealed record SecretsRequest(
     string Location,
     FolderConfig? FolderConfig,
     IReadOnlyList<string> Services
@@ -22,7 +22,7 @@ public sealed record SecretsRequest(
 /// bundled squad metadata says how the value of that service is obtained, and sbx keeps
 /// the value globally.
 /// </summary>
-public sealed class SecretsService(
+internal sealed class SecretsService(
     FolderSandbox sandboxes,
     ISandboxSquadFileReader squadFiles,
     IHostSecretStore store,
