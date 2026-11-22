@@ -1053,6 +1053,9 @@ The command never calls broad `sbx prune` or `sbx reset`, touches secrets or unr
 repositories, or removes host-Docker local builds or registry components. All removal
 requests remain individual `sbx template rm` calls, subject to runtime in-use refusals.
 
+The prune service reaches the runtime only through `ISandboxCleanup`
+(`Features/Shared/SandboxCleanup`); its sbx adapter is `Infrastructure/Sbx/SbxSandboxCleanup`.
+
 ## The files
 
 ### `.abox`
@@ -1240,6 +1243,8 @@ abox-cli/src/Abox/
         SquadSources.cs         local and remote ISquadSource adapters
       Preflight/        runtime preflight for sandbox commands, secrets and normal builds;
                         checks the queried sbx version against the required minimum
+      SandboxCleanup/   ISandboxCleanup for abox prune: list sandboxes and template images,
+                        stop a sandbox, remove a template image
       Naming/           sandbox and image names
         ImageName.cs            the unqualified team reference of a local build
         TcpPort.cs              shared TCP parsing and the 1–65535 range
@@ -1259,6 +1264,7 @@ abox-cli/src/Abox/
       SbxApplicationPorts.cs         application relay and port mapping operations
       SbxUserSecrets.cs              secret transport and network-policy operations
       SbxKitSources.cs               repository-scoped kit-source trust settings
+      SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm
       SbxCredentialBindings.cs       reads and merges the approvals in sbx's credentials.yaml
       SandboxSquadFiles.cs           raw staged kit descriptors and squad.json of a sandbox
       SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line

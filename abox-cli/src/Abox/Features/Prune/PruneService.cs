@@ -1,7 +1,7 @@
 using System.Collections.Frozen;
 using System.Text.RegularExpressions;
+using Abox.Features.Shared.SandboxCleanup;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Prune;
 
@@ -23,7 +23,7 @@ public sealed record PruneRequest(bool Everything, bool StopSandboxes);
 /// and the kit sources it is built from, removes the older sets and the kit sources
 /// nothing uses. Never touches sandboxes, secrets, or images of any other repository.
 /// </summary>
-public sealed partial class PruneService(ISbxClient sbx, IConsole console)
+public sealed partial class PruneService(ISandboxCleanup cleanup, IConsole console)
 {
     /// <summary>The repository sbx keeps the assembled kit sets in.</summary>
     private const string AssembledRepository = "sandbox-kit-assembled";
@@ -48,7 +48,7 @@ public sealed partial class PruneService(ISbxClient sbx, IConsole console)
             await StopSandboxesAsync(cancellationToken);
         }
 
-        var images = await sbx.ListTemplatesAsync(cancellationToken);
+        var images = await cleanup.ListTemplatesAsync(cancellationToken);
         var plan = request.Everything ? Everything(images) : Plan(images);
 
         if (plan.Remove.Count == 0)
@@ -77,8 +77,8 @@ public sealed partial class PruneService(ISbxClient sbx, IConsole console)
         var failures = new List<string>();
         foreach (var image in plan.Remove)
         {
-            var outcome = await sbx.RemoveTemplateAsync(image.Reference, cancellationToken);
-            if (outcome.Succeeded)
+            var removal = await cleanup.RemoveTemplateAsync(image, cancellationToken);
+            if (removal.Removed)
             {
                 console.WriteLine($"Removed {image.Reference}.");
             }
@@ -88,7 +88,7 @@ public sealed partial class PruneService(ISbxClient sbx, IConsole console)
             }
             else
             {
-                console.WriteError(outcome.Output.Trim());
+                console.WriteError(removal.Refusal);
                 failures.Add(image.Reference);
             }
         }
@@ -110,7 +110,7 @@ public sealed partial class PruneService(ISbxClient sbx, IConsole console)
     /// <summary>Stops every running sandbox, so a full prune reaches what is not running.</summary>
     private async Task StopSandboxesAsync(CancellationToken cancellationToken)
     {
-        var running = (await sbx.ListSandboxesAsync(cancellationToken))
+        var running = (await cleanup.ListSandboxesAsync(cancellationToken))
             .Where(sandbox => sandbox.IsRunning)
             .ToList();
         if (running.Count == 0)
@@ -121,8 +121,7 @@ public sealed partial class PruneService(ISbxClient sbx, IConsole console)
         console.WriteLine($"Stopping {running.Count} running sandbox(es)...");
         foreach (var sandbox in running)
         {
-            var outcome = await sbx.StopSandboxAsync(sandbox.Name, cancellationToken);
-            if (!outcome.Succeeded)
+            if (!await cleanup.StopSandboxAsync(sandbox.Name, cancellationToken))
             {
                 throw new AboxException($"sbx could not stop the sandbox '{sandbox.Name}'.");
             }

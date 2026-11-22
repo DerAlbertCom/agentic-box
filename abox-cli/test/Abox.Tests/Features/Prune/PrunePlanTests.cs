@@ -1,5 +1,5 @@
 using Abox.Features.Prune;
-using Abox.Infrastructure.Sbx;
+using Abox.Features.Shared.SandboxCleanup;
 
 namespace Abox.Tests;
 

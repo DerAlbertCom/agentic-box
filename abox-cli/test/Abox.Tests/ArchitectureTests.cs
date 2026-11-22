@@ -18,8 +18,6 @@ public sealed class ArchitectureTests
         "Abox.Features.Build.BuildService -> Abox.Infrastructure.Sbx",
         "Abox.Features.Create.CreateCommand -> Abox.Infrastructure.Sbx",
         "Abox.Features.Ports.PortsCommand -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Prune.PrunePlan -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Prune.PruneService -> Abox.Infrastructure.Sbx",
         "Abox.Features.Publish.PublishService -> Abox.Infrastructure.Docker",
         "Abox.Features.Publish.VerifiedPublicationRegistry -> Abox.Infrastructure.Docker",
         "Abox.Features.Run.RunFlow -> Abox.Infrastructure.Sbx",

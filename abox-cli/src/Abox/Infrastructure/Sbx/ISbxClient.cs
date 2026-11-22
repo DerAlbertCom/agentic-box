@@ -45,21 +45,12 @@ public interface ISbxClient
         CancellationToken cancellationToken
     );
 
-    /// <summary>The template images the local runtime holds.</summary>
-    Task<IReadOnlyList<TemplateImage>> ListTemplatesAsync(CancellationToken cancellationToken);
-
-    /// <summary>Removes one template image by reference, without asking.</summary>
-    Task<SbxOutcome> RemoveTemplateAsync(string reference, CancellationToken cancellationToken);
-
     Task<SbxOutcome> CreateAsync(SbxCreateRequest request, CancellationToken cancellationToken);
 
     /// <summary>Adds a validated repository prefix to kit.allowedSources if it is not already covered.</summary>
     Task EnsureKitSourceAllowedAsync(string repositoryPrefix, CancellationToken cancellationToken);
 
     Task<SbxOutcome> RemoveSandboxAsync(string name, CancellationToken cancellationToken);
-
-    /// <summary>Stops one sandbox without removing it.</summary>
-    Task<SbxOutcome> StopSandboxAsync(string name, CancellationToken cancellationToken);
 
     /// <summary>
     /// Runs a command in the sandbox. Every exec carries the protected HTTPS bootstrap: when
