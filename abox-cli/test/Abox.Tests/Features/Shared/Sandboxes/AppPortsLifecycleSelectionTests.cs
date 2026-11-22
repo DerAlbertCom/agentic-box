@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -51,8 +52,8 @@ public sealed class AppPortsLifecycleSelectionTests
         exit.Should().Be(0, fixture.Console.AllText);
         fixture.Console.AllText.Should().Contain(configured ? "| 4200 | 24200" : "| 4200 | 14200");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(ports =>
                     ports[0].HostPort == (configured ? 24200 : 14200)
@@ -93,8 +94,8 @@ public sealed class AppPortsLifecycleSelectionTests
         exit.Should().Be(0, fixture.Console.AllText);
         fixture.Records.Load(fixture.Name).Should().NotBeNull();
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -143,8 +144,8 @@ public sealed class AppPortsLifecycleSelectionTests
         // Assert
         exit.Should().Be(entry == "declined-create" ? 1 : 0, fixture.Console.AllText);
         await fixture
-            .Sbx.DidNotReceive()
-            .EnsureApplicationPortsAsync(
+            .Publisher.DidNotReceive()
+            .PublishAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()

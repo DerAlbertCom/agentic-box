@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Https;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -36,8 +37,8 @@ public sealed class AppPortsLifecycleFailureTests
         // Assert
         exit.Should().Be(1, fixture.Console.AllText);
         await fixture
-            .Sbx.DidNotReceive()
-            .EnsureApplicationPortsAsync(
+            .Publisher.DidNotReceive()
+            .PublishAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()
@@ -90,8 +91,8 @@ public sealed class AppPortsLifecycleFailureTests
             .BuildCreatedAt.Should()
             .Be(AppPortsLifecycleFixture.OldBuild);
         await fixture
-            .Sbx.DidNotReceive()
-            .EnsureApplicationPortsAsync(
+            .Publisher.DidNotReceive()
+            .PublishAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()

@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -157,8 +158,8 @@ public sealed class PortsDiscoveryTests
         exit.Should().Be(0, fixture.Console.AllText);
         fixture.Console.AllText.Should().Contain("| 8203 | 18203");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(ports =>
                     ports.Count == 1 && ports[0] == new ApplicationPortMapping(8203, 18203)
@@ -182,8 +183,8 @@ public sealed class PortsDiscoveryTests
     private static async Task NoApplicationSetup(UserSecretsCliHarness fixture)
     {
         await fixture
-            .Sbx.DidNotReceive()
-            .EnsureApplicationPortsAsync(
+            .Publisher.DidNotReceive()
+            .PublishAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()

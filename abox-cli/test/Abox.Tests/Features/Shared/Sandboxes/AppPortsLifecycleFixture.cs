@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
@@ -16,6 +17,7 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
     public TempDirectory Root => cli.Root;
     public TestConsole Console => cli.Console;
     public ISbxClient Sbx => cli.Sbx;
+    public IApplicationPortPublisher Publisher => cli.Publisher;
     public string Location => cli.Location;
     public string Name { get; set; }
     public SandboxRecordStore Records { get; }

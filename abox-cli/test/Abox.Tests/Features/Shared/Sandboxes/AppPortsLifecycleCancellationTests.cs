@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -66,7 +67,7 @@ public sealed class AppPortsLifecycleCancellationTests
                 });
         else
             fixture
-                .Sbx.EnsureApplicationPortsAsync(
+                .Publisher.PublishAsync(
                     Arg.Any<string>(),
                     Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                     Arg.Any<CancellationToken>()

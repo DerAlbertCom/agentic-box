@@ -1,4 +1,5 @@
 using Abox.Features.Build;
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
@@ -7,6 +8,7 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
+using NSubstitute;
 
 namespace Abox.Tests;
 
@@ -54,7 +56,7 @@ internal static class TestServiceGraphs
             local,
             remote,
             copy,
-            SandboxFactory.Ports(sbx, console),
+            SandboxFactory.Ports(Substitute.For<IApplicationPortPublisher>(), sbx, console),
             Credentials(paths, sbx, console)
         );
 

@@ -82,6 +82,11 @@ public static class AboxServiceCollection
         services.AddSingleton<IOciRegistry, OciRegistry>();
         services.AddSingleton<IHostPrograms, HostPrograms>();
         services.AddSingleton<ISbxClient, SbxClient>();
+        services.AddSingleton(provider => new SbxInvoker(
+            provider.GetRequiredService<IProcessRunner>(),
+            SbxClient.ExecutableName
+        ));
+        services.AddSingleton<IApplicationPortPublisher, SbxApplicationPorts>();
         services.AddSingleton<ISandboxCleanup, SbxSandboxCleanup>();
         services.AddSingleton(UserSecretsHost.Create());
         services.AddSingleton<UserSecretsCopy>();

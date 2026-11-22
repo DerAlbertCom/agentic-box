@@ -1,9 +1,11 @@
 using System.Text.Json;
 using Abox.Cli;
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -64,7 +66,10 @@ public sealed class PortsAngularTransportTests
         application
             .Services.AddSingleton(new AboxConfig { DefaultLocation = location })
             .AddSingleton(runner)
-            .AddSingleton(programs);
+            .AddSingleton(programs)
+            .AddSingleton<IApplicationPortPublisher>(
+                new SbxApplicationPorts(new SbxInvoker(runner, SbxClient.ExecutableName))
+            );
         var provider = application.Provider;
 
         // Act

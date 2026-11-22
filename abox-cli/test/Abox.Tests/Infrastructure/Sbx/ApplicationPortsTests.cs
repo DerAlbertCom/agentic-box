@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -16,11 +17,11 @@ public sealed class ApplicationPortsTests : IDisposable
     private string? publicationInventory;
     private string relayInventory = "[{\"application_port\":8203,\"relay_port\":58203}]";
     private ProcessResult? relayFailure;
-    private readonly SbxClient client;
+    private readonly SbxApplicationPorts client;
 
     public ApplicationPortsTests()
     {
-        client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        client = new SbxApplicationPorts(new SbxInvoker(runner, SbxClient.ExecutableName));
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(call => RespondToRuntime(call.Arg<ProcessRequest>()));
@@ -59,8 +60,7 @@ public sealed class ApplicationPortsTests : IDisposable
         var mappings = new ApplicationPortMapping[] { new(8203, 18203), new(8204, 28204) };
 
         // Act
-        var action = () =>
-            client.EnsureApplicationPortsAsync("actual", mappings, CancellationToken.None);
+        var action = () => client.PublishAsync("actual", mappings, CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*same offset*");
@@ -78,11 +78,7 @@ public sealed class ApplicationPortsTests : IDisposable
             """;
 
         // Act
-        await client.EnsureApplicationPortsAsync(
-            "actual",
-            [new(8203, 28203)],
-            CancellationToken.None
-        );
+        await client.PublishAsync("actual", [new(8203, 28203)], CancellationToken.None);
 
         // Assert
         var relay = calls.Single(call => call.Arguments.Contains("python3"));
@@ -138,8 +134,7 @@ public sealed class ApplicationPortsTests : IDisposable
         var mappings = new ApplicationPortMapping[] { new(8203, 28203), new(8204, 28204) };
 
         // Act
-        var first = () =>
-            client.EnsureApplicationPortsAsync("actual", mappings, CancellationToken.None);
+        var first = () => client.PublishAsync("actual", mappings, CancellationToken.None);
         if (cancel)
             await first.Should().ThrowAsync<OperationCanceledException>();
         else
@@ -147,7 +142,7 @@ public sealed class ApplicationPortsTests : IDisposable
                 .Should()
                 .ThrowAsync<AboxException>()
                 .WithMessage("*partial runtime failure*");
-        await client.EnsureApplicationPortsAsync("actual", mappings, CancellationToken.None);
+        await client.PublishAsync("actual", mappings, CancellationToken.None);
 
         // Assert
         calls.Where(call => call.Arguments.Contains("--publish")).Should().HaveCount(2);
@@ -172,11 +167,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
-                "actual",
-                [new(8203, 28203)],
-                CancellationToken.None
-            );
+            client.PublishAsync("actual", [new(8203, 28203)], CancellationToken.None);
 
         // Assert
         await action
@@ -209,11 +200,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
-                "actual",
-                [new(8203, 8203 + offset)],
-                CancellationToken.None
-            );
+            client.PublishAsync("actual", [new(8203, 8203 + offset)], CancellationToken.None);
 
         // Assert
         await action
@@ -243,7 +230,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
+            client.PublishAsync(
                 "actual",
                 [new(8203, 18203), new(8204, 18204)],
                 CancellationToken.None
@@ -267,11 +254,7 @@ public sealed class ApplicationPortsTests : IDisposable
             "[{\"host_ip\":\"127.0.0.1\",\"host_port\":18203,\"sandbox_port\":58203,\"protocol\":\"tcp4\"}]";
 
         // Act
-        await client.EnsureApplicationPortsAsync(
-            "actual",
-            [new(8203, 18203)],
-            CancellationToken.None
-        );
+        await client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         calls.Should().ContainSingle(call => call.Arguments.Contains("python3"));
@@ -310,11 +293,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
-                "actual",
-                [new(8203, 18203)],
-                CancellationToken.None
-            );
+            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*relay*confirm*retry*");
@@ -329,11 +308,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
-                "actual",
-                [new(8203, 18203)],
-                CancellationToken.None
-            );
+            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action
@@ -360,8 +335,7 @@ public sealed class ApplicationPortsTests : IDisposable
             });
 
         // Act
-        var action = () =>
-            client.EnsureApplicationPortsAsync("actual", [new(8203, 18203)], cancellation.Token);
+        var action = () => client.PublishAsync("actual", [new(8203, 18203)], cancellation.Token);
 
         // Assert
         await action.Should().ThrowAsync<OperationCanceledException>();
@@ -376,11 +350,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
-                "actual",
-                [new(8203, 18203)],
-                CancellationToken.None
-            );
+            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*did not confirm*retry*");
@@ -403,11 +373,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
-                "actual",
-                [new(8203, 18203)],
-                CancellationToken.None
-            );
+            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*did not confirm*retry*");
@@ -422,8 +388,7 @@ public sealed class ApplicationPortsTests : IDisposable
         cancellation.Cancel();
 
         // Act
-        var action = () =>
-            client.EnsureApplicationPortsAsync("actual", [new(8203, 18203)], cancellation.Token);
+        var action = () => client.PublishAsync("actual", [new(8203, 18203)], cancellation.Token);
 
         // Assert
         await action.Should().ThrowAsync<OperationCanceledException>();
@@ -450,11 +415,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
-                "actual",
-                [new(8203, 18203)],
-                CancellationToken.None
-            );
+            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>();
@@ -476,8 +437,7 @@ public sealed class ApplicationPortsTests : IDisposable
         var mappings = new ApplicationPortMapping[] { new(sandboxPort, hostPort) };
 
         // Act
-        var action = () =>
-            client.EnsureApplicationPortsAsync("actual", mappings, CancellationToken.None);
+        var action = () => client.PublishAsync("actual", mappings, CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>();
@@ -496,11 +456,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.EnsureApplicationPortsAsync(
-                "actual",
-                [new(8203, 18203)],
-                CancellationToken.None
-            );
+            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*18203*already in use*");
@@ -516,16 +472,12 @@ public sealed class ApplicationPortsTests : IDisposable
             """;
 
         // Act
-        await client.EnsureApplicationPortsAsync(
+        await client.PublishAsync(
             "actual-legacy-name",
             [new(8203, 18203), new(8203, 18203)],
             CancellationToken.None
         );
-        await client.EnsureApplicationPortsAsync(
-            "actual-legacy-name",
-            [new(8203, 18203)],
-            CancellationToken.None
-        );
+        await client.PublishAsync("actual-legacy-name", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         calls[0].Arguments.Should().Equal("exec", "actual-legacy-name", "true");

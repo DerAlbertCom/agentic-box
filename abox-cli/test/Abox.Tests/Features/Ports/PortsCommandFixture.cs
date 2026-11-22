@@ -1,4 +1,5 @@
 using Abox.Cli;
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
@@ -15,6 +16,7 @@ internal sealed class PortsCommandFixture : IDisposable
     public TempDirectory Root { get; } = new();
     public TestConsole Console { get; } = new();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
+    public IApplicationPortPublisher Publisher => application.Publisher;
     public string Location { get; }
     public string Name => SandboxName.For(Location);
     private readonly CliTestApplication application;
@@ -43,6 +45,10 @@ internal sealed class PortsCommandFixture : IDisposable
                 runner is null ? Sbx : new SbxClient(runner, AboxPaths.For(Root.Path, Root.Path))
             )
             .AddSingleton(programs);
+        if (runner is not null)
+            application.Services.AddSingleton<IApplicationPortPublisher>(
+                new SbxApplicationPorts(new SbxInvoker(runner, SbxClient.ExecutableName))
+            );
         if (exporter is not null)
             application.Services.AddSingleton(exporter);
         _ = application.Provider;
@@ -58,8 +64,9 @@ internal sealed class PortsCommandFixture : IDisposable
             .InvokeAsync(cancellationToken: cancellationToken);
 
     public async Task NoPublishing() =>
-        await Sbx.DidNotReceive()
-            .EnsureApplicationPortsAsync(
+        await Publisher
+            .DidNotReceive()
+            .PublishAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<ApplicationPortMapping>>(),
                 Arg.Any<CancellationToken>()

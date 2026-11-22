@@ -1,3 +1,4 @@
+using Abox.Features.Shared.ApplicationPorts;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -44,8 +45,8 @@ public sealed class PortsCommandAngularTests
             .Contain($"| 5001 | {secondHostPort}")
             .And.Contain("3 occurrences");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(mappings =>
                     mappings.Count == 2
@@ -481,8 +482,8 @@ public sealed class PortsCommandAngularTests
             .Contain("| 5000 | 15000")
             .And.NotContain("do-not-echo-this-script");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(mappings =>
                     mappings.Count == 1 && mappings[0] == new ApplicationPortMapping(5000, 15000)
@@ -539,8 +540,8 @@ public sealed class PortsCommandAngularTests
             .And.Contain("scripts.start")
             .And.Contain("| 4203 | 14203");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(mappings =>
                     mappings.Count == 1 && mappings[0] == new ApplicationPortMapping(4203, 14203)
@@ -617,8 +618,8 @@ public sealed class PortsCommandAngularTests
             .And.Contain("3 occurrences")
             .And.Contain("web.architect.serve.configurations.development");
         await fixture
-            .Sbx.Received(1)
-            .EnsureApplicationPortsAsync(
+            .Publisher.Received(1)
+            .PublishAsync(
                 fixture.Name,
                 Arg.Is<IReadOnlyList<ApplicationPortMapping>>(mappings =>
                     mappings.Count == 3

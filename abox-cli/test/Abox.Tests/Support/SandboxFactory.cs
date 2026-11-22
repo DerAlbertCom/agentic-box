@@ -20,8 +20,11 @@ internal static class SandboxFactory
         SandboxRecordStore records
     ) => new(config, new SquadResolver(config), store, records);
 
-    public static AppPorts Ports(ISbxClient sbx, IConsole console) =>
-        new(sbx, console, Https(sbx, console));
+    public static AppPorts Ports(
+        IApplicationPortPublisher publisher,
+        ISbxClient sbx,
+        IConsole console
+    ) => new(publisher, console, Https(sbx, console));
 
     public static SandboxHttps Https(ISbxClient sbx, IConsole console) =>
         new(new HostDevelopmentCertificate(LocalWorkloadFactory.Runner(), console), sbx, console);
