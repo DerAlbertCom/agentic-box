@@ -306,7 +306,7 @@ describe("sbox themes <name> for the terminal tools", () => {
 
 const probe = "mode={{ mode }}\nforeground={{ foreground }}\n";
 
-const dusk = ["background", "foreground", "red", "yellow", "blue"]
+const dusk = ["background", "foreground", "red", "green", "yellow", "blue", "magenta", "cyan"]
   .map((key, i) => `${key} = "#10101${i}"`)
   .join("\n");
 
@@ -382,18 +382,22 @@ describe("app templates", () => {
     expect(result.stderr).toContain("probe/app.yaml: unknown key 'restart'");
   });
 
-  test("name the template that uses a color the palette lacks", async () => {
+  test("name the template that uses a key outside the palette", async () => {
     // Arrange
     await home.install("themes", {
       package: themesPackage,
-      files: { ...probeApp(), "themes/bare/colors.toml": 'background = "#101010"\n' },
+      files: {
+        ...probeApp(),
+        "apps/probe/probe.liquid": "{{ active_border_color }}",
+        "themes/dusk/colors.toml": `${dusk}\nactive_border_color = "#101010"\n`,
+      },
     });
 
     // Act
-    const result = await home.run(["themes", "bare"]);
+    const result = await home.run(["themes", "dusk"]);
 
     // Assert
     expect(result.code).toBe(1);
-    expect(result.stderr).toStartWith("sbox themes: probe/probe.liquid: undefined variable: foreground");
+    expect(result.stderr).toStartWith("sbox themes: probe/probe.liquid: undefined variable: active_border_color");
   });
 });

@@ -132,7 +132,7 @@ describe("sbox themes <name> and the terminal colors", () => {
     await home.install("themes", {
       package: themesPackage,
       files: {
-        "themes/white/colors.toml": 'background = "#ffffff"\nforeground = "#000000"\n',
+        "themes/white/colors.toml": await Bun.file(join(themesPackage, "themes/white/colors.toml")).text(),
       },
     });
 

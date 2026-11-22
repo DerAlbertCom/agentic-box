@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
+import { parsePalette } from "./palette";
 
 /**
  * A GitHub repository that themes are taken from: either a collection with one folder per
@@ -31,7 +32,8 @@ interface Download {
 
 /**
  * Downloads the palettes of every source into the themes folder: adds new themes, updates
- * changed ones and never deletes. Everything is downloaded before anything is written.
+ * changed ones and never deletes. Everything is downloaded and every palette is checked before
+ * anything is written.
  */
 export async function syncThemes(options: {
   themes: string;
@@ -39,7 +41,9 @@ export async function syncThemes(options: {
   fetch: typeof fetch;
 }): Promise<SyncReport> {
   const downloads = (
-    await Promise.all(options.sources.map((source) => download(source, options.fetch)))
+    await Promise.all(
+      options.sources.map(async (source) => checked(source, await download(source, options.fetch))),
+    )
   ).flat();
 
   const local = existsSync(options.themes)
@@ -65,6 +69,19 @@ export async function syncThemes(options: {
     unchanged: sorted([...upstream].filter((name) => local.includes(name) && !changed.has(name))),
     removed: sorted(local.filter((name) => !upstream.has(name))),
   };
+}
+
+/** The downloads of `source`, after failing naming it if a palette is not a valid theme. */
+function checked(source: ThemeSource, downloads: Download[]): Download[] {
+  for (const file of downloads) {
+    if (!file.theme || basename(file.path) !== "colors.toml") continue;
+    try {
+      parsePalette(file.theme, file.content);
+    } catch (error) {
+      throw new Error(`${source.repo}@${source.ref}: ${(error as Error).message}`);
+    }
+  }
+  return downloads;
 }
 
 async function download(source: ThemeSource, fetch: typeof globalThis.fetch): Promise<Download[]> {
