@@ -1,19 +1,111 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
-/** The colors of a theme by key, after the fallbacks, plus `mode` ("dark" or "light"). */
-export type Palette = Record<string, string>;
+const namedColors = ["red", "green", "yellow", "blue", "magenta", "cyan"] as const;
+
+// The required colors come first, so a theme that lacks one is told that one and not a color
+// derived from it.
+const colors = [
+  "background",
+  "foreground",
+  ...namedColors,
+  ...namedColors.map((name) => `bright_${name}` as const),
+  "purple",
+  "bright_purple",
+  "color0",
+  "color1",
+  "color2",
+  "color3",
+  "color4",
+  "color5",
+  "color6",
+  "color7",
+  "color8",
+  "color9",
+  "color10",
+  "color11",
+  "color12",
+  "color13",
+  "color14",
+  "color15",
+  "cursor",
+  "accent",
+  "muted",
+  "orange",
+  "brown",
+  "selection",
+  "selection_background",
+  "selection_foreground",
+  "dark_background",
+  "darker_background",
+  "lighter_background",
+  "dark_foreground",
+  "light_foreground",
+  "bright_foreground",
+  "bg",
+  "dark_bg",
+  "darker_bg",
+  "lighter_bg",
+  "fg",
+  "dark_fg",
+  "light_fg",
+  "bright_fg",
+] as const;
+
+const modes = ["dark", "light"] as const;
+
+/** A key of a palette that holds a color. */
+export type Color = (typeof colors)[number];
+type Mode = (typeof modes)[number];
+
+/**
+ * The colors of a theme by key, after the fallbacks, each a #rrggbb, plus `mode` and its
+ * alias `theme_type`. Nothing else of `colors.toml` is in it.
+ */
+export type Palette = Readonly<Record<Color, string> & Record<"mode" | "theme_type", Mode>>;
 
 const hex = /^#[0-9a-f]{6}$/i;
 
-/** Reads `<folder>/colors.toml` and resolves it the way upstream does. */
+/** Reads `<folder>/colors.toml` of the theme named like the folder; see `parsePalette`. */
 export function readPalette(folder: string): Palette {
-  const parsed = Bun.TOML.parse(readFileSync(join(folder, "colors.toml"), "utf8")) as Record<string, unknown>;
-  const colors: Palette = {};
-  for (const [key, value] of Object.entries(parsed)) {
-    if (typeof value === "string" && value !== "") colors[key] = value;
+  return parsePalette(
+    basename(folder),
+    readFileSync(join(folder, "colors.toml"), "utf8"),
+    existsSync(join(folder, "light.mode")),
+  );
+}
+
+/**
+ * Resolves the text of the theme's `colors.toml` the way upstream does into a palette with
+ * every color and the mode, or fails naming the theme and the key. Other keys are dropped.
+ */
+export function parsePalette(theme: string, toml: string, lightModeFile = false): Palette {
+  const fail = (problem: string): never => {
+    throw new Error(`the theme '${theme}': ${problem}`);
+  };
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = Bun.TOML.parse(toml) as Record<string, unknown>;
+  } catch (error) {
+    fail(`colors.toml is not valid TOML: ${(error as Error).message}`);
   }
-  return resolve(colors, existsSync(join(folder, "light.mode")));
+
+  const set: Record<string, string> = {};
+  const take = (key: string, valid: (value: unknown) => boolean, expected: string) => {
+    const value = parsed[key];
+    if (value === undefined || value === "") return;
+    if (!valid(value)) fail(`'${key}' must be ${expected}, not ${JSON.stringify(value)}`);
+    set[key] = value as string;
+  };
+  for (const key of colors) {
+    take(key, (value) => typeof value === "string" && hex.test(value), "a color like #rrggbb");
+  }
+  for (const key of ["mode", "theme_type"]) take(key, (value) => modes.includes(value as Mode), "dark or light");
+
+  const palette = resolve(set, lightModeFile);
+  const missing = colors.find((key) => !palette[key]);
+  if (missing) fail(`the color '${missing}' is missing and no other color gives it`);
+  return palette as Palette;
 }
 
 /** Blends `color` toward `other` by `amount`: a percentage such as 15 or "15%", or a fraction up to 1. */
@@ -57,7 +149,7 @@ const legacyNames = [
 ] as const;
 
 // The cascade of upstream's theme color resolution: every step only fills keys that are still empty.
-function resolve(palette: Palette, lightModeFile: boolean): Palette {
+function resolve(palette: Record<string, string>, lightModeFile: boolean): Record<string, string> {
   const fill = (key: string, ...sources: (string | undefined)[]) => {
     if (palette[key]) return;
     const value = sources.find((source) => source);

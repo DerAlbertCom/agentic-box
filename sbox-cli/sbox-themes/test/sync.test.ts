@@ -45,6 +45,12 @@ function parents(path: string): string[] {
   return parts.map((_, index) => parts.slice(0, index + 1).join("/"));
 }
 
+/** The text of a complete colors.toml with the given background. */
+function colors(background: string) {
+  const others = ["foreground", "red", "green", "yellow", "blue", "magenta", "cyan"];
+  return [`background = "${background}"`, ...others.map((key) => `${key} = "#c0c0c0"`)].join("\n") + "\n";
+}
+
 async function local(path: string) {
   return readFile(join(themes, path), "utf8");
 }
@@ -55,15 +61,15 @@ describe("syncThemes", () => {
     const fetch = gitHub({
       "example/collection@main": {
         LICENSE: "MIT, the collection\n",
-        "themes/nord/colors.toml": 'background = "#2e3440"\n',
+        "themes/nord/colors.toml": colors("#2e3440"),
         "themes/nord/preview.png": "png",
-        "themes/dusk/colors.toml": 'background = "#101010"\n',
+        "themes/dusk/colors.toml": colors("#101010"),
         "themes/dusk/LICENSE": "MIT, dusk\n",
         "docs/colors.toml": "not a theme",
       },
       "someone/jade-theme@trunk": {
         LICENSE: "MIT, jade\n",
-        "colors.toml": 'background = "#111c18"\n',
+        "colors.toml": colors("#111c18"),
         "README.md": "jade",
       },
     });
@@ -75,26 +81,26 @@ describe("syncThemes", () => {
     expect(report).toEqual({ added: ["dusk", "jade", "nord"], updated: [], unchanged: [], removed: [] });
     expect(await readdir(themes)).toEqual(expect.arrayContaining(["LICENSE", "dusk", "jade", "nord"]));
     expect(await local("LICENSE")).toBe("MIT, the collection\n");
-    expect(await local("nord/colors.toml")).toBe('background = "#2e3440"\n');
+    expect(await local("nord/colors.toml")).toBe(colors("#2e3440"));
     expect(await readdir(join(themes, "nord"))).toEqual(["colors.toml"]);
     expect(await local("dusk/LICENSE")).toBe("MIT, dusk\n");
-    expect(await local("jade/colors.toml")).toBe('background = "#111c18"\n');
+    expect(await local("jade/colors.toml")).toBe(colors("#111c18"));
     expect(await local("jade/LICENSE")).toBe("MIT, jade\n");
   });
 
   test("updates changed themes, keeps the ones removed upstream and reports both", async () => {
     // Arrange
     await mkdir(join(themes, "nord"));
-    await writeFile(join(themes, "nord/colors.toml"), 'background = "#000000"\n');
+    await writeFile(join(themes, "nord/colors.toml"), colors("#000000"));
     await mkdir(join(themes, "dusk"));
-    await writeFile(join(themes, "dusk/colors.toml"), 'background = "#101010"\n');
+    await writeFile(join(themes, "dusk/colors.toml"), colors("#101010"));
     await mkdir(join(themes, "gone"));
-    await writeFile(join(themes, "gone/colors.toml"), 'background = "#202020"\n');
+    await writeFile(join(themes, "gone/colors.toml"), colors("#202020"));
     const fetch = gitHub({
       "example/collection@main": {
         LICENSE: "MIT, the collection\n",
-        "themes/nord/colors.toml": 'background = "#2e3440"\n',
-        "themes/dusk/colors.toml": 'background = "#101010"\n',
+        "themes/nord/colors.toml": colors("#2e3440"),
+        "themes/dusk/colors.toml": colors("#101010"),
       },
     });
 
@@ -103,8 +109,8 @@ describe("syncThemes", () => {
 
     // Assert
     expect(report).toEqual({ added: [], updated: ["nord"], unchanged: ["dusk"], removed: ["gone"] });
-    expect(await local("nord/colors.toml")).toBe('background = "#2e3440"\n');
-    expect(await local("gone/colors.toml")).toBe('background = "#202020"\n');
+    expect(await local("nord/colors.toml")).toBe(colors("#2e3440"));
+    expect(await local("gone/colors.toml")).toBe(colors("#202020"));
   });
 
   test("fails without touching the themes when a source cannot be read", async () => {
@@ -117,5 +123,27 @@ describe("syncThemes", () => {
     // Assert
     await expect(sync).rejects.toThrow("someone/jade-theme");
     expect(await readdir(themes)).toEqual([]);
+  });
+
+  test("fails without touching the themes when a downloaded palette is invalid", async () => {
+    // Arrange
+    await mkdir(join(themes, "nord"));
+    await writeFile(join(themes, "nord/colors.toml"), colors("#000000"));
+    const fetch = gitHub({
+      "example/collection@main": {
+        "themes/nord/colors.toml": colors("#2e3440"),
+        "themes/dusk/colors.toml": `${colors("#101010")}color13 = "#fff; rm -rf ~"\n`,
+      },
+    });
+
+    // Act
+    const sync = syncThemes({ themes, sources: [collection], fetch });
+
+    // Assert
+    await expect(sync).rejects.toThrow(
+      `example/collection@main: the theme 'dusk': 'color13' must be a color like #rrggbb, not "#fff; rm -rf ~"`,
+    );
+    expect(await readdir(themes)).toEqual(["nord"]);
+    expect(await local("nord/colors.toml")).toBe(colors("#000000"));
   });
 });

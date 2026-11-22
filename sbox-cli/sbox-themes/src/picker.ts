@@ -1,5 +1,5 @@
 import type { CommandContext } from "sbox";
-import { channels, mix, type Palette } from "./palette";
+import { channels, mix, type Color, type Palette } from "./palette";
 
 const reset = "\x1b[0m";
 const bold = "\x1b[1m";
@@ -8,14 +8,14 @@ const background = (color: string) => `\x1b[48;2;${channels(color).join(";")}m`;
 const foreground = (color: string) => `\x1b[38;2;${channels(color).join(";")}m`;
 
 /** A run of text in one palette color. */
-type Segment = [key: string, text: string];
+type Segment = [key: Color, text: string];
 
-const ansi = (from: number) => Array.from({ length: 8 }, (_, i) => `color${from + i}`);
-const swatchRows: [label: string, keys: string[]][] = [
+const ansi = (from: number) => Array.from({ length: 8 }, (_, i) => `color${from + i}` as Color);
+const swatchRows: [label: string, keys: Color[]][] = [
   ["normal", ansi(0)],
   ["bright", ansi(8)],
 ];
-const uiKeys = ["accent", "selection", "muted", "orange", "brown"];
+const uiKeys: Color[] = ["accent", "selection", "muted", "orange", "brown"];
 
 const code: Segment[][] = [
   [["muted", "// Greets everyone in the sandbox"]],
@@ -39,17 +39,17 @@ const diff: [kind: "context" | "removed" | "added", Segment[]][] = [
 export function preview(name: string, palette: Palette, width: number): string {
   const lines = [`${bold}${name}${reset} (${palette.mode})`, ""];
   for (const [label, row] of swatchRows) {
-    const swatches = row.map((key) => `${background(palette[key]!)}    ${reset}`);
+    const swatches = row.map((key) => `${background(palette[key])}    ${reset}`);
     lines.push(`${label.padEnd(7)}${swatches.join(" ")}`);
   }
   lines.push(
-    `${"ui".padEnd(7)}${uiKeys.map((key) => `${background(palette[key]!)}    ${reset} ${key}`).join("  ")}`,
+    `${"ui".padEnd(7)}${uiKeys.map((key) => `${background(palette[key])}    ${reset} ${key}`).join("  ")}`,
     "",
   );
 
-  const bg = palette.background!;
+  const bg = palette.background;
   const sample = (segments: Segment[], lineBackground = bg) => {
-    const text = segments.map(([key, part]) => foreground(palette[key]!) + part).join("");
+    const text = segments.map(([key, part]) => foreground(palette[key]) + part).join("");
     const length = segments.reduce((total, [, part]) => total + part.length, 1);
     return `${background(lineBackground)} ${text}${" ".repeat(Math.max(width - length, 0))}${reset}`;
   };
@@ -57,7 +57,7 @@ export function preview(name: string, palette: Palette, width: number): string {
   lines.push(blank, ...code.map((segments) => sample(segments)), blank);
   for (const [kind, segments] of diff) {
     const lineBackground =
-      kind === "removed" ? mix(bg, palette.red!, 20) : kind === "added" ? mix(bg, palette.green!, 20) : bg;
+      kind === "removed" ? mix(bg, palette.red, 20) : kind === "added" ? mix(bg, palette.green, 20) : bg;
     lines.push(sample(segments, lineBackground));
   }
   lines.push(blank);

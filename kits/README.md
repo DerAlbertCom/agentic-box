@@ -70,6 +70,11 @@ The current theme is the saved choice, then the kit arg `THEME` (`SBOX_THEME`,
 gets a warning and the fallback, and stays saved; a `THEME` that is not installed
 gets a warning and `tokyo-night`.
 
+A theme whose palette is invalid (see [Adding a theme](#adding-a-theme)) is refused by
+`<name>`, the picker, `--apply` and `--preview` with an error naming the theme and the
+key, exit code 1 and nothing changed; `--apply` does not fall back for it. `--list` and
+`--current` do not read palettes, so they still show it.
+
 ```yaml
 kits:
   - sbox
@@ -153,12 +158,24 @@ cd sbox-cli/sbox-themes && bun run sync-themes
 ```
 
 It adds new themes and updates changed ones, never deletes, and reports the themes
-upstream removed. Review the diff before committing. A theme of your own is a new
-folder with a `colors.toml` of the same format. Keys it leaves out get upstream's
-fallbacks: `orange` falls back to `yellow`, the `bright_*` colors are their base
-color mixed 20% with white, `dark_background`/`darker_background` are the
-background mixed 25%/50% with black, `color0`–`color15` and the short names
-(`bg`, `fg`, …) are aliases, and `mode` is derived from the background.
+upstream removed. It checks every downloaded palette first and writes nothing if
+one is invalid, naming the source, the theme and the key. Review the diff before
+committing. A theme of your own is a new folder with a `colors.toml` of the same
+format. Keys it leaves out get upstream's fallbacks: `orange` falls back to
+`yellow`, the `bright_*` colors are their base color mixed 20% with white,
+`dark_background`/`darker_background` are the background mixed 25%/50% with black,
+`color0`–`color15` and the short names (`bg`, `fg`, …) are aliases, and `mode` is
+derived from the background.
+
+A palette is valid when, after the fallbacks, it has every color: the 16 ANSI colors
+`color0`–`color15`; `foreground`, `background` and `cursor`; `red`, `green`, `yellow`,
+`blue`, `magenta`, `cyan` and their `bright_*` variants; `purple` and `bright_purple`;
+`accent`, `muted`, `orange`, `brown`; `selection`, `selection_background` and
+`selection_foreground`; and the background and foreground variants with their short
+names. So a theme needs at least `background`, `foreground` and the six colors, or the
+ANSI colors they fall back to. Every color is `#rrggbb`, in upper or lower case, and
+`mode` (or its alias `theme_type`) is `dark` or `light`. Other keys, such as window
+border colors, are ignored and not available to the app templates.
 
 ### Adding an app
 
@@ -179,7 +196,7 @@ run:                            # shell commands run from the home folder afterw
 ```
 
 Every key is optional and an unknown key is an error. Targets start with `~/`. A
-template sees every palette key, after the fallbacks, and `mode` (`dark` or `light`):
+template sees every color of the palette, each a `#rrggbb`, and `mode` (`dark` or `light`):
 
 | Filter | Example | Result |
 |---|---|---|
@@ -187,5 +204,5 @@ template sees every palette key, after the fallbacks, and `mode` (`dark` or `lig
 | `strip` | `{{ accent \| strip }}` | `7aa2f7` |
 | `rgb` | `{{ accent \| rgb }}` | `122,162,247` |
 
-A template that names a key the palette lacks fails the switch. A `run` command
+A template that names a key outside the palette fails the switch, naming the template. A `run` command
 that fails is reported and fails the command after everything is rendered.

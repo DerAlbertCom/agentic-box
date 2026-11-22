@@ -143,6 +143,24 @@ describe("sbox themes in a terminal", () => {
     expect(await home.exists(".config/opencode/themes/sbox.json")).toBe(false);
   });
 
+  test("fails without changing anything when the chosen theme is invalid", async () => {
+    // Arrange
+    const nord = await home.file(".local/share/sbox/commands/themes/themes/nord/colors.toml");
+    await home.write(".local/share/sbox/commands/themes/themes/broken/colors.toml", `${nord}\ncolor13 = "pink"\n`);
+    await home.writeState("themes", "current", "nord\n");
+    await fakeFzf("broken");
+
+    // Act
+    const result = await home.run(["themes"], { tty: true });
+
+    // Assert
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toStartWith("sbox themes: the theme 'broken': 'color13' must be a color like #rrggbb");
+    expect(await savedTheme()).toBe("nord");
+    expect(await home.exists(".config/opencode/themes/sbox.json")).toBe(false);
+  });
+
   test("recolors the terminal with the chosen theme with SBOX_TERMINAL_THEME=1", async () => {
     // Arrange
     await fakeFzf("nord");
