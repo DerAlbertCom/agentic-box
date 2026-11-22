@@ -1,3 +1,4 @@
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +15,7 @@ public sealed class ProjectSettingsCompositionCommandTests
         using var cli = new UserSecretsCliHarness();
         cli.Configure("""{"userSecrets":[{"id":"sample","keys":["database_config:host"]}]}""");
         ProjectOnlySplitSources(cli);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         var processes = Substitute.For<IProcessRunner>();
         cli.Services.AddSingleton(processes);
@@ -25,15 +26,17 @@ public sealed class ProjectSettingsCompositionCommandTests
         // Assert
         exit.Should().Be(0, cli.Console.AllText);
         await cli
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 cli.Name,
                 "sample",
                 """{"DATABASE_CONFIG:HOST":"host.docker.internal"}""",
                 Arg.Any<CancellationToken>()
             );
-        cli.Sbx.ReceivedCalls()
-            .Count(call => call.GetMethodInfo().Name == nameof(ISbxClient.WriteUserSecretsAsync))
+        cli.UserSecrets.ReceivedCalls()
+            .Count(call =>
+                call.GetMethodInfo().Name == nameof(ISandboxUserSecrets.WriteUserSecretsAsync)
+            )
             .Should()
             .Be(1);
         processes.ReceivedCalls().Should().BeEmpty();
@@ -83,12 +86,15 @@ public sealed class ProjectSettingsCompositionCommandTests
             exit.Should().Be(expectedExit, cli.Console.AllText);
             if (expectedExit == 0)
                 await cli
-                    .Sbx.Received(1)
+                    .UserSecrets.Received(1)
                     .WriteUserSecretsAsync(cli.Name, "sample", "{}", Arg.Any<CancellationToken>());
             else
             {
                 await cli.NoWrites();
                 cli.Sbx.ReceivedCalls()
+                    .Should()
+                    .BeEmpty("association failed before runtime access");
+                cli.UserSecrets.ReceivedCalls()
                     .Should()
                     .BeEmpty("association failed before runtime access");
                 cli.Console.AllText.Should().Contain("sample").And.Contain("appsettings");

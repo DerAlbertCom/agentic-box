@@ -5,6 +5,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -42,7 +43,9 @@ public sealed class UserSecretsRewriteCommandTests
             """
         );
         var sbx = Substitute.For<ISbxClient>();
-        sbx.GetUserSecretsHostPortsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        var sbxUserSecrets = Substitute.For<ISandboxUserSecrets>();
+        sbxUserSecrets
+            .GetUserSecretsHostPortsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, ""));
@@ -55,8 +58,10 @@ public sealed class UserSecretsRewriteCommandTests
         using var application = new CliTestApplication(console, paths, new TrailingArguments());
         var config = new AboxConfig { DefaultTeam = "sample", DefaultLocation = location };
         application.Services.AddSingleton(config);
-        var host = new UserSecretsHost(root.CreateDirectory("appdata"), null);
-        application.Services.AddSingleton(host);
+        application.Services.AddSingleton<IHostUserSecretStores>(
+            new DotnetUserSecretStores(root.CreateDirectory("appdata"), null)
+        );
+        application.Services.AddSingleton(sbxUserSecrets);
         application.Services.AddSingleton(sbx);
         application.Services.AddSingleton(programs);
         application.Services.AddSingleton(ReadyPreflight.Checks());
@@ -82,7 +87,8 @@ public sealed class UserSecretsRewriteCommandTests
             .And.NotContain("synthetic-private-path")
             .And.NotContain("synthetic-password")
             .And.NotContain("Odd\nKey");
-        await sbx.Received(1)
+        await sbxUserSecrets
+            .Received(1)
             .WriteUserSecretsAsync(
                 SandboxName.For(location),
                 "sample",

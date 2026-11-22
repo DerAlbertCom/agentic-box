@@ -36,7 +36,7 @@ public sealed class UserSecretsCommandTests
         // Assert
         exitCode.Should().Be(0, fixture.Console.AllText);
         await fixture
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(fixture.Name, "sample", "{}", Arg.Any<CancellationToken>());
     }
 
@@ -68,7 +68,7 @@ public sealed class UserSecretsCommandTests
         fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -134,7 +134,7 @@ public sealed class UserSecretsCommandTests
         fixture.Store("later", "{}");
         if (failurePhase == "destination")
             fixture
-                .Sbx.ValidateUserSecretsDestinationAsync(
+                .UserSecrets.ValidateUserSecretsDestinationAsync(
                     Arg.Any<string>(),
                     Arg.Any<IReadOnlyList<string>>(),
                     Arg.Any<CancellationToken>()
@@ -144,7 +144,10 @@ public sealed class UserSecretsCommandTests
                 );
         else if (failurePhase == "policy")
             fixture
-                .Sbx.GetUserSecretsHostPortsAsync(fixture.Name, Arg.Any<CancellationToken>())
+                .UserSecrets.GetUserSecretsHostPortsAsync(
+                    fixture.Name,
+                    Arg.Any<CancellationToken>()
+                )
                 .Returns(
                     Task.FromException<IReadOnlyList<int>>(
                         new AboxException("synthetic-password 123456789 true")
@@ -152,7 +155,7 @@ public sealed class UserSecretsCommandTests
                 );
         else
             fixture
-                .Sbx.WriteUserSecretsAsync(
+                .UserSecrets.WriteUserSecretsAsync(
                     Arg.Any<string>(),
                     "later",
                     Arg.Any<string>(),

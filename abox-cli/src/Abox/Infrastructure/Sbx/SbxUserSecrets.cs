@@ -3,11 +3,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.UserSecrets;
 
 namespace Abox.Infrastructure.Sbx;
 
-internal sealed class SbxUserSecrets(SbxInvoker invoker)
+public sealed class SbxUserSecrets(IProcessRunner runner) : ISandboxUserSecrets
 {
+    private readonly SbxInvoker invoker = new(runner);
     private const int MaximumConcurrentUserSecretsPolicyChecks = 4;
 
     public async Task<IReadOnlyList<int>> GetUserSecretsHostPortsAsync(

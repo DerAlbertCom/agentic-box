@@ -341,7 +341,7 @@ public sealed class UserSecretsOracleCommandTests
         // Arrange
         Project(cli, new { Endpoint = "localhost:1521/synthetic-service" });
         cli.Store("sample", """{"Copied":"//localhost/synthetic-service"}""");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(Array.Empty<int>());
 
         // Act
@@ -531,7 +531,7 @@ public sealed class UserSecretsOracleCommandTests
         // Arrange
         using var cli = new UserSecretsCliHarness();
         OracleSources(cli, original);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
 
@@ -727,7 +727,7 @@ public sealed class UserSecretsOracleCommandTests
 
     private static void MappedPorts(UserSecretsCliHarness cli) =>
         cli
-            .Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            .UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 1521, 8004 });
 
     private static void SafeDiagnostics(UserSecretsCliHarness cli) =>

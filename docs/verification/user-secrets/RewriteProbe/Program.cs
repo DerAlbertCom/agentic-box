@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Abox;
 using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
 using Abox.Features.Shared.UserSecrets;
 
@@ -25,7 +26,7 @@ var temporary = Path.Combine(Path.GetTempPath(), "abox-issue8-" + Guid.NewGuid()
 Directory.CreateDirectory(temporary);
 var output = new ProcessOutput(new SystemConsole()) { Verbose = true };
 var runner = new ProcessRunner(output);
-var client = new SbxClient(runner, AboxPaths.For(temporary, temporary));
+var client = new SbxUserSecrets(runner);
 using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 var token = timeout.Token;
 var source = JsonSerializer.Serialize(
@@ -57,7 +58,7 @@ try
     var folder = await FolderConfig.LoadAsync(temporary, token);
     var denied = new UserSecretsCopy(
         new AboxConfig { UserSecretsDenyList = ["localhost"] },
-        new UserSecretsHost(null, temporary),
+        new DotnetUserSecretStores(null, temporary),
         client
     );
     var blocked = false;
@@ -72,7 +73,7 @@ try
     Require(blocked);
     Console.WriteLine("Original-value deny before rewriting: passed.");
 
-    var copy = new UserSecretsCopy(new AboxConfig(), new UserSecretsHost(null, temporary), client);
+    var copy = new UserSecretsCopy(new AboxConfig(), new DotnetUserSecretStores(null, temporary), client);
     var prepared = await copy.PrepareAsync(folder, false, token);
     var report = await copy.CopyAsync(prepared, sandbox, token);
     Require(report.Stores.Count == 1 && report.Stores[0].KeyCount == 5);

@@ -43,7 +43,11 @@ internal sealed class RunFlowFixture
             Console,
             new LocalSquadSource(Store, LocalWorkloadFactory.Images(), Console),
             new RemoteSquadSource(Config, Sbx, PublishedSquadFactory.Source()),
-            new UserSecretsCopy(Config, new UserSecretsHost(null, null), Sbx)
+            new UserSecretsCopy(
+                Config,
+                Substitute.For<IHostUserSecretStores>(),
+                Substitute.For<ISandboxUserSecrets>()
+            )
         );
         Service = new RunFlow(
             Config,

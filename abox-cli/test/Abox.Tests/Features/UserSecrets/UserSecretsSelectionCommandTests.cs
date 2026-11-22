@@ -29,7 +29,7 @@ public sealed class UserSecretsSelectionCommandTests
         // Assert
         exitCode.Should().Be(0, fixture.Console.AllText);
         await fixture
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(fixture.Name, "sample", "{}", Arg.Any<CancellationToken>());
         (records.Load(fixture.Name)?.Squad).Should().Be(recordedSquad);
         await fixture
@@ -175,7 +175,7 @@ public sealed class UserSecretsSelectionCommandTests
         // Assert
         exitCode.Should().Be(0);
         await fixture
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 "sample",
@@ -307,7 +307,7 @@ public sealed class UserSecretsSelectionCommandTests
         if (force)
         {
             await fixture
-                .Sbx.Received(2)
+                .UserSecrets.Received(2)
                 .WriteUserSecretsAsync(
                     Arg.Any<string>(),
                     Arg.Any<string>(),
@@ -319,14 +319,14 @@ public sealed class UserSecretsSelectionCommandTests
         else
         {
             await fixture
-                .Sbx.DidNotReceive()
+                .UserSecrets.DidNotReceive()
                 .ValidateUserSecretsDestinationAsync(
                     Arg.Any<string>(),
                     Arg.Any<IReadOnlyList<string>>(),
                     Arg.Any<CancellationToken>()
                 );
             await fixture
-                .Sbx.DidNotReceive()
+                .UserSecrets.DidNotReceive()
                 .WriteUserSecretsAsync(
                     Arg.Any<string>(),
                     Arg.Any<string>(),
@@ -363,7 +363,7 @@ public sealed class UserSecretsSelectionCommandTests
         // Assert
         exitCode.Should().Be(0);
         await fixture
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 SandboxName.For(fixture.Location),
                 "sample",

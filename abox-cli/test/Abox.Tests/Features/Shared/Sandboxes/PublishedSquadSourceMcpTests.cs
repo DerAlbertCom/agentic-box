@@ -105,7 +105,11 @@ public sealed class PublishedSquadSourceMcpTests
             _console,
             new LocalSquadSource(store, images, _console),
             Remote(config, sbx),
-            new UserSecretsCopy(config, new UserSecretsHost(null, null), sbx)
+            new UserSecretsCopy(
+                config,
+                Substitute.For<IHostUserSecretStores>(),
+                Substitute.For<ISandboxUserSecrets>()
+            )
         );
 
         // Act

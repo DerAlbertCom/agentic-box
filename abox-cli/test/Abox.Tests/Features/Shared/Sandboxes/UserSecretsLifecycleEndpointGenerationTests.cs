@@ -32,7 +32,7 @@ public sealed class UserSecretsLifecycleEndpointGenerationTests
             """{"Telemetry":"http://[::1]:4317/current"}"""
         );
         fixture
-            .Sbx.GetUserSecretsHostPortsAsync(fixture.Name, Arg.Any<CancellationToken>())
+            .UserSecrets.GetUserSecretsHostPortsAsync(fixture.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 4317 });
 
         // Act
@@ -43,7 +43,7 @@ public sealed class UserSecretsLifecycleEndpointGenerationTests
         // Assert
         exit.Should().Be(0, fixture.Console.AllText);
         await fixture
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 fixture.Name,
                 "sample",

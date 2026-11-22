@@ -48,7 +48,11 @@ public sealed class LocalCreateTagSafetyTests
             console,
             source,
             new RemoteSquadSource(config, sbx, published),
-            new UserSecretsCopy(config, new UserSecretsHost(null, null), sbx)
+            new UserSecretsCopy(
+                config,
+                Substitute.For<IHostUserSecretStores>(),
+                Substitute.For<ISandboxUserSecrets>()
+            )
         );
         var request = new SandboxCreationRequest(
             new SquadResolver.ResolvedTeam("sample", root.Path, ["ac", "bd"]),

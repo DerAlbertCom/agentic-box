@@ -62,7 +62,11 @@ public sealed class CreateTagCommandTests
                         console
                     ),
                     new RemoteSquadSource(config.Value, sbx, published),
-                    new UserSecretsCopy(config.Value, new UserSecretsHost(null, null), sbx)
+                    new UserSecretsCopy(
+                        config.Value,
+                        Substitute.For<IHostUserSecretStores>(),
+                        Substitute.For<ISandboxUserSecrets>()
+                    )
                 )
             ),
             console

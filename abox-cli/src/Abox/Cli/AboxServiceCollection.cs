@@ -22,6 +22,7 @@ using Abox.Features.Shared.UserSecrets;
 using Abox.Features.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Herdr;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -97,7 +98,8 @@ public static class AboxServiceCollection
         services.AddSingleton<IApplicationPortPublisher, SbxApplicationPorts>();
         services.AddSingleton<ISandboxCleanup, SbxSandboxCleanup>();
         services.AddSingleton<ISandboxExec, SbxSandboxExec>();
-        services.AddSingleton(UserSecretsHost.Create());
+        services.AddSingleton<IHostUserSecretStores>(DotnetUserSecretStores.Create());
+        services.AddSingleton<ISandboxUserSecrets, SbxUserSecrets>();
         services.AddSingleton<UserSecretsCopy>();
         services.AddSingleton<AppPorts>();
         services.AddSingleton<HostDevelopmentCertificate>();

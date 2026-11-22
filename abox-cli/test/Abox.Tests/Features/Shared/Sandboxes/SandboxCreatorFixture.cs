@@ -46,7 +46,11 @@ internal sealed class SandboxCreatorFixture
             Console,
             new LocalSquadSource(Store, images ?? LocalWorkloadFactory.Images(), Console),
             remote ?? new RemoteSquadSource(new AboxConfig(), Sbx, Published),
-            new UserSecretsCopy(new AboxConfig(), new UserSecretsHost(null, null), Sbx)
+            new UserSecretsCopy(
+                new AboxConfig(),
+                Substitute.For<IHostUserSecretStores>(),
+                Substitute.For<ISandboxUserSecrets>()
+            )
         );
 
     internal SandboxCreationRequest Request() =>

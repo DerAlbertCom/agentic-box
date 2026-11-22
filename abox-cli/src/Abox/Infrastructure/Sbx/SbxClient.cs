@@ -10,14 +10,12 @@ public sealed class SbxClient : ISbxClient
 {
     private readonly SbxInvoker _invoker;
     private readonly SbxDevelopmentCertificates _certificates;
-    private readonly SbxUserSecrets _userSecrets;
     private readonly SbxKitSources _kitSources;
 
     public SbxClient(IProcessRunner runner, AboxPaths paths)
     {
         _invoker = new SbxInvoker(runner);
         _certificates = new SbxDevelopmentCertificates(_invoker);
-        _userSecrets = new SbxUserSecrets(_invoker);
         _kitSources = new SbxKitSources(_invoker, paths);
     }
 
@@ -48,24 +46,6 @@ public sealed class SbxClient : ISbxClient
         string sandbox,
         CancellationToken cancellationToken
     ) => _certificates.RefreshDevelopmentCertificateBootstrapAsync(sandbox, cancellationToken);
-
-    public Task ValidateUserSecretsDestinationAsync(
-        string sandbox,
-        IReadOnlyList<string> ids,
-        CancellationToken cancellationToken
-    ) => _userSecrets.ValidateUserSecretsDestinationAsync(sandbox, ids, cancellationToken);
-
-    public Task WriteUserSecretsAsync(
-        string sandbox,
-        string id,
-        string json,
-        CancellationToken cancellationToken
-    ) => _userSecrets.WriteUserSecretsAsync(sandbox, id, json, cancellationToken);
-
-    public Task<IReadOnlyList<int>> GetUserSecretsHostPortsAsync(
-        string sandbox,
-        CancellationToken cancellationToken
-    ) => _userSecrets.GetUserSecretsHostPortsAsync(sandbox, cancellationToken);
 
     public Task EnsureKitSourceAllowedAsync(
         string repositoryPrefix,

@@ -308,7 +308,11 @@ public sealed class CreateCommandTests
                     _console,
                     new LocalSquadSource(store, LocalWorkloadFactory.Images(), _console),
                     new RemoteSquadSource(config, _sbx, PublishedSquadFactory.Source()),
-                    new UserSecretsCopy(config, new UserSecretsHost(null, null), _sbx)
+                    new UserSecretsCopy(
+                        config,
+                        Substitute.For<IHostUserSecretStores>(),
+                        Substitute.For<ISandboxUserSecrets>()
+                    )
                 )
             ),
             _console

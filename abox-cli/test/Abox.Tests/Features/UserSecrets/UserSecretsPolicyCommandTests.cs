@@ -36,7 +36,7 @@ public sealed class UserSecretsPolicyCommandTests
             );
             source = cli.Root.File("folder/Api/appsettings.json", json);
         }
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(call => fixture.ReadAsync(call.Arg<CancellationToken>()));
 
         // Act
@@ -45,7 +45,7 @@ public sealed class UserSecretsPolicyCommandTests
         // Assert
         exitCode.Should().Be(0, cli.Console.AllText);
         await cli
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 cli.Name,
                 "sample",
@@ -84,7 +84,7 @@ public sealed class UserSecretsPolicyCommandTests
         cli.Configure("""{"userSecrets":["sample"]}""");
         const string json = """{"Oracle":"//localhost:1521/synthetic-service"}""";
         cli.Store("sample", json);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(call => fixture.ReadAsync(call.Arg<CancellationToken>()));
 
         // Act
@@ -99,7 +99,7 @@ public sealed class UserSecretsPolicyCommandTests
         }
         else
             await cli
-                .Sbx.Received(1)
+                .UserSecrets.Received(1)
                 .WriteUserSecretsAsync(cli.Name, "sample", json, Arg.Any<CancellationToken>());
         cli.Console.AllText.Should()
             .NotContain("synthetic-service")
@@ -121,7 +121,7 @@ public sealed class UserSecretsPolicyCommandTests
         cli.Configure("""{"userSecrets":["first","second"]}""");
         cli.Store("first", """{"Url":"http://localhost:8001/path"}""");
         cli.Store("second", """{"Password":"synthetic-password"}""");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(call => policy.ReadAsync(call.Arg<CancellationToken>()));
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         var parsed = cli
@@ -175,7 +175,7 @@ public sealed class UserSecretsPolicyCommandTests
         const string secondJson = """{"Password":"synthetic-password 123456789 true"}""";
         var first = cli.Store("first", firstJson);
         var second = cli.Store("second", secondJson);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(_ => policy.ReadAsync(cancellation.Token));
 
         // Act
@@ -245,7 +245,7 @@ public sealed class UserSecretsPolicyCommandTests
                 "localhost:8005"
             );
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            cli.Sbx.Configure()
+            cli.UserSecrets.Configure()
                 .GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(_ => policy.ReadAsync(cancellation.Token));
             var run = cli.Run("--verbose");
@@ -261,7 +261,7 @@ public sealed class UserSecretsPolicyCommandTests
             run.IsCompleted.Should()
                 .BeFalse("even the unused last port must finish authorization");
             await cli
-                .Sbx.Received(invocation * 2)
+                .UserSecrets.Received(invocation * 2)
                 .WriteUserSecretsAsync(
                     Arg.Any<string>(),
                     Arg.Any<string>(),
@@ -280,7 +280,7 @@ public sealed class UserSecretsPolicyCommandTests
 
         // Assert
         await cli
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 cli.Name,
                 "first",
@@ -288,7 +288,7 @@ public sealed class UserSecretsPolicyCommandTests
                 Arg.Any<CancellationToken>()
             );
         await cli
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 cli.Name,
                 "first",
@@ -296,7 +296,7 @@ public sealed class UserSecretsPolicyCommandTests
                 Arg.Any<CancellationToken>()
             );
         await cli
-            .Sbx.Received(2)
+            .UserSecrets.Received(2)
             .WriteUserSecretsAsync(
                 cli.Name,
                 "second",

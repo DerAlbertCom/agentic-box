@@ -24,7 +24,7 @@ public sealed class UserSecretsSharedStoreCommandTests
             reverse ? "AApi" : "ZWorker",
             """{"services:URL":"http://127.0.0.2:8004/synthetic-path","Unrelated":"worker-only"}"""
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
 
@@ -77,7 +77,7 @@ public sealed class UserSecretsSharedStoreCommandTests
                 "<Project><PropertyGroup><UserSecretsId>$(SyntheticPrivateId)</UserSecretsId></PropertyGroup></Project>"
             );
             cli.Root.File("folder/Unrelated/appsettings.json", "not JSON: unrelated configuration");
-            cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(new[] { 8004, 4317 });
             var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
 
@@ -122,7 +122,7 @@ public sealed class UserSecretsSharedStoreCommandTests
             """{"Url":"http://host.docker.internal:8004/synthetic-url","Postgres":"Host=127.0.0.1;Port=5432;Database=synthetic-db;Password=synthetic-password","Telemetry":"http://localhost:4317/synthetic-telemetry","Unrelated":false}"""
         );
         Project(cli, "NoSettings", null);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004, 4317, 5432 });
 
         // Act
@@ -167,7 +167,7 @@ public sealed class UserSecretsSharedStoreCommandTests
                     new Dictionary<string, string> { ["connectionstrings:DATABASE"] = second }
                 )
             );
-            cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(new[] { 5432 });
 
             // Act
@@ -208,7 +208,7 @@ public sealed class UserSecretsSharedStoreCommandTests
             """{"endpoint":"http://synthetic-remote.test:5000/synthetic-worker","Safe":"http://127.0.0.1:4317/synthetic-safe","Excluded":"http://localhost:8004/synthetic-worker"}"""
         );
         cli.Root.File("folder/Unknown.csproj", "not XML: no explicit matching association");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004, 4317 });
         var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
 
@@ -269,7 +269,7 @@ public sealed class UserSecretsSharedStoreCommandTests
             "Worker",
             """{"SERVICES:Allowed":"http://127.0.0.1:8004/synthetic-development","Services:Excluded":"http://synthetic-remote.test:8004/synthetic-worker","Excluded":"http://localhost:8004/synthetic-worker"}"""
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
 
@@ -341,7 +341,7 @@ public sealed class UserSecretsSharedStoreCommandTests
         cli.Store("first", "{}");
         Project(cli, localProject, """{"Endpoint":"http://localhost:8004/synthetic-path"}""");
         Project(cli, deniedProject, """{"Endpoint":"http://127.0.0.2:8004/synthetic-path"}""");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
     }
 
