@@ -19,28 +19,53 @@ or dogmatic application of patterns.
 
 ## Architecture
 
-The rules below guide code organization; [the implementation code map](docs/implementation.md#the-code)
-documents the current directory layout.
+The rules below guide code organization and are recorded, with the options we rejected,
+in [ADR 0003](docs/adr/0003-external-tools-behind-use-case-interfaces.md);
+[the implementation code map](docs/implementation.md#the-code) documents the current
+directory layout.
 
-- Use vertical slice architecture: keep a command, all its subcommands, slice
-  registration and command-specific implementation together in one feature folder.
-- Put features reused across slices in a shared-features folder, with one folder per
-  shared feature, such as user-secret adaptation or sandbox creation orchestration.
-  These feature modules own shared application orchestration above technical adapters.
-  Technical modules keep one place each (`Configuration`, `Kits`, `LocalState`,
-  `Launchers`, `Sbx`, `Health`, `Infrastructure`, `Naming`). Neither shared features
-  nor technical modules import a command slice from `Abox.Features`.
-- One wrapper class (`SbxClient`) makes every `sbx` call. The flags and the version
-  check live in that one place. One wrapper class (`OciRegistry`) makes every `docker`
-  call. The arguments are always a list, never a shell string.
-- Runtime folder selections and their parsing/matching live in `Configuration`,
-  not the shared copy orchestration. Portable store-ID validation lives in
-  low-level `Naming.UserSecretId`; both configuration parsing and the sbx adapter
-  validate with it. Thus `Configuration` and `Sbx` do not import `UserSecrets` or
-  know its orchestration, while the copy flow can consume both. Reporting remains
-  above the technical sbx wrapper. These are module responsibilities, not a rule
-  that every namespace must be a separate module.
-- Each launcher is one class behind `ILauncher`.
+- **Root:** the CLI project's root holds only `Program.cs`, the project file,
+  `AboxException`, `Assets/`, `Cli/` (the composition root), `Features/` and
+  `Infrastructure/`. Namespaces follow folders: `Abox.Features.<Command>`,
+  `Abox.Features.Shared.<UseCase>`, `Abox.Infrastructure.<Tool>`.
+- **Command slices:** use vertical slice architecture. Keep a command, all its
+  subcommands, slice registration and command-specific implementation together in
+  `Features/<Command>`. Code used by only one command lives in that command's slice.
+- **Shared features:** put everything shared by commands in `Features/Shared/<UseCase>`,
+  one folder per shared feature, named by use case (such as `Sandboxes`, `Squads`,
+  `Builds`, `UserSecrets`, `Https`, `Preflight`), never by tool. There is no
+  `Shared/Sbx` or `Shared/Docker`. Shared features never import a command slice.
+- **Infrastructure:** `Infrastructure/` holds only what is external: one folder per
+  external tool (`Sbx`, `Docker`, `Dotnet`, `Herdr`, `Shell`) with that tool's adapters,
+  plus the generic technical helpers (console, process runner, YAML reader, temporary
+  directories, secret redaction). External means another program, or a file another
+  tool owns, such as sbx's `credentials.yaml` or the .NET user-secrets store. abox's own
+  files (`abox.yaml`, `abox.user.yaml`, `.abox`, `.workload`, its state folder) are not
+  external; features read them with the generic helpers.
+- **Use-case interfaces:** every use of an external tool goes through a small, cohesive
+  interface (one use case, a few methods) that lives in the shared feature it serves,
+  next to its own parameter and result models in domain terms. No command names, flags,
+  argument lists, exit codes, JSON shapes, embedded scripts or process results cross
+  it; the adapter in `Infrastructure/<Tool>` maps them. A new external use case adds a
+  small interface; it does not widen an existing one. One adapter may implement several
+  interfaces when that is clearly simpler, but one adapter per interface is preferred.
+- **One sbx invoker:** one invoker in `Infrastructure/Sbx` owns the `sbx` executable
+  name, the minimum version check, captured execution, JSON handling and the failure
+  headline; every sbx adapter calls `sbx` through it. Process arguments are always a
+  list, never a shell string.
+- **Dependency direction:** features depend on `Features/Shared` interfaces and the
+  generic helpers, never on an `Infrastructure/<Tool>` type. `Infrastructure/<Tool>`
+  depends on `Features/Shared` interfaces and models, never on a command slice. `Cli`
+  depends on features, never the other way round, and only `Cli` wires adapters to
+  interfaces. An architecture test enforces this direction.
+- Runtime folder selections and their parsing/matching live in the shared
+  `Configuration` feature, not the shared copy orchestration. Portable store-ID
+  validation lives in the shared `Naming` feature (`UserSecretId`); both configuration
+  parsing and the sbx adapter validate with it. Thus `Configuration` does not import
+  `UserSecrets` or know its orchestration, while the copy flow can consume both.
+- Each launcher is one class behind `ILauncher`, which lives in the shared `Launchers`
+  feature; launchers that drive an external tool, such as Herdr, are adapters in
+  `Infrastructure/<Tool>`.
 - Each command is a class that the container builds and that takes its dependencies
   in its constructor; nothing looks the commands up by hand. The root command holds
   every command the container has, one per slice.
@@ -51,7 +76,7 @@ documents the current directory layout.
   `appsettings.json` from the working directory. Commands defer configuration-dependent
   dependencies until their actions run, so help, `exec` and `pipe` need no user configuration.
 - The services take their dependencies in their constructor, so the tests can hand them
-  a substitute sbx (NSubstitute in the test project).
+  substitutes of the use-case interfaces (NSubstitute in the test project).
 - The YAML is read in one place (`YamlReader`), so every file is read the same way and
   an unknown key is an error everywhere.
 
@@ -88,9 +113,15 @@ class.
   restating configuration values.
 - Mark each test's phases explicitly with `// Arrange`, `// Act` and `// Assert`
   comments.
-- Mirror the production feature folder structure in the test project: keep each
-  command and its subcommands together, and group shared-feature tests by shared
-  feature, following the architecture rules above.
+- Mirror the production folder structure in the test project: keep each command and
+  its subcommands together under `Features/<Command>`, group shared-feature tests by
+  shared feature under `Features/Shared/<UseCase>`, and put adapter tests under
+  `Infrastructure/<Tool>`. Support fixtures tied to one area live next to that area's
+  tests.
+- Feature tests substitute the small use-case interfaces with NSubstitute; they do not
+  fake tools. Adapter tests verify tool-specific behaviour (arguments, JSON, exit codes,
+  scripts) against the fake sbx and shell setup and the synthetic tools. Command
+  behaviour stays tested end to end through the CLI test application.
 
 ## TypeScript
 
