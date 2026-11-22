@@ -1199,6 +1199,7 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
   Abox.Core/        the features; references nothing in the solution, nor YamlDotNet
     Features/       the command slices and the shared features
       CoreServiceCollection.cs  AddAboxCore: the shared services and one call per slice
+      LazyService.cs  resolves a Lazy<T> dependency only when its value is first used
       Build/          abox build: the command and the service that does its work
         Assets/                     the inspection certificate chain, embedded in Abox.Core
         KitBuildStep.cs             stages a kit with a build file and runs its build (ADR 0001)
@@ -1221,8 +1222,10 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
         Common/           IConsole, AboxException and TemporaryDirectory, used by every layer
         Yaml/             IYamlParser and its YamlNode tree; YamlReader, the strict reader
                           of abox's own files and the merge of abox.yaml with abox.user.yaml
-        CommandLine/      the trailing arguments after "--" and command handling, which
-                          turns an abox error into a message and an exit code
+        CommandLine/      the trailing arguments after "--", the --verbose setting
+                          (Verbosity, set by the root command, read by ProcessOutput) and
+                          command handling, which turns an abox error into a message and
+                          an exit code
         Configuration/    the directories and the user configuration
           FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
         UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
@@ -1308,8 +1311,9 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
           SquadBuildIdentity.cs  validated team/squad/tag and shared repository naming
   Abox.Infrastructure/  the external tools and the generic helpers; references Abox.Core
     InfrastructureServiceCollection.cs  AddAboxInfrastructure: every adapter, the process
-                            runner, the YAML parser and the external-tool launchers
-    SystemConsole.cs        IConsole on the real terminal
+                            runner, the YAML parser and the external-tool launchers;
+                            CreateSystemConsole: the entry point's console
+    SystemConsole.cs        IConsole on the real terminal (internal)
     ProcessRunner.cs        runs processes from argument lists; IProcessRunner,
                             ProcessRequest, ProcessResult
     ProcessOutput.cs        captured-output diagnostics and output policy
@@ -1367,17 +1371,24 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
 ```
 abox-cli/test/      one test project per source project, each mirroring its folders;
                     every one uses the Abox.Tests namespace
+  Directory.Build.props       the settings, test packages and global usings of every
+                              test project
   Abox.Core.Tests/            features with NSubstitute substitutes; references only
                               Abox.Core and Abox.TestUtilities
   Abox.Infrastructure.Tests/  adapters against the fake sbx and shell setup and the
                               synthetic tools; the YAML parser contract
   Abox.IntegrationTests/      real Core and real Infrastructure together: the whole CLI
-                              through the CLI test application, real YAML files and
-                              fixtures, and the ArchUnitNET architecture rules
-  Abox.Tests/                 the host's own tests: root command, command location,
-                              source defaults
+                              through the CLI test application (Cli/ holds the composition
+                              root, command location and source defaults), real YAML files
+                              and fixtures, and the ArchUnitNET architecture rules
+  Abox.Tests/                 the host's own tests that need no CLI test application:
+                              the root command's --verbose handling and the executable
   Abox.TestUtilities/         shared helpers (test console, temporary directories,
                               fakes); references only Abox.Core
+  Abox.Infrastructure.TestUtilities/  shared helpers built on Infrastructure (directory
+                              links, the gated user-secrets policy runner, sandbox and
+                              workload fakes) for Abox.Infrastructure.Tests and
+                              Abox.IntegrationTests
 ```
 
 ```

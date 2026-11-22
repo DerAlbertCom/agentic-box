@@ -197,7 +197,8 @@ Only store IDs, key names/counts and safe recovery messages are reported.
 │       ├── Abox.Infrastructure.Tests/  adapter tests against fake and synthetic tools
 │       ├── Abox.IntegrationTests/  the whole CLI and the architecture rules
 │       ├── Abox.Tests/        the host's tests
-│       └── Abox.TestUtilities/  shared test helpers
+│       ├── Abox.TestUtilities/  shared test helpers
+│       └── Abox.Infrastructure.TestUtilities/  shared test helpers built on Infrastructure
 └── sbox-cli/                  the Bun workspace of sbox, the command line inside the sandbox
     ├── sbox/                  the core of sbox
     ├── sbox-themes/           the themes command of sbox, with the palettes and app templates

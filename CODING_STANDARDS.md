@@ -41,7 +41,8 @@ directory layout.
 - **Infrastructure:** `Abox.Infrastructure` holds only what is external: one folder per
   external tool (`Sbx`, `Docker`, `Dotnet`, `Herdr`, `Shell`) with that tool's adapters,
   plus, in its root, the generic technical helpers (system console, process runner,
-  YamlDotNet parser, protected staging, secret redaction). The console abstraction,
+  YamlDotNet parser, protected staging, secret redaction) and
+  `InfrastructureServiceCollection`, its registration. The console abstraction,
   `AboxException` and the temporary-directory helper live in the shared `Common`
   feature in Core. External means another program, or a file another
   tool owns, such as sbx's `credentials.yaml` or the .NET user-secrets store. abox's own
@@ -65,9 +66,14 @@ directory layout.
   rules in `Abox.IntegrationTests` check the rest.
 - **Visibility:** production projects meet only through `public` types: the use-case
   interfaces and their models, `AboxException`, `IConsole`, the YAML parser and node
-  tree, the command types the root command collects and the two registration methods.
-  Adapters and everything else stay `internal`. Grant `InternalsVisibleTo` only to
-  test projects.
+  tree, the command types the root command collects, the command-line types the host
+  and the process runner use (`CommandLine`, `CommandHandling`, `TrailingArguments`,
+  `Verbosity`), the two registration methods and `CreateSystemConsole`, which gives the
+  entry point its console. Adapters, `SystemConsole`, `ProcessOutput` and everything
+  else stay `internal`. Grant `InternalsVisibleTo` only to test code: the test
+  projects, the two TestUtilities projects (their helpers build internal services)
+  and `DynamicProxyGenAssembly2`, the assembly in which NSubstitute builds substitutes
+  of internal interfaces.
 - Runtime folder selections and their parsing/matching live in the shared
   `Configuration` feature, not the shared copy orchestration. Portable store-ID
   validation lives in the shared `Naming` feature (`UserSecretId`); both configuration
@@ -132,10 +138,16 @@ class.
   `Abox.Core.Tests` for features with substitutes (references only Core and
   `Abox.TestUtilities`), `Abox.Infrastructure.Tests` for adapters and the YAML parser,
   `Abox.IntegrationTests` for tests that need real Core and real Infrastructure
-  together (the whole CLI through the CLI test application, real YAML files, the
-  architecture rules), and `Abox.Tests` for the host's own tests. Shared helpers live in
-  `Abox.TestUtilities`, which references only Core. Every test project uses the
-  `Abox.Tests` namespace.
+  together (the whole CLI through the CLI test application, including the composition
+  root, real YAML files, the architecture rules), and `Abox.Tests` for the host's own
+  tests that need no CLI test application. Shared helpers live in
+  `Abox.TestUtilities`, which references only Core; shared helpers that need
+  Infrastructure live in `Abox.Infrastructure.TestUtilities`, which only
+  `Abox.Infrastructure.Tests` and `Abox.IntegrationTests` reference. Every helper has one
+  owning project: test projects do not compile in each other's files with linked
+  `<Compile>` items. Every test project uses the `Abox.Tests` namespace.
+- `test/Directory.Build.props` holds the settings, test packages and global usings every
+  test project shares; a project file lists only its references and what is its own.
 - Mirror the source project's folders in its test project: keep each command and its
   subcommands together under `Features/<Command>`, group shared-feature tests by shared
   feature under `Features/Shared/<UseCase>`, and put adapter tests under `<Tool>/` in
