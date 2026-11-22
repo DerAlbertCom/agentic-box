@@ -1,9 +1,8 @@
 using Abox.Cli;
-using Abox.Configuration;
-using Abox.Features.Create;
+using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
-using Abox.Naming;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 

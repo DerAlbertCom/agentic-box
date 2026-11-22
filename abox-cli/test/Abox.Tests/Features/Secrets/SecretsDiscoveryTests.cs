@@ -1,8 +1,8 @@
-using Abox.Configuration;
-using Abox.Kits;
-using Abox.LocalState;
-using Abox.Naming;
-using Abox.Sbx;
+using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
+using Abox.Features.Shared.Squads;
+using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 

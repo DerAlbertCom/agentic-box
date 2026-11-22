@@ -1,8 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Publish;
 using Abox.Infrastructure;
-using Abox.LocalState;
-using Abox.Naming;
 using NSubstitute;
 
 namespace Abox.Tests;

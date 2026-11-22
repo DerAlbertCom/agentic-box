@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Abox.Features.Shared.CommandLine;
 using Abox.Infrastructure;
 
 namespace Abox.Cli;

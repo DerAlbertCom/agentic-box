@@ -6,22 +6,24 @@ This is the remaining technical-module organization and test-phase batch of #21.
 Both issue bodies and their empty comment lists were reread with `gh issue view`.
 No production behavior or test-only production interface was changed.
 
-- Configuration/path tests live in `Configuration/`; YAML-reader tests follow
-  their actual production owner in `Infrastructure/`.
-- Descriptor/reference, squad resolution, state mixin and workload-generation
-  tests live in `Kits/`; sandbox/image naming tests live in `Naming/`; preflight
-  behavior lives in `Health/`.
+- Configuration/path tests live in `Features/Shared/Configuration/`; YAML-reader
+  tests follow their actual production owner in `Infrastructure/`.
+- Descriptor/reference and squad resolution tests live in `Features/Shared/Squads/`;
+  state mixin and workload-generation tests live in `Features/Build/`; sandbox/image
+  naming tests live in `Features/Shared/Naming/`; preflight behavior lives in
+  `Features/Shared/Preflight/`.
 - Process output, cancellation, byte-preserving input and sensitive diagnostics
   live in `Infrastructure/`. Sbx arguments, source trust, user-secret policy and
-  receiver/transport safeguards live in `Sbx/`.
+  receiver/transport safeguards live in `Infrastructure/Sbx/`.
 - `UserSecretsPolicyTests` is a namespace-compatible partial: its composed
   command/reporting case lives in `Features/UserSecrets/`, policy parsing and
-  authorization cases in `Sbx/`, and process diagnostics in `Infrastructure/`.
+  authorization cases in `Infrastructure/Sbx/`, and process diagnostics in
+  `Infrastructure/`.
 - The remaining eight `UserSecretsSafetyTests` methods were split by ownership:
-  six sbx/receiver methods in `Sbx/` (18 theory/fact cases) and two sensitive
-  process methods in `Infrastructure/`. Their `Abox.Tests` namespace, partial
+  six sbx/receiver methods in `Infrastructure/Sbx/` (18 theory/fact cases) and two
+  sensitive process methods in `Infrastructure/`. Their `Abox.Tests` namespace, partial
   class, test names, data, assertions and skip branches are unchanged. The
-  selection/deny-list partial integrated from #34 stays in `UserSecrets/`.
+  selection/deny-list partial integrated from #34 stays in `Features/Shared/UserSecrets/`.
 - Common `TempDirectory` and `TestConsole` fixtures live in `Support/`, with
   byte-identical contents and their existing namespace. Specialized process and
   shell fixtures remain with their consumers. In particular, the existing

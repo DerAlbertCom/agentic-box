@@ -4,7 +4,7 @@
 
 Selection/filtering, store-prefix expansion, preparation/copy snapshots, deny-list
 safety, force accounting and create/run lifecycle tests now live under
-`abox-cli/test/Abox.Tests/UserSecrets/`, beside the shared feature they protect. The
+`abox-cli/test/Abox.Tests/Features/Shared/UserSecrets/`, beside the shared feature they protect. The
 existing `UserSecretsCliHarness` moved there unchanged; behavior-specific fixtures
 remain private to their suites. All 76 test methods in this batch have explicit
 Arrange, Act and Assert markers, including repeated phases for multi-step cases.

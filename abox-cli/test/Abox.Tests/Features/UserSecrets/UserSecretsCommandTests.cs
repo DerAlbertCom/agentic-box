@@ -1,5 +1,4 @@
-using Abox.Naming;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;

@@ -1,5 +1,6 @@
+using Abox.Features.Shared.Builds;
 using Abox.Infrastructure;
-using Abox.LocalState;
+using Abox.Infrastructure.Docker;
 using NSubstitute;
 
 namespace Abox.Tests;

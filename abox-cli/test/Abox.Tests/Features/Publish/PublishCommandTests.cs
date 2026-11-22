@@ -1,9 +1,10 @@
-using Abox.Configuration;
 using Abox.Features.Publish;
+using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Kits;
-using Abox.LocalState;
-using Abox.Naming;
+using Abox.Infrastructure.Docker;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -95,7 +96,7 @@ public sealed class PublishCommandTests
             new PersonalConfigurations(AboxPaths.For(_root.Path, _root.Path)),
             _store,
             LocalWorkloadFactory.Images(),
-            Substitute.For<Abox.Sbx.ISbxClient>(),
+            Substitute.For<Abox.Infrastructure.Sbx.ISbxClient>(),
             _console
         );
         await build.BuildAsync(

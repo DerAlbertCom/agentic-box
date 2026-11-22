@@ -1,5 +1,6 @@
 using System.CommandLine;
-using Abox.Health;
+using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Preflight;
 using Abox.Infrastructure;
 
 namespace Abox.Features.Prune;

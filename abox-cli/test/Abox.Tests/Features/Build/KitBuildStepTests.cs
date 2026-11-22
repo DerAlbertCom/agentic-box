@@ -1,8 +1,8 @@
 using Abox.Features.Build;
-using Abox.Kits;
-using Abox.LocalState;
-using Abox.Naming;
-using Abox.Sbx;
+using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Squads;
+using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;

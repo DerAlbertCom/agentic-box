@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Threading.Channels;
-using Abox.Configuration;
+using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 
 namespace Abox.Tests;
 

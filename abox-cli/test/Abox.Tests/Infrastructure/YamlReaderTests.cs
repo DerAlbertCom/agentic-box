@@ -1,4 +1,3 @@
-using Abox;
 using Abox.Infrastructure;
 
 namespace Abox.Tests;

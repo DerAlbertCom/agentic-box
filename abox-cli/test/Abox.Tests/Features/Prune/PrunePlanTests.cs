@@ -1,5 +1,5 @@
 using Abox.Features.Prune;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 
 namespace Abox.Tests;
 

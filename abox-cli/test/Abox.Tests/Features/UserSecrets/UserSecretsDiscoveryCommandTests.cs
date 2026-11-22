@@ -1,6 +1,6 @@
+using Abox.Features.Shared.Naming;
 using Abox.Infrastructure;
-using Abox.Naming;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 

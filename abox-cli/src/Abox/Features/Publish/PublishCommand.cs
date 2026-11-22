@@ -1,7 +1,8 @@
 using System.CommandLine;
-using Abox.Configuration;
+using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Kits;
 
 namespace Abox.Features.Publish;
 

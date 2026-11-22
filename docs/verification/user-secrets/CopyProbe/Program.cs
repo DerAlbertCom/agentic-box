@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
-using Abox.Configuration;
+using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
-using Abox.Sbx;
-using Abox.UserSecrets;
+using Abox.Infrastructure.Sbx;
+using Abox.Features.Shared.UserSecrets;
 
 if (args.Length != 1 || !Regex.IsMatch(args[0], @"\Aabox-issue6-[0-9a-f]{8}\z"))
 {

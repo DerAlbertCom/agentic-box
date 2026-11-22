@@ -1,7 +1,7 @@
 using System.CommandLine;
-using Abox.Cli;
+using Abox.Features.Shared.CommandLine;
 using Abox.Infrastructure;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Sandbox;
 

@@ -1,5 +1,5 @@
 using Abox.Cli;
-using Abox.Features;
+using Abox.Features.Shared.CommandLine;
 using Abox.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 

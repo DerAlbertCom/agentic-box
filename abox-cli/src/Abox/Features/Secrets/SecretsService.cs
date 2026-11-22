@@ -1,9 +1,9 @@
-using Abox.Configuration;
-using Abox.Credentials;
+using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.Sandboxes;
+using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Kits;
-using Abox.Sandboxes;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Secrets;
 

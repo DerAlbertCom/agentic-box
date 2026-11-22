@@ -1,11 +1,10 @@
 using System.Text.Json;
-using Abox.Configuration;
 using Abox.Features.Build;
+using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Kits;
-using Abox.LocalState;
-using Abox.Naming;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -425,7 +424,7 @@ public sealed class BuildServiceTests
         var json = File.ReadAllText(Path.Combine(build.ConfigurationMixinDirectory!, "squad.json"));
 
         // Act
-        var metadata = Abox.Credentials.SandboxSquadMetadata.Read(
+        var metadata = Abox.Features.Secrets.SandboxSquadMetadata.Read(
             "sample-sandbox",
             new SandboxSquadFiles([], json)
         );
