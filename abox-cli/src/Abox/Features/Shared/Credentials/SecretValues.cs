@@ -1,14 +1,13 @@
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Shared.Credentials;
 
 /// <summary>
 /// The values of the services on the host: asked for as the <c>secrets</c> section of
-/// the squad declares, and kept by <c>sbx secret</c>.
+/// the squad declares, and kept by the host secret store.
 /// </summary>
-public sealed class SecretValues(ISbxClient sbx, IConsole console)
+public sealed class SecretValues(IHostSecretStore store, IConsole console)
 {
     /// <summary>Why a custom secret is not stored over a conflicting one.</summary>
     public static string DescribeConflict(SecretDeclaration declaration, CustomSecret conflict)
@@ -67,7 +66,7 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
     /// </summary>
     /// <param name="declaration">The secret; a withheld command is never run.</param>
     /// <param name="stored">The secrets the host keeps.</param>
-    /// <param name="cancellationToken">Cancels the sbx calls.</param>
+    /// <param name="cancellationToken">Cancels the store calls.</param>
     public async Task<SecretSetting> SetAsync(
         SecretDeclaration declaration,
         HostSecrets stored,
@@ -88,7 +87,7 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
                 $"The secret '{declaration.Service}' comes from the host command: {command}"
             );
             return SecretSetting.From(
-                await sbx.SetCustomSecretAsync(declaration, null, cancellationToken)
+                await store.SetCustomAsync(declaration, null, cancellationToken)
             );
         }
 
@@ -107,8 +106,8 @@ public sealed class SecretValues(ISbxClient sbx, IConsole console)
         }
 
         var outcome = declaration.IsCustom
-            ? await sbx.SetCustomSecretAsync(declaration, value, cancellationToken)
-            : await sbx.SetSecretAsync(declaration.Service, value, cancellationToken);
+            ? await store.SetCustomAsync(declaration, value, cancellationToken)
+            : await store.SetAsync(declaration.Service, value, cancellationToken);
         return SecretSetting.From(outcome);
     }
 }
@@ -125,22 +124,22 @@ public enum SecretSettingResult
     /// <summary>A conflicting binding is stored, so the secret was not stored over it.</summary>
     Refused,
 
-    /// <summary>sbx did not store the value.</summary>
+    /// <summary>The host store did not store the value.</summary>
     Failed,
 }
 
 /// <summary>How setting a secret went.</summary>
 /// <param name="Result">How it ended.</param>
-/// <param name="Message">Why it was refused, or what sbx said.</param>
+/// <param name="Message">Why it was refused, or what the host store said.</param>
 public sealed record SecretSetting(SecretSettingResult Result, string Message)
 {
     /// <summary>Nothing was given, so nothing was stored.</summary>
     public static SecretSetting Skipped { get; } = new(SecretSettingResult.Skipped, string.Empty);
 
-    /// <summary>The result of storing a value with sbx.</summary>
-    public static SecretSetting From(SbxOutcome outcome) =>
+    /// <summary>The result of storing a value in the host store.</summary>
+    public static SecretSetting From(HostSecretChange change) =>
         new(
-            outcome.Succeeded ? SecretSettingResult.Stored : SecretSettingResult.Failed,
-            outcome.Output.Trim()
+            change.Succeeded ? SecretSettingResult.Stored : SecretSettingResult.Failed,
+            change.Message
         );
 }

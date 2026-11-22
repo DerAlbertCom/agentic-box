@@ -1,19 +1,19 @@
 using Abox.Features.Shared.Squads;
 
-namespace Abox.Infrastructure.Sbx;
+namespace Abox.Features.Shared.Credentials;
 
 /// <summary>
 /// The secrets the host keeps. A declaration is matched to them by the same identity that
-/// removes it (<see cref="SecretDeclaration.Identity"/>), so storing, listing and removing
+/// removes it (<see cref="SecretIdentity"/>), so storing, listing and removing
 /// agree on which stored secret is the declaration's.
 /// </summary>
-/// <param name="Services">The names of the services sbx knows.</param>
+/// <param name="Services">The names of the services the host store knows by name.</param>
 /// <param name="Custom">The custom secrets: the hosts they are sent to and the variable the agents read.</param>
 public sealed record HostSecrets(IReadOnlyList<string> Services, IReadOnlyList<CustomSecret> Custom)
 {
     /// <summary>Whether the host keeps the value of a secret.</summary>
     public bool Holds(SecretDeclaration secret) =>
-        secret.Identity.Kind == SecretIdentityKind.Service
+        SecretIdentity.Of(secret).Kind == SecretIdentityKind.Service
             ? Services.Contains(secret.Service)
             : Custom.Any(custom => custom.Binds(secret));
 
@@ -28,7 +28,7 @@ public sealed record HostSecrets(IReadOnlyList<string> Services, IReadOnlyList<C
 }
 
 /// <summary>
-/// A secret of a service sbx does not know.
+/// A secret of a service the host store does not know by name.
 /// </summary>
 /// <param name="Targets">The hosts the secret is sent to.</param>
 /// <param name="EnvironmentVariable">The variable the agents read.</param>
@@ -42,7 +42,7 @@ public sealed record CustomSecret(IReadOnlyList<string> Targets, string? Environ
     internal bool Binds(SecretDeclaration secret)
     {
         var named =
-            secret.Identity.Kind == SecretIdentityKind.Host
+            SecretIdentity.Of(secret).Kind == SecretIdentityKind.Host
                 ? secret.Hosts!.All(Targets.Contains)
                 : EnvironmentVariable == secret.EnvironmentVariable;
         return named

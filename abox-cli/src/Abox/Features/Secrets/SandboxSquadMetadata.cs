@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Secrets;
 

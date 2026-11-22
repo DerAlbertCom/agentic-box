@@ -376,7 +376,8 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
    sources (`ResolvedTeam.RootDirectory`); without them it is skipped. For each
    `credential@1` with an `apiKey` mechanism of a local kit it checks the stored
    value, with the identity rules of `abox secrets list`, and the binding in sbx's
-   `credentials.yaml` (`Infrastructure/Sbx/SbxCredentialBindings`), which must cover every
+   `credentials.yaml` (`ICredentialApprovals`, implemented by
+   `Infrastructure/Sbx/SbxCredentialBindings`), which must cover every
    `apiKey.inject[].domain`. On a terminal it asks for a missing value of a declared
    service (as `abox secrets set` does) and for each missing approval; an approval
    merges the domains into the file and keeps every other entry. Without a terminal
@@ -562,7 +563,7 @@ replaces one") and calls no secret operation. It runs runtime preflight and need
 team sources: the slice does not use `SquadResolver`. Only `set` and `remove` accept
 repeatable `--service <name>`.
 
-`ISbxClient.ReadSquadFilesAsync` reads, in one `sbx exec <sandbox> sh -c <script>`
+`ISandboxSquadFileReader` (`Infrastructure/Sbx/SbxSandboxSquadFileReader`) reads, in one `sbx exec <sandbox> sh -c <script>`
 (arguments as a list, standard input closed like the other exec-based features;
 `sbx exec` starts a stopped sandbox, so no separate start step is needed), every
 `/usr/share/sandbox/kit/*/kit.yaml` with its kit folder name and
@@ -595,8 +596,9 @@ know it exists and refuses it. abox does not tell sbx's built-in services from k
 services; it does not need to. Older
   sandboxes print a hint to recreate the sandbox from a current build or publication.
   A command-backed declaration with a withheld command is never run: when it is not
-  stored, `set` prints `Infrastructure/Sbx/SbxCustomSecretArguments.CommandLine` (hosts, env,
-  placeholder and `--command '<host command>'`, the same arguments `SbxClient` passes)
+  stored, `set` prints the manual instruction `IHostSecretStore.ManualCustomSecretInstruction`
+  returns: the `sbx secret set-custom` command line (hosts, env, placeholder and
+  `--command '<host command>'`, the same arguments `SbxHostSecretStore` passes)
   with where to find the command (the squad's `secrets` in the team's sources, or the
   team's README) and fails; when stored it says so. Before storing a
   custom secret, `SecretValues.SetAsync` (shared with the create-time check) refuses
@@ -611,8 +613,8 @@ services; it does not need to. Older
   attached-console streams or raw pipes.
 - `remove` takes the values off the host. Custom secrets are matched by `--host`,
   or by sbx's `--env-name` selector when only `env` was declared; service names
-  are used only for service secrets. `Infrastructure/Sbx/HostSecrets` matches a declaration to a
-  stored secret by the same identity (`SecretDeclaration.Identity`): a service secret
+  are used only for service secrets. `Credentials/HostSecrets` matches a declaration to a
+  stored secret by the same identity (`Credentials/SecretIdentity`): a service secret
   by name; a custom secret with hosts when a stored custom secret is sent to all its
   hosts, one with only `env` by that variable; when both name a variable it must be
   the same, so a binding stored without `--env` still counts. `list` marks a stored
@@ -1223,6 +1225,12 @@ abox-cli/src/Abox/
       Credentials/      shared kit credential requests and their merge, secret value
                         prompting/storing (used by abox secrets) and the create-time
                         credential check
+        IHostSecretStore.cs         list, set and remove host secrets; the manual
+                                    custom-secret instruction
+        ICredentialApprovals.cs     the approvals of a service's API key for its domains
+        ISandboxSquadFileReader.cs  a sandbox's staged kit descriptors and squad.json
+        HostSecrets.cs              the stored secrets; matches a declaration by its identity
+        SecretIdentity.cs           the host, variable or service a secret is stored under
       Squads/           the .abox and .workload files, the chain, squad resolution
         McpDeclaration.cs      shared MCP name and HTTP(S) URL validation
         YamlScalar.cs          shared generated-YAML scalar quoting, including supplementary Unicode
@@ -1295,10 +1303,10 @@ abox-cli/src/Abox/
       SbxKitSources.cs               repository-scoped kit-source trust settings
       SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm
       SbxKitInspector.cs             IKitInspector: sbx kit inspect with the kit arguments
-      SbxCredentialBindings.cs       reads and merges the approvals in sbx's credentials.yaml
-      SandboxSquadFiles.cs           raw staged kit descriptors and squad.json of a sandbox
+      SbxHostSecretStore.cs          IHostSecretStore: sbx secret ls/set/set-custom/rm
       SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line
-      HostSecrets.cs                 the stored secrets; matches a declaration by its identity
+      SbxCredentialBindings.cs       ICredentialApprovals: reads and merges sbx's credentials.yaml
+      SbxSandboxSquadFileReader.cs   ISandboxSquadFileReader: one sbx exec, base64-framed
       PullPolicy.cs                  closed pull choices, mapped to flags by the wrapper
       *.py, *.sh                     the embedded scripts sbx runs in the sandbox
     Docker/           every call to docker, with list arguments and use-case failure messages

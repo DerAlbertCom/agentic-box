@@ -60,7 +60,9 @@ internal static class TestServiceGraphs
         IConsole console,
         LocalSquadSource local,
         RemoteSquadSource remote,
-        UserSecretsCopy copy
+        UserSecretsCopy copy,
+        IHostSecretStore? secrets = null,
+        ICredentialApprovals? approvals = null
     ) =>
         new(
             records,
@@ -75,24 +77,48 @@ internal static class TestServiceGraphs
             remote,
             copy,
             SandboxFactory.Ports(Substitute.For<IApplicationPortPublisher>(), sbx, console),
-            Credentials(paths, sbx, console)
+            Credentials(
+                paths,
+                secrets ?? HostSecretStore(),
+                approvals ?? Substitute.For<ICredentialApprovals>(),
+                console
+            )
         );
 
-    /// <summary>The credential check, with the bindings of sbx in the state directory of the test.</summary>
+    /// <summary>The credential check of a squad from the personal configurations of the test.</summary>
     internal static SquadCredentials Credentials(
         AboxPaths paths,
-        ISbxClient sbx,
+        IHostSecretStore secrets,
+        ICredentialApprovals approvals,
         IConsole console
     ) =>
         new(
             new SquadResolver(new AboxConfig()),
             new PersonalConfigurations(paths),
-            sbx,
-            new SbxCredentialBindings(BindingsFile(paths)),
-            new SecretValues(sbx, console),
+            secrets,
+            approvals,
+            new SecretValues(secrets, console),
             console
         );
 
-    internal static string BindingsFile(AboxPaths paths) =>
-        Path.Combine(paths.StateDirectory, "sbx", "credentials.yaml");
+    /// <summary>A host secret store that holds nothing and stores and removes every secret.</summary>
+    internal static IHostSecretStore HostSecretStore()
+    {
+        var store = Substitute.For<IHostSecretStore>();
+        store.ListAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets([], []));
+        store
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(HostSecretChange.Done);
+        store
+            .SetCustomAsync(
+                Arg.Any<SecretDeclaration>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(HostSecretChange.Done);
+        store
+            .RemoveAsync(Arg.Any<SecretIdentity>(), Arg.Any<CancellationToken>())
+            .Returns(HostSecretChange.Done);
+        return store;
+    }
 }

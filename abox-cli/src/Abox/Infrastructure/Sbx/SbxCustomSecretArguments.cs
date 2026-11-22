@@ -5,10 +5,10 @@ namespace Abox.Infrastructure.Sbx;
 
 /// <summary>
 /// The arguments of <c>sbx secret set-custom</c> for a custom secret: the ones
-/// <see cref="SbxClient"/> passes, and the command line abox prints when the user has to
+/// <see cref="SbxHostSecretStore"/> passes, and the command line abox prints when the user has to
 /// run it with a host command abox does not take from a sandbox.
 /// </summary>
-public static partial class SbxCustomSecretArguments
+internal static partial class SbxCustomSecretArguments
 {
     /// <summary>
     /// The <c>sbx secret set-custom</c> command line that stores a secret from a host

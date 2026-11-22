@@ -1,12 +1,5 @@
 namespace Abox.Features.Shared.Squads;
 
-internal enum SecretIdentityKind
-{
-    Host,
-    EnvironmentVariable,
-    Service,
-}
-
 /// <summary>How a secret value is stored in the host store.</summary>
 public enum SecretEncoding
 {
@@ -79,10 +72,4 @@ public sealed record SecretDeclaration(
                 $"'{source}': '{value}' is not a known encoding. Known encodings: plain, base64."
             ),
         };
-
-    internal (SecretIdentityKind Kind, string Value) Identity =>
-        Host is not null ? (SecretIdentityKind.Host, Host)
-        : EnvironmentVariable is not null
-            ? (SecretIdentityKind.EnvironmentVariable, EnvironmentVariable)
-        : (SecretIdentityKind.Service, Service);
 }

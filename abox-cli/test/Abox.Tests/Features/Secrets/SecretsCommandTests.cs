@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure.Sbx;
@@ -5,25 +6,10 @@ using NSubstitute;
 
 namespace Abox.Tests;
 
-/// <summary><c>abox secrets</c> on the sandbox of a folder, with a substitute sbx.</summary>
+/// <summary><c>abox secrets</c> on the sandbox of a folder, with substitute host secrets and squad files.</summary>
 public sealed class SecretsCommandTests : IDisposable
 {
     private readonly UserSecretsCliHarness _cli = new();
-
-    public SecretsCommandTests()
-    {
-        _cli.Sbx.ListSecretsAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets([], []));
-        _cli.Sbx.SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
-        _cli.Sbx.SetCustomSecretAsync(
-                Arg.Any<SecretDeclaration>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(new SbxOutcome(0, string.Empty));
-        _cli.Sbx.RemoveSecretAsync(Arg.Any<SecretDeclaration>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
-    }
 
     public void Dispose() => _cli.Dispose();
 
@@ -44,7 +30,7 @@ public sealed class SecretsCommandTests : IDisposable
         Line("jfrog").Should().Contain("jfrog").And.Contain("required").And.Contain("not set");
         Line("context7").Should().Contain("optional").And.Contain("not set");
         _cli.Console.AllText.Should().NotContain("not declared");
-        await _cli.Sbx.Received(1).ReadSquadFilesAsync(_cli.Name, Arg.Any<CancellationToken>());
+        await _cli.SquadFiles.Received(1).ReadAsync(_cli.Name, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -61,7 +47,7 @@ public sealed class SecretsCommandTests : IDisposable
         // Assert
         exitCode.Should().Be(0, _cli.Console.AllText);
         Line("jfrog").Should().Contain("required");
-        await _cli.Sbx.Received(1).ReadSquadFilesAsync(_cli.Name, Arg.Any<CancellationToken>());
+        await _cli.SquadFiles.Received(1).ReadAsync(_cli.Name, Arg.Any<CancellationToken>());
         await _cli
             .Exec.DidNotReceive()
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
@@ -100,7 +86,7 @@ public sealed class SecretsCommandTests : IDisposable
                 """
             )
         );
-        _cli.Sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
+        _cli.HostSecrets.ListAsync(Arg.Any<CancellationToken>())
             .Returns(
                 new HostSecrets(
                     ["github"],
@@ -220,8 +206,8 @@ public sealed class SecretsCommandTests : IDisposable
         exitCode.Should().Be(0, _cli.Console.AllText);
         _cli.Console.Errors.Should().NotContain(error => error.Contains("conflicts with"));
         await _cli
-            .Sbx.Received(1)
-            .SetCustomSecretAsync(
+            .HostSecrets.Received(1)
+            .SetCustomAsync(
                 Arg.Is<SecretDeclaration>(secret =>
                     secret.EnvironmentVariable == "SAMPLE_CUSTOM_TOKEN"
                 ),
@@ -264,10 +250,19 @@ public sealed class SecretsCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task SetOfACommandBackedSecretFromTheSandboxPrintsTheSbxCommandAndRunsNothing()
+    public async Task SetOfACommandBackedSecretFromTheSandboxPrintsTheManualInstructionAndRunsNothing()
     {
         // Arrange
         Sandbox([Kit("rwe-ghec")], SquadJson(RweGhec));
+        _cli.HostSecrets.ManualCustomSecretInstruction(
+                Arg.Is<SecretDeclaration>(secret =>
+                    secret.Service == "rwe-ghec"
+                    && secret.EnvironmentVariable == "RWE_GHE_TOKEN"
+                    && secret.Placeholder == "gho_{rand}"
+                ),
+                "<host command>"
+            )
+            .Returns("synthetic store-secret --command '<host command>'");
 
         // Act
         var exitCode = await Secrets("set", "--service", "rwe-ghec");
@@ -281,14 +276,11 @@ public sealed class SecretsCommandTests : IDisposable
                 && error.Contains("team's sources")
                 && error.Contains("README")
             );
-        _cli.Console.Errors.Should()
-            .Contain(
-                "  sbx secret set-custom --host copilot-api.rwe.ghe.com --host api.rwe.ghe.com --host rwe.ghe.com --host uploads.rwe.ghe.com --env RWE_GHE_TOKEN --placeholder 'gho_{rand}' --command '<host command>'"
-            );
+        _cli.Console.Errors.Should().Contain("  synthetic store-secret --command '<host command>'");
         _cli.Console.Output.Should().NotContain(line => line.EndsWith(": "));
         await _cli
-            .Sbx.DidNotReceive()
-            .SetCustomSecretAsync(
+            .HostSecrets.DidNotReceive()
+            .SetCustomAsync(
                 Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
@@ -320,8 +312,8 @@ public sealed class SecretsCommandTests : IDisposable
         _cli.Console.Output.Should().Contain(line => line.Contains("'rwe-ghec' is stored"));
         _cli.Console.Errors.Should().BeEmpty();
         await _cli
-            .Sbx.DidNotReceive()
-            .SetCustomSecretAsync(
+            .HostSecrets.DidNotReceive()
+            .SetCustomAsync(
                 Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
@@ -346,7 +338,8 @@ public sealed class SecretsCommandTests : IDisposable
                 && error.Contains("conflicts with")
                 && error.Contains("copilot-api.rwe.ghe.com")
             );
-        _cli.Console.Errors.Should().NotContain(error => error.Contains("sbx secret set-custom"));
+        _cli.HostSecrets.DidNotReceiveWithAnyArgs()
+            .ManualCustomSecretInstruction(default!, default!);
     }
 
     [Fact]
@@ -374,8 +367,8 @@ public sealed class SecretsCommandTests : IDisposable
             );
         _cli.Console.Output.Should().NotContain(line => line.EndsWith(": "));
         await _cli
-            .Sbx.DidNotReceive()
-            .SetCustomSecretAsync(
+            .HostSecrets.DidNotReceive()
+            .SetCustomAsync(
                 Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
@@ -399,8 +392,8 @@ public sealed class SecretsCommandTests : IDisposable
         exitCode.Should().Be(0, _cli.Console.AllText);
         _cli.Console.Output.Should().Contain("CAPE Elastic encoded API key: ");
         await _cli
-            .Sbx.Received(1)
-            .SetSecretAsync("cape-elastic", "the-key", Arg.Any<CancellationToken>());
+            .HostSecrets.Received(1)
+            .SetAsync("cape-elastic", "the-key", Arg.Any<CancellationToken>());
         _cli.Console.AllText.Should().NotContain("the-key");
     }
 
@@ -424,8 +417,8 @@ public sealed class SecretsCommandTests : IDisposable
         exitCode.Should().Be(0, _cli.Console.AllText);
         _cli.Console.Output.Should().Contain("JFrog user: ").And.Contain("The token of 'jfrog': ");
         await _cli
-            .Sbx.Received(1)
-            .SetSecretAsync("jfrog", "YWxiZXJ0fHMzY3JldA==", Arg.Any<CancellationToken>());
+            .HostSecrets.Received(1)
+            .SetAsync("jfrog", "YWxiZXJ0fHMzY3JldA==", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -446,8 +439,8 @@ public sealed class SecretsCommandTests : IDisposable
         // Assert
         exitCode.Should().Be(0, _cli.Console.AllText);
         await _cli
-            .Sbx.Received(1)
-            .SetCustomSecretAsync(
+            .HostSecrets.Received(1)
+            .SetCustomAsync(
                 Arg.Is<SecretDeclaration>(secret =>
                     secret.Service == "sample-custom"
                     && secret.Hosts!.SequenceEqual(
@@ -460,8 +453,8 @@ public sealed class SecretsCommandTests : IDisposable
                 Arg.Any<CancellationToken>()
             );
         await _cli
-            .Sbx.DidNotReceive()
-            .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .HostSecrets.DidNotReceive()
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         _cli.Console.Output.Should().NotContain(line => line.Contains("no kit of the sandbox"));
     }
 
@@ -482,11 +475,11 @@ public sealed class SecretsCommandTests : IDisposable
         // Assert
         exitCode.Should().Be(1);
         await _cli
-            .Sbx.Received(1)
-            .SetSecretAsync("sample-token", "the-token", Arg.Any<CancellationToken>());
+            .HostSecrets.Received(1)
+            .SetAsync("sample-token", "the-token", Arg.Any<CancellationToken>());
         await _cli
-            .Sbx.DidNotReceive()
-            .SetSecretAsync("sample-optional", Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .HostSecrets.DidNotReceive()
+            .SetAsync("sample-optional", Arg.Any<string>(), Arg.Any<CancellationToken>());
         _cli.Console.Errors.Should().Contain("The service 'sample-optional' was not set.");
     }
 
@@ -506,11 +499,11 @@ public sealed class SecretsCommandTests : IDisposable
 
         // Assert
         exitCode.Should().Be(0, _cli.Console.AllText);
-        await _cli.Sbx.Received(1).SetSecretAsync("jfrog", "one", Arg.Any<CancellationToken>());
-        await _cli.Sbx.Received(1).SetSecretAsync("github", "two", Arg.Any<CancellationToken>());
+        await _cli.HostSecrets.Received(1).SetAsync("jfrog", "one", Arg.Any<CancellationToken>());
+        await _cli.HostSecrets.Received(1).SetAsync("github", "two", Arg.Any<CancellationToken>());
         await _cli
-            .Sbx.DidNotReceive()
-            .SetSecretAsync("elastic", Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .HostSecrets.DidNotReceive()
+            .SetAsync("elastic", Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -528,8 +521,8 @@ public sealed class SecretsCommandTests : IDisposable
         _cli.Console.Output.Should()
             .Contain("Note: no kit of the sandbox asks for the service 'github'.");
         await _cli
-            .Sbx.Received(1)
-            .SetSecretAsync("github", "the-token", Arg.Any<CancellationToken>());
+            .HostSecrets.Received(1)
+            .SetAsync("github", "the-token", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -546,8 +539,8 @@ public sealed class SecretsCommandTests : IDisposable
         exitCode.Should().Be(0, _cli.Console.AllText);
         _cli.Console.Output.Should().Contain("The secret 'context7': ");
         await _cli
-            .Sbx.Received(1)
-            .SetSecretAsync("context7", "the-key", Arg.Any<CancellationToken>());
+            .HostSecrets.Received(1)
+            .SetAsync("context7", "the-key", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -568,15 +561,15 @@ public sealed class SecretsCommandTests : IDisposable
             );
         _cli.Console.Output.Should().NotContain(line => line.EndsWith(": "));
         await _cli
-            .Sbx.DidNotReceive()
-            .SetCustomSecretAsync(
+            .HostSecrets.DidNotReceive()
+            .SetCustomAsync(
                 Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             );
         await _cli
-            .Sbx.DidNotReceive()
-            .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .HostSecrets.DidNotReceive()
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -600,27 +593,21 @@ public sealed class SecretsCommandTests : IDisposable
         // Assert
         exitCode.Should().Be(0, _cli.Console.AllText);
         await _cli
-            .Sbx.Received(1)
-            .RemoveSecretAsync(
-                Arg.Is<SecretDeclaration>(secret => secret.Service == "github" && !secret.IsCustom),
+            .HostSecrets.Received(1)
+            .RemoveAsync(
+                new SecretIdentity(SecretIdentityKind.Service, "github"),
                 Arg.Any<CancellationToken>()
             );
         await _cli
-            .Sbx.Received(1)
-            .RemoveSecretAsync(
-                Arg.Is<SecretDeclaration>(secret =>
-                    secret.Service == "custom" && secret.Host == "api.custom.example.invalid"
-                ),
+            .HostSecrets.Received(1)
+            .RemoveAsync(
+                new SecretIdentity(SecretIdentityKind.Host, "api.custom.example.invalid"),
                 Arg.Any<CancellationToken>()
             );
         await _cli
-            .Sbx.Received(1)
-            .RemoveSecretAsync(
-                Arg.Is<SecretDeclaration>(secret =>
-                    secret.Service == "env-only"
-                    && secret.Host == null
-                    && secret.EnvironmentVariable == "ENV_ONLY_TOKEN"
-                ),
+            .HostSecrets.Received(1)
+            .RemoveAsync(
+                new SecretIdentity(SecretIdentityKind.EnvironmentVariable, "ENV_ONLY_TOKEN"),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -642,15 +629,15 @@ public sealed class SecretsCommandTests : IDisposable
         // Assert
         exitCode.Should().Be(0, _cli.Console.AllText);
         await _cli
-            .Sbx.Received(1)
-            .RemoveSecretAsync(
-                Arg.Is<SecretDeclaration>(secret => secret.Host == "api.custom.example.invalid"),
+            .HostSecrets.Received(1)
+            .RemoveAsync(
+                new SecretIdentity(SecretIdentityKind.Host, "api.custom.example.invalid"),
                 Arg.Any<CancellationToken>()
             );
         await _cli
-            .Sbx.DidNotReceive()
-            .RemoveSecretAsync(
-                Arg.Is<SecretDeclaration>(secret => secret.Service == "github"),
+            .HostSecrets.DidNotReceive()
+            .RemoveAsync(
+                new SecretIdentity(SecretIdentityKind.Service, "github"),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -695,8 +682,8 @@ public sealed class SecretsCommandTests : IDisposable
         exitCode.Should().Be(0, _cli.Console.AllText);
         _cli.Console.Output.Should().Contain("The secret 'jfrog': ");
         await _cli
-            .Sbx.Received(1)
-            .SetSecretAsync("jfrog", "the-value", Arg.Any<CancellationToken>());
+            .HostSecrets.Received(1)
+            .SetAsync("jfrog", "the-value", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -716,8 +703,8 @@ public sealed class SecretsCommandTests : IDisposable
                 error.Contains("recreate the sandbox from a current build or publication")
             );
         await _cli
-            .Sbx.DidNotReceive()
-            .SetCustomSecretAsync(
+            .HostSecrets.DidNotReceive()
+            .SetCustomAsync(
                 Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
@@ -739,8 +726,8 @@ public sealed class SecretsCommandTests : IDisposable
             .Contain("There are no secrets to set.")
             .And.Contain(error => error.Contains("--service <name>"));
         await _cli
-            .Sbx.DidNotReceive()
-            .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .HostSecrets.DidNotReceive()
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -769,7 +756,7 @@ public sealed class SecretsCommandTests : IDisposable
                 && error.Contains("squad.json")
                 && error.Contains("Rebuild or republish the squad")
             );
-        await _cli.Sbx.DidNotReceive().ListSecretsAsync(Arg.Any<CancellationToken>());
+        await _cli.HostSecrets.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -796,7 +783,7 @@ public sealed class SecretsCommandTests : IDisposable
 
     private void StoreCustom(params CustomSecret[] custom) =>
         _cli
-            .Sbx.ListSecretsAsync(Arg.Any<CancellationToken>())
+            .HostSecrets.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new HostSecrets([], custom));
 
     private Task<int> Secrets(params string[] args) =>
@@ -809,7 +796,7 @@ public sealed class SecretsCommandTests : IDisposable
 
     private void Sandbox(IReadOnlyList<StagedKitDescriptor> kits, string? squadJson) =>
         _cli
-            .Sbx.ReadSquadFilesAsync(_cli.Name, Arg.Any<CancellationToken>())
+            .SquadFiles.ReadAsync(_cli.Name, Arg.Any<CancellationToken>())
             .Returns(new SandboxSquadFiles(kits, squadJson));
 
     private static string SquadJson(string secrets) =>

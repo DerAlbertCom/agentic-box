@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Credentials;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
@@ -8,7 +9,7 @@ namespace Abox.Infrastructure.Sbx;
 /// not built into sbx have a credential injected for the domains it lists. This is the
 /// only place that reads or writes the file; it keeps everything it does not know.
 /// </summary>
-public sealed class SbxCredentialBindings(string path)
+public sealed class SbxCredentialBindings(string path) : ICredentialApprovals
 {
     private const string Mechanism = "apiKey";
 

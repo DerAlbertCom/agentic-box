@@ -1,5 +1,4 @@
 using System.Text;
-using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -77,7 +76,7 @@ public sealed class SbxSecretInputTests
                     call.Arg<CancellationToken>()
                 );
             });
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var store = new SbxHostSecretStore(runner);
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var previousEncoding = Console.InputEncoding;
         try
@@ -85,8 +84,8 @@ public sealed class SbxSecretInputTests
             Console.InputEncoding = CodePagesEncodingProvider.Instance.GetEncoding(850)!;
 
             // Act
-            var outcome = custom
-                ? await client.SetCustomSecretAsync(
+            var change = custom
+                ? await store.SetCustomAsync(
                     new SecretDeclaration(
                         "synthetic",
                         Hosts: ["example.test"],
@@ -95,14 +94,14 @@ public sealed class SbxSecretInputTests
                     value,
                     cancellation.Token
                 )
-                : await client.SetSecretAsync("synthetic", value, cancellation.Token);
+                : await store.SetAsync("synthetic", value, cancellation.Token);
 
             // Assert
             File.ReadAllBytes(Path.Combine(root.Path, "received.bin")).Should().Equal(expected);
-            outcome.ExitCode.Should().Be(exitCode);
+            change.Succeeded.Should().Be(exitCode == 0);
             // stdout and stderr arrive on separate pipes, so their order in the combined output varies.
-            outcome
-                .Output.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+            change
+                .Message.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
                 .Should()
                 .BeEquivalentTo(["stored", "warning"]);
             console.AllText.Should().Contain("stored").And.Contain("warning").And.NotContain(value);
@@ -140,19 +139,18 @@ public sealed class SbxSecretInputTests
     public async Task HostSecretSettersPreserveCancellation(bool custom)
     {
         // Arrange
-        using var root = new TempDirectory();
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var runner = Substitute.For<IProcessRunner>();
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), cancellation.Token)
             .Returns(Task.FromCanceled<ProcessResult>(cancellation.Token));
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var store = new SbxHostSecretStore(runner);
 
         // Act
         var action = () =>
             custom
-                ? client.SetCustomSecretAsync(
+                ? store.SetCustomAsync(
                     new SecretDeclaration(
                         "synthetic",
                         Hosts: ["example.test"],
@@ -161,7 +159,7 @@ public sealed class SbxSecretInputTests
                     "synthetic-ü€",
                     cancellation.Token
                 )
-                : client.SetSecretAsync("synthetic", "synthetic-ü€", cancellation.Token);
+                : store.SetAsync("synthetic", "synthetic-ü€", cancellation.Token);
 
         // Assert
         var exception = await action.Should().ThrowAsync<OperationCanceledException>();

@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
@@ -28,10 +29,10 @@ public sealed class SecretsDiscoveryTests
 
         // Assert
         exitCode.Should().Be(0, cli.Console.AllText);
-        await cli.Sbx.Received(1).ReadSquadFilesAsync(cli.Name, Arg.Any<CancellationToken>());
+        await cli.SquadFiles.Received(1).ReadAsync(cli.Name, Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .ReadSquadFilesAsync(SandboxName.For(other), Arg.Any<CancellationToken>());
+            .SquadFiles.DidNotReceive()
+            .ReadAsync(SandboxName.For(other), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -47,8 +48,8 @@ public sealed class SecretsDiscoveryTests
         // Assert
         exitCode.Should().Be(0, defaulted.Console.AllText);
         await defaulted
-            .Sbx.Received(1)
-            .ReadSquadFilesAsync(defaulted.Name, Arg.Any<CancellationToken>());
+            .SquadFiles.Received(1)
+            .ReadAsync(defaulted.Name, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public sealed class SecretsDiscoveryTests
 
         // Assert
         exitCode.Should().Be(0, cli.Console.AllText);
-        await cli.Sbx.Received(1).ReadSquadFilesAsync(cli.Name, Arg.Any<CancellationToken>());
+        await cli.SquadFiles.Received(1).ReadAsync(cli.Name, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -114,22 +115,22 @@ public sealed class SecretsDiscoveryTests
                 $"Create it with: abox create --team recorded --squad ac --tag release --location \"{cli.Location}\""
             );
         await cli
-            .Sbx.DidNotReceive()
-            .ReadSquadFilesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await cli.Sbx.DidNotReceive().ListSecretsAsync(Arg.Any<CancellationToken>());
+            .SquadFiles.DidNotReceive()
+            .ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await cli.HostSecrets.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .HostSecrets.DidNotReceive()
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .SetCustomSecretAsync(
+            .HostSecrets.DidNotReceive()
+            .SetCustomAsync(
                 Arg.Any<SecretDeclaration>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             );
         await cli
-            .Sbx.DidNotReceive()
-            .RemoveSecretAsync(Arg.Any<SecretDeclaration>(), Arg.Any<CancellationToken>());
+            .HostSecrets.DidNotReceive()
+            .RemoveAsync(Arg.Any<SecretIdentity>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -148,8 +149,8 @@ public sealed class SecretsDiscoveryTests
         // Assert
         exitCode.Should().NotBe(0);
         await cli
-            .Sbx.DidNotReceive()
-            .ReadSquadFilesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SquadFiles.DidNotReceive()
+            .ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     private static void Sandboxes(UserSecretsCliHarness cli, params string[] folders)
@@ -160,18 +161,13 @@ public sealed class SecretsDiscoveryTests
                     .Select(folder => new SandboxInfo(SandboxName.For(folder), "running", null))
                     .ToList()
             );
-        cli.Sbx.ReadSquadFilesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        cli.SquadFiles.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 new SandboxSquadFiles(
                     [],
                     """{"SchemaVersion":1,"Secrets":[{"Service":"github"}]}"""
                 )
             );
-        cli.Sbx.ListSecretsAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets([], []));
-        cli.Sbx.SetSecretAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
-        cli.Sbx.RemoveSecretAsync(Arg.Any<SecretDeclaration>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
         cli.Console.Answers.Add("the-token");
     }
 }

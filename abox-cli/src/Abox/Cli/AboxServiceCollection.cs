@@ -103,6 +103,8 @@ public static class AboxServiceCollection
         services.AddSingleton<ISandboxExec, SbxSandboxExec>();
         services.AddSingleton<IHostUserSecretStores>(DotnetUserSecretStores.Create());
         services.AddSingleton<ISandboxUserSecrets, SbxUserSecrets>();
+        services.AddSingleton<IHostSecretStore, SbxHostSecretStore>();
+        services.AddSingleton<ISandboxSquadFileReader, SbxSandboxSquadFileReader>();
         services.AddSingleton<UserSecretsCopy>();
         services.AddSingleton<AppPorts>();
         services.AddSingleton<HostDevelopmentCertificate>();
@@ -111,7 +113,7 @@ public static class AboxServiceCollection
         services.AddSingleton<Preflight>();
         services.AddSingleton<SquadResolver>();
         services.AddSingleton<SecretValues>();
-        services.AddSingleton(SbxCredentialBindings.Create());
+        services.AddSingleton<ICredentialApprovals>(SbxCredentialBindings.Create());
         services.AddSingleton<SquadCredentials>();
         services.AddSingleton<BuildStore>();
         services.AddSingleton<SandboxRecordStore>();

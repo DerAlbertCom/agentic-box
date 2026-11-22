@@ -1,5 +1,6 @@
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
@@ -14,6 +15,8 @@ internal sealed class SandboxCreatorFixture
     internal TempDirectory Root { get; } = new();
     internal TestConsole Console { get; } = new();
     internal ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
+    internal IHostSecretStore HostSecrets { get; } = TestServiceGraphs.HostSecretStore();
+    internal ICredentialApprovals Approvals { get; } = Substitute.For<ICredentialApprovals>();
     internal IPublishedSquadSource Published { get; } = PublishedSquadFactory.Source();
     internal AboxPaths Paths { get; }
     internal BuildStore Store { get; }
@@ -50,7 +53,9 @@ internal sealed class SandboxCreatorFixture
                 new AboxConfig(),
                 Substitute.For<IHostUserSecretStores>(),
                 Substitute.For<ISandboxUserSecrets>()
-            )
+            ),
+            HostSecrets,
+            Approvals
         );
 
     internal SandboxCreationRequest Request() =>
