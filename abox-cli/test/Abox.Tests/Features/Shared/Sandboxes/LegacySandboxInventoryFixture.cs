@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +33,9 @@ internal static class LegacySandboxInventoryFixture
             });
         cli.Services.AddSingleton(runner);
         cli.Services.AddSingleton<ISbxClient, SbxClient>();
+        cli.Services.AddSingleton<ISandboxLifecycle, SbxSandboxLifecycle>();
+        cli.Services.AddSingleton<IMcpServerRegistry, SbxMcpServerRegistry>();
+        cli.Services.AddSingleton<ISandboxInspection, SbxSandboxInspection>();
         return requests;
     }
 }

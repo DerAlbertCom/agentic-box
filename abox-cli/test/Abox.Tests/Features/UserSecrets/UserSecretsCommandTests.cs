@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -18,7 +19,7 @@ public sealed class UserSecretsCommandTests
 
         // Assert
         exitCode.Should().Be(0);
-        await fixture.Sbx.Received(1).ListSandboxesAsync(Arg.Any<CancellationToken>());
+        await fixture.Lifecycle.Received(1).ListAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -57,7 +58,7 @@ public sealed class UserSecretsCommandTests
         // Assert
         exitCode.Should().Be(1);
         await fixture.NoWrites();
-        await fixture.Sbx.DidNotReceive().ListSandboxesAsync(Arg.Any<CancellationToken>());
+        await fixture.Lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -101,7 +102,7 @@ public sealed class UserSecretsCommandTests
         fixture.Root.File("folder/abox.yaml", """{"userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(Array.Empty<SandboxInfo>());
 
         // Act
@@ -112,11 +113,11 @@ public sealed class UserSecretsCommandTests
         fixture.Console.AllText.Should().Contain("abox create");
         await fixture.NoWrites();
         await fixture
-            .Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await fixture
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]

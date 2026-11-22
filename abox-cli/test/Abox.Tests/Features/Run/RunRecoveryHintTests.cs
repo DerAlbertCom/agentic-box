@@ -42,7 +42,7 @@ public sealed class RunRecoveryHintTests
                 }
             );
         fixture
-            .Cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+            .Cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(legacy, "running", null) });
 
         // Act
@@ -56,7 +56,7 @@ public sealed class RunRecoveryHintTests
             .And.NotContain("unrelated")
             .And.NotContain("--local");
         await fixture
-            .Cli.Sbx.Received(1)
+            .Cli.Inspection.Received(1)
             .HasProgramAsync(legacy, "hc", Arg.Any<CancellationToken>());
     }
 
@@ -252,8 +252,8 @@ public sealed class RunRecoveryHintTests
             .And.NotContain("Replace the sandbox")
             .And.NotContain("abox create");
         await fixture
-            .Cli.Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Cli.Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -297,8 +297,8 @@ public sealed class RunRecoveryHintTests
                 $"abox create --team recorded --squad selected --tag release --local --root \"{sourceRoot}\" --location \"{fixture.Cli.Location}\""
             );
         await fixture
-            .Cli.Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Cli.Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     private sealed class HintFixture : IDisposable
@@ -317,7 +317,7 @@ public sealed class RunRecoveryHintTests
         {
             if (program)
                 Cli.ExistingSandbox();
-            Cli.Sbx.HasProgramAsync(
+            Cli.Inspection.HasProgramAsync(
                     Arg.Any<string>(),
                     Arg.Any<string>(),
                     Arg.Any<CancellationToken>()

@@ -1,4 +1,4 @@
-namespace Abox.Infrastructure.Sbx;
+namespace Abox.Features.Shared.Sandboxes;
 
 /// <summary>Whether sandbox creation can refresh its registry kits.</summary>
 public enum PullPolicy

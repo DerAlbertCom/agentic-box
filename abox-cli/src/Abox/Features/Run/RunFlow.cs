@@ -6,7 +6,6 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Run;
 
@@ -33,7 +32,7 @@ public sealed class RunFlow(
     BuildStore store,
     SandboxRecordStore records,
     SandboxCreator create,
-    ISbxClient sbx,
+    ISandboxInspection inspection,
     ISandboxExec exec,
     SandboxHttps https,
     FolderSandbox sandboxes,
@@ -96,7 +95,7 @@ public sealed class RunFlow(
 
         foreach (var program in launcher.SandboxRequirements)
         {
-            if (await sbx.HasProgramAsync(sandbox.Name, program, cancellationToken))
+            if (await inspection.HasProgramAsync(sandbox.Name, program, cancellationToken))
             {
                 continue;
             }
@@ -219,7 +218,7 @@ public sealed class RunFlow(
         CancellationToken cancellationToken
     )
     {
-        var workspace = await sbx.GetWorkspaceDirectoryAsync(name, cancellationToken);
+        var workspace = await inspection.GetWorkspaceDirectoryAsync(name, cancellationToken);
         return workspace ?? location;
     }
 }

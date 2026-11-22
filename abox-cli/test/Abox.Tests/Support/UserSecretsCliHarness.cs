@@ -27,6 +27,10 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public string Location { get; }
     public string Name => SandboxName.For(Location);
     private readonly CliTestApplication application;
+    public ISandboxLifecycle Lifecycle => application.Lifecycle;
+    public IMcpServerRegistry Mcp => application.Mcp;
+    public IKitSourceTrust KitSources => application.KitSources;
+    public ISandboxInspection Inspection => application.Inspection;
     public IServiceCollection Services => application.Services;
     public IApplicationPortPublisher Publisher => application.Publisher;
     public IHostSecretStore HostSecrets => application.HostSecrets;
@@ -41,15 +45,15 @@ internal sealed class UserSecretsCliHarness : IDisposable
     )
     {
         Location = Root.CreateDirectory("folder");
-        if (existingSandbox)
-            ExistingSandbox();
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists(Arg.Any<string>()).Returns(true);
         application = new CliTestApplication(
             Console,
             AboxPaths.For(Root.Path, Root.Path),
             new TrailingArguments()
-        );
+        ).WithSandboxSubstitutes();
+        if (existingSandbox)
+            ExistingSandbox();
         if (configYaml is null)
             Services.AddSingleton(config ?? new AboxConfig { DefaultLocation = Location });
         else
@@ -69,7 +73,8 @@ internal sealed class UserSecretsCliHarness : IDisposable
     }
 
     public void ExistingSandbox(DateTimeOffset? createdAt = null) =>
-        Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        Lifecycle
+            .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(Name, "running", createdAt) });
 
     public void Configure(string yaml) => Root.File("folder/abox.yaml", yaml);

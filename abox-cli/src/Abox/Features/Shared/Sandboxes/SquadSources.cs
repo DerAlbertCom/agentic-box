@@ -3,7 +3,6 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Shared.Sandboxes;
 
@@ -117,7 +116,7 @@ public sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages image
 /// <summary>Uses a published squad set, with no local build metadata fallback.</summary>
 public sealed class RemoteSquadSource(
     AboxConfig config,
-    ISbxClient sbx,
+    IKitSourceTrust kitSources,
     IPublishedSquadSource published
 ) : ISquadSource
 {
@@ -138,7 +137,7 @@ public sealed class RemoteSquadSource(
         CancellationToken cancellationToken
     )
     {
-        await sbx.EnsureKitSourceAllowedAsync(
+        await kitSources.EnsureTrustedAsync(
             RegistryImageName.PullRepositoryPrefix(config.PullRepository),
             cancellationToken
         );

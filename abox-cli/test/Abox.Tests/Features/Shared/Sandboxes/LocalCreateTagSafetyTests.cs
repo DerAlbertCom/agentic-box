@@ -35,6 +35,9 @@ public sealed class LocalCreateTagSafetyTests
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
         var sbx = Substitute.For<ISbxClient>();
+        var lifecycle = Substitute.For<ISandboxLifecycle>();
+        var mcp = Substitute.For<IMcpServerRegistry>();
+        var kitSources = Substitute.For<IKitSourceTrust>();
         var published = Substitute.For<IPublishedSquadSource>();
         var source = new LocalSquadSource(
             new BuildStore(paths),
@@ -45,9 +48,11 @@ public sealed class LocalCreateTagSafetyTests
             new SandboxRecordStore(paths),
             paths,
             sbx,
+            lifecycle,
+            mcp,
             console,
             source,
-            new RemoteSquadSource(config, sbx, published),
+            new RemoteSquadSource(config, kitSources, published),
             new UserSecretsCopy(
                 config,
                 Substitute.For<IHostUserSecretStores>(),
@@ -76,6 +81,9 @@ public sealed class LocalCreateTagSafetyTests
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
         sbx.ReceivedCalls().Should().BeEmpty();
+        lifecycle.ReceivedCalls().Should().BeEmpty();
+        mcp.ReceivedCalls().Should().BeEmpty();
+        kitSources.ReceivedCalls().Should().BeEmpty();
         published.ReceivedCalls().Should().BeEmpty();
         File.ReadAllText(sentinel).Should().Be("external manifest must not be read");
         Directory.GetFiles(outside.Path, "*", SearchOption.AllDirectories).Should().Equal(sentinel);

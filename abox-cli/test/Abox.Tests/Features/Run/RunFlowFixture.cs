@@ -16,6 +16,9 @@ internal sealed class RunFlowFixture
     internal TempDirectory Root { get; } = new();
     internal TestConsole Console { get; } = new();
     internal ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
+    internal ISandboxLifecycle Lifecycle { get; } = Substitute.For<ISandboxLifecycle>();
+    internal IMcpServerRegistry Mcp { get; } = Substitute.For<IMcpServerRegistry>();
+    internal ISandboxInspection Inspection { get; } = Substitute.For<ISandboxInspection>();
     internal ISandboxExec Exec { get; } = SandboxFactory.Exec();
     internal RunFlow Service { get; }
     internal AboxPaths Paths { get; }
@@ -40,9 +43,15 @@ internal sealed class RunFlowFixture
             Records,
             Paths,
             Sbx,
+            Lifecycle,
+            Mcp,
             Console,
             new LocalSquadSource(Store, LocalWorkloadFactory.Images(), Console),
-            new RemoteSquadSource(Config, Sbx, PublishedSquadFactory.Source()),
+            new RemoteSquadSource(
+                Config,
+                Substitute.For<IKitSourceTrust>(),
+                PublishedSquadFactory.Source()
+            ),
             new UserSecretsCopy(
                 Config,
                 Substitute.For<IHostUserSecretStores>(),
@@ -56,15 +65,16 @@ internal sealed class RunFlowFixture
             Store,
             Records,
             Create,
-            Sbx,
+            Inspection,
             Exec,
             SandboxFactory.Https(Sbx, Exec, Console),
-            SandboxFactory.Resolver(Sbx, SandboxFactory.Hints(Config, Store, Records)),
+            SandboxFactory.Resolver(Lifecycle, SandboxFactory.Hints(Config, Store, Records)),
             SandboxFactory.Hints(Config, Store, Records),
             hostPrograms,
             Console
         );
-        Sbx.HasProgramAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        Inspection
+            .HasProgramAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
     }
 }

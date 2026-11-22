@@ -45,6 +45,8 @@ public sealed class CreateTagCommandTests
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
         var sbx = Substitute.For<ISbxClient>();
+        var lifecycle = Substitute.For<ISandboxLifecycle>();
+        var kitSources = Substitute.For<IKitSourceTrust>();
         var published = Substitute.For<IPublishedSquadSource>();
         var command = new CreateCommand(
             config,
@@ -55,13 +57,15 @@ public sealed class CreateTagCommandTests
                     new SandboxRecordStore(paths),
                     paths,
                     sbx,
+                    lifecycle,
+                    Substitute.For<IMcpServerRegistry>(),
                     console,
                     new LocalSquadSource(
                         new BuildStore(paths),
                         LocalWorkloadFactory.Images(programs, runner, console),
                         console
                     ),
-                    new RemoteSquadSource(config.Value, sbx, published),
+                    new RemoteSquadSource(config.Value, kitSources, published),
                     new UserSecretsCopy(
                         config.Value,
                         Substitute.For<IHostUserSecretStores>(),
@@ -87,6 +91,8 @@ public sealed class CreateTagCommandTests
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
         sbx.ReceivedCalls().Should().BeEmpty();
+        lifecycle.ReceivedCalls().Should().BeEmpty();
+        kitSources.ReceivedCalls().Should().BeEmpty();
         published.ReceivedCalls().Should().BeEmpty();
         File.ReadAllText(sentinel).Should().Be("external build");
         Directory.GetFiles(outside.Path, "*", SearchOption.AllDirectories).Should().Equal(sentinel);

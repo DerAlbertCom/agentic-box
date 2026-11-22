@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -577,8 +578,8 @@ public sealed class UserSecretsStorePatternCommandTests
             .NotContain("position-synthetic")
             .And.NotContain("deals-synthetic");
         await fixture
-            .Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     private static (string Id, string Json)[] Writes(UserSecretsCliHarness fixture) =>

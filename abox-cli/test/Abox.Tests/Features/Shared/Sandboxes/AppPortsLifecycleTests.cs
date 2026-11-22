@@ -118,14 +118,14 @@ public sealed class AppPortsLifecycleTests
         // Assert
         exit.Should().Be(1, fixture.Console.AllText);
         await fixture
-            .Sbx.DidNotReceive()
-            .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await fixture
-            .Sbx.DidNotReceive()
-            .CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>());
+            .Lifecycle.DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
         await fixture
-            .Sbx.DidNotReceive()
-            .EnsureKitSourceAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .KitSources.DidNotReceive()
+            .EnsureTrustedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         fixture
             .Records.Load(fixture.Name)!
             .BuildCreatedAt.Should()

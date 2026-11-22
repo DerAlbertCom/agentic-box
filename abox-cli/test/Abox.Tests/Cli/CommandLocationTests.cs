@@ -1,6 +1,7 @@
 using Abox.Cli;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,12 +28,18 @@ public sealed class CommandLocationTests
         var location = explicitLocation ? root.CreateDirectory("explicit") : null;
         var expected = location ?? config.DefaultLocation ?? Directory.GetCurrentDirectory();
         var sbx = Substitute.For<ISbxClient>();
-        sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists(Arg.Any<string>()).Returns(true);
         var paths = AboxPaths.For(root.Path, root.Path);
-        using var application = new CliTestApplication(console, paths, new TrailingArguments());
+        using var application = new CliTestApplication(
+            console,
+            paths,
+            new TrailingArguments()
+        ).WithSandboxSubstitutes();
+        var lifecycle = application.Lifecycle;
+        lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
         application.Services.AddSingleton(new Lazy<AboxConfig>(() => config));
         application.Services.AddSingleton(sbx);
         application.Services.AddSingleton(programs);
@@ -58,12 +65,13 @@ public sealed class CommandLocationTests
 
         // Assert
         runExitCode.Should().Be(1);
-        await sbx.Received(1)
+        await lifecycle
+            .Received(1)
             .CreateAsync(
-                Arg.Is<SbxCreateRequest>(request => request.Location == expected),
+                Arg.Is<SandboxDefinition>(request => request.Location == expected),
                 Arg.Any<CancellationToken>()
             );
-        await sbx.Received(2).ListSandboxesAsync(Arg.Any<CancellationToken>());
+        await lifecycle.Received(2).ListAsync(Arg.Any<CancellationToken>());
         console
             .Errors.Should()
             .Contain(line => line.Contains($"There is no sandbox for '{expected}'"));

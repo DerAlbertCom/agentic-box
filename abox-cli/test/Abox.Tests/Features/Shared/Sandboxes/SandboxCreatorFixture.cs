@@ -17,6 +17,9 @@ internal sealed class SandboxCreatorFixture
     internal ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     internal IHostSecretStore HostSecrets { get; } = TestServiceGraphs.HostSecretStore();
     internal ICredentialApprovals Approvals { get; } = Substitute.For<ICredentialApprovals>();
+    internal ISandboxLifecycle Lifecycle { get; } = Substitute.For<ISandboxLifecycle>();
+    internal IMcpServerRegistry Mcp { get; } = Substitute.For<IMcpServerRegistry>();
+    internal IKitSourceTrust KitSources { get; } = Substitute.For<IKitSourceTrust>();
     internal IPublishedSquadSource Published { get; } = PublishedSquadFactory.Source();
     internal AboxPaths Paths { get; }
     internal BuildStore Store { get; }
@@ -29,13 +32,15 @@ internal sealed class SandboxCreatorFixture
         Store = new BuildStore(Paths);
         Records = new SandboxRecordStore(Paths);
         Service = Creator();
-        Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
-        Sbx.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
-        Sbx.ListMcpServersAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
-        Sbx.AddMcpServerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, string.Empty));
+        Lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(string.Empty));
+        Lifecycle
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxRemoval(true, string.Empty));
+        Mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
+        Mcp.AddAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new McpServerRegistration(true, string.Empty));
     }
 
     internal SandboxCreator Creator(
@@ -46,9 +51,11 @@ internal sealed class SandboxCreatorFixture
             Records,
             Paths,
             Sbx,
+            Lifecycle,
+            Mcp,
             Console,
             new LocalSquadSource(Store, images ?? LocalWorkloadFactory.Images(), Console),
-            remote ?? new RemoteSquadSource(new AboxConfig(), Sbx, Published),
+            remote ?? new RemoteSquadSource(new AboxConfig(), KitSources, Published),
             new UserSecretsCopy(
                 new AboxConfig(),
                 Substitute.For<IHostUserSecretStores>(),

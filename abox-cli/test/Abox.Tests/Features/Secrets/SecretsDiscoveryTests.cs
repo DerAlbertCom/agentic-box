@@ -87,8 +87,7 @@ public sealed class SecretsDiscoveryTests
     {
         // Arrange
         using var cli = new UserSecretsCliHarness(new AboxConfig(), existingSandbox: false);
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<SandboxInfo>());
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<SandboxInfo>());
         cli.Provider.GetRequiredService<SandboxRecordStore>()
             .Save(
                 cli.Name,
@@ -155,7 +154,7 @@ public sealed class SecretsDiscoveryTests
 
     private static void Sandboxes(UserSecretsCliHarness cli, params string[] folders)
     {
-        cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
+        cli.Lifecycle.ListAsync(Arg.Any<CancellationToken>())
             .Returns(
                 folders
                     .Select(folder => new SandboxInfo(SandboxName.For(folder), "running", null))

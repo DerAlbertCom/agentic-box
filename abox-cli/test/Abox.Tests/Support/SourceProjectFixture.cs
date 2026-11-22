@@ -65,9 +65,14 @@ internal sealed class SourceProjectFixture : IDisposable
                     ? PublishTestProcess.Run(request)
                     : LocalWorkloadFactory.Result(request);
             });
-        Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SbxOutcome(0, ""));
-        _application = new CliTestApplication(Console, paths, new TrailingArguments());
+        _application = new CliTestApplication(
+            Console,
+            paths,
+            new TrailingArguments()
+        ).WithSandboxSubstitutes();
+        Lifecycle
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxCreation(""));
         var services = _application.Services;
         services.AddSingleton(
             new AboxConfig
@@ -92,6 +97,7 @@ internal sealed class SourceProjectFixture : IDisposable
     public IHostPrograms Programs { get; } = Substitute.For<IHostPrograms>();
     public IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
+    public ISandboxLifecycle Lifecycle => _application.Lifecycle;
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public IKitInspector Inspector { get; } = TestServiceGraphs.AcceptingKitInspector();
     public string ProjectDirectory { get; }

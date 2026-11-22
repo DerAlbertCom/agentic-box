@@ -258,7 +258,7 @@ legacy `spec.yaml` packager does not understand these v3 descriptors; see
 
 `Sandboxes/FolderSandbox` is the single location-to-existing-sandbox rule ("this
 folder's Sandbox") for run, on-demand user secrets, ports, secrets and create/replacement checks.
-`FindAsync(location, token)` lists sandboxes through sbx once and matches every
+`FindAsync(location, token)` lists sandboxes once through `ISandboxLifecycle` and matches every
 candidate name against that list. It returns the actual `SandboxInfo` or null: current
 `SandboxName.For` first (also without an optional trailing directory separator on
 Windows), then the exact cape-agent-sandbox generated name only after a genuine
@@ -284,7 +284,8 @@ workspace metadata does not enable this fallback. Unix retains exact historical
 lookup and case sensitivity.
 
 `Naming/LegacySandboxName` keeps sanitization and hashing pure; `FolderSandbox`
-privately resolves the historical real path before calling it. The contract is
+resolves the historical real path through `IFolderRealPath` (adapter
+`Infrastructure/Shell/ShellFolderRealPath`) before calling it. The contract is
 verified against
 cape-agent-sandbox `1512ff71c31c6bfa7e923a43683c6d80624c40d0`:
 
@@ -1253,6 +1254,13 @@ abox-cli/src/Abox/
         ISandboxExec.cs         run a command in a sandbox: request, console input mode, outcome
         SandboxCreator.cs       the create operation shared by create and run
         FolderSandbox.cs        this folder's Sandbox: one listing, current-first, exact legacy fallback
+        ISandboxLifecycle.cs    list, create and remove sandboxes; SandboxCreation, SandboxRemoval
+        SandboxDefinition.cs    what a new sandbox is made of; SandboxMount.cs, PullPolicy.cs
+        SandboxInfo.cs          a sandbox as the runtime lists it
+        IMcpServerRegistry.cs   list and register the host's MCP servers
+        IKitSourceTrust.cs      trust a registry repository as a kit source
+        ISandboxInspection.cs   detect a program and the workspace directory in a sandbox
+        IFolderRealPath.cs      the physical path of a host folder, for legacy names
         LegacySandboxName.cs    the sandbox names of earlier abox versions
         SandboxRecord.cs
         SandboxRecordStore.cs
@@ -1300,14 +1308,16 @@ abox-cli/src/Abox/
       SbxApplicationPorts.cs         IApplicationPortPublisher: relay, sbx ports inventory and mapping
       ApplicationPortInventory.cs    strict decoding of sbx ports and relay acknowledgments
       SbxUserSecrets.cs              ISandboxUserSecrets: secret transport and network-policy operations
-      SbxKitSources.cs               repository-scoped kit-source trust settings
+      SbxSandboxLifecycle.cs         ISandboxLifecycle: sbx ls, sbx create flags, sbx rm
+      SbxMcpServerRegistry.cs        IMcpServerRegistry: sbx mcp ls/add
+      SbxKitSourceTrust.cs           IKitSourceTrust: kit.allowedSources, locked under the state folder
+      SbxSandboxInspection.cs        ISandboxInspection: probes through sbx exec
       SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm
       SbxKitInspector.cs             IKitInspector: sbx kit inspect with the kit arguments
       SbxHostSecretStore.cs          IHostSecretStore: sbx secret ls/set/set-custom/rm
       SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line
       SbxCredentialBindings.cs       ICredentialApprovals: reads and merges sbx's credentials.yaml
       SbxSandboxSquadFileReader.cs   ISandboxSquadFileReader: one sbx exec, base64-framed
-      PullPolicy.cs                  closed pull choices, mapped to flags by the wrapper
       *.py, *.sh                     the embedded scripts sbx runs in the sandbox
     Docker/           every call to docker, with list arguments and use-case failure messages
       DockerCommand.cs               runs docker; maps OCI manifests to RegistryManifest
@@ -1320,6 +1330,7 @@ abox-cli/src/Abox/
       DotnetUserSecretStores.cs  IHostUserSecretStores: the host's .NET user-secrets store layout
     Shell/
       ShellKitBuildScript.cs  IKitBuildScript: runs build <stagedKitDir> in the kit's folder
+      ShellFolderRealPath.cs  IFolderRealPath: bash pwd -P; final link target on Windows
     Herdr/
       HerdrAppLauncher.cs  the herdr-app launcher (an ILauncher adapter, registered by
                            the composition root); its programs stay internal

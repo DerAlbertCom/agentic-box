@@ -26,26 +26,4 @@ public interface ISbxClient
         string sandbox,
         CancellationToken cancellationToken
     );
-
-    Task<IReadOnlyList<SandboxInfo>> ListSandboxesAsync(CancellationToken cancellationToken);
-
-    Task<SbxOutcome> CreateAsync(SbxCreateRequest request, CancellationToken cancellationToken);
-
-    /// <summary>Adds a validated repository prefix to kit.allowedSources if it is not already covered.</summary>
-    Task EnsureKitSourceAllowedAsync(string repositoryPrefix, CancellationToken cancellationToken);
-
-    Task<SbxOutcome> RemoveSandboxAsync(string name, CancellationToken cancellationToken);
-
-    Task<bool> HasProgramAsync(string sandbox, string program, CancellationToken cancellationToken);
-
-    /// <summary>Where the runtime put the workspace of the sandbox, when it says.</summary>
-    Task<string?> GetWorkspaceDirectoryAsync(string sandbox, CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<string>> ListMcpServersAsync(CancellationToken cancellationToken);
-
-    Task<SbxOutcome> AddMcpServerAsync(
-        string name,
-        string url,
-        CancellationToken cancellationToken
-    );
 }
