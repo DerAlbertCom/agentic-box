@@ -65,7 +65,7 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
-    public void OnlyTheCompositionRootReferencesAnExternalToolAdapterFromOutsideItsTool()
+    public void OnlyTheInfrastructureRegistrationReferencesAnExternalToolAdapterFromOutsideItsTool()
     {
         // Arrange
         var references = ProjectReferences();
@@ -73,7 +73,7 @@ public sealed class ArchitectureTests
         // Act
         var violations = references
             .Where(reference => IsToolAdapter(reference.To))
-            .Where(reference => !IsIn(reference.From, CompositionRoot))
+            .Where(reference => reference.Type != typeof(InfrastructureServiceCollection).FullName)
             .Where(reference => !IsIn(reference.From, reference.To))
             .Select(reference => reference.ToString());
 
@@ -100,6 +100,7 @@ public sealed class ArchitectureTests
         "ProtectedTemporaryDirectory",
         "SecretRedactor",
         "YamlDotNetParser",
+        "InfrastructureServiceCollection",
     ];
 
     [Fact]
