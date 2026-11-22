@@ -19,7 +19,11 @@ public sealed class InvocationDefaultsFolderConfigurationTests
         parser
             .Parse(Arg.Any<string>(), Arg.Any<string>())
             .Returns(call => yaml.Parse(call.ArgAt<string>(0), call.ArgAt<string>(1)));
-        var defaults = new InvocationDefaults(new Lazy<AboxConfig>(() => new AboxConfig()), parser);
+        var defaults = new InvocationDefaults(
+            new Lazy<AboxConfig>(() => new AboxConfig()),
+            parser,
+            new TrailingArguments()
+        );
 
         // Act
         var location = await defaults.SandboxLocationAsync(root.Path, CancellationToken.None);

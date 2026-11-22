@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Abox.Features.Shared.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.Sandbox;
@@ -13,6 +14,7 @@ internal static class SandboxFeature
     {
         services.AddSingleton<Command, ExecCommand>();
         services.AddSingleton<Command, PipeCommand>();
+        services.AddScoped<ICommandHandler<SandboxExecParameters>, SandboxExecHandler>();
         return services;
     }
 }

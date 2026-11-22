@@ -11,7 +11,7 @@ public sealed class InvocationDefaultsTests
     private readonly IYamlParser _parser = Substitute.For<IYamlParser>();
 
     private InvocationDefaults Defaults(AboxConfig configuration) =>
-        new(new Lazy<AboxConfig>(() => configuration), _parser);
+        new(new Lazy<AboxConfig>(() => configuration), _parser, new TrailingArguments());
 
     [Fact]
     public async Task TheSandboxLocationPrefersTheOptionOverTheDefaultLocation()
@@ -234,5 +234,24 @@ public sealed class InvocationDefaultsTests
             .WithMessage(
                 $"'{given ?? configured}' is not a valid registry tag. Use 1-128 ASCII letters, digits, underscores, periods or hyphens, starting with a letter, digit or underscore."
             );
+    }
+
+    [Theory]
+    [InlineData("-leading-hyphen", "latest", "-leading-hyphen")]
+    [InlineData(null, "", "")]
+    public void TheTagWithoutValidationFallsBackToTheDefaultTagAndLeavesTheCheckToTheCaller(
+        string? given,
+        string configured,
+        string expected
+    )
+    {
+        // Arrange
+        var defaults = Defaults(new AboxConfig { DefaultTag = configured });
+
+        // Act
+        var tag = defaults.TagWithoutValidation(given);
+
+        // Assert
+        tag.Should().Be(expected);
     }
 }

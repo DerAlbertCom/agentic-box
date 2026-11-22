@@ -1,5 +1,6 @@
-using Abox.Features.Build;
+using Abox.Cli;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
@@ -7,6 +8,7 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -43,15 +45,14 @@ public sealed class BuildCommandTests
             LocalWorkloadFactory.Images(programs, runner, console),
             console
         );
-        var command = new BuildCommand(
-            new Lazy<AboxConfig>(() => config),
-            new Preflight(console, preflight),
-            new Lazy<SquadResolver>(() => resolver),
-            new Lazy<BuildService>(() => service),
-            console
-        );
+        using var application = new CliTestApplication(console, paths, new TrailingArguments());
+        application.Services.AddSingleton(config);
+        application.Services.AddSingleton(preflight);
+        application.Services.AddSingleton(resolver);
+        application.Services.AddSingleton(service);
         var arguments = new List<string>
         {
+            "build",
             "--team",
             "sample",
             "--root",
@@ -67,7 +68,9 @@ public sealed class BuildCommandTests
         }
 
         // Act
-        var exitCode = await command.Parse(arguments.ToArray()).InvokeAsync();
+        var exitCode = await application
+            .Provider.GetRequiredService<AboxRootCommand>()
+            .InvokeAsync(arguments.ToArray());
 
         // Assert
         exitCode.Should().Be(0);

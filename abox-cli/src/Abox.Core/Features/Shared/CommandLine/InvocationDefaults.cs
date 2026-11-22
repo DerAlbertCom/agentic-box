@@ -7,9 +7,17 @@ namespace Abox.Features.Shared.CommandLine;
 /// <summary>
 /// The one place where options get their defaults from the user configuration. It loads
 /// the user configuration only when a default is first asked for, so only actions load it.
+/// It also hands binding the arguments after the "--" of the invocation.
 /// </summary>
-internal sealed class InvocationDefaults(Lazy<AboxConfig> configuration, IYamlParser parser)
+internal sealed class InvocationDefaults(
+    Lazy<AboxConfig> configuration,
+    IYamlParser parser,
+    TrailingArguments trailing
+)
 {
+    /// <summary>The arguments after the "--".</summary>
+    public IReadOnlyList<string> TrailingArguments => trailing.Values;
+
     /// <summary>
     /// The sandbox location (the given location, then <c>defaultLocation</c>, then the
     /// current folder) with its folder configuration.
@@ -38,8 +46,13 @@ internal sealed class InvocationDefaults(Lazy<AboxConfig> configuration, IYamlPa
     /// <summary>The given tag, otherwise <c>defaultTag</c>, validated as a registry tag.</summary>
     public string Tag(string? tag)
     {
-        var selected = tag ?? configuration.Value.DefaultTag;
+        var selected = TagWithoutValidation(tag);
         RegistryImageName.ValidateTag(selected);
         return selected;
     }
+
+    /// <summary>
+    /// The given tag, otherwise <c>defaultTag</c>, for a caller that validates it later.
+    /// </summary>
+    public string TagWithoutValidation(string? tag) => tag ?? configuration.Value.DefaultTag;
 }

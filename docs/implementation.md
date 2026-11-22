@@ -1200,13 +1200,15 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
     Features/       the command slices and the shared features
       CoreServiceCollection.cs  AddAboxCore: the shared services and one call per slice
       LazyService.cs  resolves a Lazy<T> dependency only when its value is first used
-      Build/          abox build: the command and the service that does its work
+      Build/          abox build: the command binds BuildParameters, BuildHandler resolves
+                      the teams to squads and runs the service that does its work
         Assets/                     the inspection certificate chain, embedded in Abox.Core
         KitBuildStep.cs             stages a kit with a build file and runs its build (ADR 0001)
         StateMixinGenerator.cs      the state mixin of a built squad
         WorkloadKitGenerator.cs     turns a workload into a sandbox kit
         SquadConfigurationMixin.cs  the squad.json allowlist and its mixin
-      Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly
+      Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly;
+                      the command binds PublishParameters, PublishHandler does the work
       Create/         abox create: the command and its slice registration
       Run/            abox run: the command and the Run flow (common Launcher steps)
         ShellLauncher.cs  the default launcher: a shell in the workspace
@@ -1215,10 +1217,12 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
       UserSecrets/    abox user-secrets: on-demand command only
       Ports/          abox ports: on-demand command only; the command binds
                       PortsParameters, PortsHandler does the work
-      Prune/          abox prune: the command and the service that does its work
+      Prune/          abox prune: the command binds PruneParameters, PruneHandler runs
+                      the service that does its work
       Sandbox/        the commands other programs call: abox exec and abox pipe
-        SandboxCommand.cs     shared hidden-command construction and argv validation;
-                              passes the named sandbox to sbx exec
+        SandboxCommand.cs     their shared hidden syntax; binds SandboxExecParameters and
+                              rejects a missing command after "--"
+        SandboxExecHandler.cs passes the named sandbox to sbx exec, for both commands
       Shared/         everything shared by commands, one folder per use case
         Common/           IConsole, AboxException and TemporaryDirectory, used by every layer
         Yaml/             IYamlParser and its YamlNode tree; YamlReader, the strict reader
@@ -1229,7 +1233,8 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
                           an exit code, and the way a command runs: AboxCommand binds its
                           parameters, CommandRunner runs the ICommandHandler for them,
                           InvocationDefaults applies the user configuration defaults
-                          (SandboxLocation, team, teams, tag) and LocationOption is the
+                          (SandboxLocation, team, teams, tag) and hands binding the
+                          trailing arguments, and LocationOption is the
                           shared --location
         Configuration/    the directories and the user configuration
           FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
