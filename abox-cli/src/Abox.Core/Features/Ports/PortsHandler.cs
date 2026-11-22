@@ -20,15 +20,13 @@ internal sealed class PortsHandler(
     )
     {
         var location = parameters.Location;
-        var selectedOffset = FolderConfig.SelectPortOffset(
-            location.FolderConfiguration,
-            parameters.Offset
-        );
+        var folderConfiguration = await location.FolderConfigurationAsync(cancellationToken);
+        var selectedOffset = FolderConfig.SelectPortOffset(folderConfiguration, parameters.Offset);
         if (!await preflight.EnsureReadyAsync(cancellationToken))
             return 1;
         var sandbox = await sandboxes.RequireAsync(
             location.FullPath,
-            location.FolderConfiguration,
+            folderConfiguration,
             "ports never creates or replaces one",
             cancellationToken
         );

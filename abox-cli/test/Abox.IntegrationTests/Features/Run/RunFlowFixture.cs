@@ -1,5 +1,6 @@
 using Abox.Features.Run;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Preflight;
@@ -70,11 +71,18 @@ internal sealed class RunFlowFixture
             SandboxFactory.Resolver(Lifecycle, SandboxFactory.Hints(Config, Store, Records)),
             SandboxFactory.Hints(Config, Store, Records),
             hostPrograms,
-            Console,
-            new YamlDotNetParser()
+            Console
         );
         Inspection
             .HasProgramAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
     }
+
+    /// <summary>The sandbox location of a folder, reading its folder configuration when asked for.</summary>
+    internal static SandboxLocation Location(string path) =>
+        new(
+            path,
+            cancellationToken =>
+                FolderConfig.LoadAsync(path, new YamlDotNetParser(), cancellationToken)
+        );
 }

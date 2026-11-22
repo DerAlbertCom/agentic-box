@@ -20,7 +20,8 @@ public sealed class CommandRunnerTests
         _services.AddSingleton(
             new InvocationDefaults(
                 new Lazy<AboxConfig>(() => new AboxConfig { DefaultTeam = "sample" }),
-                Substitute.For<IYamlParser>()
+                Substitute.For<IYamlParser>(),
+                new TrailingArguments()
             )
         );
         _services.AddSingleton<CommandRunner>();

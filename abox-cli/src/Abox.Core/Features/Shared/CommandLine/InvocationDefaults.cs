@@ -8,25 +8,48 @@ namespace Abox.Features.Shared.CommandLine;
 /// The one place where options get their defaults from the user configuration. It loads
 /// the user configuration only when a default is first asked for, so only actions load it.
 /// </summary>
-internal sealed class InvocationDefaults(Lazy<AboxConfig> configuration, IYamlParser parser)
+internal sealed class InvocationDefaults(
+    Lazy<AboxConfig> configuration,
+    IYamlParser parser,
+    TrailingArguments trailing
+)
 {
+    /// <summary>The arguments after the "--" of the command line.</summary>
+    public IReadOnlyList<string> TrailingArguments => trailing.Values;
+
     /// <summary>
     /// The sandbox location (the given location, then <c>defaultLocation</c>, then the
-    /// current folder) with its folder configuration.
+    /// current folder) with its folder configuration, loaded now.
     /// </summary>
     public async Task<SandboxLocation> SandboxLocationAsync(
         string? location,
         CancellationToken cancellationToken
     )
     {
+        var sandboxLocation = SandboxLocationWithDeferredFolderConfiguration(location);
+        await sandboxLocation.FolderConfigurationAsync(cancellationToken);
+        return sandboxLocation;
+    }
+
+    /// <summary>
+    /// The sandbox location, whose folder configuration is loaded only when it is first
+    /// asked for.
+    /// </summary>
+    public SandboxLocation SandboxLocationWithDeferredFolderConfiguration(string? location)
+    {
         var fullPath = configuration.Value.ResolveLocation(location);
-        var folderConfiguration = await FolderConfig.LoadAsync(fullPath, parser, cancellationToken);
-        return new SandboxLocation(fullPath, folderConfiguration);
+        return new SandboxLocation(
+            fullPath,
+            cancellationToken => FolderConfig.LoadAsync(fullPath, parser, cancellationToken)
+        );
     }
 
     /// <summary>The sandbox location without reading its folder configuration.</summary>
     public SandboxLocation SandboxLocationWithoutFolderConfiguration(string? location) =>
-        new(configuration.Value.ResolveLocation(location), null);
+        new(
+            configuration.Value.ResolveLocation(location),
+            _ => Task.FromResult<FolderConfig?>(null)
+        );
 
     /// <summary>The given team, otherwise the required <c>defaultTeam</c>.</summary>
     public string Team(string? team) => configuration.Value.ResolveTeam(team);

@@ -1,14 +1,12 @@
 using System.Text.Json;
-using Abox.Features.Create;
-using Abox.Features.Shared.Builds;
+using Abox.Cli;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
-using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Docker;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -39,9 +37,6 @@ public sealed class CreateTagCommandTests
             "defaultTeam: sample\n"
                 + (configuredTag ? "defaultTag: " + JsonSerializer.Serialize(tag) + "\n" : "")
         );
-        var config = new Lazy<AboxConfig>(() =>
-            AboxConfigLoader.Load(paths, new YamlDotNetParser())
-        );
         var console = new TestConsole();
         var preflight = Substitute.For<IPreflightChecks>();
         var programs = Substitute.For<IHostPrograms>();
@@ -49,41 +44,35 @@ public sealed class CreateTagCommandTests
         var lifecycle = Substitute.For<ISandboxLifecycle>();
         var kitSources = Substitute.For<IKitSourceTrust>();
         var published = Substitute.For<IPublishedSquadSource>();
-        var command = new CreateCommand(
-            config,
-            new Preflight(console, preflight),
-            new Lazy<SquadResolver>(() => new SquadResolver(config.Value, new YamlDotNetParser())),
-            new Lazy<SandboxCreator>(() =>
-                TestServiceGraphs.Creator(
-                    new SandboxRecordStore(paths),
-                    paths,
-                    lifecycle,
-                    Substitute.For<IMcpServerRegistry>(),
-                    console,
-                    new LocalSquadSource(
-                        new BuildStore(paths),
-                        LocalWorkloadFactory.Images(programs, runner, console),
-                        console
-                    ),
-                    new RemoteSquadSource(config.Value, kitSources, published),
-                    new UserSecretsCopy(
-                        config.Value,
-                        Substitute.For<IHostUserSecretStores>(),
-                        Substitute.For<ISandboxUserSecrets>()
-                    )
-                )
-            ),
-            console,
-            new YamlDotNetParser()
-        );
-        var arguments = new List<string> { "--location", root.Path, "--squad", "ac", "--yes" };
+        using var application = new CliTestApplication(console, paths, new TrailingArguments());
+        application
+            .Services.AddSingleton(preflight)
+            .AddSingleton(programs)
+            .AddSingleton(runner)
+            .AddSingleton(lifecycle)
+            .AddSingleton(kitSources)
+            .AddSingleton(published)
+            .AddSingleton(Substitute.For<IMcpServerRegistry>())
+            .AddSingleton(Substitute.For<IHostUserSecretStores>())
+            .AddSingleton(Substitute.For<ISandboxUserSecrets>());
+        var arguments = new List<string>
+        {
+            "create",
+            "--location",
+            root.Path,
+            "--squad",
+            "ac",
+            "--yes",
+        };
         if (local)
             arguments.AddRange(["--local", "--root", root.Path]);
         if (!configuredTag)
             arguments.AddRange(["--tag", tag]);
 
         // Act
-        var exitCode = await command.Parse(arguments.ToArray()).InvokeAsync();
+        var exitCode = await application
+            .Provider.GetRequiredService<AboxRootCommand>()
+            .InvokeAsync(arguments.ToArray());
 
         // Assert
         exitCode.Should().Be(1);

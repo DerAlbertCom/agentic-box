@@ -68,7 +68,7 @@ public sealed class RunFlowTeamTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -147,7 +147,7 @@ public sealed class RunFlowTeamTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 
@@ -207,7 +207,7 @@ public sealed class RunFlowTeamTests
 
         // Act
         var exitCode = await _service.RunAsync(
-            new RunRequest("shell", _root.Path, []),
+            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
             CancellationToken.None
         );
 

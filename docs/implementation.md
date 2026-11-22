@@ -1207,12 +1207,16 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
         WorkloadKitGenerator.cs     turns a workload into a sandbox kit
         SquadConfigurationMixin.cs  the squad.json allowlist and its mixin
       Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly
-      Create/         abox create: the command and its slice registration
-      Run/            abox run: the command and the Run flow (common Launcher steps)
+      Create/         abox create: the command binds CreateParameters, CreateHandler
+                      does the work
+      Run/            abox run: the command binds RunParameters, RunHandler runs the
+                      Run flow (common Launcher steps)
         ShellLauncher.cs  the default launcher: a shell in the workspace
-      Secrets/        abox secrets: the command and the service that does its work
+      Secrets/        abox secrets: the command, one parameters record and handler per
+                      subcommand (list, set, remove) and the service that does its work
         SandboxSquadMetadata.cs  staged descriptors and squad.json Secrets of a sandbox
-      UserSecrets/    abox user-secrets: on-demand command only
+      UserSecrets/    abox user-secrets: on-demand command only; the command binds
+                      UserSecretsParameters, UserSecretsHandler does the work
       Ports/          abox ports: on-demand command only; the command binds
                       PortsParameters, PortsHandler does the work
       Prune/          abox prune: the command and the service that does its work

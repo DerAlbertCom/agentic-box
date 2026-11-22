@@ -11,7 +11,7 @@ public sealed class InvocationDefaultsTests
     private readonly IYamlParser _parser = Substitute.For<IYamlParser>();
 
     private InvocationDefaults Defaults(AboxConfig configuration) =>
-        new(new Lazy<AboxConfig>(() => configuration), _parser);
+        new(new Lazy<AboxConfig>(() => configuration), _parser, new TrailingArguments());
 
     [Fact]
     public async Task TheSandboxLocationPrefersTheOptionOverTheDefaultLocation()
@@ -83,11 +83,13 @@ public sealed class InvocationDefaultsTests
         var location = await defaults.SandboxLocationAsync(root.Path, CancellationToken.None);
 
         // Assert
-        location.FolderConfiguration.Should().BeNull();
+        (await location.FolderConfigurationAsync(CancellationToken.None))
+            .Should()
+            .BeNull();
     }
 
     [Fact]
-    public void TheVariantWithoutFolderConfigurationDoesNotReadTheFolderConfiguration()
+    public async Task TheVariantWithoutFolderConfigurationDoesNotReadTheFolderConfiguration()
     {
         // Arrange
         using var root = new TempDirectory();
@@ -98,7 +100,24 @@ public sealed class InvocationDefaultsTests
         var location = defaults.SandboxLocationWithoutFolderConfiguration(root.Path);
 
         // Assert
-        location.Should().Be(new SandboxLocation(root.Path, null));
+        location.FullPath.Should().Be(root.Path);
+        (await location.FolderConfigurationAsync(CancellationToken.None)).Should().BeNull();
+        _parser.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TheDeferredVariantDoesNotReadTheFolderConfigurationBeforeItIsAskedFor()
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File(FolderConfig.SharedFile, "squad: ac\n");
+        var defaults = Defaults(new AboxConfig());
+
+        // Act
+        var location = defaults.SandboxLocationWithDeferredFolderConfiguration(root.Path);
+
+        // Assert
+        location.FullPath.Should().Be(root.Path);
         _parser.ReceivedCalls().Should().BeEmpty();
     }
 

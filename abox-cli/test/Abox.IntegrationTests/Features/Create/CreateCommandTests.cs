@@ -1,5 +1,6 @@
-using Abox.Features.Create;
+using Abox.Cli;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
@@ -7,17 +8,25 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
 namespace Abox.Tests;
 
 [Collection("Create command working directory")]
-public sealed class CreateCommandTests
+public sealed class CreateCommandTests : IDisposable
 {
     private readonly TempDirectory _root = new();
+    private CliTestApplication? _application;
     private readonly TestConsole _console = new();
     private readonly ISandboxLifecycle _lifecycle = Substitute.For<ISandboxLifecycle>();
     private readonly IKitSourceTrust _kitSources = Substitute.For<IKitSourceTrust>();
+
+    public void Dispose()
+    {
+        _application?.Dispose();
+        _root.Dispose();
+    }
 
     [Fact]
     public async Task RemoteCreateFromAnArbitraryDirectoryDoesNotNeedTeamsOrABuild()
@@ -79,6 +88,26 @@ public sealed class CreateCommandTests
         _console.AllText.Should().Contain("--root requires --local");
         _lifecycle.ReceivedCalls().Should().BeEmpty();
         _kitSources.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ASquadThatConflictsWithTheFolderConfigurationIsRejectedBeforeAnySbxCalls()
+    {
+        // Arrange
+        var command = Command("");
+        _root.File("abox.yaml", "squad: other\n");
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--squad", "ac", "--tag", "release"]);
+
+        // Assert
+        exitCode.Should().Be(1);
+        _console
+            .Errors.Should()
+            .Equal(
+                "error: The selected squad conflicts with 'squad' in abox.yaml or abox.user.yaml. Use the folder's squad or update the folder configuration before creating or replacing its sandbox."
+            );
+        _lifecycle.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -260,13 +289,15 @@ public sealed class CreateCommandTests
             );
     }
 
-    private async Task<int> InvokeAsync(CreateCommand command, string[] arguments)
+    private async Task<int> InvokeAsync(CliTestApplication application, string[] arguments)
     {
         var originalDirectory = Directory.GetCurrentDirectory();
         try
         {
             Directory.SetCurrentDirectory(_root.Path);
-            return await command.Parse(arguments).InvokeAsync();
+            return await application
+                .Provider.GetRequiredService<AboxRootCommand>()
+                .InvokeAsync(["create", .. arguments]);
         }
         finally
         {
@@ -274,7 +305,7 @@ public sealed class CreateCommandTests
         }
     }
 
-    private CreateCommand Command(string yaml)
+    private CliTestApplication Command(string yaml)
     {
         _root.File("teams/sample/ac.abox", "workload: sample\n");
         _root.File("config/config.yaml", yaml);
@@ -302,29 +333,22 @@ public sealed class CreateCommandTests
             }
         );
         ReadyRuntime();
-        return new CreateCommand(
-            new Lazy<AboxConfig>(() => config),
-            new Preflight(_console, ReadyPreflight.Checks()),
-            new Lazy<SquadResolver>(() => new SquadResolver(config, new YamlDotNetParser())),
-            new Lazy<SandboxCreator>(() =>
-                TestServiceGraphs.Creator(
-                    new SandboxRecordStore(paths),
-                    paths,
-                    _lifecycle,
-                    Substitute.For<IMcpServerRegistry>(),
-                    _console,
-                    new LocalSquadSource(store, LocalWorkloadFactory.Images(), _console),
-                    new RemoteSquadSource(config, _kitSources, PublishedSquadFactory.Source()),
-                    new UserSecretsCopy(
-                        config,
-                        Substitute.For<IHostUserSecretStores>(),
-                        Substitute.For<ISandboxUserSecrets>()
-                    )
-                )
-            ),
-            _console,
-            new YamlDotNetParser()
-        );
+        var programs = Substitute.For<IHostPrograms>();
+        programs.Exists("docker").Returns(true);
+        _application = new CliTestApplication(_console, paths, new TrailingArguments());
+        _application
+            .Services.AddSingleton(config)
+            .AddSingleton(ReadyPreflight.Checks())
+            .AddSingleton(_lifecycle)
+            .AddSingleton(_kitSources)
+            .AddSingleton(Substitute.For<IMcpServerRegistry>())
+            .AddSingleton(PublishedSquadFactory.Source())
+            .AddSingleton(SandboxFactory.Exec())
+            .AddSingleton(LocalWorkloadFactory.Runner())
+            .AddSingleton(programs)
+            .AddSingleton(Substitute.For<IHostUserSecretStores>())
+            .AddSingleton(Substitute.For<ISandboxUserSecrets>());
+        return _application;
     }
 
     private void ReadyRuntime()

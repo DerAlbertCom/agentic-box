@@ -301,6 +301,28 @@ public sealed class RunCommandTests
     }
 
     [Fact]
+    public async Task AnInvalidFolderConfigurationIsReadOnlyAfterPreflightAndTheHostRequirements()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        File.WriteAllText(Path.Combine(fixture.Location, "abox.yaml"), "terminalTheme: yes\n");
+        fixture.MissingOnHost.Add("hc");
+
+        // Act
+        var exitCode = await fixture.Run("herdr-app");
+
+        // Assert
+        exitCode.Should().Be(1);
+        fixture
+            .Console.Errors.Should()
+            .Equal(
+                "The launcher 'herdr-app' needs 'hc' on the host.",
+                "Install herdr-core: it comes with the Herdr desktop app."
+            );
+        fixture.Calls.Should().Contain(call => call.Arguments[0] == "version");
+    }
+
+    [Fact]
     public async Task ANonBooleanTerminalThemeInTheUserConfigurationIsAConfigurationError()
     {
         // Arrange
