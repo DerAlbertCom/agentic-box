@@ -4,6 +4,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -28,7 +29,7 @@ public sealed class BuildMcpValidationTests : IDisposable
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists("docker").Returns(true);
         var config = new AboxConfig();
-        var resolver = new SquadResolver(config);
+        var resolver = new SquadResolver(config, new YamlDotNetParser());
         var build = TestServiceGraphs.Build(
             resolver,
             new PersonalConfigurations(_paths),

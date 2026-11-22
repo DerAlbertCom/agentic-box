@@ -99,9 +99,7 @@ public sealed class ArchitectureTests
         "PrivateStagingException",
         "ProtectedTemporaryDirectory",
         "SecretRedactor",
-        "YamlReader",
-        "YamlSources",
-        "YamlEntry",
+        "YamlDotNetParser",
     ];
 
     [Fact]

@@ -7,6 +7,7 @@ using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using NSubstitute;
 
@@ -40,7 +41,7 @@ public sealed class PublishServiceTeamTests
     )
     {
         // Arrange
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         foreach (var team in new[] { "sample", "other" })
         {
             _root.File($"teams/{team}/ac.abox", $"workload: {team}\nstate: [~/.{team}]\n");

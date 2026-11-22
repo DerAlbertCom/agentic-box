@@ -2,6 +2,7 @@ using System.Text.Json;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Secrets;
 
@@ -51,7 +52,11 @@ public sealed class SandboxSquadMetadata
     /// Reads the raw squad files of a sandbox. A malformed descriptor or <c>Secrets</c> field
     /// fails with a message naming the sandbox.
     /// </summary>
-    public static SandboxSquadMetadata Read(string sandbox, SandboxSquadFiles files)
+    public static SandboxSquadMetadata Read(
+        string sandbox,
+        SandboxSquadFiles files,
+        IYamlParser parser
+    )
     {
         var requests = CredentialRequest.Merge(
             files.Kits.Select(kit =>
@@ -59,7 +64,8 @@ public sealed class SandboxSquadMetadata
                     kit.Kit,
                     KitDescriptor.Parse(
                         kit.Yaml,
-                        $"{sandbox}:/usr/share/sandbox/kit/{kit.Kit}/kit.yaml"
+                        $"{sandbox}:/usr/share/sandbox/kit/{kit.Kit}/kit.yaml",
+                        parser
                     )
                 )
             )

@@ -6,6 +6,7 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using Abox.Infrastructure.Sbx;
@@ -679,7 +680,7 @@ public sealed class SandboxCreatorTests
             "kits/probe/probe.yaml",
             "schemaVersion: \"3\"\nkind: mixin\nargs:\n  mode:\n    required: true\n    env: MODE\n"
         );
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(_root.Path, "sample");
         var runner = Substitute.For<IProcessRunner>();
         var programs = Substitute.For<IHostPrograms>();

@@ -1,5 +1,6 @@
 using Abox.Features.Build;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using static Abox.Tests.TestText;
 
@@ -34,8 +35,8 @@ public sealed class StateMixinGeneratorTests
         var descriptor = File.ReadAllText(Path.Combine(_root.Path, "state", "state.yaml"));
         descriptor.Should().NotContain("\r").And.Contain("path: \"").And.NotContain("\\uD83D");
         CountOccurrences(descriptor, "com.docker.sandbox/host-mount@1").Should().Be(entries.Length);
-        YamlReader
-            .Parse(descriptor, "generated state")
+        new YamlDotNetParser()
+            .Read(descriptor, "generated state")
             .GetEntries("capabilities")
             .Select(capability => capability.GetEntry("config")!.GetString("path"))
             .Should()

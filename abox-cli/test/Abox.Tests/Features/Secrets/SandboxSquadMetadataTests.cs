@@ -2,6 +2,8 @@ using Abox.Features.Secrets;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
@@ -58,7 +60,13 @@ public sealed class SandboxSquadMetadataTests : IDisposable
         }
 
         var local = CredentialRequest.Of(
-            new SquadResolver(new AboxConfig()).Resolve(_root.Path, "sample", "ac", [])
+            new SquadResolver(new AboxConfig(), new YamlDotNetParser()).Resolve(
+                _root.Path,
+                "sample",
+                "ac",
+                []
+            ),
+            new YamlDotNetParser()
         );
 
         // Act
@@ -70,7 +78,8 @@ public sealed class SandboxSquadMetadataTests : IDisposable
                     .. descriptors.Select(kit => new StagedKitDescriptor(kit.Key, kit.Value)),
                 ],
                 null
-            )
+            ),
+            new YamlDotNetParser()
         );
 
         // Assert

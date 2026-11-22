@@ -4,6 +4,7 @@ using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -27,7 +28,7 @@ public sealed class BuildTagServiceTests
         var programs = Substitute.For<IHostPrograms>();
         var console = new TestConsole();
         var service = TestServiceGraphs.Build(
-            new SquadResolver(new AboxConfig()),
+            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             new PersonalConfigurations(paths),
             new BuildStore(paths),
             LocalWorkloadFactory.Images(programs, runner, console),

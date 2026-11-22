@@ -3,6 +3,8 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -21,7 +23,7 @@ public sealed class BuiltKitCreationTests
         _root.File("teams/sample/sample.workload", "template: example.com/sample:1\n");
         _root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
         KitBuildScripts.Write(_root, "built", "echo generated > \"$1/generated.txt\"\n");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(_root.Path, "sample");
         await TestServiceGraphs
             .Build(
@@ -72,7 +74,7 @@ public sealed class BuiltKitCreationTests
             "workload: sample\nsecrets:\n  - service: elastic\n    prompt: The API key\n"
         );
         _root.File("teams/sample/sample.workload", "template: example.com/sample:1\n");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(_root.Path, "sample");
         await TestServiceGraphs
             .Build(

@@ -5,6 +5,7 @@ using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 
 namespace Abox.Tests;
@@ -484,7 +485,9 @@ public sealed class WorkloadKitGeneratorTests
             var content = File.ReadAllText(Path.Combine(_root.Path, "kit", file));
             content.Should().NotContain("\r").And.NotContain("\\uD83D");
         }
-        var descriptor = YamlReader.LoadFile(Path.Combine(_root.Path, "kit", "workload.yaml"));
+        var descriptor = new YamlDotNetParser().ReadFile(
+            Path.Combine(_root.Path, "kit", "workload.yaml")
+        );
         descriptor.GetString("displayName").Should().Be(name);
         descriptor
             .GetString("description")
@@ -610,7 +613,7 @@ public sealed class WorkloadKitGeneratorTests
     private WorkloadFile WriteWorkload(string content, string name = "mti-ca-dotnet")
     {
         var path = _root.File(name + ".workload", content);
-        return WorkloadFile.Load(path);
+        return WorkloadFile.Load(path, new YamlDotNetParser());
     }
 
     private async Task<ProcessResult> RunBootstrapAsync(string commands, string afterBootstrap = "")

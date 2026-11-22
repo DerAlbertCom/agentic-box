@@ -1,6 +1,8 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
@@ -16,7 +18,7 @@ public sealed class SquadCompositionTests
         root.File("teams/sample/base.workload", "template: example.com/base:1\n");
         root.File("teams/sample/ac.abox", "workload: base\n");
         var personal = root.File("personal/extra.abox", declaration + "\n");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
 
         // Act
         var resolve = () =>
@@ -58,7 +60,7 @@ public sealed class SquadCompositionTests
             $"base: {baseName}\nparameters: {{url: 'https://example.com'}}\nkits: [example.com/extra:1]\nstate: [~/.personal-child]\n"
         );
         var localKit = root.CreateDirectory("kits/personal-kit");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var files = new[] { projectBase, projectChild, personalBase, personalChild };
 
         // Act
@@ -124,7 +126,7 @@ public sealed class SquadCompositionTests
         root.File("teams/sample/base.workload", "template: example.com/base:1\n");
         var project = root.File("teams/sample/ac.abox", $"workload: base\n{original}\n");
         var personal = root.File("personal/extra.abox", duplicate + "\n");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
 
         // Act
         var resolve = () =>
@@ -159,7 +161,7 @@ public sealed class SquadCompositionTests
                 ? "workload: forbidden\n"
                 : "base: base\nworkload: forbidden\n"
         );
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
 
         // Act
         var resolve = () =>

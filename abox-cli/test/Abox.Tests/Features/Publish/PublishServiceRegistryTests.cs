@@ -2,6 +2,8 @@ using System.Text.Json;
 using Abox.Features.Publish;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Registry;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -16,7 +18,12 @@ public sealed class PublishServiceRegistryTests
 
     public PublishServiceRegistryTests()
     {
-        _service = new PublishService(_fixture.Store, _registry, _fixture.Console);
+        _service = new PublishService(
+            _fixture.Store,
+            _registry,
+            _fixture.Console,
+            new YamlDotNetParser()
+        );
         _registry.IsInstalled.Returns(true);
         _registry.PushAsync(Arg.Any<RegistryPush>(), Arg.Any<CancellationToken>()).Returns(Pushed);
         _registry

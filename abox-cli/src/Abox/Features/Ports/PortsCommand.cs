@@ -6,6 +6,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
+using Abox.Features.Shared.Yaml;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.Ports;
@@ -18,7 +19,8 @@ public sealed class PortsCommand : Command
         Lazy<FolderSandbox> sandboxes,
         AppPorts ports,
         SandboxHttps https,
-        IConsole console
+        IConsole console,
+        IYamlParser parser
     )
         : base("ports", "Publish discovered application ports on host loopback with an offset.")
     {
@@ -52,7 +54,7 @@ public sealed class PortsCommand : Command
                             );
                         var folderConfig = refresh
                             ? null
-                            : await FolderConfig.LoadAsync(folder, cancellationToken);
+                            : await FolderConfig.LoadAsync(folder, parser, cancellationToken);
                         var selectedOffset = FolderConfig.SelectPortOffset(
                             folderConfig,
                             parseResult.GetValue(offset)

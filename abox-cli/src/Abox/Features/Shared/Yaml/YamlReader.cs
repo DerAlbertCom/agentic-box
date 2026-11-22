@@ -1,8 +1,6 @@
 using Abox.Features.Shared.Common;
-using YamlDotNet.Core;
-using YamlDotNet.RepresentationModel;
 
-namespace Abox.Infrastructure;
+namespace Abox.Features.Shared.Yaml;
 
 /// <summary>
 /// Reads the small YAML documents abox uses. The shapes are known, so the reader is
@@ -10,129 +8,63 @@ namespace Abox.Infrastructure;
 /// </summary>
 public sealed class YamlReader
 {
-    private readonly YamlMappingNode _mapping;
+    private readonly YamlMapping _mapping;
     private readonly YamlEntry _root;
-    private readonly string _source;
-    private readonly YamlSources _sources;
 
-    private YamlReader(YamlMappingNode root, string source, YamlSources sources)
+    private YamlReader(YamlMapping root)
     {
         _mapping = root;
-        _sources = sources;
-        _root = new YamlEntry(root, source, null, sources);
-        _source = source;
+        _root = new YamlEntry(root, null);
     }
 
-    /// <summary>Reads a YAML file.</summary>
-    public static YamlReader LoadFile(string path)
-    {
-        if (!File.Exists(path))
+    /// <summary>Reads a parsed YAML document, which must be a mapping or empty.</summary>
+    public static YamlReader Read(YamlNode root) =>
+        root switch
         {
-            throw new AboxException($"'{path}' does not exist.");
-        }
-
-        return Parse(File.ReadAllText(path), path);
-    }
-
-    /// <summary>Reads a YAML document.</summary>
-    public static YamlReader Parse(string yaml, string source)
-    {
-        YamlNode root;
-        try
-        {
-            var stream = new YamlStream();
-            stream.Load(new StringReader(yaml));
-            root =
-                stream.Documents.Count > 0
-                    ? stream.Documents[0].RootNode
-                    : new YamlScalarNode(string.Empty);
-        }
-        catch (YamlException exception)
-        {
-            throw new AboxException(
-                $"'{source}' is not valid YAML: {exception.Message}",
-                exception
-            );
-        }
-
-        if (root is not YamlMappingNode mapping)
-        {
-            if (root is YamlScalarNode { Value: "" or null })
-            {
-                return new YamlReader(new YamlMappingNode(), source, new YamlSources());
-            }
-
-            throw new AboxException($"'{source}' must contain a mapping at the top level.");
-        }
-
-        return new YamlReader(mapping, source, new YamlSources());
-    }
+            YamlMapping mapping => new YamlReader(mapping),
+            YamlValue { Value: "" } => new YamlReader(new YamlMapping([], root.Source)),
+            _ => throw new AboxException(
+                $"'{root.Source}' must contain a mapping at the top level."
+            ),
+        };
 
     /// <summary>
     /// Lays <paramref name="overlay"/> over <paramref name="base"/>: mappings are merged
     /// recursively, every other value (including lists) is replaced as a whole. An error
     /// about a value of the result names the file that supplied the value.
     /// </summary>
-    public static YamlReader Merge(YamlReader @base, YamlReader overlay)
-    {
-        var sources = new YamlSources();
-        var root = Merge(@base, @base._mapping, overlay, overlay._mapping, sources);
-        return new YamlReader(root, overlay._source, sources);
-    }
+    public static YamlReader Merge(YamlReader @base, YamlReader overlay) =>
+        new(Merge(@base._mapping, overlay._mapping));
 
-    private static YamlMappingNode Merge(
-        YamlReader @base,
-        YamlMappingNode baseMapping,
-        YamlReader overlay,
-        YamlMappingNode overlayMapping,
-        YamlSources sources
-    )
+    private static YamlMapping Merge(YamlMapping baseMapping, YamlMapping overlayMapping)
     {
-        var merged = new YamlMappingNode();
-        foreach (var (key, value) in baseMapping.Children)
+        var merged = baseMapping.Entries.ToList();
+        foreach (var entry in overlayMapping.Entries)
         {
-            @base.Track(key, sources);
-            @base.Track(value, sources);
-            merged.Add(key, value);
-        }
-
-        foreach (var (key, value) in overlayMapping.Children)
-        {
-            var overlaid = value;
+            var index = merged.FindIndex(existing => YamlEntry.SameKey(existing.Key, entry.Key));
+            var overlaid = entry.Value;
             if (
-                value is YamlMappingNode overlayChild
-                && merged.Children.TryGetValue(key, out var baseValue)
-                && baseValue is YamlMappingNode baseChild
+                entry.Value is YamlMapping overlayChild
+                && index >= 0
+                && merged[index].Value is YamlMapping baseChild
             )
             {
-                overlaid = Merge(@base, baseChild, overlay, overlayChild, sources);
-                sources.Add(overlaid, overlay.SourceOf(value));
+                overlaid = Merge(baseChild, overlayChild);
             }
-            else
+
+            if (index >= 0)
             {
-                overlay.Track(value, sources);
+                merged.RemoveAt(index);
             }
 
-            overlay.Track(key, sources);
-            merged.Children.Remove(key);
-            merged.Add(key, overlaid);
+            merged.Add(entry with { Value = overlaid });
         }
 
-        return merged;
+        return new YamlMapping(merged, overlayMapping.Source);
     }
-
-    private void Track(YamlNode node, YamlSources sources)
-    {
-        foreach (var child in node.AllNodes)
-        {
-            sources.Add(child, SourceOf(child));
-        }
-    }
-
-    private string SourceOf(YamlNode node) => _sources.Of(node) ?? _source;
 
     /// <summary>The file this reader reads from; for a merged document, the overlaid file.</summary>
-    public string Source => _source;
+    public string Source => _mapping.Source;
 
     /// <summary>The file that supplied the value of a key.</summary>
     public string SourceOf(string key) => _root.SourceOf(key);
@@ -168,14 +100,16 @@ public sealed class YamlReader
     public void RejectUnknownKeys(params string[] known) => _root.RejectUnknownKeys(known);
 }
 
-/// <summary>The file each node of a merged document came from.</summary>
-internal sealed class YamlSources
+/// <summary>Reads YAML through a parser into a strict <see cref="YamlReader"/>.</summary>
+public static class YamlParserReading
 {
-    private readonly Dictionary<YamlNode, string> _files = new(ReferenceEqualityComparer.Instance);
+    /// <summary>Reads a YAML document.</summary>
+    public static YamlReader Read(this IYamlParser parser, string yaml, string source) =>
+        YamlReader.Read(parser.Parse(yaml, source));
 
-    public void Add(YamlNode node, string file) => _files[node] = file;
-
-    public string? Of(YamlNode node) => _files.GetValueOrDefault(node);
+    /// <summary>Reads a YAML file.</summary>
+    public static YamlReader ReadFile(this IYamlParser parser, string path) =>
+        YamlReader.Read(parser.LoadFile(path));
 }
 
 /// <summary>
@@ -183,48 +117,53 @@ internal sealed class YamlSources
 /// </summary>
 public sealed class YamlEntry
 {
-    private readonly string _source;
     private readonly string? _key;
-    private readonly YamlSources _sources;
 
-    internal YamlEntry(YamlNode node, string source, string? key, YamlSources sources)
+    internal YamlEntry(YamlNode node, string? key)
     {
         Node = node;
-        _source = source;
         _key = key;
-        _sources = sources;
     }
 
     private YamlNode Node { get; }
 
     /// <summary>The file this element comes from.</summary>
-    public string Source => _source;
+    public string Source => Node.Source;
 
     private string KeyPath(string key) => _key is null ? key : $"{_key}.{key}";
 
     private static string KeyName(YamlNode node) =>
-        node is YamlScalarNode scalar ? scalar.Value ?? string.Empty : node.ToString();
+        node is YamlValue scalar ? scalar.Value : node.ToString() ?? string.Empty;
 
-    private string SourceOf(YamlNode node) => _sources.Of(node) ?? _source;
+    internal static bool SameKey(YamlNode left, YamlNode right) =>
+        left is YamlValue leftValue && right is YamlValue rightValue
+            ? leftValue.Value == rightValue.Value
+            : ReferenceEquals(left, right);
 
-    private bool TryGetValue(string key, out YamlNode node) =>
-        Mapping().Children.TryGetValue(new YamlScalarNode(key), out node!);
+    private bool TryGetValue(string key, out YamlNode node)
+    {
+        var entry = Mapping()
+            .Entries.FirstOrDefault(entry =>
+                entry.Key is YamlValue { Value: var name } && name == key
+            );
+        node = entry?.Value!;
+        return entry is not null;
+    }
 
-    private AboxException Invalid(YamlNode node, string key, string requirement) =>
-        new($"'{SourceOf(node)}': '{key}' must be {requirement}.");
+    private static AboxException Invalid(YamlNode node, string key, string requirement) =>
+        new($"'{node.Source}': '{key}' must be {requirement}.");
 
     /// <summary>The file that supplied the value of a key, or this element's file when it is absent.</summary>
-    public string SourceOf(string key) => TryGetValue(key, out var node) ? SourceOf(node) : _source;
+    public string SourceOf(string key) => TryGetValue(key, out var node) ? node.Source : Source;
 
     /// <summary>Whether this mapping has a key.</summary>
     public bool Has(string key) => TryGetValue(key, out _);
 
     /// <summary>Whether the element is a plain value.</summary>
-    public bool IsScalar => Node is YamlScalarNode;
+    public bool IsScalar => Node is YamlValue;
 
     /// <summary>The value of the element, when it is a plain value.</summary>
-    public string ScalarValue =>
-        Node is YamlScalarNode scalar ? scalar.Value ?? string.Empty : string.Empty;
+    public string ScalarValue => Node is YamlValue scalar ? scalar.Value : string.Empty;
 
     /// <summary>The value of a key of the element, when the element is a mapping.</summary>
     public string? GetString(string key)
@@ -234,7 +173,7 @@ public sealed class YamlEntry
             return null;
         }
 
-        if (node is not YamlScalarNode scalar)
+        if (node is not YamlValue scalar)
         {
             throw Invalid(node, KeyPath(key), "a value");
         }
@@ -245,8 +184,8 @@ public sealed class YamlEntry
     /// <summary>Whether this mapping has a key with a YAML null value (empty, ~ or null, unquoted).</summary>
     public bool IsNull(string key) =>
         TryGetValue(key, out var node)
-        && node is YamlScalarNode { Style: ScalarStyle.Plain or ScalarStyle.Any } scalar
-        && scalar.Value is null or "" or "~" or "null" or "Null" or "NULL";
+        && node is YamlValue { IsPlain: true } scalar
+        && scalar.Value is "" or "~" or "null" or "Null" or "NULL";
 
     /// <summary>The value of a key of the element, when it is an unquoted integer.</summary>
     public int? GetInteger(string key)
@@ -257,7 +196,7 @@ public sealed class YamlEntry
         }
 
         if (
-            node is not YamlScalarNode { Style: ScalarStyle.Plain or ScalarStyle.Any } scalar
+            node is not YamlValue { IsPlain: true } scalar
             || !int.TryParse(
                 scalar.Value,
                 System.Globalization.NumberStyles.AllowLeadingSign,
@@ -280,7 +219,7 @@ public sealed class YamlEntry
             return null;
         }
 
-        if (node is YamlScalarNode { Style: ScalarStyle.Plain or ScalarStyle.Any } scalar)
+        if (node is YamlValue { IsPlain: true } scalar)
         {
             switch (scalar.Value)
             {
@@ -302,13 +241,13 @@ public sealed class YamlEntry
             return new Dictionary<string, string>();
         }
 
-        if (node is not YamlMappingNode values)
+        if (node is not YamlMapping values)
         {
             throw Invalid(node, KeyPath(key), "a mapping");
         }
 
         var result = new Dictionary<string, string>();
-        foreach (var (childKey, childValue) in values.Children)
+        foreach (var (childKey, childValue) in values.Entries)
         {
             var name = KeyName(childKey);
             result[name] = Scalar(childValue, $"{KeyPath(key)}.{name}");
@@ -325,12 +264,12 @@ public sealed class YamlEntry
             return [];
         }
 
-        if (node is not YamlSequenceNode sequence)
+        if (node is not YamlSequence sequence)
         {
             throw Invalid(node, KeyPath(key), "a list");
         }
 
-        return sequence.Children.Select(child => Scalar(child, KeyPath(key))).ToList();
+        return sequence.Items.Select(child => Scalar(child, KeyPath(key))).ToList();
     }
 
     /// <summary>
@@ -344,28 +283,28 @@ public sealed class YamlEntry
             return [];
         }
 
-        if (node is YamlScalarNode)
+        if (node is YamlValue)
         {
             var value = Scalar(node, KeyPath(key));
             return value.Length == 0 ? [] : [value];
         }
 
-        if (node is not YamlSequenceNode sequence)
+        if (node is not YamlSequence sequence)
         {
             throw Invalid(node, KeyPath(key), "a value or a list");
         }
 
-        return sequence.Children.Select(child => Scalar(child, KeyPath(key))).ToList();
+        return sequence.Items.Select(child => Scalar(child, KeyPath(key))).ToList();
     }
 
-    private string Scalar(YamlNode node, string key)
+    private static string Scalar(YamlNode node, string key)
     {
-        if (node is not YamlScalarNode scalar)
+        if (node is not YamlValue scalar)
         {
             throw Invalid(node, key, "a value");
         }
 
-        return scalar.Value ?? string.Empty;
+        return scalar.Value;
     }
 
     /// <summary>The value of a key of the element, when it is a mapping.</summary>
@@ -376,12 +315,12 @@ public sealed class YamlEntry
             return null;
         }
 
-        if (_key is not null && node is not YamlMappingNode)
+        if (_key is not null && node is not YamlMapping)
         {
             throw Invalid(node, KeyPath(key), "a mapping");
         }
 
-        return new YamlEntry(node, SourceOf(node), KeyPath(key), _sources);
+        return new YamlEntry(node, KeyPath(key));
     }
 
     /// <summary>The value of a key of the element, when it is a list of mappings or values.</summary>
@@ -392,37 +331,35 @@ public sealed class YamlEntry
             return [];
         }
 
-        if (node is not YamlSequenceNode sequence)
+        if (node is not YamlSequence sequence)
         {
             throw Invalid(node, KeyPath(key), "a list");
         }
 
-        return sequence
-            .Children.Select(child => new YamlEntry(child, SourceOf(child), KeyPath(key), _sources))
-            .ToList();
+        return sequence.Items.Select(child => new YamlEntry(child, KeyPath(key))).ToList();
     }
 
     /// <summary>Fails when the element has keys abox does not know.</summary>
     public void RejectUnknownKeys(params string[] known)
     {
-        foreach (var (childKey, _) in Mapping().Children)
+        foreach (var (childKey, _) in Mapping().Entries)
         {
             var name = KeyName(childKey);
             if (!known.Contains(name))
             {
                 throw new AboxException(
-                    $"'{SourceOf(childKey)}': '{KeyPath(name)}' is not a known key. Known keys: {string.Join(", ", known)}."
+                    $"'{childKey.Source}': '{KeyPath(name)}' is not a known key. Known keys: {string.Join(", ", known)}."
                 );
             }
         }
     }
 
-    private YamlMappingNode Mapping()
+    private YamlMapping Mapping()
     {
-        if (Node is not YamlMappingNode mapping)
+        if (Node is not YamlMapping mapping)
         {
             throw new AboxException(
-                $"'{_source}': every '{_key}' entry must be a value or a mapping."
+                $"'{Source}': every '{_key}' entry must be a value or a mapping."
             );
         }
 

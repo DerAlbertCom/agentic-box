@@ -1,13 +1,14 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Squads;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
 public sealed class SquadResolverTests : IDisposable
 {
     private readonly TempDirectory _root = new();
-    private readonly SquadResolver _resolver = new(new AboxConfig());
+    private readonly SquadResolver _resolver = new(new AboxConfig(), new YamlDotNetParser());
 
     public void Dispose() => _root.Dispose();
 

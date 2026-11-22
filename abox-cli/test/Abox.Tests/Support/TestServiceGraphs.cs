@@ -9,6 +9,7 @@ using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Shell;
 using NSubstitute;
@@ -95,12 +96,13 @@ internal static class TestServiceGraphs
         IConsole console
     ) =>
         new(
-            new SquadResolver(new AboxConfig()),
+            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             new PersonalConfigurations(paths),
             secrets,
             approvals,
             new SecretValues(secrets, console),
-            console
+            console,
+            new YamlDotNetParser()
         );
 
     /// <summary>A host secret store that holds nothing and stores and removes every secret.</summary>

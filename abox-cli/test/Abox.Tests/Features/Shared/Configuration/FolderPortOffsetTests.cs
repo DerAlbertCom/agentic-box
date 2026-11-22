@@ -1,5 +1,7 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
@@ -16,7 +18,11 @@ public sealed class FolderPortOffsetTests
         );
 
         // Act
-        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var snapshot = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
         await File.WriteAllTextAsync(path, "{}");
 
         // Assert
@@ -50,7 +56,8 @@ public sealed class FolderPortOffsetTests
         root.File("abox.yaml", json);
 
         // Act
-        var load = () => FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var load = () =>
+            FolderConfig.LoadAsync(root.Path, new YamlDotNetParser(), CancellationToken.None);
 
         // Assert
         await load.Should().ThrowAsync<AboxException>();

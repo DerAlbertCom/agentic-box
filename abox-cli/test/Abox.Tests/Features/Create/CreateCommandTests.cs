@@ -5,6 +5,8 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -280,7 +282,7 @@ public sealed class CreateCommandTests
             Path.Combine(_root.Path, "config"),
             Path.Combine(_root.Path, "state")
         );
-        var loaded = AboxConfigLoader.Load(paths);
+        var loaded = AboxConfigLoader.Load(paths, new YamlDotNetParser());
         var config = new AboxConfig
         {
             DefaultTeam = "sample",
@@ -303,7 +305,7 @@ public sealed class CreateCommandTests
         return new CreateCommand(
             new Lazy<AboxConfig>(() => config),
             new Preflight(_console, ReadyPreflight.Checks()),
-            new Lazy<SquadResolver>(() => new SquadResolver(config)),
+            new Lazy<SquadResolver>(() => new SquadResolver(config, new YamlDotNetParser())),
             new Lazy<SandboxCreator>(() =>
                 TestServiceGraphs.Creator(
                     new SandboxRecordStore(paths),
@@ -320,7 +322,8 @@ public sealed class CreateCommandTests
                     )
                 )
             ),
-            _console
+            _console,
+            new YamlDotNetParser()
         );
     }
 

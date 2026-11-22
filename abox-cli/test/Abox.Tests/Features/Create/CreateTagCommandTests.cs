@@ -6,6 +6,7 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -38,7 +39,9 @@ public sealed class CreateTagCommandTests
             "defaultTeam: sample\n"
                 + (configuredTag ? "defaultTag: " + JsonSerializer.Serialize(tag) + "\n" : "")
         );
-        var config = new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths));
+        var config = new Lazy<AboxConfig>(() =>
+            AboxConfigLoader.Load(paths, new YamlDotNetParser())
+        );
         var console = new TestConsole();
         var preflight = Substitute.For<IPreflightChecks>();
         var programs = Substitute.For<IHostPrograms>();
@@ -49,7 +52,7 @@ public sealed class CreateTagCommandTests
         var command = new CreateCommand(
             config,
             new Preflight(console, preflight),
-            new Lazy<SquadResolver>(() => new SquadResolver(config.Value)),
+            new Lazy<SquadResolver>(() => new SquadResolver(config.Value, new YamlDotNetParser())),
             new Lazy<SandboxCreator>(() =>
                 TestServiceGraphs.Creator(
                     new SandboxRecordStore(paths),
@@ -70,7 +73,8 @@ public sealed class CreateTagCommandTests
                     )
                 )
             ),
-            console
+            console,
+            new YamlDotNetParser()
         );
         var arguments = new List<string> { "--location", root.Path, "--squad", "ac", "--yes" };
         if (local)

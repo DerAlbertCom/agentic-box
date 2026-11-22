@@ -1,6 +1,6 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Naming;
-using Abox.Infrastructure;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Configuration;
 

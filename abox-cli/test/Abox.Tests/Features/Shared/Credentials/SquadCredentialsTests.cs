@@ -3,6 +3,8 @@ using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
@@ -351,14 +353,15 @@ public sealed class SquadCredentialsTests
 
     private SquadCredentials Credentials(TestConsole console) =>
         new(
-            new SquadResolver(new AboxConfig()),
+            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             new PersonalConfigurations(
                 AboxPaths.For(Path.Combine(_root.Path, "config"), _root.Path)
             ),
             _secrets,
             _approvals,
             new SecretValues(_secrets, console),
-            console
+            console,
+            new YamlDotNetParser()
         );
 
     private static IReadOnlyList<string> Domains(params string[] domains) =>

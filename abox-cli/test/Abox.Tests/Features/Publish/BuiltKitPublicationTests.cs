@@ -3,6 +3,7 @@ using Abox.Features.Publish;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using NSubstitute;
 
@@ -24,7 +25,7 @@ public sealed class BuiltKitPublicationTests
         );
         _root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
         KitBuildScripts.Write(_root, "built", "echo generated > \"$1/generated.txt\"\n");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(_root.Path, "sample");
         await TestServiceGraphs
             .Build(

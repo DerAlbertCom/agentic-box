@@ -6,6 +6,8 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -58,7 +60,7 @@ internal sealed class RunFlowFixture
         Service = new RunFlow(
             Config,
             launchers,
-            new SquadResolver(Config),
+            new SquadResolver(Config, new YamlDotNetParser()),
             Store,
             Records,
             Create,
@@ -68,7 +70,8 @@ internal sealed class RunFlowFixture
             SandboxFactory.Resolver(Lifecycle, SandboxFactory.Hints(Config, Store, Records)),
             SandboxFactory.Hints(Config, Store, Records),
             hostPrograms,
-            Console
+            Console,
+            new YamlDotNetParser()
         );
         Inspection
             .HasProgramAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())

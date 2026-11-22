@@ -5,6 +5,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -39,7 +40,7 @@ public sealed class BuildTagCommandTests
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists("docker").Returns(true);
         var runner = LocalWorkloadFactory.Runner();
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var store = new BuildStore(paths);
         var service = TestServiceGraphs.Build(
             resolver,
@@ -49,7 +50,7 @@ public sealed class BuildTagCommandTests
             console
         );
         var command = new BuildCommand(
-            new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths)),
+            new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths, new YamlDotNetParser())),
             new Preflight(console, ReadyPreflight.Checks()),
             new Lazy<SquadResolver>(() => resolver),
             new Lazy<BuildService>(() => service),
@@ -116,7 +117,7 @@ public sealed class BuildTagCommandTests
         var runner = Substitute.For<IProcessRunner>();
         var console = new TestConsole();
         var config = new AboxConfig();
-        var resolver = new SquadResolver(config);
+        var resolver = new SquadResolver(config, new YamlDotNetParser());
         var build = TestServiceGraphs.Build(
             resolver,
             new PersonalConfigurations(paths),
@@ -125,7 +126,7 @@ public sealed class BuildTagCommandTests
             console
         );
         var command = new BuildCommand(
-            new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths)),
+            new Lazy<AboxConfig>(() => AboxConfigLoader.Load(paths, new YamlDotNetParser())),
             new Preflight(console, preflight),
             new Lazy<SquadResolver>(() => resolver),
             new Lazy<BuildService>(() => build),

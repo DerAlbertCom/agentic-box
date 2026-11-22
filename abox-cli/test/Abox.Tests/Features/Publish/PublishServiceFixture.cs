@@ -4,6 +4,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -25,7 +26,12 @@ internal sealed class PublishServiceFixture
     internal PublishServiceFixture()
     {
         Store = new BuildStore(AboxPaths.For(Root.Path, Path.Combine(Root.Path, "state")));
-        Service = new PublishService(Store, new DockerRegistryPublisher(Programs, Runner), Console);
+        Service = new PublishService(
+            Store,
+            new DockerRegistryPublisher(Programs, Runner),
+            Console,
+            new YamlDotNetParser()
+        );
         Programs.Exists("docker").Returns(true);
         Runner
             .When(runner =>

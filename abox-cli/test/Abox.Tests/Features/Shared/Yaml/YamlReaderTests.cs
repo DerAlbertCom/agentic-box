@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Common;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 
 namespace Abox.Tests;
@@ -11,7 +12,7 @@ public sealed class YamlReaderTests
     public void ScalarListErrorsRetainTheRootOrNestedKeyPath(bool nested)
     {
         // Arrange
-        var reader = YamlReader.Parse(
+        var reader = new YamlDotNetParser().Read(
             nested ? "section:\n  values: [one, {}]" : "values: [one, {}]",
             "source"
         );
@@ -33,7 +34,7 @@ public sealed class YamlReaderTests
     public void ScalarMapErrorsRetainTheRootOrNestedKeyPath(bool nested)
     {
         // Arrange
-        var reader = YamlReader.Parse(
+        var reader = new YamlDotNetParser().Read(
             nested ? "section:\n  values: {item: []}" : "values: {item: []}",
             "source"
         );
@@ -53,7 +54,10 @@ public sealed class YamlReaderTests
     public void RootEntriesStillAcceptScalarsButNestedEntriesRequireMappings()
     {
         // Arrange
-        var reader = YamlReader.Parse("scalar: value\nsection: {scalar: value}", "source");
+        var reader = new YamlDotNetParser().Read(
+            "scalar: value\nsection: {scalar: value}",
+            "source"
+        );
 
         // Act
         var scalar = reader.GetEntry("scalar")!.ScalarValue;
@@ -70,7 +74,7 @@ public sealed class YamlReaderTests
     public void MergeMergesMappingsRecursivelyAndReplacesValuesAndLists()
     {
         // Arrange
-        var shared = YamlReader.Parse(
+        var shared = new YamlDotNetParser().Read(
             """
             name: shared
             list: [one, two]
@@ -79,7 +83,7 @@ public sealed class YamlReaderTests
             """,
             "shared"
         );
-        var user = YamlReader.Parse(
+        var user = new YamlDotNetParser().Read(
             """
             name: user
             list: [three]
@@ -112,8 +116,8 @@ public sealed class YamlReaderTests
     public void MergedValueErrorsNameTheFileThatSuppliedTheValue(string key, string source)
     {
         // Arrange
-        var shared = YamlReader.Parse("list: [{}]\nsection: {a: [x], b: x}", "shared");
-        var user = YamlReader.Parse("name: [x]\nsection: {b: [x]}", "user");
+        var shared = new YamlDotNetParser().Read("list: [{}]\nsection: {a: [x], b: x}", "shared");
+        var user = new YamlDotNetParser().Read("name: [x]\nsection: {b: [x]}", "user");
         var merged = YamlReader.Merge(shared, user);
 
         // Act

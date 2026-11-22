@@ -3,6 +3,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Secrets;
 
@@ -26,7 +27,8 @@ public sealed class SecretsService(
     ISandboxSquadFileReader squadFiles,
     IHostSecretStore store,
     SecretValues values,
-    IConsole console
+    IConsole console,
+    IYamlParser parser
 )
 {
     /// <summary>Lists the services of the sandbox and whether they are stored.</summary>
@@ -228,7 +230,7 @@ public sealed class SecretsService(
             cancellationToken
         );
         var files = await squadFiles.ReadAsync(sandbox.Name, cancellationToken);
-        return SandboxSquadMetadata.Read(sandbox.Name, files);
+        return SandboxSquadMetadata.Read(sandbox.Name, files, parser);
     }
 
     private void WriteOlderSandboxHint(SandboxSquadMetadata metadata)

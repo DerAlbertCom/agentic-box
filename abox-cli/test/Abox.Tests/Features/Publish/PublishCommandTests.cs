@@ -4,6 +4,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -91,7 +92,7 @@ public sealed class PublishCommandTests
         _root.File("teams/sample/ac.abox", "base: cape\n");
         _root.File("kits/shared.workload", "publishRepository: shared-images-local\n");
         var config = new AboxConfig { DefaultTeam = "sample" };
-        var resolver = new SquadResolver(config);
+        var resolver = new SquadResolver(config, new YamlDotNetParser());
         var build = TestServiceGraphs.Build(
             resolver,
             new PersonalConfigurations(AboxPaths.For(_root.Path, _root.Path)),
@@ -184,8 +185,13 @@ public sealed class PublishCommandTests
     private PublishCommand Command(AboxConfig config) =>
         new(
             new Lazy<AboxConfig>(() => config),
-            new Lazy<SquadResolver>(() => new SquadResolver(config)),
-            new PublishService(_store, new DockerRegistryPublisher(_programs, _runner), _console),
+            new Lazy<SquadResolver>(() => new SquadResolver(config, new YamlDotNetParser())),
+            new PublishService(
+                _store,
+                new DockerRegistryPublisher(_programs, _runner),
+                _console,
+                new YamlDotNetParser()
+            ),
             _console
         );
 

@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -31,7 +33,7 @@ public sealed class UserSecretsSafetyTests
 
         // Act
         var prepared = await copy.PrepareAsync(
-            await FolderConfig.LoadAsync(root.Path, CancellationToken.None),
+            await FolderConfig.LoadAsync(root.Path, new YamlDotNetParser(), CancellationToken.None),
             force,
             CancellationToken.None
         );

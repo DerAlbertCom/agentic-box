@@ -7,6 +7,8 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -175,7 +177,7 @@ public sealed class RunFlowTests
         var service = new RunFlow(
             config,
             new LauncherRegistry([new ShellLauncher()]),
-            new SquadResolver(config),
+            new SquadResolver(config, new YamlDotNetParser()),
             _store,
             _records,
             _create,
@@ -185,7 +187,8 @@ public sealed class RunFlowTests
             SandboxFactory.Resolver(_lifecycle, SandboxFactory.Hints(config, _store, _records)),
             SandboxFactory.Hints(config, _store, _records),
             Substitute.For<IHostPrograms>(),
-            _console
+            _console,
+            new YamlDotNetParser()
         );
 
         // Act
@@ -307,7 +310,7 @@ public sealed class RunFlowTests
         var service = new RunFlow(
             new AboxConfig(),
             new LauncherRegistry([new ShellLauncher()]),
-            new SquadResolver(new AboxConfig()),
+            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             _store,
             _records,
             _create,
@@ -320,7 +323,8 @@ public sealed class RunFlowTests
             ),
             SandboxFactory.Hints(new AboxConfig(), _store, _records),
             Substitute.For<IHostPrograms>(),
-            _console
+            _console,
+            new YamlDotNetParser()
         );
 
         // Act

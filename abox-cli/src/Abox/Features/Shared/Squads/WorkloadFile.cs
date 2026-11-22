@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Naming;
-using Abox.Infrastructure;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Squads;
 
@@ -56,9 +56,9 @@ public sealed partial class WorkloadFile
     public IReadOnlyList<string> Scripts { get; }
 
     /// <summary>Reads a <c>.workload</c> file.</summary>
-    public static WorkloadFile Load(string path)
+    public static WorkloadFile Load(string path, IYamlParser parser)
     {
-        var reader = YamlReader.LoadFile(path);
+        var reader = parser.ReadFile(path);
         reader.RejectUnknownKeys("template", "publishRepository", "apt", "mise", "scripts");
 
         var publishRepository = reader.GetString("publishRepository");

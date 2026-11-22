@@ -6,6 +6,7 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Create;
 
@@ -19,7 +20,8 @@ public sealed class CreateCommand : Command
         Preflight preflight,
         Lazy<SquadResolver> resolver,
         Lazy<SandboxCreator> create,
-        IConsole console
+        IConsole console,
+        IYamlParser parser
     )
         : base(
             "create",
@@ -99,6 +101,7 @@ public sealed class CreateCommand : Command
                         );
                         var folderConfig = await FolderConfig.LoadAsync(
                             resolvedLocation,
+                            parser,
                             cancellationToken
                         );
                         var selectedSquad =

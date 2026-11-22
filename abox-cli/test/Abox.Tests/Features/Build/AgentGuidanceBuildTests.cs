@@ -4,6 +4,7 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using NSubstitute;
 
@@ -22,7 +23,7 @@ public sealed class AgentGuidanceBuildTests
     {
         // Arrange
         using var root = new TempDirectory();
-        var source = KitDescriptor.Load(FixtureKit(kitName))!;
+        var source = KitDescriptor.Load(FixtureKit(kitName), new YamlDotNetParser())!;
         var kitDirectory = root.CreateDirectory("kits/" + kitName);
         File.Copy(source.DescriptorPath, Path.Combine(kitDirectory, kitName + ".yaml"));
         root.File("teams/sample/ac.abox", $"workload: sample\nkits: [{kitName}]\n");
@@ -31,7 +32,7 @@ public sealed class AgentGuidanceBuildTests
         root.File("image-workdir/project.txt", "the image default is not the project\n");
         var paths = AboxPaths.For(root.CreateDirectory("config"), root.CreateDirectory("state"));
         var store = new BuildStore(paths);
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var runner = Substitute.For<IProcessRunner>();
         var service = TestServiceGraphs.Build(
             resolver,
@@ -58,8 +59,8 @@ public sealed class AgentGuidanceBuildTests
             root.CreateDirectory("publication-snapshot")
         );
         var kit = manifest.Kits.Should().ContainSingle().Which;
-        var descriptor = KitDescriptor.Load(snapshot[kit.Reference])!;
-        var yaml = YamlReader.LoadFile(descriptor.DescriptorPath);
+        var descriptor = KitDescriptor.Load(snapshot[kit.Reference], new YamlDotNetParser())!;
+        var yaml = new YamlDotNetParser().ReadFile(descriptor.DescriptorPath);
         var context = yaml.GetEntries("capabilities")
             .Should()
             .ContainSingle(entry => entry.GetString("type") == "com.docker.sandbox/agent-context@2")

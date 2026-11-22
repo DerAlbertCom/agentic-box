@@ -1,6 +1,8 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
@@ -27,7 +29,8 @@ public sealed class SquadDiscoveryTests
         var nested = root.CreateDirectory("projects/app/src");
         root.File("projects/app/src/kits/shared.workload", "template: example.com/wrong:1\n");
         var resolver = new SquadResolver(
-            new AboxConfig { TeamsDirectory = teams, KitsDirectory = kits }
+            new AboxConfig { TeamsDirectory = teams, KitsDirectory = kits },
+            new YamlDotNetParser()
         );
 
         // Act
@@ -57,7 +60,7 @@ public sealed class SquadDiscoveryTests
         root.CreateDirectory("kits/project-kit");
         var workingDirectory = root.CreateDirectory("projects/app");
         root.CreateDirectory("projects/app/src");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var originalDirectory = Directory.GetCurrentDirectory();
         try
         {
@@ -95,7 +98,7 @@ public sealed class SquadDiscoveryTests
         var nested = root.CreateDirectory("projects/app/src");
         root.File("projects/app/src/kits/shared.workload", "template: example.com/wrong:1\n");
         root.CreateDirectory("projects/app/src/kits/project-kit");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
 
         // Act
         var resolve = () => resolver.Resolve(nested, "sample", "ac", []);
@@ -116,7 +119,10 @@ public sealed class SquadDiscoveryTests
         root.File("config/teams/one/shared.abox", "workload: one\n");
         root.File("config/teams/two/shared.abox", "workload: two\n");
         var nested = root.CreateDirectory("src/app");
-        var resolver = new SquadResolver(new AboxConfig { TeamsDirectory = "config/teams" });
+        var resolver = new SquadResolver(
+            new AboxConfig { TeamsDirectory = "config/teams" },
+            new YamlDotNetParser()
+        );
 
         // Act
         var resolve = () => resolver.Resolve(nested, "sample", "ac", []);

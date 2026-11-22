@@ -22,6 +22,7 @@ using Abox.Features.Shared.SandboxCleanup;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 using Abox.Features.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
@@ -80,8 +81,12 @@ public static class AboxServiceCollection
         services.AddSingleton(AboxPaths.Create());
         // Commands describe their syntax eagerly, but resolve configuration-dependent work only in actions.
         services.AddSingleton(typeof(Lazy<>), typeof(LazyService<>));
+        services.AddSingleton<IYamlParser, YamlDotNetParser>();
         services.AddSingleton(provider =>
-            AboxConfigLoader.Load(provider.GetRequiredService<AboxPaths>())
+            AboxConfigLoader.Load(
+                provider.GetRequiredService<AboxPaths>(),
+                provider.GetRequiredService<IYamlParser>()
+            )
         );
         services.AddSingleton<ProcessOutput>();
         services.AddSingleton<IProcessRunner, ProcessRunner>();

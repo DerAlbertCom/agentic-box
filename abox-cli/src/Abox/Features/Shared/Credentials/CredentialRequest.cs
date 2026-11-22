@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Credentials;
 
@@ -20,11 +21,11 @@ public sealed record CredentialRequest(
     /// The credentials the local kits of the squad ask for, one per service. Kits from a
     /// registry cannot be inspected and are left out.
     /// </summary>
-    public static IReadOnlyList<CredentialRequest> Of(ResolvedSquad squad) =>
+    public static IReadOnlyList<CredentialRequest> Of(ResolvedSquad squad, IYamlParser parser) =>
         Merge(
             squad
                 .Kits.Where(kit => kit.IsLocal)
-                .Select(kit => (kit.Name, Descriptor: KitDescriptor.Load(kit.Directory!)))
+                .Select(kit => (kit.Name, Descriptor: KitDescriptor.Load(kit.Directory!, parser)))
                 .Where(kit => kit.Descriptor is not null)
                 .Select(kit => (kit.Name, kit.Descriptor!))
         );

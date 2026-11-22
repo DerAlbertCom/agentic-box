@@ -6,6 +6,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using NSubstitute;
 
@@ -36,7 +37,7 @@ public sealed class PublishServiceTests
         var configDirectory = Path.Combine(_root.Path, "config");
         _root.File("config/personal.abox", "kits:\n  - private\n");
         var build = TestServiceGraphs.Build(
-            new SquadResolver(new AboxConfig()),
+            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             new PersonalConfigurations(AboxPaths.For(configDirectory, _root.Path)),
             _store,
             LocalWorkloadFactory.Images(),
@@ -110,7 +111,7 @@ public sealed class PublishServiceTests
         pushes.Should().HaveCount(5);
         pushes.Should().OnlyContain(call => call.Arguments.Contains("custom-builder"));
         pushes.Should().OnlyContain(call => !call.Arguments.Contains("--build-arg"));
-        var set = YamlReader.Parse(_descriptors.Last(), "set");
+        var set = new YamlDotNetParser().Read(_descriptors.Last(), "set");
         var kits = set.GetEntries("kits");
         kits.Select(kit => kit.GetString("ref")!.Split('@')[0])
             .Should()
@@ -407,13 +408,13 @@ public sealed class PublishServiceTests
         // Arrange
         SaveBuild("ac");
         await _service.PublishAsync(Request("ac"), CancellationToken.None);
-        var firstSet = YamlReader.Parse(_descriptors.Last(), "first set");
+        var firstSet = new YamlDotNetParser().Read(_descriptors.Last(), "first set");
 
         // Act
         await _service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        var secondSet = YamlReader.Parse(_descriptors.Last(), "second set");
+        var secondSet = new YamlDotNetParser().Read(_descriptors.Last(), "second set");
         firstSet
             .GetEntries("kits")[0]
             .GetString("ref")
@@ -488,7 +489,7 @@ public sealed class PublishServiceTests
                 "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac:latest"
             );
         pushes.Should().OnlyContain(call => call.Arguments.Contains("--provenance=mode=min"));
-        var set = YamlReader.Parse(_descriptors.Last(), "published set");
+        var set = new YamlDotNetParser().Read(_descriptors.Last(), "published set");
         set.GetString("kind").Should().Be("set");
         set.GetString("schemaVersion").Should().Be("3");
         set.GetEntries("kits").Should().HaveCount(2);
@@ -534,7 +535,7 @@ public sealed class PublishServiceTests
         await _service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        var descriptor = YamlReader.Parse(_descriptors[^2], "config");
+        var descriptor = new YamlDotNetParser().Read(_descriptors[^2], "config");
         descriptor.GetString("schemaVersion").Should().Be("3");
         descriptor.GetString("kind").Should().Be("mixin");
         _configurations.Should().ContainSingle();

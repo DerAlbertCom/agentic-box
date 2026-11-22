@@ -4,6 +4,7 @@ using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Registry;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Publish;
 
@@ -15,7 +16,12 @@ public sealed record PublishRequest(
 );
 
 /// <summary>Publishes verified source snapshots as v3 kits, then promotes a verified set.</summary>
-public sealed class PublishService(BuildStore store, IRegistryPublisher registry, IConsole console)
+public sealed class PublishService(
+    BuildStore store,
+    IRegistryPublisher registry,
+    IConsole console,
+    IYamlParser parser
+)
 {
     public const string Registry = RegistryImageName.Registry;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -23,7 +29,8 @@ public sealed class PublishService(BuildStore store, IRegistryPublisher registry
     public async Task<int> PublishAsync(PublishRequest request, CancellationToken cancellationToken)
     {
         RegistryImageName.ValidateTag(request.Tag);
-        var builds = new PublicationSources(store).LoadBuilds(request);
+        var sources = new PublicationSources(store, parser);
+        var builds = sources.LoadBuilds(request);
         if (!registry.IsInstalled)
             throw new AboxException(
                 "Publishing v3 kits needs Docker with the Buildx plugin on PATH. Install it and configure a BuildKit builder; see docs/implementation.md."
@@ -32,8 +39,13 @@ public sealed class PublishService(BuildStore store, IRegistryPublisher registry
         using var temporary = new TemporaryDirectory("abox-publish-", "publication", console);
         try
         {
-            var snapshots = PublicationSources.PrepareSnapshots(builds, temporary.Path);
-            var publisher = new VerifiedPublicationRegistry(registry, console, request.Builder);
+            var snapshots = sources.PrepareSnapshots(builds, temporary.Path);
+            var publisher = new VerifiedPublicationRegistry(
+                registry,
+                sources,
+                console,
+                request.Builder
+            );
             await publisher.RequireBuildxAsync(cancellationToken);
             await publisher.ValidateRegistryKitsAsync(
                 builds.SelectMany(item => item.Build.Kits),

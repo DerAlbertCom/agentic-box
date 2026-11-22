@@ -2,14 +2,14 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Publish;
 
 internal sealed record SelectedPublicationBuild(SquadBuildIdentity Identity, BuildManifest Build);
 
 /// <summary>Validates the entire selection, then prepares private fingerprint-checked sources.</summary>
-internal sealed class PublicationSources(BuildStore store)
+internal sealed class PublicationSources(BuildStore store, IYamlParser parser)
 {
     internal IReadOnlyList<SelectedPublicationBuild> LoadBuilds(PublishRequest request)
     {
@@ -26,7 +26,7 @@ internal sealed class PublicationSources(BuildStore store)
         return builds;
     }
 
-    internal static IReadOnlyList<IReadOnlyDictionary<string, string>> PrepareSnapshots(
+    internal IReadOnlyList<IReadOnlyDictionary<string, string>> PrepareSnapshots(
         IReadOnlyList<SelectedPublicationBuild> builds,
         string directory
     )
@@ -86,12 +86,12 @@ internal sealed class PublicationSources(BuildStore store)
         return build;
     }
 
-    private static void ValidateLocalArguments(
+    private void ValidateLocalArguments(
         string directory,
         IReadOnlyDictionary<string, string> arguments
     )
     {
-        var declarations = YamlReader.LoadFile(Descriptor(directory)).GetEntry("args");
+        var declarations = parser.ReadFile(Descriptor(directory)).GetEntry("args");
         foreach (var name in arguments.Keys)
         {
             var declaration = declarations?.GetEntry(name);
@@ -145,8 +145,8 @@ internal sealed class PublicationSources(BuildStore store)
         }
     }
 
-    internal static string Descriptor(string directory) =>
-        KitDescriptor.Load(directory)?.DescriptorPath
+    internal string Descriptor(string directory) =>
+        KitDescriptor.Load(directory, parser)?.DescriptorPath
         ?? throw new AboxException(
             $"The built kit at '{directory}' has no descriptor. Run 'abox build' again."
         );

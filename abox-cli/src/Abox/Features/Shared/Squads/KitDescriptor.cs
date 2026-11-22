@@ -1,4 +1,4 @@
-using Abox.Infrastructure;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Squads;
 
@@ -26,7 +26,7 @@ public sealed class KitDescriptor
     /// Reads the descriptor of a kit directory. Returns null when the directory has no
     /// descriptor.
     /// </summary>
-    public static KitDescriptor? Load(string kitDirectory)
+    public static KitDescriptor? Load(string kitDirectory, IYamlParser parser)
     {
         var path = FindDescriptor(kitDirectory);
         if (path is null)
@@ -34,7 +34,7 @@ public sealed class KitDescriptor
             return null;
         }
 
-        return Parse(File.ReadAllText(path), path);
+        return Parse(File.ReadAllText(path), path, parser);
     }
 
     /// <summary>
@@ -42,9 +42,10 @@ public sealed class KitDescriptor
     /// </summary>
     /// <param name="yaml">The descriptor text.</param>
     /// <param name="source">Where the text comes from, for messages.</param>
-    public static KitDescriptor Parse(string yaml, string source)
+    /// <param name="parser">The YAML parser.</param>
+    public static KitDescriptor Parse(string yaml, string source, IYamlParser parser)
     {
-        var reader = YamlReader.Parse(yaml, source);
+        var reader = parser.Read(yaml, source);
         var services = new List<KitService>();
 
         foreach (var capability in reader.GetEntries("capabilities"))

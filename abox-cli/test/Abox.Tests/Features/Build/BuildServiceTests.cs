@@ -5,6 +5,7 @@ using Abox.Features.Shared.Common;
 using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -430,7 +431,8 @@ public sealed class BuildServiceTests
         // Act
         var metadata = Abox.Features.Secrets.SandboxSquadMetadata.Read(
             "sample-sandbox",
-            new Abox.Features.Shared.Credentials.SandboxSquadFiles([], json)
+            new Abox.Features.Shared.Credentials.SandboxSquadFiles([], json),
+            new YamlDotNetParser()
         );
 
         // Assert

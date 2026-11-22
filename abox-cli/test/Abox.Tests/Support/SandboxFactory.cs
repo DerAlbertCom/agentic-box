@@ -5,6 +5,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
@@ -22,7 +23,7 @@ internal static class SandboxFactory
         AboxConfig config,
         BuildStore store,
         SandboxRecordStore records
-    ) => new(config, new SquadResolver(config), store, records);
+    ) => new(config, new SquadResolver(config, new YamlDotNetParser()), store, records);
 
     public static AppPorts Ports(IApplicationPortPublisher publisher, IConsole console) =>
         new(publisher, console, Https(Exec(), console));

@@ -1,6 +1,6 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Naming;
-using Abox.Infrastructure;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Configuration;
 
@@ -21,14 +21,14 @@ public static class AboxConfigLoader
         "terminalTheme",
     ];
 
-    public static AboxConfig Load(AboxPaths paths)
+    public static AboxConfig Load(AboxPaths paths, IYamlParser parser)
     {
         if (!File.Exists(paths.ConfigFile))
         {
             return new AboxConfig();
         }
 
-        var reader = YamlReader.LoadFile(paths.ConfigFile);
+        var reader = parser.ReadFile(paths.ConfigFile);
         reader.RejectUnknownKeys(KnownKeys);
 
         var defaults = new AboxConfig();

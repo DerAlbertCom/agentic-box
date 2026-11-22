@@ -6,6 +6,8 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -151,7 +153,7 @@ public sealed class SandboxCreatorTeamTests
             _root.File($"teams/{team}/ac.abox", $"workload: {team}\nstate: [~/.{team}]\n");
             _root.File($"teams/{team}/{team}.workload", $"template: example.com/{team}:1\n");
         }
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var names = reverse ? new[] { "other", "sample" } : new[] { "sample", "other" };
         var teams = names.Select(team => resolver.ResolveTeam(_root.Path, team)).ToList();
         var build = TestServiceGraphs.Build(

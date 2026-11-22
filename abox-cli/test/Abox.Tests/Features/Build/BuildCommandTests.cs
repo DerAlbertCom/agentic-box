@@ -4,6 +4,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -34,7 +35,7 @@ public sealed class BuildCommandTests
             Path.Combine(root.Path, "state")
         );
         var store = new BuildStore(paths);
-        var resolver = new SquadResolver(config);
+        var resolver = new SquadResolver(config, new YamlDotNetParser());
         var service = TestServiceGraphs.Build(
             resolver,
             new PersonalConfigurations(paths),

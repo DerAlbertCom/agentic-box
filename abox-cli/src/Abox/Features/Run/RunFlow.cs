@@ -7,6 +7,7 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Run;
 
@@ -39,7 +40,8 @@ public sealed class RunFlow(
     FolderSandbox sandboxes,
     CreateRecoveryHints recoveryHints,
     IHostPrograms hostPrograms,
-    IConsole console
+    IConsole console,
+    IYamlParser parser
 )
 {
     /// <summary>Tells the sandbox's login shell to set the terminal colors (ADR 0002).</summary>
@@ -66,7 +68,7 @@ public sealed class RunFlow(
         }
 
         var location = Path.GetFullPath(request.Location);
-        var folderConfig = await FolderConfig.LoadAsync(location, cancellationToken);
+        var folderConfig = await FolderConfig.LoadAsync(location, parser, cancellationToken);
         var terminalTheme = FolderConfig.SelectTerminalTheme(
             folderConfig,
             config.TerminalTheme,

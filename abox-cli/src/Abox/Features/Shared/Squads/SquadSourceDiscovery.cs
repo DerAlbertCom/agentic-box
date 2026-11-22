@@ -1,10 +1,11 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Squads;
 
 /// <summary>Finds team-owned sources and loads base-first project and personal chains.</summary>
-internal sealed class SquadSourceDiscovery(AboxConfig config)
+internal sealed class SquadSourceDiscovery(AboxConfig config, IYamlParser parser)
 {
     internal SquadResolver.ResolvedTeam ResolveTeam(string rootDirectory, string teamName)
     {
@@ -16,7 +17,7 @@ internal sealed class SquadSourceDiscovery(AboxConfig config)
         }
 
         var bases = files
-            .Select(AboxFile.Load)
+            .Select(file => AboxFile.Load(file, parser))
             .Where(file => file.Base is not null)
             .Select(file => file.Base!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -74,7 +75,7 @@ internal sealed class SquadSourceDiscovery(AboxConfig config)
     internal IReadOnlyList<AboxFile> LoadProjectChain(string teamDirectory, string squadName) =>
         LoadChain(new ConfigRoot(teamDirectory, squadName), FindBaseConfigurationFile);
 
-    private static IReadOnlyList<AboxFile> LoadPersonalChain(string file) =>
+    private IReadOnlyList<AboxFile> LoadPersonalChain(string file) =>
         LoadChain(
             new ConfigRoot(
                 Path.GetDirectoryName(file) ?? ".",
@@ -94,7 +95,7 @@ internal sealed class SquadSourceDiscovery(AboxConfig config)
         return chains.Where(chain => !bases.Contains(chain[^1].Path)).ToList();
     }
 
-    private static IReadOnlyList<AboxFile> LoadChain(
+    private IReadOnlyList<AboxFile> LoadChain(
         ConfigRoot root,
         Func<string, string, string> findBase
     )
@@ -117,7 +118,7 @@ internal sealed class SquadSourceDiscovery(AboxConfig config)
                 );
             }
 
-            var file = AboxFile.Load(path);
+            var file = AboxFile.Load(path, parser);
             chain.Add(file);
             if (file.Base is null)
             {
@@ -216,7 +217,7 @@ internal sealed class SquadSourceDiscovery(AboxConfig config)
     internal WorkloadFile LoadWorkload(AboxFile root, string rootDirectory)
     {
         var path = FindWorkloadFile(root.Directory, root.Workload!, rootDirectory);
-        return WorkloadFile.Load(path);
+        return WorkloadFile.Load(path, parser);
     }
 
     private string FindWorkloadFile(string teamDirectory, string name, string rootDirectory)

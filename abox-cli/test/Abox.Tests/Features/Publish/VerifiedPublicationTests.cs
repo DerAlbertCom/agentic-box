@@ -5,6 +5,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -304,7 +305,8 @@ public sealed class VerifiedPublicationTests
             _service = new PublishService(
                 _store,
                 new DockerRegistryPublisher(programs, Runner),
-                Console
+                Console,
+                new YamlDotNetParser()
             );
             Runner
                 .When(runner =>

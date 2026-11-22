@@ -1,5 +1,7 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
@@ -17,7 +19,7 @@ public sealed class AboxConfigLoaderTests
         );
 
         // Act
-        Action load = () => AboxConfigLoader.Load(paths);
+        Action load = () => AboxConfigLoader.Load(paths, new YamlDotNetParser());
 
         // Assert
         load.Should().NotThrow();
@@ -42,7 +44,8 @@ public sealed class AboxConfigLoaderTests
 
         // Act
         var loaded = AboxConfigLoader.Load(
-            AboxPaths.For(config, Path.Combine(_root.Path, "state"))
+            AboxPaths.For(config, Path.Combine(_root.Path, "state")),
+            new YamlDotNetParser()
         );
 
         // Assert
@@ -63,7 +66,10 @@ public sealed class AboxConfigLoaderTests
 
         // Act
         var action = () =>
-            AboxConfigLoader.Load(AboxPaths.For(config, Path.Combine(_root.Path, "state")));
+            AboxConfigLoader.Load(
+                AboxPaths.For(config, Path.Combine(_root.Path, "state")),
+                new YamlDotNetParser()
+            );
 
         // Assert
         action.Should().Throw<AboxException>().WithMessage("*not a known key*");
@@ -80,7 +86,8 @@ public sealed class AboxConfigLoaderTests
 
         // Act
         var config = AboxConfigLoader.Load(
-            AboxPaths.For(Path.Combine(_root.Path, "config"), _root.Path)
+            AboxPaths.For(Path.Combine(_root.Path, "config"), _root.Path),
+            new YamlDotNetParser()
         );
 
         // Assert
@@ -100,7 +107,10 @@ public sealed class AboxConfigLoaderTests
 
         // Act
         var action = () =>
-            AboxConfigLoader.Load(AboxPaths.For(Path.Combine(_root.Path, "config"), _root.Path));
+            AboxConfigLoader.Load(
+                AboxPaths.For(Path.Combine(_root.Path, "config"), _root.Path),
+                new YamlDotNetParser()
+            );
 
         // Assert
         action.Should().Throw<AboxException>().WithMessage("*pullRepository*repository name*");

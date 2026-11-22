@@ -1,6 +1,8 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -27,7 +29,7 @@ public sealed class UserSecretsCopyTests
 
         // Act
         var prepared = await copy.PrepareAsync(
-            await FolderConfig.LoadAsync(root.Path, CancellationToken.None),
+            await FolderConfig.LoadAsync(root.Path, new YamlDotNetParser(), CancellationToken.None),
             false,
             CancellationToken.None
         );
@@ -87,7 +89,11 @@ public sealed class UserSecretsCopyTests
             host,
             sandbox
         );
-        var folder = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var folder = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Act
         var action = () => copy.PrepareAsync(folder, force, CancellationToken.None);
@@ -113,7 +119,11 @@ public sealed class UserSecretsCopyTests
                     : HostUserSecretStore.Unreadable
             );
         var copy = new UserSecretsCopy(new AboxConfig(), host, sandbox);
-        var folder = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var folder = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Act
         var action = () => copy.PrepareAsync(folder, false, CancellationToken.None);
@@ -135,7 +145,11 @@ public sealed class UserSecretsCopyTests
         host.ReadAsync("sample", Arg.Any<CancellationToken>())
             .Returns(HostUserSecretStore.InvalidUtf8);
         var copy = new UserSecretsCopy(new AboxConfig(), host, sandbox);
-        var folder = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var folder = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Act
         var action = () => copy.PrepareAsync(folder, false, CancellationToken.None);
@@ -156,7 +170,11 @@ public sealed class UserSecretsCopyTests
         root.File("abox.yaml", """{"userSecrets":["sample"]}""");
         Store("sample", "{}");
         var copy = new UserSecretsCopy(new AboxConfig(), host, sandbox);
-        var folder = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var folder = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
 

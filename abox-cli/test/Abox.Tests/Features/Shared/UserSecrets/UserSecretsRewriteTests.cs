@@ -2,6 +2,7 @@ using System.Text.Json;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
@@ -600,7 +601,11 @@ public sealed class UserSecretsRewriteTests
                 )
             );
             return await copy.PrepareAsync(
-                await FolderConfig.LoadAsync(root.Path, CancellationToken.None),
+                await FolderConfig.LoadAsync(
+                    root.Path,
+                    new YamlDotNetParser(),
+                    CancellationToken.None
+                ),
                 force,
                 CancellationToken.None
             );

@@ -5,6 +5,7 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -107,7 +108,11 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
                             "ac",
                             Location,
                             "latest",
-                            await FolderConfig.LoadAsync(Location, cancellationToken),
+                            await FolderConfig.LoadAsync(
+                                Location,
+                                new YamlDotNetParser(),
+                                cancellationToken
+                            ),
                             AssumeYes: true
                         ),
                         cancellationToken

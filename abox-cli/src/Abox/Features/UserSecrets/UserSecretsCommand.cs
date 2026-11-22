@@ -5,6 +5,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.UserSecrets;
@@ -16,7 +17,8 @@ public sealed class UserSecretsCommand : Command
         Preflight preflight,
         Lazy<UserSecretsCopy> copy,
         Lazy<FolderSandbox> sandboxes,
-        IConsole console
+        IConsole console,
+        IYamlParser parser
     )
         : base(
             "user-secrets",
@@ -40,7 +42,7 @@ public sealed class UserSecretsCommand : Command
                     {
                         var folder = config.Value.ResolveLocation(parseResult.GetValue(location));
                         var folderConfig =
-                            await FolderConfig.LoadAsync(folder, cancellationToken)
+                            await FolderConfig.LoadAsync(folder, parser, cancellationToken)
                             ?? throw new AboxException(
                                 $"No {FolderConfig.FileNames} in this folder. Declare 'userSecrets' explicitly before copying."
                             );

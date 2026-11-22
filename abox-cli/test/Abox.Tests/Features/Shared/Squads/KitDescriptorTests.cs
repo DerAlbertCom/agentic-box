@@ -1,4 +1,6 @@
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
@@ -32,7 +34,10 @@ public sealed class KitDescriptorTests
         );
 
         // Act
-        var descriptor = KitDescriptor.Load(Path.Combine(_root.Path, "kits", "pi-config"));
+        var descriptor = KitDescriptor.Load(
+            Path.Combine(_root.Path, "kits", "pi-config"),
+            new YamlDotNetParser()
+        );
 
         // Assert
         descriptor.Should().NotBeNull();
@@ -65,7 +70,10 @@ public sealed class KitDescriptorTests
         );
 
         // Act
-        var descriptor = KitDescriptor.Load(Path.Combine(_root.Path, "kits", "elastic-auth"));
+        var descriptor = KitDescriptor.Load(
+            Path.Combine(_root.Path, "kits", "elastic-auth"),
+            new YamlDotNetParser()
+        );
 
         // Assert
         var service = descriptor!.Services.Should().ContainSingle().Which;
@@ -90,7 +98,10 @@ public sealed class KitDescriptorTests
         );
 
         // Act
-        var descriptor = KitDescriptor.Load(Path.Combine(_root.Path, "kits", "pi-config"));
+        var descriptor = KitDescriptor.Load(
+            Path.Combine(_root.Path, "kits", "pi-config"),
+            new YamlDotNetParser()
+        );
 
         // Assert
         var service = descriptor!.Services.Should().ContainSingle().Which;
@@ -117,7 +128,10 @@ public sealed class KitDescriptorTests
         );
 
         // Act
-        var descriptor = KitDescriptor.Load(Path.Combine(_root.Path, "kits", "pi-config"));
+        var descriptor = KitDescriptor.Load(
+            Path.Combine(_root.Path, "kits", "pi-config"),
+            new YamlDotNetParser()
+        );
 
         // Assert
         descriptor.Should().NotBeNull();
@@ -131,7 +145,10 @@ public sealed class KitDescriptorTests
         _root.CreateDirectory("kits/empty");
 
         // Act
-        var descriptor = KitDescriptor.Load(Path.Combine(_root.Path, "kits", "empty"));
+        var descriptor = KitDescriptor.Load(
+            Path.Combine(_root.Path, "kits", "empty"),
+            new YamlDotNetParser()
+        );
 
         // Assert
         descriptor.Should().BeNull();

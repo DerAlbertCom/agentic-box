@@ -3,6 +3,7 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Secrets;
 
@@ -15,7 +16,8 @@ public sealed class SecretsCommand : Command
         Lazy<AboxConfig> config,
         Preflight preflight,
         Lazy<SecretsService> secrets,
-        IConsole console
+        IConsole console,
+        IYamlParser parser
     )
         : base("secrets", "Manage the host secrets the kits of a folder's sandbox ask for.")
     {
@@ -24,6 +26,7 @@ public sealed class SecretsCommand : Command
                 config,
                 preflight,
                 console,
+                parser,
                 "list",
                 "List the services of the sandbox and whether they are stored.",
                 withService: false,
@@ -35,6 +38,7 @@ public sealed class SecretsCommand : Command
                 config,
                 preflight,
                 console,
+                parser,
                 "set",
                 "Ask for the secrets of the sandbox and store them on the host.",
                 withService: true,
@@ -46,6 +50,7 @@ public sealed class SecretsCommand : Command
                 config,
                 preflight,
                 console,
+                parser,
                 "remove",
                 "Remove the secrets of the sandbox from the host.",
                 withService: true,
@@ -59,6 +64,7 @@ public sealed class SecretsCommand : Command
         Lazy<AboxConfig> config,
         Preflight preflight,
         IConsole console,
+        IYamlParser parser,
         string name,
         string description,
         bool withService,
@@ -87,7 +93,11 @@ public sealed class SecretsCommand : Command
                     async () =>
                     {
                         var folder = config.Value.ResolveLocation(parseResult.GetValue(location));
-                        var folderConfig = await FolderConfig.LoadAsync(folder, cancellationToken);
+                        var folderConfig = await FolderConfig.LoadAsync(
+                            folder,
+                            parser,
+                            cancellationToken
+                        );
                         var wanted = withService ? parseResult.GetValue(service) ?? [] : [];
                         if (!await preflight.EnsureReadyAsync(cancellationToken))
                             return 1;

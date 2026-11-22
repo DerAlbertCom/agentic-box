@@ -7,6 +7,7 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -232,7 +233,7 @@ public sealed class StatePathCreationTests : IDisposable
         var quoted = JsonSerializer.Serialize(declaration);
         _root.File("teams/sample/ac.abox", $"workload: sample\nstate:\n  - {quoted}\n");
         _root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
-        var resolver = new SquadResolver(new AboxConfig());
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(_root.Path, "sample");
         var build = TestServiceGraphs.Build(
             resolver,
@@ -269,8 +270,8 @@ public sealed class StatePathCreationTests : IDisposable
             .State.Select(entry => (entry.SandboxPath, entry.RelativePath))
             .Should()
             .Equal((sandboxPath, relativePath));
-        var generated = YamlReader
-            .LoadFile(Path.Combine(manifest.StateMixinDirectory!, "state.yaml"))
+        var generated = new YamlDotNetParser()
+            .ReadFile(Path.Combine(manifest.StateMixinDirectory!, "state.yaml"))
             .GetEntries("capabilities")
             .Single();
         generated.GetEntry("config")!.GetString("path").Should().Be(sandboxPath);

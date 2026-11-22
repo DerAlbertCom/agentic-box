@@ -1,5 +1,7 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
@@ -15,7 +17,11 @@ public sealed class FolderConfigTests
         var location = Path.Combine(root.Path, relativeLocation);
 
         // Act
-        var snapshot = await FolderConfig.LoadAsync(location, CancellationToken.None);
+        var snapshot = await FolderConfig.LoadAsync(
+            location,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Assert
         snapshot.Should().BeNull();
@@ -31,7 +37,11 @@ public sealed class FolderConfigTests
         root.File(file, "portOffset: 20000\n");
 
         // Act
-        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var snapshot = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Assert
         snapshot.Should().BeNull();
@@ -57,7 +67,11 @@ public sealed class FolderConfigTests
         );
 
         // Act
-        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var snapshot = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Assert
         snapshot!.Squad.Should().Be("ac");
@@ -87,7 +101,11 @@ public sealed class FolderConfigTests
         );
 
         // Act
-        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var snapshot = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Assert
         snapshot!.Squad.Should().Be("ac");
@@ -104,7 +122,11 @@ public sealed class FolderConfigTests
         root.File("abox.user.yaml", "squad: ac\nportOffset: 20000\nuserSecrets: [mine]\n");
 
         // Act
-        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var snapshot = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Assert
         snapshot!.Squad.Should().Be("ac");
@@ -121,7 +143,11 @@ public sealed class FolderConfigTests
         root.File("abox.user.yaml", "userSecrets: []\n");
 
         // Act
-        var snapshot = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var snapshot = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
 
         // Assert
         snapshot!.UserSecrets.Should().BeEmpty();
@@ -138,7 +164,8 @@ public sealed class FolderConfigTests
         root.File(json, """{"portOffset":30000}""");
 
         // Act
-        var load = () => FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var load = () =>
+            FolderConfig.LoadAsync(root.Path, new YamlDotNetParser(), CancellationToken.None);
 
         // Assert
         var failure = await load.Should().ThrowAsync<AboxException>();
@@ -155,7 +182,8 @@ public sealed class FolderConfigTests
         cancellation.Cancel();
 
         // Act
-        var load = () => FolderConfig.LoadAsync(root.Path, cancellation.Token);
+        var load = () =>
+            FolderConfig.LoadAsync(root.Path, new YamlDotNetParser(), cancellation.Token);
 
         // Assert
         await load.Should().ThrowAsync<OperationCanceledException>();
@@ -177,7 +205,8 @@ public sealed class FolderConfigTests
         );
 
         // Act
-        var load = () => FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var load = () =>
+            FolderConfig.LoadAsync(root.Path, new YamlDotNetParser(), CancellationToken.None);
 
         // Assert
         var failure = await load.Should().ThrowAsync<AboxException>();
@@ -221,7 +250,8 @@ public sealed class FolderConfigTests
         var path = root.File(file, yaml);
 
         // Act
-        var load = () => FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+        var load = () =>
+            FolderConfig.LoadAsync(root.Path, new YamlDotNetParser(), CancellationToken.None);
 
         // Assert
         var failure = await load.Should().ThrowAsync<AboxException>();

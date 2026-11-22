@@ -1,6 +1,6 @@
 using System.Text;
 using Abox.Features.Shared.Common;
-using Abox.Infrastructure;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Configuration;
 
@@ -73,13 +73,14 @@ public sealed class FolderConfig
     /// </summary>
     public static async Task<FolderConfig?> LoadAsync(
         string location,
+        IYamlParser parser,
         CancellationToken cancellationToken
     )
     {
         RejectJson(location, "abox.json", SharedFile);
         RejectJson(location, "abox.user.json", UserFile);
-        var shared = await ReadAsync(Path.Combine(location, SharedFile), cancellationToken);
-        var user = await ReadAsync(Path.Combine(location, UserFile), cancellationToken);
+        var shared = await ReadAsync(Path.Combine(location, SharedFile), parser, cancellationToken);
+        var user = await ReadAsync(Path.Combine(location, UserFile), parser, cancellationToken);
         var merged =
             shared is null ? user
             : user is null ? shared
@@ -104,6 +105,7 @@ public sealed class FolderConfig
 
     private static async Task<YamlReader?> ReadAsync(
         string path,
+        IYamlParser parser,
         CancellationToken cancellationToken
     )
     {
@@ -134,7 +136,7 @@ public sealed class FolderConfig
                 $"Cannot read '{path}'. Check the folder and file permissions."
             );
         }
-        return YamlReader.Parse(yaml, path);
+        return parser.Read(yaml, path);
     }
 
     private static FolderConfig Decode(string location, YamlReader reader)

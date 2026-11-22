@@ -15,7 +15,7 @@ public sealed class StatePathBuildTests : IDisposable
     private readonly IProcessRunner _runner = LocalWorkloadFactory.Runner();
     private readonly BuildStore _store;
     private readonly BuildService _build;
-    private readonly SquadResolver _resolver = new(new AboxConfig());
+    private readonly SquadResolver _resolver = new(new AboxConfig(), new YamlDotNetParser());
 
     public StatePathBuildTests()
     {

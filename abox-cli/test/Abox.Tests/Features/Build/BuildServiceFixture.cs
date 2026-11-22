@@ -17,7 +17,7 @@ internal sealed class BuildServiceFixture
     internal IProcessRunner Runner { get; } = LocalWorkloadFactory.Runner();
     internal TestConsole Console { get; } = new();
     internal BuildStore Store { get; }
-    internal SquadResolver Resolver { get; } = new(new AboxConfig());
+    internal SquadResolver Resolver { get; } = new(new AboxConfig(), new YamlDotNetParser());
     internal BuildService Service { get; }
 
     internal BuildServiceFixture()

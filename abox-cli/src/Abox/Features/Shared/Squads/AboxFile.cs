@@ -1,5 +1,5 @@
 using Abox.Features.Shared.Common;
-using Abox.Infrastructure;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Squads;
 
@@ -57,9 +57,9 @@ public sealed class AboxFile
     public IReadOnlyList<SecretDeclaration> Secrets { get; }
 
     /// <summary>Reads a <c>.abox</c> file.</summary>
-    public static AboxFile Load(string path)
+    public static AboxFile Load(string path, IYamlParser parser)
     {
-        var reader = YamlReader.LoadFile(path);
+        var reader = parser.ReadFile(path);
         reader.RejectUnknownKeys(
             "base",
             "workload",

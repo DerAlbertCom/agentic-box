@@ -1,5 +1,7 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
+using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
@@ -17,7 +19,7 @@ public sealed class WorkloadFileTests
         );
 
         // Act
-        var workload = WorkloadFile.Load(path);
+        var workload = WorkloadFile.Load(path, new YamlDotNetParser());
 
         // Assert
         workload.PublishRepository.Should().Be("mtiae-developer-container-images-local");
@@ -42,7 +44,7 @@ public sealed class WorkloadFileTests
         var path = _root.File("sample.workload", $"publishRepository: {value}\n");
 
         // Act
-        var load = () => WorkloadFile.Load(path);
+        var load = () => WorkloadFile.Load(path, new YamlDotNetParser());
 
         // Assert
         load.Should().Throw<AboxException>().WithMessage("*publishRepository*not a valid*");
@@ -55,7 +57,7 @@ public sealed class WorkloadFileTests
         var path = _root.File("sample.workload", "mise: []\n");
 
         // Act
-        var workload = WorkloadFile.Load(path);
+        var workload = WorkloadFile.Load(path, new YamlDotNetParser());
 
         // Assert
         workload.PublishRepository.Should().BeNull();
@@ -70,7 +72,7 @@ public sealed class WorkloadFileTests
         var path = _root.File("sample.workload", $"publishRepository: {value}\n");
 
         // Act
-        var load = () => WorkloadFile.Load(path);
+        var load = () => WorkloadFile.Load(path, new YamlDotNetParser());
 
         // Assert
         load.Should().Throw<AboxException>().WithMessage("*publishRepository*must be a value*");

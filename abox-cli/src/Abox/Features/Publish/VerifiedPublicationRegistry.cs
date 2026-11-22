@@ -22,6 +22,7 @@ internal sealed record PublicationPush(
 /// <summary>Publication's verified writes and all-runnable-platform inspection policy.</summary>
 internal sealed class VerifiedPublicationRegistry(
     IRegistryPublisher registry,
+    PublicationSources sources,
     IConsole console,
     string? builder
 )
@@ -54,7 +55,7 @@ internal sealed class VerifiedPublicationRegistry(
         var digest = await registry.PushAsync(
             new RegistryPush(
                 request.Directory,
-                PublicationSources.Descriptor(request.Directory),
+                sources.Descriptor(request.Directory),
                 request.Reference,
                 request.PublicationDirectory,
                 builder,

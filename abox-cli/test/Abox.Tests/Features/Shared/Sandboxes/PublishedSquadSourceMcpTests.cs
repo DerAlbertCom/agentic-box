@@ -8,6 +8,7 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -66,7 +67,7 @@ public sealed class PublishedSquadSourceMcpTests
             """
         );
         var config = new AboxConfig();
-        var resolver = new SquadResolver(config);
+        var resolver = new SquadResolver(config, new YamlDotNetParser());
         var team = resolver.ResolveTeam(root.Path, "mti-ca");
         var store = new BuildStore(paths);
         var images = LocalWorkloadFactory.Images();
