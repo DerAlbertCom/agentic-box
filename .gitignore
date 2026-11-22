@@ -16,3 +16,6 @@ obj/
 # Bun workspace
 node_modules/
 dist/
+
+# Test result files written by the CI test steps
+test-results/

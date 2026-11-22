@@ -8,6 +8,7 @@ using NSubstitute;
 
 namespace Abox.Tests;
 
+[Collection("Create command working directory")]
 public sealed class CommandLocationTests
 {
     [Theory]
