@@ -61,7 +61,7 @@ public sealed class SbxUserSecretsPolicyProcessTests
 
     private sealed class EchoPolicyRunner(ProcessRunner processes, string outcome) : IProcessRunner
     {
-        private int started;
+        private int _started;
         internal TaskCompletionSource AllChecksStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } =
@@ -111,7 +111,7 @@ public sealed class SbxUserSecretsPolicyProcessTests
                 ),
                 token
             );
-            if (!inventory && Interlocked.Increment(ref started) == 4)
+            if (!inventory && Interlocked.Increment(ref _started) == 4)
                 AllChecksStarted.TrySetResult();
             // Always settle the actual process, even if a sibling cancels before release.
             var result = await child;

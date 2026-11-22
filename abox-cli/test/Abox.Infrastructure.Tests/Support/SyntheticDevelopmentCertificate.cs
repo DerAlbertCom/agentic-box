@@ -7,8 +7,8 @@ namespace Abox.Tests;
 /// <summary>Disposable local identity; never reads or changes a certificate store.</summary>
 internal sealed class SyntheticDevelopmentCertificate : IDisposable
 {
-    private readonly RSA key = RSA.Create(2048);
-    private readonly int format;
+    private readonly RSA _key = RSA.Create(2048);
+    private readonly int _format;
 
     internal SyntheticDevelopmentCertificate(
         int format = 6,
@@ -17,10 +17,10 @@ internal sealed class SyntheticDevelopmentCertificate : IDisposable
         DateTimeOffset? after = null
     )
     {
-        this.format = format;
+        _format = format;
         var request = new CertificateRequest(
             "CN=localhost",
-            key,
+            _key,
             HashAlgorithmName.SHA256,
             RSASignaturePadding.Pkcs1
         );
@@ -52,7 +52,7 @@ internal sealed class SyntheticDevelopmentCertificate : IDisposable
             {
                 ["Thumbprint"] = Certificate.Thumbprint,
                 ["Subject"] = Certificate.Subject,
-                ["Version"] = format,
+                ["Version"] = _format,
                 ["ValidityNotBefore"] = Certificate.NotBefore.ToUniversalTime(),
                 ["ValidityNotAfter"] = Certificate.NotAfter.ToUniversalTime(),
                 ["IsHttpsDevelopmentCertificate"] = true,
@@ -65,6 +65,6 @@ internal sealed class SyntheticDevelopmentCertificate : IDisposable
     public void Dispose()
     {
         Certificate.Dispose();
-        key.Dispose();
+        _key.Dispose();
     }
 }

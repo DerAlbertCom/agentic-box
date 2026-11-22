@@ -480,10 +480,10 @@ public sealed class UserSecretsRewriteTests
 
     private sealed class CopyFixture : IDisposable
     {
-        private readonly TempDirectory root = new();
-        private readonly List<string> ids = [];
-        private readonly Dictionary<string, string> written = [];
-        private readonly UserSecretsCopy copy;
+        private readonly TempDirectory _root = new();
+        private readonly List<string> _ids = [];
+        private readonly Dictionary<string, string> _written = [];
+        private readonly UserSecretsCopy _copy;
 
         internal CopyFixture(string sandbox = "synthetic-sandbox", AboxConfig? config = null)
         {
@@ -525,13 +525,13 @@ public sealed class UserSecretsRewriteTests
                     if (args[0] == "exec" && request.StandardInput is { Length: > 0 } frame)
                     {
                         var payload = frame.IndexOf('\n', frame.IndexOf('\n') + 1) + 1;
-                        written[args[^1]] = frame[payload..];
+                        _written[args[^1]] = frame[payload..];
                     }
                     return new ProcessResult(0, "", "");
                 });
-            copy = new UserSecretsCopy(
+            _copy = new UserSecretsCopy(
                 config ?? new AboxConfig(),
-                new DotnetUserSecretStores(null, root.Path),
+                new DotnetUserSecretStores(null, _root.Path),
                 new SbxUserSecrets(new SbxInvoker(runner))
             );
         }
@@ -544,10 +544,10 @@ public sealed class UserSecretsRewriteTests
         internal Func<ProcessRequest, ProcessResult?>? ResultOverride { get; set; }
         internal Dictionary<string, string[]> KeyPatterns { get; } = [];
 
-        internal string Written(string id) => written[id];
+        internal string Written(string id) => _written[id];
 
         internal string SourcePath(string id) =>
-            Path.Combine(root.Path, $".microsoft/usersecrets/{id}/secrets.json");
+            Path.Combine(_root.Path, $".microsoft/usersecrets/{id}/secrets.json");
 
         internal void UsePorts(params int[] ports) =>
             Inventory = JsonSerializer.Serialize(
@@ -577,21 +577,21 @@ public sealed class UserSecretsRewriteTests
 
         internal void Store(string id, string json)
         {
-            ids.Add(id);
-            root.File($".microsoft/usersecrets/{id}/secrets.json", json);
+            _ids.Add(id);
+            _root.File($".microsoft/usersecrets/{id}/secrets.json", json);
         }
 
         internal void Project(string id, string json) =>
-            UserSecretProjects.Write(root, $"{id}/App.csproj", id, json);
+            UserSecretProjects.Write(_root, $"{id}/App.csproj", id, json);
 
         internal async Task<PreparedUserSecrets> PrepareAsync(bool force = false)
         {
-            root.File(
+            _root.File(
                 "abox.yaml",
                 JsonSerializer.Serialize(
                     new
                     {
-                        userSecrets = ids.Select(id =>
+                        userSecrets = _ids.Select(id =>
                                 KeyPatterns.TryGetValue(id, out var keys)
                                     ? (object)new { id, keys }
                                     : id
@@ -600,9 +600,9 @@ public sealed class UserSecretsRewriteTests
                     }
                 )
             );
-            return await copy.PrepareAsync(
+            return await _copy.PrepareAsync(
                 await FolderConfig.LoadAsync(
-                    root.Path,
+                    _root.Path,
                     new YamlDotNetParser(),
                     CancellationToken.None
                 ),
@@ -615,14 +615,14 @@ public sealed class UserSecretsRewriteTests
             await CopyPreparedAsync(await PrepareAsync(force));
 
         internal Task<UserSecretsReport> CopyPreparedAsync(PreparedUserSecrets prepared) =>
-            copy.CopyAsync(prepared, Sandbox, CancellationToken.None);
+            _copy.CopyAsync(prepared, Sandbox, CancellationToken.None);
 
         internal string? Value(string id, string key)
         {
-            using var json = JsonDocument.Parse(written[id]);
+            using var json = JsonDocument.Parse(_written[id]);
             return json.RootElement.GetProperty(key).GetString();
         }
 
-        public void Dispose() => root.Dispose();
+        public void Dispose() => _root.Dispose();
     }
 }

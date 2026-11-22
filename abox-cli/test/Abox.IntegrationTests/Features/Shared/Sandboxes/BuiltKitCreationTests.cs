@@ -13,18 +13,18 @@ namespace Abox.Tests;
 public sealed class BuiltKitCreationTests
 {
     private readonly SandboxCreatorFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
+    private TempDirectory Root => _fixture.Root;
 
     [Fact]
     public async Task LocalCreationUsesTheStagedBuiltKit()
     {
         // Arrange
-        _root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
-        _root.File("teams/sample/sample.workload", "template: example.com/sample:1\n");
-        _root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
-        KitBuildScripts.Write(_root, "built", "echo generated > \"$1/generated.txt\"\n");
+        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
+        Root.File("teams/sample/sample.workload", "template: example.com/sample:1\n");
+        Root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
+        KitBuildScripts.Write(Root, "built", "echo generated > \"$1/generated.txt\"\n");
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
-        var team = resolver.ResolveTeam(_root.Path, "sample");
+        var team = resolver.ResolveTeam(Root.Path, "sample");
         await TestServiceGraphs
             .Build(
                 resolver,
@@ -34,7 +34,7 @@ public sealed class BuiltKitCreationTests
                 _fixture.Console
             )
             .BuildAsync(
-                new BuildRequest([team], _root.Path, "latest", Verify: false),
+                new BuildRequest([team], Root.Path, "latest", Verify: false),
                 CancellationToken.None
             );
         var mixins = new List<string>();
@@ -50,14 +50,14 @@ public sealed class BuiltKitCreationTests
             _fixture.Request() with
             {
                 Team = team,
-                Location = _root.CreateDirectory("location"),
+                Location = Root.CreateDirectory("location"),
             },
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(0);
-        mixins.Should().NotContain(Path.Combine(_root.Path, "kits", "built"));
+        mixins.Should().NotContain(Path.Combine(Root.Path, "kits", "built"));
         mixins
             .Should()
             .ContainSingle(mixin => Path.GetFileName(mixin) == "built")
@@ -69,13 +69,13 @@ public sealed class BuiltKitCreationTests
     public async Task LocalCreationPassesTheSquadConfigurationMixinOfTheBuild()
     {
         // Arrange
-        _root.File(
+        Root.File(
             "teams/sample/ac.abox",
             "workload: sample\nsecrets:\n  - service: elastic\n    prompt: The API key\n"
         );
-        _root.File("teams/sample/sample.workload", "template: example.com/sample:1\n");
+        Root.File("teams/sample/sample.workload", "template: example.com/sample:1\n");
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
-        var team = resolver.ResolveTeam(_root.Path, "sample");
+        var team = resolver.ResolveTeam(Root.Path, "sample");
         await TestServiceGraphs
             .Build(
                 resolver,
@@ -85,7 +85,7 @@ public sealed class BuiltKitCreationTests
                 _fixture.Console
             )
             .BuildAsync(
-                new BuildRequest([team], _root.Path, "latest", Verify: false),
+                new BuildRequest([team], Root.Path, "latest", Verify: false),
                 CancellationToken.None
             );
         var mixins = new List<string>();
@@ -101,7 +101,7 @@ public sealed class BuiltKitCreationTests
             _fixture.Request() with
             {
                 Team = team,
-                Location = _root.CreateDirectory("location"),
+                Location = Root.CreateDirectory("location"),
             },
             CancellationToken.None
         );

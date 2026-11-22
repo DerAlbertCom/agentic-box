@@ -5,7 +5,7 @@ namespace Abox.Tests;
 
 internal sealed class DirectoryLinks : IDisposable
 {
-    private readonly List<string> links = [];
+    private readonly List<string> _links = [];
 
     internal static void CreateSymbolic(string link, string target) =>
         Directory.CreateSymbolicLink(link, target);
@@ -34,7 +34,7 @@ internal sealed class DirectoryLinks : IDisposable
             var result = await CreateAsync(link, target, symbolic);
             if (result is not null)
                 result.ExitCode.Should().Be(0, result.StandardError);
-            links.Add(link);
+            _links.Add(link);
         }
         catch (Exception exception)
             when (exception is UnauthorizedAccessException or PlatformNotSupportedException
@@ -55,10 +55,10 @@ internal sealed class DirectoryLinks : IDisposable
 
     public void Dispose()
     {
-        for (var index = links.Count - 1; index >= 0; index--)
+        for (var index = _links.Count - 1; index >= 0; index--)
             if (OperatingSystem.IsWindows())
-                Directory.Delete(links[index]);
+                Directory.Delete(_links[index]);
             else
-                File.Delete(links[index]);
+                File.Delete(_links[index]);
     }
 }

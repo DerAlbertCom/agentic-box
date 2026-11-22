@@ -10,8 +10,8 @@ namespace Abox.Infrastructure.Dotnet;
 internal sealed class DotnetDevelopmentCertificate(IProcessRunner runner, IConsole console)
     : IHostDevelopmentCertificate
 {
-    private readonly string temporaryParent = Path.GetTempPath();
-    private readonly IReadOnlyList<DevelopmentCertificateTool>? tools;
+    private readonly string _temporaryParent = Path.GetTempPath();
+    private readonly IReadOnlyList<DevelopmentCertificateTool>? _tools;
 
     internal DotnetDevelopmentCertificate(
         IProcessRunner runner,
@@ -21,8 +21,8 @@ internal sealed class DotnetDevelopmentCertificate(IProcessRunner runner, IConso
     )
         : this(runner, console)
     {
-        this.temporaryParent = temporaryParent;
-        this.tools = tools;
+        _temporaryParent = temporaryParent;
+        _tools = tools;
     }
 
     public async Task<ExportedDevelopmentCertificate> ExportAsync(
@@ -34,13 +34,13 @@ internal sealed class DotnetDevelopmentCertificate(IProcessRunner runner, IConso
         try
         {
             var installed =
-                tools ?? await new InstalledDevelopmentCertificateTools(runner).FindAsync(token);
+                _tools ?? await new InstalledDevelopmentCertificateTools(runner).FindAsync(token);
             foreach (var tool in installed)
             {
                 var transaction = new DevelopmentCertificateExport(
                     runner,
                     console,
-                    temporaryParent,
+                    _temporaryParent,
                     tool
                 );
                 // The CLI has no thumbprint selector. Ambiguity is not permission to

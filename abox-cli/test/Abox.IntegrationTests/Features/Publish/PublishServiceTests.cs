@@ -15,15 +15,15 @@ namespace Abox.Tests;
 public sealed class PublishServiceTests
 {
     private readonly PublishServiceFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
-    private BuildStore _store => _fixture.Store;
-    private IProcessRunner _runner => _fixture.Runner;
-    private IHostPrograms _programs => _fixture.Programs;
-    private TestConsole _console => _fixture.Console;
-    private List<ProcessRequest> _calls => _fixture.Calls;
-    private List<string> _descriptors => _fixture.Descriptors;
-    private List<string> _configurations => _fixture.Configurations;
-    private PublishService _service => _fixture.Service;
+    private TempDirectory Root => _fixture.Root;
+    private BuildStore Store => _fixture.Store;
+    private IProcessRunner Runner => _fixture.Runner;
+    private IHostPrograms Programs => _fixture.Programs;
+    private TestConsole Console => _fixture.Console;
+    private List<ProcessRequest> Calls => _fixture.Calls;
+    private List<string> Descriptors => _fixture.Descriptors;
+    private List<string> Configurations => _fixture.Configurations;
+    private PublishService Service => _fixture.Service;
 
     private void SaveRegistryKitBuild() => _fixture.SaveRegistryKitBuild();
 
@@ -31,22 +31,22 @@ public sealed class PublishServiceTests
     public async Task PersonalConfigurationKitsCannotBePublished()
     {
         // Arrange
-        _root.File("teams/sample/ac.abox", "workload: sample\n");
-        _root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
-        _root.File("kits/private/private.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
-        var configDirectory = Path.Combine(_root.Path, "config");
-        _root.File("config/personal.abox", "kits:\n  - private\n");
+        Root.File("teams/sample/ac.abox", "workload: sample\n");
+        Root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
+        Root.File("kits/private/private.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
+        var configDirectory = Path.Combine(Root.Path, "config");
+        Root.File("config/personal.abox", "kits:\n  - private\n");
         var build = TestServiceGraphs.Build(
             new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
-            new PersonalConfigurations(AboxPaths.For(configDirectory, _root.Path)),
-            _store,
+            new PersonalConfigurations(AboxPaths.For(configDirectory, Root.Path)),
+            Store,
             LocalWorkloadFactory.Images(),
-            _console
+            Console
         );
         await build.BuildAsync(
-            new Abox.Features.Build.BuildRequest(
+            new Features.Build.BuildRequest(
                 Request("ac").Teams,
-                _root.Path,
+                Root.Path,
                 "latest",
                 Verify: false
             ),
@@ -55,11 +55,11 @@ public sealed class PublishServiceTests
         File.Delete(Path.Combine(configDirectory, "personal.abox"));
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*personal configuration*");
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -67,8 +67,8 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        var local = Path.Combine(_root.Path, "local kit");
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var local = Path.Combine(Root.Path, "local kit");
         Directory.CreateDirectory(local);
         File.WriteAllText(
             Path.Combine(local, "spec.yaml"),
@@ -98,7 +98,7 @@ public sealed class PublishServiceTests
         SaveVerifiedBuild(build);
 
         // Act
-        await _service.PublishAsync(
+        await Service.PublishAsync(
             Request("ac") with
             {
                 Builder = "custom-builder",
@@ -107,11 +107,11 @@ public sealed class PublishServiceTests
         );
 
         // Assert
-        var pushes = _calls.Where(call => call.Arguments.Contains("--push")).ToList();
+        var pushes = Calls.Where(call => call.Arguments.Contains("--push")).ToList();
         pushes.Should().HaveCount(5);
         pushes.Should().OnlyContain(call => call.Arguments.Contains("custom-builder"));
         pushes.Should().OnlyContain(call => !call.Arguments.Contains("--build-arg"));
-        var set = new YamlDotNetParser().Read(_descriptors.Last(), "set");
+        var set = new YamlDotNetParser().Read(Descriptors.Last(), "set");
         var kits = set.GetEntries("kits");
         kits.Select(kit => kit.GetString("ref")!.Split('@')[0])
             .Should()
@@ -129,10 +129,10 @@ public sealed class PublishServiceTests
             .Should()
             .Be(build.Kits[1].Arguments["message"]);
         kits[3].GetEntry("args").Should().BeNull();
-        using var config = JsonDocument.Parse(_configurations.Single());
+        using var config = JsonDocument.Parse(Configurations.Single());
         config.RootElement.GetProperty("SchemaVersion").GetInt32().Should().Be(1);
         AssertBundledRuntimeMetadata(config.RootElement);
-        _configurations.Single().Should().NotContain(_root.Path);
+        Configurations.Single().Should().NotContain(Root.Path);
     }
 
     private static void AssertBundledRuntimeMetadata(JsonElement metadata)
@@ -181,10 +181,10 @@ public sealed class PublishServiceTests
         SaveBuild("bd", "second-images-local");
 
         // Act
-        await _service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
 
         // Assert
-        var tags = _calls
+        var tags = Calls
             .Where(call => call.Arguments.Contains("--tag"))
             .Select(call => call.Arguments[call.Arguments.ToList().IndexOf("--tag") + 1])
             .ToList();
@@ -203,7 +203,7 @@ public sealed class PublishServiceTests
             .Contain("rwest.jfrog.io/first-images-local/agentic-box-rwest-sample/ac:latest");
         tags.Should()
             .Contain("rwest.jfrog.io/second-images-local/agentic-box-rwest-sample/bd:latest");
-        foreach (var descriptor in _descriptors.Where(text => text.Contains("\"kind\": \"set\"")))
+        foreach (var descriptor in Descriptors.Where(text => text.Contains("\"kind\": \"set\"")))
         {
             descriptor.Should().NotContain("mtiae-developer-container-images-local");
         }
@@ -217,22 +217,22 @@ public sealed class PublishServiceTests
         SaveBuild("bd");
 
         // Act
-        await _service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
 
         // Assert
-        _calls
+        Calls
             .SelectMany(call => call.Arguments)
             .Should()
             .Contain(
                 "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac:latest"
             );
-        _calls
+        Calls
             .SelectMany(call => call.Arguments)
             .Should()
             .Contain(
                 "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/bd:latest"
             );
-        _calls
+        Calls
             .SelectMany(call => call.Arguments)
             .Should()
             .NotContain(
@@ -245,18 +245,18 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         build.PublishRepository = null;
-        _store.Save(build);
+        Store.Save(build);
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*publishRepository*.workload*abox build --team sample --tag latest --no-personal*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Theory]
@@ -275,11 +275,11 @@ public sealed class PublishServiceTests
         SaveBuild("bd", repository);
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*publishRepository*");
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Theory]
@@ -294,19 +294,19 @@ public sealed class PublishServiceTests
         if (name is not null)
         {
             SaveBuild("bd");
-            var build = _store.Load(new SquadBuildIdentity("sample", "bd", "latest"))!;
+            var build = Store.Load(new SquadBuildIdentity("sample", "bd", "latest"))!;
             build.Mcp.Add(new ManifestMcp { Name = name, Url = url });
-            _store.Save(build);
+            Store.Save(build);
         }
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             name is null ? "*abox build --team sample --tag latest*" : "*MCP server*mcp.*not valid*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -314,7 +314,7 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         build.Reference = "agentic-box-rwest-other:latest";
         File.WriteAllText(
             ManifestPath(new("sample", "ac", "latest")),
@@ -322,13 +322,13 @@ public sealed class PublishServiceTests
         );
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*no proven ownership for team 'sample'*abox build --team sample*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -338,17 +338,17 @@ public sealed class PublishServiceTests
         SaveBuild("ac");
         File.Delete(
             Path.Combine(
-                _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.WorkloadKitDirectory,
+                Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.WorkloadKitDirectory,
                 "workload.yaml"
             )
         );
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*has no descriptor*");
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -356,16 +356,16 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        _programs.Exists("docker").Returns(false);
+        Programs.Exists("docker").Returns(false);
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*Docker with the Buildx plugin*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -373,7 +373,7 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--push")),
                 Arg.Any<CancellationToken>()
@@ -381,7 +381,7 @@ public sealed class PublishServiceTests
             .Returns(new ProcessResult(1, string.Empty, "unauthorized"));
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         var exception = (await action.Should().ThrowAsync<AboxException>()).Which;
@@ -389,14 +389,14 @@ public sealed class PublishServiceTests
             .Message.Should()
             .Contain("docker login rwest.jfrog.io")
             .And.Contain("unauthorized");
-        await _runner
+        await Runner
             .Received(1)
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--push")),
                 Arg.Any<CancellationToken>()
             );
-        _console.AllText.Should().NotContain("Published squad");
-        _calls
+        Console.AllText.Should().NotContain("Published squad");
+        Calls
             .Where(call => call.Arguments.Contains("--push"))
             .Should()
             .OnlyContain(call => !Directory.Exists(call.Arguments.Last()));
@@ -407,14 +407,14 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
-        var firstSet = new YamlDotNetParser().Read(_descriptors.Last(), "first set");
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
+        var firstSet = new YamlDotNetParser().Read(Descriptors.Last(), "first set");
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        var secondSet = new YamlDotNetParser().Read(_descriptors.Last(), "second set");
+        var secondSet = new YamlDotNetParser().Read(Descriptors.Last(), "second set");
         firstSet
             .GetEntries("kits")[0]
             .GetString("ref")
@@ -427,13 +427,13 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         build.Tag = "release-1";
         build.Reference = "agentic-box-rwest-sample:release-1";
-        _store.Save(build);
+        Store.Save(build);
 
         // Act
-        await _service.PublishAsync(
+        await Service.PublishAsync(
             Request("ac") with
             {
                 Tag = "release-1",
@@ -442,7 +442,7 @@ public sealed class PublishServiceTests
         );
 
         // Assert
-        _calls
+        Calls
             .Last()
             .Arguments.Should()
             .Contain(
@@ -459,41 +459,41 @@ public sealed class PublishServiceTests
         // Arrange: the fixture has no builds for the invalid tag.
         // Act
         var action = () =>
-            _service.PublishAsync(Request("ac") with { Tag = tag }, CancellationToken.None);
+            Service.PublishAsync(Request("ac") with { Tag = tag }, CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*not a valid registry tag*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task TheBuiltWorkloadIsPublishedAsAV3SetToJfrog()
+    public async Task TheBuiltWorkloadIsPublishedAsAv3SetToJfrog()
     {
         // Arrange
         SaveBuild("ac");
 
         // Act
-        var result = await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var result = await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         result.Should().Be(0);
-        var pushes = _calls.Where(call => call.Arguments.Contains("--push")).ToList();
+        var pushes = Calls.Where(call => call.Arguments.Contains("--push")).ToList();
         pushes.Should().HaveCount(3); // workload, portable squad configuration, set
         pushes.Should().OnlyContain(call => call.FileName == "docker");
-        _calls
+        Calls
             .Single(call => call.Arguments.Contains("create"))
             .Arguments.Should()
             .Contain(
                 "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac:latest"
             );
         pushes.Should().OnlyContain(call => call.Arguments.Contains("--provenance=mode=min"));
-        var set = new YamlDotNetParser().Read(_descriptors.Last(), "published set");
+        var set = new YamlDotNetParser().Read(Descriptors.Last(), "published set");
         set.GetString("kind").Should().Be("set");
         set.GetString("schemaVersion").Should().Be("3");
         set.GetEntries("kits").Should().HaveCount(2);
-        _console.AllText.Should().Contain("Published");
+        Console.AllText.Should().Contain("Published");
     }
 
     private PublishRequest Request(params string[] squads) => _fixture.Request(squads);
@@ -505,10 +505,10 @@ public sealed class PublishServiceTests
         SaveRegistryKitBuild();
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        using var set = JsonDocument.Parse(_descriptors.Last().Split('\n', 2)[1]);
+        using var set = JsonDocument.Parse(Descriptors.Last().Split('\n', 2)[1]);
         var descriptor = set.RootElement;
         descriptor
             .EnumerateObject()
@@ -532,13 +532,13 @@ public sealed class PublishServiceTests
         SaveBuild("ac");
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        var descriptor = new YamlDotNetParser().Read(_descriptors[^2], "config");
+        var descriptor = new YamlDotNetParser().Read(Descriptors[^2], "config");
         descriptor.GetString("schemaVersion").Should().Be("3");
         descriptor.GetString("kind").Should().Be("mixin");
-        _configurations.Should().ContainSingle();
+        Configurations.Should().ContainSingle();
     }
 
     [Fact]
@@ -546,17 +546,17 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveRegistryKitBuild();
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         build.CreatedAt = DateTimeOffset.Parse("2026-01-02T03:04:05+00:00");
         build.Mcp.Add(new ManifestMcp { Name = "host-server" });
-        build.ConfigFiles.Add(_root.File("private.abox", "secret: synthetic-private-value\n"));
+        build.ConfigFiles.Add(Root.File("private.abox", "secret: synthetic-private-value\n"));
         SaveVerifiedBuild(build);
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        using var actual = JsonDocument.Parse(_configurations.Single());
+        using var actual = JsonDocument.Parse(Configurations.Single());
         AssertPublicJson(
             actual.RootElement,
             """
@@ -573,10 +573,10 @@ public sealed class PublishServiceTests
             }
             """
         );
-        _configurations
+        Configurations
             .Single()
             .Should()
-            .NotContain(_root.Path)
+            .NotContain(Root.Path)
             .And.NotContain("synthetic-private-value");
     }
 
@@ -585,9 +585,9 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         PublicationBuilds.SaveVerified(
-            _store,
+            Store,
             build,
             [
                 new SecretDeclaration(
@@ -600,10 +600,10 @@ public sealed class PublishServiceTests
         );
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        using var actual = JsonDocument.Parse(_configurations.Single());
+        using var actual = JsonDocument.Parse(Configurations.Single());
         actual.RootElement.GetProperty("SchemaVersion").GetInt32().Should().Be(1);
         AssertPublicJson(
             actual.RootElement.GetProperty("Secrets"),
@@ -628,19 +628,19 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         build.ConfigurationMixinDirectory = null;
         build.SourceHashes = BuildSources.Capture(build);
-        _store.Save(build);
+        Store.Save(build);
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*no squad configuration mixin*abox build --team sample --tag latest --no-personal*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -648,18 +648,18 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         build.IncludesPersonalConfigurations = null;
-        _store.Save(build);
+        Store.Save(build);
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*unknown configuration provenance*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -667,16 +667,16 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         build.SourceHashes.Clear();
-        _store.Save(build);
+        Store.Save(build);
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*no source fingerprints*");
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -686,18 +686,18 @@ public sealed class PublishServiceTests
         SaveBuild("ac");
         File.AppendAllText(
             Path.Combine(
-                _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.WorkloadKitDirectory,
+                Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.WorkloadKitDirectory,
                 "workload.yaml"
             ),
             "description: changed\n"
         );
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*sources changed*");
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -705,13 +705,13 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        build.ConfigFiles.Add(_root.File("squad.abox", "workload: sample\n"));
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        build.ConfigFiles.Add(Root.File("squad.abox", "workload: sample\n"));
         SaveVerifiedBuild(build);
         File.AppendAllText(build.ConfigFiles[0], "state: [~/.private]\n");
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*sources changed*");
@@ -725,7 +725,7 @@ public sealed class PublishServiceTests
 
         // Act / Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*sources changed*");
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -734,11 +734,11 @@ public sealed class PublishServiceTests
         // Arrange
         SaveBuild("ac");
         var path = Path.Combine(
-            _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.WorkloadKitDirectory,
+            Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.WorkloadKitDirectory,
             "workload.yaml"
         );
         var original = File.ReadAllText(path);
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("version")),
                 Arg.Any<CancellationToken>()
@@ -750,15 +750,15 @@ public sealed class PublishServiceTests
             });
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        _descriptors[0].Should().Be(original);
-        _calls
+        Descriptors[0].Should().Be(original);
+        Calls
             .Where(call => call.Arguments.Contains("--push"))
             .Should()
             .OnlyContain(call =>
-                !call.Arguments.Last().StartsWith(_root.Path, StringComparison.Ordinal)
+                !call.Arguments.Last().StartsWith(Root.Path, StringComparison.Ordinal)
             );
     }
 
@@ -767,20 +767,20 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
-        var first = _calls.Single(call => call.Arguments.Contains("create")).Arguments;
-        _calls.Clear();
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
+        var first = Calls.Single(call => call.Arguments.Contains("create")).Arguments;
+        Calls.Clear();
         SaveBuild("bd");
 
         // Act
-        await _service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
 
         // Assert
-        var again = _calls.First(call => call.Arguments.Contains("create")).Arguments;
+        var again = Calls.First(call => call.Arguments.Contains("create")).Arguments;
         first[first.ToList().IndexOf("--tag") + 1]
             .Should()
             .Be(again[again.ToList().IndexOf("--tag") + 1]);
-        _calls
+        Calls
             .Where(call => call.Arguments.Contains("--push"))
             .SelectMany(call => call.Arguments)
             .Should()
@@ -793,19 +793,19 @@ public sealed class PublishServiceTests
         // Arrange
         SaveBuild("ac");
         SaveBuild("workload");
-        var second = _store.Load(new SquadBuildIdentity("sample", "workload", "latest"))!;
+        var second = Store.Load(new SquadBuildIdentity("sample", "workload", "latest"))!;
         second.Reference = "agentic-box-rwest-sample-ac:latest";
-        _store.Save(second);
+        Store.Save(second);
         var request = new PublishRequest(
-            [new("sample", _root.Path, ["ac"]), new("sample-ac", _root.Path, ["workload"])],
+            [new("sample", Root.Path, ["ac"]), new("sample-ac", Root.Path, ["workload"])],
             "latest"
         );
 
         // Act
-        await _service.PublishAsync(request, CancellationToken.None);
+        await Service.PublishAsync(request, CancellationToken.None);
 
         // Assert
-        _calls
+        Calls
             .Where(call => call.Arguments.Contains("create"))
             .SelectMany(call => call.Arguments)
             .Should()
@@ -822,11 +822,11 @@ public sealed class PublishServiceTests
     {
         // Arrange: use the fixture with case-colliding squad selections.
         // Act
-        var action = () => _service.PublishAsync(Request("ac", "AC"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac", "AC"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*names collide*");
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -834,15 +834,15 @@ public sealed class PublishServiceTests
     {
         // Arrange
         var request = new PublishRequest(
-            [new("sample", _root.Path, ["ac"]), new("SAMPLE", _root.Path, ["bd"])],
+            [new("sample", Root.Path, ["ac"]), new("SAMPLE", Root.Path, ["bd"])],
             "latest"
         );
         // Act
-        var action = () => _service.PublishAsync(request, CancellationToken.None);
+        var action = () => Service.PublishAsync(request, CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*names collide*");
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -850,7 +850,7 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--raw")),
                 Arg.Any<CancellationToken>()
@@ -858,13 +858,13 @@ public sealed class PublishServiceTests
             .Returns(new ProcessResult(0, "{}", ""));
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*did not retain a valid v3 workload descriptor*"
         );
-        await _runner
+        await Runner
             .DidNotReceive()
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("create")),
@@ -877,7 +877,7 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call =>
                     call.Arguments.Contains("--raw")
@@ -888,14 +888,14 @@ public sealed class PublishServiceTests
             .Returns(new ProcessResult(0, "{}", ""));
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*did not retain a valid v3 workload descriptor*"
         );
-        _calls.Count(call => call.Arguments.Contains("--push")).Should().Be(3);
-        await _runner
+        Calls.Count(call => call.Arguments.Contains("--push")).Should().Be(3);
+        await Runner
             .DidNotReceive()
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("create")),
@@ -934,7 +934,7 @@ public sealed class PublishServiceTests
                 },
             }
         );
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call =>
                     call.Arguments.Contains("--raw")
@@ -951,16 +951,16 @@ public sealed class PublishServiceTests
             ));
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        await _runner
+        await Runner
             .Received(1)
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Last().EndsWith(platform)),
                 Arg.Any<CancellationToken>()
             );
-        await _runner
+        await Runner
             .DidNotReceive()
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Last().EndsWith(attestation)),
@@ -973,8 +973,8 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        var local = Path.Combine(_root.Path, "build-arg-kit");
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var local = Path.Combine(Root.Path, "build-arg-kit");
         Directory.CreateDirectory(local);
         File.WriteAllText(
             Path.Combine(local, "spec.yaml"),
@@ -992,13 +992,13 @@ public sealed class PublishServiceTests
         SaveVerifiedBuild(build);
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*build-phase arguments is not supported*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -1006,7 +1006,7 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         build.Kits.Add(
             new ManifestKit
             {
@@ -1016,7 +1016,7 @@ public sealed class PublishServiceTests
             }
         );
         SaveVerifiedBuild(build);
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--raw")),
                 Arg.Any<CancellationToken>()
@@ -1033,13 +1033,13 @@ public sealed class PublishServiceTests
             );
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*build-phase arguments is not supported*"
         );
-        _calls.Should().OnlyContain(call => !call.Arguments.Contains("--push"));
+        Calls.Should().OnlyContain(call => !call.Arguments.Contains("--push"));
     }
 
     [Fact]
@@ -1048,7 +1048,7 @@ public sealed class PublishServiceTests
         // Arrange
         SaveBuild("ac");
         string? blocked = null;
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--push")),
                 Arg.Any<CancellationToken>()
@@ -1071,13 +1071,13 @@ public sealed class PublishServiceTests
         try
         {
             // Act
-            var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+            var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
             // Assert
             (await action.Should().ThrowAsync<AboxException>()).WithMessage(
                 "*original publication failure*"
             );
-            _console.AllText.Should().Contain("warning: could not remove publication directory");
+            Console.AllText.Should().Contain("warning: could not remove publication directory");
         }
         finally
         {
@@ -1098,13 +1098,13 @@ public sealed class PublishServiceTests
     {
         // Arrange
         SaveBuild("ac");
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         const string recipe = "FROM example.com/base:1\nRUN install-workload-tools\n";
         File.WriteAllText(Path.Combine(build.WorkloadKitDirectory, "workload.dockerfile"), recipe);
-        build.LocalWorkload = LocalWorkloadFactory.Artifact(_root);
+        build.LocalWorkload = LocalWorkloadFactory.Artifact(Root);
         SaveVerifiedBuild(build);
         string? publishedRecipe = null;
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(request =>
                     request.Arguments.Contains("--push")
@@ -1122,12 +1122,12 @@ public sealed class PublishServiceTests
             });
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         publishedRecipe.Should().Be(recipe);
-        _configurations.Should().NotBeEmpty();
-        _configurations
+        Configurations.Should().NotBeEmpty();
+        Configurations
             .Should()
             .OnlyContain(configuration => !configuration.Contains(build.LocalWorkload.Reference));
     }

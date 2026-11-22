@@ -9,9 +9,9 @@ namespace Abox.Features.Shared.Launchers;
 /// </summary>
 public sealed class LauncherSession
 {
-    private readonly ISandboxExec exec;
-    private readonly SandboxHttps https;
-    private readonly IReadOnlyDictionary<string, string> environment;
+    private readonly ISandboxExec _exec;
+    private readonly SandboxHttps _https;
+    private readonly IReadOnlyDictionary<string, string> _environment;
 
     internal LauncherSession(
         string location,
@@ -27,9 +27,9 @@ public sealed class LauncherSession
         SandboxName = sandboxName;
         WorkspacePath = workspacePath;
         Argv = argv;
-        this.environment = environment;
-        this.exec = exec;
-        this.https = https;
+        _environment = environment;
+        _exec = exec;
+        _https = https;
     }
 
     /// <summary>The folder the sandbox works on.</summary>
@@ -52,13 +52,13 @@ public sealed class LauncherSession
         string? workingDirectory = null
     ) =>
         (
-            await exec.RunAsync(
-                new SandboxExecRequest(SandboxName, command, input, workingDirectory, environment),
+            await _exec.RunAsync(
+                new SandboxExecRequest(SandboxName, command, input, workingDirectory, _environment),
                 cancellationToken
             )
         ).ExitCode;
 
     /// <summary>Fails before anything starts when protected HTTPS refuses the launch.</summary>
     public Task EnsureLaunchReadyAsync(CancellationToken cancellationToken) =>
-        https.EnsureLaunchReadyAsync(SandboxName, cancellationToken);
+        _https.EnsureLaunchReadyAsync(SandboxName, cancellationToken);
 }

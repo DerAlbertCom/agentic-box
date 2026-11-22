@@ -6,7 +6,7 @@ namespace Abox.Infrastructure;
 /// <summary>Collects known process credentials and removes them from diagnostics.</summary>
 internal sealed partial class SecretRedactor
 {
-    private readonly HashSet<string> secrets = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _secrets = new(StringComparer.Ordinal);
 
     public SecretRedactor(ProcessRequest request)
     {
@@ -21,20 +21,20 @@ internal sealed partial class SecretRedactor
         if (string.IsNullOrEmpty(value))
             return;
 
-        secrets.Add(value);
+        _secrets.Add(value);
         foreach (var line in value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
         {
-            secrets.Add(line);
+            _secrets.Add(line);
             if (line.Length > 7 && line.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
-                secrets.Add(line[7..]);
+                _secrets.Add(line[7..]);
             }
         }
     }
 
     public string Redact(string value)
     {
-        foreach (var secret in secrets.OrderByDescending(secret => secret.Length))
+        foreach (var secret in _secrets.OrderByDescending(secret => secret.Length))
         {
             value = value.Replace(secret, "[REDACTED]", StringComparison.Ordinal);
         }

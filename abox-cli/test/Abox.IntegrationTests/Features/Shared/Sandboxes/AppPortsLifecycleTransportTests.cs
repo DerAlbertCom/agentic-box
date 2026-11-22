@@ -58,13 +58,13 @@ public sealed class AppPortsLifecycleTransportTests
     {
         public IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
         public List<ProcessRequest> Calls { get; } = [];
-        private readonly AppPortsLifecycleFixture fixture;
-        private bool created;
-        private bool published;
+        private readonly AppPortsLifecycleFixture _fixture;
+        private bool _created;
+        private bool _published;
 
         public Transport(AppPortsLifecycleFixture fixture)
         {
-            this.fixture = fixture;
+            _fixture = fixture;
             Runner
                 .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
                 .Returns(call => Run(call.Arg<ProcessRequest>()));
@@ -81,12 +81,12 @@ public sealed class AppPortsLifecycleTransportTests
                 "version" => """{"client":{"version":"0.51.0"}}""",
                 "diagnose" => """{"checks":[]}""",
                 "create" => Created(),
-                "ls" => created ? $$"""[{"name":"{{fixture.Name}}","status":"stopped"}]""" : "[]",
+                "ls" => _created ? $$"""[{"name":"{{_fixture.Name}}","status":"stopped"}]""" : "[]",
                 "exec" when args.Contains("python3") =>
                     """[{"application_port":4200,"relay_port":60044}]""",
                 "exec" => "",
                 "ports" when args.Contains("--publish") => Published(),
-                "ports" => published
+                "ports" => _published
                     ? """[{"host_ip":"127.0.0.1","host_port":14200,"sandbox_port":60044,"protocol":"tcp4"}]"""
                     : "[]",
                 _ => throw new InvalidOperationException("Unexpected synthetic sbx operation"),
@@ -96,17 +96,17 @@ public sealed class AppPortsLifecycleTransportTests
 
         private string Created()
         {
-            created = true;
+            _created = true;
             return "";
         }
 
         private string Published()
         {
-            fixture
-                .Records.Load(fixture.Name)
+            _fixture
+                .Records.Load(_fixture.Name)
                 .Should()
                 .NotBeNull("runtime publication follows record save");
-            published = true;
+            _published = true;
             return "[]";
         }
     }

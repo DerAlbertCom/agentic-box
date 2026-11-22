@@ -9,13 +9,13 @@ namespace Abox.Infrastructure;
 /// <summary>Owner-only staging, protected before an exporter can write private material.</summary>
 internal sealed class ProtectedTemporaryDirectory : IDisposable
 {
-    private readonly IConsole console;
-    private bool disposed;
-    private bool ownsDirectory;
+    private readonly IConsole _console;
+    private bool _disposed;
+    private bool _ownsDirectory;
 
     public ProtectedTemporaryDirectory(string parentDirectory, IConsole console)
     {
-        this.console = console;
+        _console = console;
         Path = System.IO.Path.Combine(
             System.IO.Path.GetFullPath(parentDirectory),
             "abox-certificate-" + Guid.NewGuid().ToString("N")
@@ -62,7 +62,7 @@ internal sealed class ProtectedTemporaryDirectory : IDisposable
         var security = OwnerOnlyWindowsSecurity(user);
         security.CreateDirectory(Path);
         // Take cleanup ownership before verification, which can still fail.
-        ownsDirectory = true;
+        _ownsDirectory = true;
         VerifyWindowsSecurity(user);
     }
 
@@ -117,7 +117,7 @@ internal sealed class ProtectedTemporaryDirectory : IDisposable
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
         Directory.CreateDirectory(Path, mode);
         // Take cleanup ownership before verification, which can still fail.
-        ownsDirectory = true;
+        _ownsDirectory = true;
         if (File.GetUnixFileMode(Path) != mode)
             throw new IOException();
     }
@@ -132,12 +132,12 @@ internal sealed class ProtectedTemporaryDirectory : IDisposable
 
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
             return;
-        disposed = true;
+        _disposed = true;
         try
         {
-            if (ownsDirectory && Directory.Exists(Path))
+            if (_ownsDirectory && Directory.Exists(Path))
                 Directory.Delete(Path, recursive: true);
         }
         catch (Exception exception)
@@ -147,7 +147,7 @@ internal sealed class ProtectedTemporaryDirectory : IDisposable
                         or System.Security.SecurityException
             )
         {
-            console.WriteError(
+            _console.WriteError(
                 $"warning: private certificate staging cleanup failed. Remove task-owned directory {JsonSerializer.Serialize(Path)} before retrying; child diagnostics were suppressed."
             );
         }

@@ -6,12 +6,12 @@ namespace Abox.Features.Shared.UserSecrets;
 
 internal sealed partial class OracleEasyConnectScanner(string value, HashSet<int> ports)
 {
-    private readonly string text = value.Trim();
-    private readonly int leading = value.Length - value.TrimStart().Length;
-    private readonly List<EndpointSourceSpan> hosts = [];
-    private int position;
-    private bool valid;
-    private bool recognized;
+    private readonly string _text = value.Trim();
+    private readonly int _leading = value.Length - value.TrimStart().Length;
+    private readonly List<EndpointSourceSpan> _hosts = [];
+    private int _position;
+    private bool _valid;
+    private bool _recognized;
 
     internal static OracleHostScan Scan(
         string value,
@@ -21,25 +21,25 @@ internal sealed partial class OracleEasyConnectScanner(string value, HashSet<int
 
     private OracleHostScan Read(bool inConnectionString)
     {
-        var prefix = OracleEasyPrefix().Match(text);
-        var end = text.IndexOfAny(['/', '?'], prefix.Length);
+        var prefix = OracleEasyPrefix().Match(_text);
+        var end = _text.IndexOfAny(['/', '?'], prefix.Length);
         if (end < 0)
-            end = text.Length;
-        var authority = text[prefix.Length..end];
-        var suffix = text[end..];
+            end = _text.Length;
+        var authority = _text[prefix.Length..end];
+        var suffix = _text[end..];
         if (
             !Recognizes(prefix, authority, inConnectionString)
             || IsGenericUri(prefix, authority, suffix)
         )
             return new(false, true, []);
-        valid =
-            !text.Any(char.IsControl)
+        _valid =
+            !_text.Any(char.IsControl)
             && OracleEasySuffix().IsMatch(suffix)
             && OracleEasyConnectOptions.Valid(suffix);
-        position = prefix.Length;
+        _position = prefix.Length;
         foreach (var list in authority.Split(';'))
             ReadList(list);
-        return new(recognized, valid, hosts);
+        return new(_recognized, _valid, _hosts);
     }
 
     private bool Recognizes(Match prefix, string authority, bool inConnectionString)
@@ -48,13 +48,13 @@ internal sealed partial class OracleEasyConnectScanner(string value, HashSet<int
         {
             // SQL Server's tcp:host,port and other schemes retain their dispatchers.
             if (
-                text.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase)
-                || text.Contains("://", StringComparison.Ordinal)
+                _text.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase)
+                || _text.Contains("://", StringComparison.Ordinal)
             )
                 return false;
             if (!inConnectionString && authority.Any(char.IsWhiteSpace))
                 return false;
-            if (authority.Length == text.Length && !authority.Contains(':'))
+            if (authority.Length == _text.Length && !authority.Contains(':'))
                 return false; // A bare name can be a TNS alias.
         }
         return !authority.Contains('=') && !authority.Contains('(');
@@ -63,11 +63,11 @@ internal sealed partial class OracleEasyConnectScanner(string value, HashSet<int
     private bool IsGenericUri(Match prefix, string authority, string suffix) =>
         // URI-only userinfo, paths and fragments predate Oracle support.
         prefix.Success
-        && !text.StartsWith("//", StringComparison.Ordinal)
+        && !_text.StartsWith("//", StringComparison.Ordinal)
         && !authority.Contains(',')
         && !authority.Contains(';')
         && (authority.Contains('@') || !OracleEasySuffix().IsMatch(suffix))
-        && Uri.TryCreate(text, UriKind.Absolute, out var uri)
+        && Uri.TryCreate(_text, UriKind.Absolute, out var uri)
         && uri.IsWellFormedOriginalString();
 
     private void ReadList(string list)
@@ -76,10 +76,10 @@ internal sealed partial class OracleEasyConnectScanner(string value, HashSet<int
         foreach (var address in list.Split(','))
         {
             ReadAddress(address, pending);
-            position += address.Length + 1;
+            _position += address.Length + 1;
         }
         if (ports.Contains(1521))
-            hosts.AddRange(pending);
+            _hosts.AddRange(pending);
     }
 
     private void ReadAddress(string address, List<EndpointSourceSpan> pending)
@@ -89,24 +89,24 @@ internal sealed partial class OracleEasyConnectScanner(string value, HashSet<int
         var match = OracleEasyAddress().Match(address);
         if (!match.Success)
         {
-            valid = false;
+            _valid = false;
             return;
         }
-        recognized = true;
-        valid &= match.Length == address.Length;
+        _recognized = true;
+        _valid &= match.Length == address.Length;
         var host = match.Groups["host"];
         if (IsLoopback(host.Value))
-            pending.Add(new(leading + position + host.Index, host.Length));
+            pending.Add(new(_leading + _position + host.Index, host.Length));
         var port = match.Groups["port"];
         if (!port.Success)
             return;
         if (TcpPort.TryParse(port.Value, out var number))
         {
             if (ports.Contains(number.Value))
-                hosts.AddRange(pending);
+                _hosts.AddRange(pending);
         }
         else
-            valid = false;
+            _valid = false;
         pending.Clear();
     }
 
@@ -116,11 +116,11 @@ internal sealed partial class OracleEasyConnectScanner(string value, HashSet<int
         var bareLoopback = !address.StartsWith('[') && address.Contains(':') && IsLoopback(address);
         if (!match.Success && !bareLoopback)
             return false;
-        recognized = true;
-        valid = false;
+        _recognized = true;
+        _valid = false;
         var port = match.Success ? match.Groups["port"].Value : "1521";
         if (IsMappedEndpointPort(port, ports))
-            hosts.Add(new(leading + position, address.Length));
+            _hosts.Add(new(_leading + _position, address.Length));
         return true;
     }
 

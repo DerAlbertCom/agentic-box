@@ -15,9 +15,9 @@ public sealed class PublishedSquadSourceOciTests
     private const string LeafDigest =
         "sha256:4444444444444444444444444444444444444444444444444444444444444444";
     private readonly PublishedSquadSourceFixture _fixture = new();
-    private IProcessRunner _runner => _fixture.Runner;
-    private List<ProcessRequest> _calls => _fixture.Calls;
-    private Dictionary<string, string> _rawManifests => _fixture.RawManifests;
+    private IProcessRunner Runner => _fixture.Runner;
+    private List<ProcessRequest> Calls => _fixture.Calls;
+    private Dictionary<string, string> RawManifests => _fixture.RawManifests;
 
     private Task<PublishedSquad> LoadAsync() => _fixture.LoadAsync();
 
@@ -28,7 +28,7 @@ public sealed class PublishedSquadSourceOciTests
     public async Task InvalidResolvedDigestsCannotBeUsedToReadPublishedMetadata(string? digest)
     {
         // Arrange
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--format")),
                 Arg.Any<CancellationToken>()
@@ -42,8 +42,8 @@ public sealed class PublishedSquadSourceOciTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*invalid bundled squad metadata*No local metadata fallback*not replaced*"
         );
-        _calls.Should().NotContain(call => call.Arguments.Contains("--raw"));
-        _calls
+        Calls.Should().NotContain(call => call.Arguments.Contains("--raw"));
+        Calls
             .Should()
             .NotContain(call => call.Arguments[0] == "pull" || call.Arguments[0] == "image");
     }
@@ -86,7 +86,7 @@ public sealed class PublishedSquadSourceOciTests
                 },
             ],
         };
-        _rawManifests[PinnedSet] = JsonSerializer.Serialize(
+        RawManifests[PinnedSet] = JsonSerializer.Serialize(
             new { schemaVersion = 2, manifests = children }
         );
 
@@ -97,10 +97,10 @@ public sealed class PublishedSquadSourceOciTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*republish*No local metadata fallback*not replaced*"
         );
-        _calls
+        Calls
             .Should()
             .NotContain(call => call.Arguments[0] == "pull" || call.Arguments[0] == "image");
-        _calls
+        Calls
             .Should()
             .NotContain(call =>
                 call.Arguments.Last().EndsWith(ChildDigest, StringComparison.Ordinal)
@@ -111,9 +111,9 @@ public sealed class PublishedSquadSourceOciTests
     public async Task NestedIndexesPinMetadataToTheSelectedPlatformWithoutRefloatingTags()
     {
         // Arrange
-        _rawManifests[PinnedSet] = PlatformIndex(ChildDigest);
+        RawManifests[PinnedSet] = PlatformIndex(ChildDigest);
         var child = "rwest.jfrog.io/release/agentic-box-rwest-mti-ca/ac@" + ChildDigest;
-        _rawManifests[child] = PlatformIndex(LeafDigest);
+        RawManifests[child] = PlatformIndex(LeafDigest);
 
         // Act
         var result = await LoadAsync();
@@ -123,22 +123,22 @@ public sealed class PublishedSquadSourceOciTests
             .Reference.Should()
             .Be("rwest.jfrog.io/release/agentic-box-rwest-mti-ca/ac@" + LeafDigest);
         result.Metadata.State.Single().RelativePath.Should().Be(".published");
-        _calls
+        Calls
             .Where(call => call.Arguments.Contains("--format"))
             .Should()
             .ContainSingle()
             .Which.Arguments[^1]
             .Should()
             .Be(Reference);
-        _calls
+        Calls
             .Should()
             .Contain(call => call.Arguments.Contains("--raw") && call.Arguments.Last() == child);
-        _calls
+        Calls
             .Should()
             .Contain(call =>
                 call.Arguments.Contains("--raw") && call.Arguments.Last() == result.Reference
             );
-        _calls
+        Calls
             .Should()
             .NotContain(call =>
                 call.Arguments.Contains("build") || call.Arguments.Contains("create")
@@ -183,14 +183,14 @@ public sealed class PublishedSquadSourceOciTests
             _ => Config,
         };
         var refs = error == "duplicate" ? new[] { Config, Config } : new[] { config };
-        _rawManifests[PinnedSet] = WorkloadWithConfigurations(refs);
+        RawManifests[PinnedSet] = WorkloadWithConfigurations(refs);
 
         // Act
         var action = LoadAsync;
 
         // Assert
         await RejectAsync(action);
-        _calls
+        Calls
             .Should()
             .NotContain(call => call.Arguments[0] == "pull" || call.Arguments[0] == "image");
     }
@@ -225,7 +225,7 @@ public sealed class PublishedSquadSourceOciTests
         for (var index = 0; index < depth; index++)
         {
             var next = "sha256:" + new string((char)('2' + index), 64);
-            _rawManifests[repository + digest] = PlatformIndex(next);
+            RawManifests[repository + digest] = PlatformIndex(next);
             digest = next;
         }
 
@@ -238,7 +238,7 @@ public sealed class PublishedSquadSourceOciTests
         else
         {
             await RejectAsync(action);
-            _calls
+            Calls
                 .Should()
                 .NotContain(call => call.Arguments[0] == "pull" || call.Arguments[0] == "image");
         }

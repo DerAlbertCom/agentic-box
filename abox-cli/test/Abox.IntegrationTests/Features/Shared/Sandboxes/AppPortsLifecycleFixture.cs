@@ -16,26 +16,26 @@ namespace Abox.Tests;
 
 internal sealed class AppPortsLifecycleFixture : IDisposable
 {
-    private readonly UserSecretsCliHarness cli = new(existingSandbox: false);
-    public TempDirectory Root => cli.Root;
-    public TestConsole Console => cli.Console;
-    public IPreflightChecks Preflight => cli.Preflight;
-    public ISandboxLifecycle Lifecycle => cli.Lifecycle;
-    public IKitSourceTrust KitSources => cli.KitSources;
-    public ISandboxInspection Inspection => cli.Inspection;
-    public IApplicationPortPublisher Publisher => cli.Publisher;
-    public ISandboxDevelopmentCertificates Certificates => cli.Certificates;
-    public ISandboxExec Exec => cli.Exec;
-    public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
-    public string Location => cli.Location;
+    private readonly UserSecretsCliHarness _cli = new(existingSandbox: false);
+    public TempDirectory Root => _cli.Root;
+    public TestConsole Console => _cli.Console;
+    public IPreflightChecks Preflight => _cli.Preflight;
+    public ISandboxLifecycle Lifecycle => _cli.Lifecycle;
+    public IKitSourceTrust KitSources => _cli.KitSources;
+    public ISandboxInspection Inspection => _cli.Inspection;
+    public IApplicationPortPublisher Publisher => _cli.Publisher;
+    public ISandboxDevelopmentCertificates Certificates => _cli.Certificates;
+    public ISandboxExec Exec => _cli.Exec;
+    public ISandboxUserSecrets UserSecrets => _cli.UserSecrets;
+    public string Location => _cli.Location;
     public string Name { get; set; }
     public SandboxRecordStore Records { get; }
-    public IServiceCollection Services => cli.Services;
+    public IServiceCollection Services => _cli.Services;
     public static readonly DateTimeOffset OldBuild = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     public AppPortsLifecycleFixture()
     {
-        Name = cli.Name;
+        Name = _cli.Name;
         Root.File("teams/sample/ac.abox", "workload: sample\n");
         var paths = AboxPaths.For(Root.CreateDirectory("config"), Root.CreateDirectory("state"));
         Records = new SandboxRecordStore(paths);
@@ -87,7 +87,7 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
             );
     }
 
-    public void Configure(string json) => cli.Configure(json);
+    public void Configure(string json) => _cli.Configure(json);
 
     /// <summary>Lets the activation or verification step fail or be canceled; null lets both succeed.</summary>
     public void HttpsOutcome(string stage, bool? cancel)
@@ -139,7 +139,7 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
     public Task<int> CreateShared(CancellationToken token) =>
         CommandHandling.RunAsync(
             async () =>
-                await cli
+                await _cli
                     .Provider.GetRequiredService<SandboxCreator>()
                     .CreateAsync(
                         new SandboxCreationRequest(
@@ -155,7 +155,7 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
             Console
         );
 
-    public Task<int> Invoke(params string[] args) => cli.Invoke(args);
+    public Task<int> Invoke(params string[] args) => _cli.Invoke(args);
 
     public Task<int> Create(bool local, params string[] args) =>
         Invoke([
@@ -166,5 +166,5 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
             .. args,
         ]);
 
-    public void Dispose() => cli.Dispose();
+    public void Dispose() => _cli.Dispose();
 }

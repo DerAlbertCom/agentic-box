@@ -9,15 +9,15 @@ namespace Abox.Tests;
 
 internal sealed class UserSecretsPolicyFixture : IDisposable
 {
-    private readonly TempDirectory root = new();
-    private readonly SbxUserSecrets client;
-    private readonly JsonObject inventory;
-    private readonly string sandbox;
+    private readonly TempDirectory _root = new();
+    private readonly SbxUserSecrets _client;
+    private readonly JsonObject _inventory;
+    private readonly string _sandbox;
 
     internal UserSecretsPolicyFixture(string sandbox = "synthetic-sandbox")
     {
-        this.sandbox = sandbox;
-        inventory = JsonNode
+        _sandbox = sandbox;
+        _inventory = JsonNode
             .Parse(
                 """
                 {"rules":[{"name":"kit:synthetic-sandbox","scope":"sandbox:synthetic-sandbox",
@@ -51,7 +51,7 @@ internal sealed class UserSecretsPolicyFixture : IDisposable
                 if (Failure == (list ? "inventory" : "check"))
                     return new ProcessResult(9, "synthetic-password", "123456789 true");
                 if (list)
-                    return new ProcessResult(0, InventoryOverride ?? inventory.ToJsonString(), "");
+                    return new ProcessResult(0, InventoryOverride ?? _inventory.ToJsonString(), "");
                 var check = Check.DeepClone().AsObject();
                 if (Check["target"]?.GetValue<string>() == "localhost:8004")
                     check["target"] = request.Arguments[^1];
@@ -59,10 +59,10 @@ internal sealed class UserSecretsPolicyFixture : IDisposable
                     check["resource_value"] = request.Arguments[^1];
                 return new ProcessResult(0, check.ToJsonString(), "");
             });
-        client = new SbxUserSecrets(new SbxInvoker(runner));
+        _client = new SbxUserSecrets(new SbxInvoker(runner));
     }
 
-    internal JsonArray Rules => inventory["rules"]!.AsArray();
+    internal JsonArray Rules => _inventory["rules"]!.AsArray();
     internal JsonObject Rule => Rules[0]!.AsObject();
 
     internal void AddGlobalRules()
@@ -105,7 +105,7 @@ internal sealed class UserSecretsPolicyFixture : IDisposable
     internal Func<Task<IReadOnlyList<int>>> Read => () => ReadAsync();
 
     internal Task<IReadOnlyList<int>> ReadAsync(CancellationToken token = default) =>
-        client.GetUserSecretsHostPortsAsync(sandbox, token);
+        _client.GetUserSecretsHostPortsAsync(_sandbox, token);
 
-    public void Dispose() => root.Dispose();
+    public void Dispose() => _root.Dispose();
 }

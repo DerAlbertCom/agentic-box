@@ -11,12 +11,12 @@ namespace Abox.Tests;
 public sealed class BuildServiceTeamTests
 {
     private readonly BuildServiceFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
-    private IKitInspector _inspector => _fixture.Inspector;
-    private IProcessRunner _runner => _fixture.Runner;
-    private BuildStore _store => _fixture.Store;
-    private SquadResolver _resolver => _fixture.Resolver;
-    private BuildService _service => _fixture.Service;
+    private TempDirectory Root => _fixture.Root;
+    private IKitInspector Inspector => _fixture.Inspector;
+    private IProcessRunner Runner => _fixture.Runner;
+    private BuildStore Store => _fixture.Store;
+    private SquadResolver Resolver => _fixture.Resolver;
+    private BuildService Service => _fixture.Service;
 
     [Theory]
     [InlineData("sample", "other", false)]
@@ -30,12 +30,12 @@ public sealed class BuildServiceTeamTests
     )
     {
         // Arrange
-        _root.File("teams/other/ac.abox", "workload: other\n");
-        _root.File("teams/other/other.workload", "template: example.com/other:2\n");
+        Root.File("teams/other/ac.abox", "workload: other\n");
+        Root.File("teams/other/other.workload", "template: example.com/other:2\n");
         BuildRequest TeamRequest(string team) =>
             new(
-                [_resolver.ResolveTeam(_root.Path, team)],
-                _root.Path,
+                [Resolver.ResolveTeam(Root.Path, team)],
+                Root.Path,
                 "latest",
                 Verify: false,
                 IncludePersonalConfigurations: false,
@@ -43,21 +43,21 @@ public sealed class BuildServiceTeamTests
             );
 
         // Act
-        await _service.BuildAsync(TeamRequest(first), CancellationToken.None);
-        var firstBuild = _store.Load(new SquadBuildIdentity(first, "ac", "latest"))!;
+        await Service.BuildAsync(TeamRequest(first), CancellationToken.None);
+        var firstBuild = Store.Load(new SquadBuildIdentity(first, "ac", "latest"))!;
         var recipe = Path.Combine(firstBuild.WorkloadKitDirectory, "workload.dockerfile");
         var originalRecipe = File.ReadAllText(recipe);
-        await _service.BuildAsync(TeamRequest(second), CancellationToken.None);
-        var secondBuild = _store.Load(new SquadBuildIdentity(second, "ac", "latest"))!;
+        await Service.BuildAsync(TeamRequest(second), CancellationToken.None);
+        var secondBuild = Store.Load(new SquadBuildIdentity(second, "ac", "latest"))!;
 
         // Assert
         File.ReadAllText(recipe).Should().Be(originalRecipe);
         secondBuild.WorkloadKitDirectory.Should().NotBe(firstBuild.WorkloadKitDirectory);
-        _store
+        Store
             .Load(new SquadBuildIdentity(first, "ac", "latest"))!
             .Reference.Should()
             .Be($"agentic-box-rwest-{first}:latest");
-        _store
+        Store
             .Load(new SquadBuildIdentity(second, "ac", "latest"))!
             .Reference.Should()
             .Be($"agentic-box-rwest-{second}:latest");
@@ -86,18 +86,18 @@ public sealed class BuildServiceTeamTests
     public async Task MultiTeamBuildsKeepSharedSquadsIndependent(bool reverse, bool metadataOnly)
     {
         // Arrange
-        _root.File("teams/other/ac.abox", "workload: other\nstate: [~/.other]\n");
-        _root.File("teams/other/other.workload", "template: example.com/other:2\n");
-        _root.File("teams/sample/ac.abox", "workload: sample\nstate: [~/.sample]\n");
+        Root.File("teams/other/ac.abox", "workload: other\nstate: [~/.other]\n");
+        Root.File("teams/other/other.workload", "template: example.com/other:2\n");
+        Root.File("teams/sample/ac.abox", "workload: sample\nstate: [~/.sample]\n");
         var teams = new[] { "sample", "other" };
         if (reverse)
             Array.Reverse(teams);
 
         // Act
-        var exitCode = await _service.BuildAsync(
+        var exitCode = await Service.BuildAsync(
             new BuildRequest(
-                teams.Select(team => _resolver.ResolveTeam(_root.Path, team)).ToList(),
-                _root.Path,
+                teams.Select(team => Resolver.ResolveTeam(Root.Path, team)).ToList(),
+                Root.Path,
                 "latest",
                 Verify: false,
                 IncludePersonalConfigurations: false,
@@ -108,8 +108,8 @@ public sealed class BuildServiceTeamTests
 
         // Assert
         exitCode.Should().Be(0);
-        var sample = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        var other = _store.Load(new SquadBuildIdentity("other", "ac", "latest"))!;
+        var sample = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var other = Store.Load(new SquadBuildIdentity("other", "ac", "latest"))!;
         File.ReadAllText(Path.Combine(sample.WorkloadKitDirectory, "workload.dockerfile"))
             .Should()
             .Contain("example.com/base:1")
@@ -141,29 +141,24 @@ public sealed class BuildServiceTeamTests
     public async Task MetadataOnlyInvalidatesOnlyTheSelectedTeamsImageAndLeavesLegacyArtifactsUntouched()
     {
         // Arrange
-        _root.File("teams/other/ac.abox", "workload: other\n");
-        _root.File("teams/other/other.workload", "template: example.com/other:2\n");
-        var legacy = _root.File("state/builds/ac/latest/build.json", "legacy sentinel");
+        Root.File("teams/other/ac.abox", "workload: other\n");
+        Root.File("teams/other/other.workload", "template: example.com/other:2\n");
+        var legacy = Root.File("state/builds/ac/latest/build.json", "legacy sentinel");
         var request = new BuildRequest(
-            [
-                _resolver.ResolveTeam(_root.Path, "sample"),
-                _resolver.ResolveTeam(_root.Path, "other"),
-            ],
-            _root.Path,
+            [Resolver.ResolveTeam(Root.Path, "sample"), Resolver.ResolveTeam(Root.Path, "other")],
+            Root.Path,
             "latest",
             Verify: false,
             IncludePersonalConfigurations: false
         );
-        await _service.BuildAsync(request, CancellationToken.None);
-        var previous = _store
-            .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
-            .LocalWorkload!;
-        var other = _store.Load(new SquadBuildIdentity("other", "ac", "latest"))!;
-        _runner.ClearReceivedCalls();
-        _inspector.ClearReceivedCalls();
+        await Service.BuildAsync(request, CancellationToken.None);
+        var previous = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.LocalWorkload!;
+        var other = Store.Load(new SquadBuildIdentity("other", "ac", "latest"))!;
+        Runner.ClearReceivedCalls();
+        Inspector.ClearReceivedCalls();
 
         // Act
-        await _service.BuildAsync(
+        await Service.BuildAsync(
             request with
             {
                 Teams = [request.Teams[0]],
@@ -173,18 +168,18 @@ public sealed class BuildServiceTeamTests
         );
 
         // Assert
-        _store
+        Store
             .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
             .LocalWorkload.Should()
             .BeNull();
-        _store
+        Store
             .Load(new SquadBuildIdentity("other", "ac", "latest"))!
             .LocalWorkload!.Reference.Should()
             .Be(other.LocalWorkload!.Reference);
         File.Exists(Path.Combine(previous.RuntimeKitDirectory, "workload.yaml")).Should().BeTrue();
         File.ReadAllText(legacy).Should().Be("legacy sentinel");
         BuildSources.EnsureUnchanged(other);
-        _runner.ReceivedCalls().Should().BeEmpty();
-        _inspector.ReceivedCalls().Should().BeEmpty();
+        Runner.ReceivedCalls().Should().BeEmpty();
+        Inspector.ReceivedCalls().Should().BeEmpty();
     }
 }

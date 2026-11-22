@@ -26,8 +26,8 @@ internal sealed record ConnectionStringScan(
 
 internal sealed class ConnectionStringScanner(string value)
 {
-    private int position;
-    private ConnectionField? partial;
+    private int _position;
+    private ConnectionField? _partial;
 
     internal static ConnectionStringScan Scan(string value) =>
         new ConnectionStringScanner(value).Read();
@@ -37,36 +37,36 @@ internal sealed class ConnectionStringScanner(string value)
         var fields = new List<ConnectionField>();
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var unique = true;
-        while (position < value.Length)
+        while (_position < value.Length)
         {
             SkipSeparators();
-            if (position == value.Length)
+            if (_position == value.Length)
                 break;
             var field = ReadField();
             if (field is null)
             {
-                unique &= partial is null || keys.Add(partial.Key);
-                return new(false, unique, fields, partial, position);
+                unique &= _partial is null || keys.Add(_partial.Key);
+                return new(false, unique, fields, _partial, _position);
             }
             unique &= keys.Add(field.Key);
             fields.Add(field);
         }
-        return new(true, unique, fields, null, position);
+        return new(true, unique, fields, null, _position);
     }
 
     private ConnectionField? ReadField()
     {
-        partial = null;
+        _partial = null;
         var key = ReadKey();
         if (key is null)
             return null;
-        position++;
+        _position++;
         SkipWhitespace();
-        var start = position;
+        var start = _position;
         var end = ReadValue(ref start);
         if (end is null)
         {
-            partial = new(key, start, position - start);
+            _partial = new(key, start, _position - start);
             return null;
         }
         return new(key, start, end.Value - start);
@@ -74,34 +74,34 @@ internal sealed class ConnectionStringScanner(string value)
 
     private string? ReadKey()
     {
-        var start = position;
-        while (position < value.Length && value[position] != '=')
+        var start = _position;
+        while (_position < value.Length && value[_position] != '=')
         {
-            var character = value[position++];
+            var character = value[_position++];
             if (!(char.IsAsciiLetterOrDigit(character) || character is ' ' or '_' or '-'))
                 return null;
         }
-        if (position == value.Length)
+        if (_position == value.Length)
             return null;
-        var key = value[start..position].Trim();
+        var key = value[start.._position].Trim();
         return key.Length == 0 ? null : key;
     }
 
     private int? ReadValue(ref int start)
     {
-        if (position < value.Length && value[position] is '\'' or '"')
+        if (_position < value.Length && value[_position] is '\'' or '"')
         {
-            var quote = value[position++];
-            start = position;
+            var quote = value[_position++];
+            start = _position;
             return ReadQuotedValue(quote);
         }
-        while (position < value.Length && value[position] != ';')
+        while (_position < value.Length && value[_position] != ';')
         {
-            if (value[position] is '\'' or '"' or '{' or '}')
+            if (value[_position] is '\'' or '"' or '{' or '}')
                 return null;
-            position++;
+            _position++;
         }
-        var end = position;
+        var end = _position;
         while (end > start && char.IsWhiteSpace(value[end - 1]))
             end--;
         return end;
@@ -109,37 +109,37 @@ internal sealed class ConnectionStringScanner(string value)
 
     private int? ReadQuotedValue(char quote)
     {
-        while (position < value.Length)
+        while (_position < value.Length)
         {
-            if (value[position] != quote)
+            if (value[_position] != quote)
             {
-                position++;
+                _position++;
                 continue;
             }
-            if (position + 1 < value.Length && value[position + 1] == quote)
+            if (_position + 1 < value.Length && value[_position + 1] == quote)
             {
-                position += 2;
+                _position += 2;
                 continue;
             }
-            var end = position++;
+            var end = _position++;
             SkipWhitespace();
-            return position < value.Length && value[position] != ';' ? null : end;
+            return _position < value.Length && value[_position] != ';' ? null : end;
         }
         return null;
     }
 
     private void SkipWhitespace()
     {
-        while (position < value.Length && char.IsWhiteSpace(value[position]))
-            position++;
+        while (_position < value.Length && char.IsWhiteSpace(value[_position]))
+            _position++;
     }
 
     private void SkipSeparators()
     {
         while (
-            position < value.Length
-            && (char.IsWhiteSpace(value[position]) || value[position] == ';')
+            _position < value.Length
+            && (char.IsWhiteSpace(value[_position]) || value[_position] == ';')
         )
-            position++;
+            _position++;
     }
 }

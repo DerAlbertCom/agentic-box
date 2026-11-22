@@ -14,16 +14,16 @@ namespace Abox.Tests;
 
 internal sealed class UserSecretsLifecycleFixture : IDisposable
 {
-    private readonly UserSecretsCliHarness cli = new(existingSandbox: false);
-    public TempDirectory Root => cli.Root;
-    public TestConsole Console => cli.Console;
-    public IPreflightChecks Preflight => cli.Preflight;
-    public ISandboxLifecycle Lifecycle => cli.Lifecycle;
-    public ISandboxInspection Inspection => cli.Inspection;
-    public ISandboxExec Exec => cli.Exec;
-    public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
-    public string Location => cli.Location;
-    public string Name => cli.Name;
+    private readonly UserSecretsCliHarness _cli = new(existingSandbox: false);
+    public TempDirectory Root => _cli.Root;
+    public TestConsole Console => _cli.Console;
+    public IPreflightChecks Preflight => _cli.Preflight;
+    public ISandboxLifecycle Lifecycle => _cli.Lifecycle;
+    public ISandboxInspection Inspection => _cli.Inspection;
+    public ISandboxExec Exec => _cli.Exec;
+    public ISandboxUserSecrets UserSecrets => _cli.UserSecrets;
+    public string Location => _cli.Location;
+    public string Name => _cli.Name;
     public SandboxRecordStore Records { get; }
     public BuildStore Builds { get; }
     public static readonly DateTimeOffset OldBuild = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -52,7 +52,7 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
         Lifecycle
             .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new SandboxRemoval(true, ""));
-        var services = cli.Services;
+        var services = _cli.Services;
         services.AddSingleton(
             new AboxConfig
             {
@@ -66,14 +66,14 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
         services.AddSingleton(PublishedSquadFactory.Source());
     }
 
-    public void Configure(string yaml) => cli.Configure(yaml);
+    public void Configure(string yaml) => _cli.Configure(yaml);
 
-    public void ConfigureForUser(string yaml) => cli.ConfigureForUser(yaml);
+    public void ConfigureForUser(string yaml) => _cli.ConfigureForUser(yaml);
 
-    public string Store(string id, string json) => cli.Store(id, json);
+    public string Store(string id, string json) => _cli.Store(id, json);
 
     public Task<int> Create(bool local = false, params string[] args) =>
-        cli.Invoke(["create", .. local ? new[] { "--local", "--root", Root.Path } : [], .. args]);
+        _cli.Invoke(["create", .. local ? new[] { "--local", "--root", Root.Path } : [], .. args]);
 
     public void Existing()
     {
@@ -87,20 +87,20 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
                 BuildCreatedAt = OldBuild,
             }
         );
-        cli.ExistingSandbox(OldBuild);
+        _cli.ExistingSandbox(OldBuild);
     }
 
     public Task<int> Replace(string entry) =>
         entry == "run" ? Run() : Create(entry == "local", "--squad", "ac", "--yes");
 
-    public Task<int> Run() => cli.Invoke("run");
+    public Task<int> Run() => _cli.Invoke("run");
 
-    public Task<int> OnDemand(params string[] args) => cli.Invoke(["user-secrets", .. args]);
+    public Task<int> OnDemand(params string[] args) => _cli.Invoke(["user-secrets", .. args]);
 
     public Task<int> CreateShared(CancellationToken cancellationToken) =>
         CommandHandling.RunAsync(
             async () =>
-                await cli
+                await _cli
                     .Provider.GetRequiredService<SandboxCreator>()
                     .CreateAsync(
                         new SandboxCreationRequest(
@@ -161,5 +161,5 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
             );
     }
 
-    public void Dispose() => cli.Dispose();
+    public void Dispose() => _cli.Dispose();
 }

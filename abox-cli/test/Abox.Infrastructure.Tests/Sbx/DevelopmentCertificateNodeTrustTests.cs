@@ -148,7 +148,7 @@ public sealed class DevelopmentCertificateNodeTrustTests
     {
         internal const string Name = "synthetic-private-runtime";
         internal static readonly string Password = new('a', 64);
-        private readonly CertificateTestDirectory root = new();
+        private readonly CertificateTestDirectory _root = new();
         internal SyntheticDevelopmentCertificate Certificate { get; } = new();
         internal DisposableCertificateRuntime Receiver { get; }
         internal SbxDevelopmentCertificates Client { get; }
@@ -192,7 +192,7 @@ public sealed class DevelopmentCertificateNodeTrustTests
 
         internal async Task SelectCallerInput(byte[] bytes)
         {
-            Receiver.CallerNodeTrust = Path.Combine(root.Path, "caller.pem");
+            Receiver.CallerNodeTrust = Path.Combine(_root.Path, "caller.pem");
             await File.WriteAllBytesAsync(Receiver.CallerNodeTrust, bytes);
         }
 
@@ -200,7 +200,7 @@ public sealed class DevelopmentCertificateNodeTrustTests
         {
             Receiver.Dispose();
             Certificate.Dispose();
-            root.Dispose();
+            _root.Dispose();
         }
     }
 }

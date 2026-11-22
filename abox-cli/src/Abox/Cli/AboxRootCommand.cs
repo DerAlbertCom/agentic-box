@@ -29,7 +29,7 @@ public sealed class AboxRootCommand : RootCommand
 
     public Task<int> InvokeAsync(IReadOnlyList<string> arguments)
     {
-        var parsed = this.Parse(arguments);
+        var parsed = Parse(arguments);
         _verbosity.Verbose = parsed.GetValue(_verbose);
         return parsed.InvokeAsync();
     }

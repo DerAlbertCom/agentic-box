@@ -7,17 +7,17 @@ namespace Abox.Features.Shared.UserSecrets;
 // leaves under CONNECT_DATA, SECURITY or unknown paths are never destinations.
 internal sealed class OracleDescriptorScanner(string value, HashSet<int> ports)
 {
-    private readonly List<EndpointSourceSpan> hosts = [];
-    private bool valid;
+    private readonly List<EndpointSourceSpan> _hosts = [];
+    private bool _valid;
 
     internal static OracleHostScan Scan(string value, HashSet<int> ports)
     {
         var syntax = new OracleDescriptorSyntax(value);
         var root = syntax.Parse();
-        var scanner = new OracleDescriptorScanner(value, ports) { valid = syntax.Complete };
+        var scanner = new OracleDescriptorScanner(value, ports) { _valid = syntax.Complete };
         if (root is not null)
             scanner.Visit(root);
-        return new(true, scanner.valid, scanner.hosts);
+        return new(true, scanner._valid, scanner._hosts);
     }
 
     private void Visit(Node node)
@@ -47,8 +47,8 @@ internal sealed class OracleDescriptorScanner(string value, HashSet<int> ports)
         var local = addressHosts.Where(host => IsLoopback(Text(host))).ToArray();
         if (!IsMapped(addressPorts) || local.Length == 0)
             return;
-        valid &= addressHosts.Length == 1 && addressPorts.Length == 1 && SupportsDirectTcp(node);
-        hosts.AddRange(local.Select(host => new EndpointSourceSpan(host.Start, host.Length)));
+        _valid &= addressHosts.Length == 1 && addressPorts.Length == 1 && SupportsDirectTcp(node);
+        _hosts.AddRange(local.Select(host => new EndpointSourceSpan(host.Start, host.Length)));
     }
 
     private bool IsMapped(Node[] addressPorts) =>

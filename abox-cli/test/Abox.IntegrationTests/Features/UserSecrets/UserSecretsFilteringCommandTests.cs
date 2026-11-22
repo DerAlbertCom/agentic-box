@@ -360,15 +360,15 @@ public sealed class UserSecretsFilteringCommandTests
 
     private sealed class UserSecretsFilteringCommandFixture : IDisposable
     {
-        private readonly UserSecretsCliHarness cli;
-        public TempDirectory Root => cli.Root;
-        public TestConsole Console => cli.Console;
-        public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
+        private readonly UserSecretsCliHarness _cli;
+        public TempDirectory Root => _cli.Root;
+        public TestConsole Console => _cli.Console;
+        public ISandboxUserSecrets UserSecrets => _cli.UserSecrets;
         public List<(string Id, string Json)> Writes { get; } = [];
 
         public UserSecretsFilteringCommandFixture(AboxConfig? config = null)
         {
-            cli = new UserSecretsCliHarness(config);
+            _cli = new UserSecretsCliHarness(config);
             UserSecrets
                 .WriteUserSecretsAsync(
                     Arg.Any<string>(),
@@ -386,12 +386,12 @@ public sealed class UserSecretsFilteringCommandTests
         public void Configure(string entries) =>
             Root.File("folder/abox.yaml", "{\"userSecrets\":" + entries + "}");
 
-        public string Store(string id, string json) => cli.Store(id, json);
+        public string Store(string id, string json) => _cli.Store(id, json);
 
-        public string Payload(string id) => cli.LatestWritten(id);
+        public string Payload(string id) => _cli.LatestWritten(id);
 
-        public Task<int> Run(params string[] args) => cli.Run(args);
+        public Task<int> Run(params string[] args) => _cli.Run(args);
 
-        public void Dispose() => cli.Dispose();
+        public void Dispose() => _cli.Dispose();
     }
 }

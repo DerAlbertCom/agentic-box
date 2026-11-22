@@ -12,25 +12,25 @@ namespace Abox.Tests;
 public sealed class BuiltKitPublicationTests
 {
     private readonly PublishServiceFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
+    private TempDirectory Root => _fixture.Root;
 
     [Fact]
     public async Task PublicationPushesTheStagedBuiltKit()
     {
         // Arrange
-        _root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
-        _root.File(
+        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
+        Root.File(
             "teams/sample/sample.workload",
             "template: example.com/sample:1\npublishRepository: sample-images-local\n"
         );
-        _root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
-        KitBuildScripts.Write(_root, "built", "echo generated > \"$1/generated.txt\"\n");
+        Root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
+        KitBuildScripts.Write(Root, "built", "echo generated > \"$1/generated.txt\"\n");
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
-        var team = resolver.ResolveTeam(_root.Path, "sample");
+        var team = resolver.ResolveTeam(Root.Path, "sample");
         await TestServiceGraphs
             .Build(
                 resolver,
-                new PersonalConfigurations(AboxPaths.For(_root.Path, _root.Path)),
+                new PersonalConfigurations(AboxPaths.For(Root.Path, Root.Path)),
                 _fixture.Store,
                 LocalWorkloadFactory.Images(),
                 _fixture.Console
@@ -38,7 +38,7 @@ public sealed class BuiltKitPublicationTests
             .BuildAsync(
                 new BuildRequest(
                     [team],
-                    _root.Path,
+                    Root.Path,
                     "latest",
                     Verify: false,
                     IncludePersonalConfigurations: false

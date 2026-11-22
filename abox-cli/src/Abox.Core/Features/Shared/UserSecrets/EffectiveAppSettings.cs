@@ -11,8 +11,8 @@ internal sealed class EffectiveAppSettings(
     UserSecretSelection selection
 )
 {
-    private readonly string relativeProject = Path.GetRelativePath(root, project);
-    private readonly string directory = Path.GetDirectoryName(project)!;
+    private readonly string _relativeProject = Path.GetRelativePath(root, project);
+    private readonly string _directory = Path.GetDirectoryName(project)!;
 
     internal async Task<ProjectSettings> ReadAsync(CancellationToken cancellationToken)
     {
@@ -36,7 +36,7 @@ internal sealed class EffectiveAppSettings(
             JsonSerializer.Serialize(merged)
         );
         return new ProjectSettings(
-            relativeProject,
+            _relativeProject,
             allSettings.SelectKeys(selection),
             allSettings.Values,
             hasSource
@@ -52,7 +52,7 @@ internal sealed class EffectiveAppSettings(
         {
             // Use actual spelling even on case-insensitive hosts: development uses lowercase.
             var path = Directory
-                .EnumerateFiles(directory)
+                .EnumerateFiles(_directory)
                 .FirstOrDefault(path => Path.GetFileName(path) == name);
             if (path is null)
                 return null;
@@ -73,7 +73,7 @@ internal sealed class EffectiveAppSettings(
             )
         {
             throw new AboxException(
-                $"Project {JsonSerializer.Serialize(relativeProject)}, store '{selection.Id}': cannot read {name} as a UTF-8 JSON object with unique effective .NET configuration keys (case-insensitive). Check file permissions and use an ordinary file, not a file link/reparse point; no stores were copied."
+                $"Project {JsonSerializer.Serialize(_relativeProject)}, store '{selection.Id}': cannot read {name} as a UTF-8 JSON object with unique effective .NET configuration keys (case-insensitive). Check file permissions and use an ordinary file, not a file link/reparse point; no stores were copied."
             );
         }
     }

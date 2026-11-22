@@ -129,9 +129,9 @@ public sealed class PortsCommandHttpsTests
     /// <summary>A .NET web folder whose Sandbox answers through the real sbx adapter.</summary>
     private sealed class HttpsScenario : IDisposable
     {
-        private readonly LifecycleCertificateCli certificate;
-        private readonly Action<string> onStep;
-        private string published = "[]";
+        private readonly LifecycleCertificateCli _certificate;
+        private readonly Action<string> _onStep;
+        private string _published = "[]";
 
         public HttpsScenario(
             Action<string>? onStep = null,
@@ -140,11 +140,11 @@ public sealed class PortsCommandHttpsTests
             int refreshExitCode = 0
         )
         {
-            this.onStep = onStep ?? (_ => { });
+            _onStep = onStep ?? (_ => { });
             var runner = Substitute.For<IProcessRunner>();
             var console = new TestConsole();
-            certificate = new LifecycleCertificateCli(console) { Exported = () => Step("export") };
-            Fixture = new PortsCommandFixture(runner: runner, exporter: certificate.Exporter);
+            _certificate = new LifecycleCertificateCli(console) { Exported = () => Step("export") };
+            Fixture = new PortsCommandFixture(runner: runner, exporter: _certificate.Exporter);
             Fixture.Root.File("folder/Web.csproj", "<Project Sdk=\"Microsoft.NET.Sdk.Web\" />");
             Fixture.Root.File(
                 "folder/Properties/launchSettings.json",
@@ -161,7 +161,7 @@ public sealed class PortsCommandHttpsTests
                         "diagnose" => Result(0, """{"checks":[]}"""),
                         "ls" => Result(0, $$"""[{"name":"{{Fixture.Name}}","status":"running"}]"""),
                         "ports" when arguments.Contains("--publish") => Publish(arguments),
-                        "ports" => Result(0, published),
+                        "ports" => Result(0, _published),
                         "exec" when arguments is [_, _, "true"] => Result(0, ""),
                         "exec"
                             when arguments.Any(argument =>
@@ -191,13 +191,13 @@ public sealed class PortsCommandHttpsTests
         private void Step(string step)
         {
             Steps.Add(step);
-            onStep(step);
+            _onStep(step);
         }
 
         private ProcessResult Publish(IReadOnlyList<string> arguments)
         {
             var binding = arguments[arguments.ToList().IndexOf("--publish") + 1].Split(':', '/');
-            published =
+            _published =
                 $$"""[{"host_ip":"{{binding[0]}}","host_port":{{binding[1]}},"sandbox_port":{{binding[2]}},"protocol":"{{binding[3]}}"}]""";
             return Result(0, "[]");
         }
@@ -214,7 +214,7 @@ public sealed class PortsCommandHttpsTests
         public void Dispose()
         {
             Fixture.Dispose();
-            certificate.Dispose();
+            _certificate.Dispose();
         }
     }
 }

@@ -16,13 +16,13 @@ namespace Abox.Tests;
 public sealed class PublishServiceTeamTests
 {
     private readonly PublishServiceFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
-    private BuildStore _store => _fixture.Store;
-    private TestConsole _console => _fixture.Console;
-    private List<ProcessRequest> _calls => _fixture.Calls;
-    private List<string> _descriptors => _fixture.Descriptors;
-    private List<string> _configurations => _fixture.Configurations;
-    private PublishService _service => _fixture.Service;
+    private TempDirectory Root => _fixture.Root;
+    private BuildStore Store => _fixture.Store;
+    private TestConsole Console => _fixture.Console;
+    private List<ProcessRequest> Calls => _fixture.Calls;
+    private List<string> Descriptors => _fixture.Descriptors;
+    private List<string> Configurations => _fixture.Configurations;
+    private PublishService Service => _fixture.Service;
 
     private PublishRequest Request(params string[] squads) => _fixture.Request(squads);
 
@@ -44,27 +44,27 @@ public sealed class PublishServiceTeamTests
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         foreach (var team in new[] { "sample", "other" })
         {
-            _root.File($"teams/{team}/ac.abox", $"workload: {team}\nstate: [~/.{team}]\n");
-            _root.File(
+            Root.File($"teams/{team}/ac.abox", $"workload: {team}\nstate: [~/.{team}]\n");
+            Root.File(
                 $"teams/{team}/{team}.workload",
                 $"template: example.com/{team}:1\npublishRepository: {team}-images-local\n"
             );
         }
         var names = reverse ? new[] { "other", "sample" } : new[] { "sample", "other" };
-        var teams = names.Select(team => resolver.ResolveTeam(_root.Path, team)).ToList();
+        var teams = names.Select(team => resolver.ResolveTeam(Root.Path, team)).ToList();
         var build = TestServiceGraphs.Build(
             resolver,
-            new PersonalConfigurations(AboxPaths.For(_root.Path, _root.Path)),
-            _store,
+            new PersonalConfigurations(AboxPaths.For(Root.Path, Root.Path)),
+            Store,
             LocalWorkloadFactory.Images(),
-            _console
+            Console
         );
         foreach (var team in teams)
         {
             await build.BuildAsync(
                 new BuildRequest(
                     [team],
-                    _root.Path,
+                    Root.Path,
                     "latest",
                     Verify: false,
                     IncludePersonalConfigurations: false,
@@ -75,20 +75,20 @@ public sealed class PublishServiceTeamTests
         }
 
         // Act
-        var exitCode = await _service.PublishAsync(
+        var exitCode = await Service.PublishAsync(
             new PublishRequest(teams, "latest"),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(0);
-        _configurations.Should().HaveCount(2);
+        Configurations.Should().HaveCount(2);
         foreach (var team in names)
         {
-            _descriptors
+            Descriptors
                 .Should()
                 .Contain(descriptor => descriptor.Contains($"displayName: \"{team}\"\n"));
-            var configuration = _configurations.Single(text =>
+            var configuration = Configurations.Single(text =>
                 JsonNode.Parse(text)!["Team"]!.GetValue<string>() == team
             );
             using var json = JsonDocument.Parse(configuration);
@@ -98,7 +98,7 @@ public sealed class PublishServiceTeamTests
                 .GetString()
                 .Should()
                 .Be("/home/agent/." + team);
-            _calls
+            Calls
                 .Where(call => call.Arguments.Contains("create"))
                 .Should()
                 .Contain(call =>
@@ -120,28 +120,28 @@ public sealed class PublishServiceTeamTests
     {
         // Arrange
         SaveBuild("ac");
-        var manifest = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         manifest.Reference = owner is null ? null : $"agentic-box-rwest-{owner}:latest";
         var original = JsonSerializer.Serialize(manifest);
-        var legacy = _root.File("state/builds/ac/latest/build.json", original);
+        var legacy = Root.File("state/builds/ac/latest/build.json", original);
         var qualified = ManifestPath(new("sample", "ac", "latest"));
         File.Delete(qualified);
 
         // Act
-        var publish = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var publish = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         if (allowed)
         {
             (await publish()).Should().Be(0);
-            _configurations.Should().ContainSingle();
+            Configurations.Should().ContainSingle();
         }
         else
         {
             (await publish.Should().ThrowAsync<AboxException>()).WithMessage(
                 "*abox build --team sample --tag latest*"
             );
-            _calls.Should().BeEmpty();
+            Calls.Should().BeEmpty();
         }
         File.ReadAllText(legacy).Should().Be(original);
         File.Exists(qualified).Should().BeFalse();

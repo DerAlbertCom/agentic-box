@@ -10,10 +10,10 @@ namespace Abox.Tests;
 internal sealed class ShellSandbox : IProcessRunner, IDisposable
 {
     private static readonly Lazy<string?> Shell = new(FindShell);
-    private readonly TempDirectory root;
-    private readonly bool appData;
+    private readonly TempDirectory _root;
+    private readonly bool _appData;
     public SbxUserSecrets Client { get; }
-    public string RootPath => root.Path;
+    public string RootPath => _root.Path;
     public string SecretsRoot { get; }
     public string StorePath => Path.Combine(SecretsRoot, "synthetic", "secrets.json");
     public Func<string, string>? Frame { get; set; }
@@ -26,12 +26,12 @@ internal sealed class ShellSandbox : IProcessRunner, IDisposable
                 Xunit.v3.DynamicSkipToken.Value
                     + "Receiver tests require a non-root POSIX shell with GNU coreutils (Git Bash on Windows, discovered from git on PATH)."
             );
-        root = new TempDirectory();
-        this.appData = appData;
-        root.CreateDirectory("appdata");
-        root.CreateDirectory("home");
+        _root = new TempDirectory();
+        _appData = appData;
+        _root.CreateDirectory("appdata");
+        _root.CreateDirectory("home");
         SecretsRoot = Path.Combine(
-            root.Path,
+            _root.Path,
             appData ? "appdata/Microsoft/UserSecrets" : "home/.microsoft/usersecrets"
         );
         Client = new SbxUserSecrets(new SbxInvoker(this));
@@ -47,7 +47,7 @@ internal sealed class ShellSandbox : IProcessRunner, IDisposable
     {
         var start = request.Arguments.ToList().IndexOf("-c");
         var script =
-            BeforeReceiver + (appData ? "" : "unset APPDATA\n") + request.Arguments[start + 1];
+            BeforeReceiver + (_appData ? "" : "unset APPDATA\n") + request.Arguments[start + 1];
         return new ProcessRunner().RunAsync(
             new ProcessRequest(
                 Shell.Value!,
@@ -67,7 +67,7 @@ internal sealed class ShellSandbox : IProcessRunner, IDisposable
             new ProcessRequest(
                 Shell.Value!,
                 ["-c", script],
-                WorkingDirectory: root.Path,
+                WorkingDirectory: _root.Path,
                 Environment: ShellEnvironment,
                 StandardInput: ""
             ),
@@ -77,8 +77,8 @@ internal sealed class ShellSandbox : IProcessRunner, IDisposable
     private Dictionary<string, string> ShellEnvironment =>
         new()
         {
-            ["HOME"] = UnixPath(Path.Combine(root.Path, "home")),
-            ["APPDATA"] = UnixPath(Path.Combine(root.Path, "appdata")),
+            ["HOME"] = UnixPath(Path.Combine(_root.Path, "home")),
+            ["APPDATA"] = UnixPath(Path.Combine(_root.Path, "appdata")),
         };
 
     private static string? FindShell()
@@ -139,5 +139,5 @@ internal sealed class ShellSandbox : IProcessRunner, IDisposable
             ? "/" + char.ToLowerInvariant(path[0]) + path[2..].Replace('\\', '/')
             : path;
 
-    public void Dispose() => root.Dispose();
+    public void Dispose() => _root.Dispose();
 }

@@ -16,9 +16,9 @@ public sealed class ShellHostProgramsTests
         using var root = new TempDirectory();
         root.File("bin/tool" + Extension, "");
         var path = string.Join(
-            System.IO.Path.PathSeparator,
-            System.IO.Path.Combine(root.Path, "empty"),
-            System.IO.Path.Combine(root.Path, "bin")
+            Path.PathSeparator,
+            Path.Combine(root.Path, "empty"),
+            Path.Combine(root.Path, "bin")
         );
 
         // Act

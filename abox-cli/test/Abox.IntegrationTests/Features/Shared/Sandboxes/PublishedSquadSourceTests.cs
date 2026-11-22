@@ -18,10 +18,10 @@ public sealed class PublishedSquadSourceTests
     public static bool IsNotWindows => !OperatingSystem.IsWindows();
 
     private readonly PublishedSquadSourceFixture _fixture = new();
-    private IHostPrograms _programs => _fixture.Programs;
-    private List<ProcessRequest> _calls => _fixture.Calls;
-    private TestConsole _console => _fixture.Console;
-    private JsonObject _metadata => _fixture.Metadata;
+    private IHostPrograms Programs => _fixture.Programs;
+    private List<ProcessRequest> Calls => _fixture.Calls;
+    private TestConsole Console => _fixture.Console;
+    private JsonObject Metadata => _fixture.Metadata;
 
     [Theory]
     [InlineData(false, false)]
@@ -47,8 +47,8 @@ public sealed class PublishedSquadSourceTests
         result.Metadata.State.Single().RelativePath.Should().Be(".published");
         result.Metadata.Mcp.Single().Url.Should().Be("https://example.com/mcp");
         result.Metadata.CreatedAt.Should().Be(DateTimeOffset.Parse("2026-11-09T12:00:00Z"));
-        _calls.Should().OnlyContain(call => call.FileName == "docker" && !call.AttachConsole);
-        _calls
+        Calls.Should().OnlyContain(call => call.FileName == "docker" && !call.AttachConsole);
+        Calls
             .Select(call => call.Arguments[0])
             .Should()
             .Equal(
@@ -56,11 +56,11 @@ public sealed class PublishedSquadSourceTests
                     ? ["buildx", "buildx", "buildx", "buildx", "pull", "image"]
                     : ["buildx", "buildx", "buildx", "pull", "image"]
             );
-        _calls
+        Calls
             .Single(call => call.Arguments[0] == "pull")
             .Arguments.Should()
             .Equal("pull", "--platform", "linux/" + ArchitectureName, Config);
-        File.Exists(_calls.Single(call => call.Arguments[0] == "image").Arguments[3])
+        File.Exists(Calls.Single(call => call.Arguments[0] == "image").Arguments[3])
             .Should()
             .BeFalse("temporary archives are cleaned up");
     }
@@ -69,7 +69,7 @@ public sealed class PublishedSquadSourceTests
     public async Task AcceptsTheOriginalPublishedMetadataFormatWithoutAnExplicitVersion()
     {
         // Arrange
-        _metadata.Remove("SchemaVersion");
+        Metadata.Remove("SchemaVersion");
 
         // Act
         var result = await LoadAsync();
@@ -82,7 +82,7 @@ public sealed class PublishedSquadSourceTests
     public async Task AcceptsPublishedMetadataThatCarriesSecretDeclarations()
     {
         // Arrange
-        _metadata["Secrets"] = JsonNode.Parse(
+        Metadata["Secrets"] = JsonNode.Parse(
             """
             [{"Service":"elastic","Prompt":"The API key","Hosts":["elastic.example.com"],
               "Env":"ELASTIC_API_KEY","Inputs":[],"Separator":":","Encoding":"plain"}]
@@ -101,8 +101,8 @@ public sealed class PublishedSquadSourceTests
     public async Task RegistryIdentityIsCaseInsensitiveButTagsAreNot()
     {
         // Arrange
-        _metadata["Team"] = "MTI-CA";
-        _metadata["Squad"] = "AC";
+        Metadata["Team"] = "MTI-CA";
+        Metadata["Squad"] = "AC";
 
         // Act
         var result = await LoadAsync();
@@ -111,7 +111,7 @@ public sealed class PublishedSquadSourceTests
         result.Metadata.Squad.Should().Be("ac");
 
         // Arrange
-        _metadata["Tag"] = "LATEST";
+        Metadata["Tag"] = "LATEST";
 
         // Act
         var action = LoadAsync;
@@ -128,7 +128,7 @@ public sealed class PublishedSquadSourceTests
     public async Task RejectsWrongIdentityAndMalformedTimestamps(string field, string value)
     {
         // Arrange
-        _metadata[field] = value;
+        Metadata[field] = value;
 
         // Act
         var action = LoadAsync;
@@ -144,7 +144,7 @@ public sealed class PublishedSquadSourceTests
     public async Task MissingRequiredFieldsCannotSilentlyDisableRuntimeConfiguration(string field)
     {
         // Arrange
-        _metadata.Remove(field);
+        Metadata.Remove(field);
 
         // Act
         var action = LoadAsync;
@@ -162,7 +162,7 @@ public sealed class PublishedSquadSourceTests
     public async Task RejectsUnsafeOrInconsistentHostStatePaths(string path)
     {
         // Arrange
-        _metadata["State"]![0]!["RelativePath"] = path;
+        Metadata["State"]![0]!["RelativePath"] = path;
 
         // Act
         var action = LoadAsync;
@@ -180,7 +180,7 @@ public sealed class PublishedSquadSourceTests
     public async Task RejectsNonCanonicalSandboxPaths(string path)
     {
         // Arrange
-        _metadata["State"]![0]!["SandboxPath"] = path;
+        Metadata["State"]![0]!["SandboxPath"] = path;
 
         // Act
         var action = LoadAsync;
@@ -195,7 +195,7 @@ public sealed class PublishedSquadSourceTests
     public async Task RejectsDuplicateRuntimeEntries(string field)
     {
         // Arrange
-        _metadata[field]!.AsArray().Add(_metadata[field]![0]!.DeepClone());
+        Metadata[field]!.AsArray().Add(Metadata[field]![0]!.DeepClone());
 
         // Act
         var action = LoadAsync;
@@ -216,7 +216,7 @@ public sealed class PublishedSquadSourceTests
     public async Task RejectsInvalidMcpDeclarations(string field, string value)
     {
         // Arrange
-        _metadata["Mcp"]![0]![field] = value;
+        Metadata["Mcp"]![0]![field] = value;
 
         // Act
         var action = LoadAsync;
@@ -231,7 +231,7 @@ public sealed class PublishedSquadSourceTests
     public async Task RejectsNullEntries(string field)
     {
         // Arrange
-        _metadata[field] = JsonNode.Parse("[null]");
+        Metadata[field] = JsonNode.Parse("[null]");
 
         // Act
         var action = LoadAsync;
@@ -244,7 +244,7 @@ public sealed class PublishedSquadSourceTests
     public async Task RejectsUnsupportedMetadataSchema()
     {
         // Arrange
-        _metadata["SchemaVersion"] = 2;
+        Metadata["SchemaVersion"] = 2;
 
         // Act
         var action = LoadAsync;
@@ -325,14 +325,14 @@ public sealed class PublishedSquadSourceTests
                 // Assert
                 result.Metadata.Squad.Should().Be("ac");
             }
-            _console
+            Console
                 .Errors.Should()
                 .Contain(error => error.Contains("warning:") && error.Contains("could not remove"));
         }
         finally
         {
             _fixture.LockedArchive?.Dispose();
-            var archive = _calls.Single(call => call.Arguments[0] == "image").Arguments[3];
+            var archive = Calls.Single(call => call.Arguments[0] == "image").Arguments[3];
             Directory.Delete(Path.GetDirectoryName(archive)!, recursive: true);
         }
     }
@@ -380,7 +380,7 @@ public sealed class PublishedSquadSourceTests
     public async Task MissingDockerDoesNotRecommendALocalBuild()
     {
         // Arrange
-        _programs.Exists("docker").Returns(false);
+        Programs.Exists("docker").Returns(false);
 
         // Act
         var action = LoadAsync;
@@ -389,7 +389,7 @@ public sealed class PublishedSquadSourceTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*Install Docker*no local build*"
         );
-        _calls.Should().BeEmpty();
+        Calls.Should().BeEmpty();
     }
 
     private Task<PublishedSquad> LoadAsync() => _fixture.LoadAsync();

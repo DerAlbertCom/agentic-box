@@ -8,7 +8,7 @@ namespace Abox.Tests;
 public sealed class LocalWorkloadImagesDockerTests : IDisposable
 {
     private readonly LocalWorkloadImagesFixture _fixture = new();
-    private IProcessRunner _runner => _fixture.Runner;
+    private IProcessRunner Runner => _fixture.Runner;
 
     public void Dispose() => _fixture.Dispose();
 
@@ -24,7 +24,7 @@ public sealed class LocalWorkloadImagesDockerTests : IDisposable
     {
         // Arrange
         var calls = new List<ProcessRequest>();
-        _runner
+        Runner
             .When(runner =>
                 runner.RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             )

@@ -64,8 +64,8 @@ public sealed class CertificateStagingCleanupTests
               "IsHttpsDevelopmentCertificate":true,"IsExportable":true,"TrustLevel":"Full",
               "X509SubjectAlternativeNameExtension":["localhost"]}]
             """;
-        private readonly CertificateTestDirectory root;
-        private readonly UnixFileMode originalMode;
+        private readonly CertificateTestDirectory _root;
+        private readonly UnixFileMode _originalMode;
 
         public UnixCleanupFailureFixture(string outcome)
         {
@@ -74,9 +74,9 @@ public sealed class CertificateStagingCleanupTests
                     Xunit.v3.DynamicSkipToken.Value
                         + "Cleanup failure requires Unix directory permissions enforced for a non-root user."
                 );
-            root = new CertificateTestDirectory();
-            originalMode = File.GetUnixFileMode(root.Path);
-            MarkerPath = Path.Combine(root.Path, "keep.txt");
+            _root = new CertificateTestDirectory();
+            _originalMode = File.GetUnixFileMode(_root.Path);
+            MarkerPath = Path.Combine(_root.Path, "keep.txt");
             File.WriteAllText(MarkerPath, "unowned sibling");
             var runner = Substitute.For<IProcessRunner>();
             runner
@@ -85,7 +85,7 @@ public sealed class CertificateStagingCleanupTests
             Exporter = new DotnetDevelopmentCertificate(
                 runner,
                 Console,
-                root.Path,
+                _root.Path,
                 [new("synthetic-tool", 6)]
             );
         }
@@ -111,7 +111,7 @@ public sealed class CertificateStagingCleanupTests
                 throw new InvalidOperationException("Unix-only fixture");
             // Only the fixture's parent loses write permission, so removal fails
             // without touching any host location or preventing fixture recovery.
-            File.SetUnixFileMode(root.Path, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            File.SetUnixFileMode(_root.Path, UnixFileMode.UserRead | UnixFileMode.UserExecute);
             if (outcome == "cancel")
             {
                 Cancellation.Cancel();
@@ -127,8 +127,8 @@ public sealed class CertificateStagingCleanupTests
         public void Dispose()
         {
             if (!OperatingSystem.IsWindows())
-                File.SetUnixFileMode(root.Path, originalMode);
-            root.Dispose();
+                File.SetUnixFileMode(_root.Path, _originalMode);
+            _root.Dispose();
             Cancellation.Dispose();
         }
     }

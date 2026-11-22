@@ -17,13 +17,13 @@ public sealed class ProtectedTemporaryDirectoryTests
     {
         // Arrange
         using var root = new CertificateTestDirectory();
-        var target = System.IO.Path.Combine(root.Path, "target");
-        Directory.CreateDirectory(System.IO.Path.Combine(target, "nested"));
-        var marker = System.IO.Path.Combine(target, "keep.txt");
+        var target = Path.Combine(root.Path, "target");
+        Directory.CreateDirectory(Path.Combine(target, "nested"));
+        var marker = Path.Combine(target, "keep.txt");
         File.WriteAllText(marker, "unowned contents");
-        var link = System.IO.Path.Combine(root.Path, "linked");
+        var link = Path.Combine(root.Path, "linked");
         CreateDirectoryLink(link, target);
-        var parent = System.IO.Path.Combine(link, subdirectory);
+        var parent = Path.Combine(link, subdirectory);
         var console = Substitute.For<IConsole>();
 
         // Act
@@ -90,7 +90,7 @@ public sealed class ProtectedTemporaryDirectoryTests
                     .Be(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
             // Arrange
-            File.WriteAllText(System.IO.Path.Combine(path, "synthetic.pfx"), "not a real key");
+            File.WriteAllText(Path.Combine(path, "synthetic.pfx"), "not a real key");
         }
 
         // Assert
@@ -130,7 +130,7 @@ public sealed class ProtectedTemporaryDirectoryTests
             );
             try
             {
-                await File.WriteAllBytesAsync(System.IO.Path.Combine(path, "partial.pfx"), bytes);
+                await File.WriteAllBytesAsync(Path.Combine(path, "partial.pfx"), bytes);
                 if (cancel)
                     throw new OperationCanceledException();
                 throw new IOException("synthetic exporter failed");
@@ -166,7 +166,7 @@ public sealed class ProtectedTemporaryDirectoryTests
         var console = Substitute.For<IConsole>();
         var staging = new ProtectedTemporaryDirectory(parent.Path, console);
         using var blockedFile = new FileStream(
-            System.IO.Path.Combine(staging.Path, "synthetic.pfx"),
+            Path.Combine(staging.Path, "synthetic.pfx"),
             FileMode.CreateNew,
             FileAccess.ReadWrite,
             FileShare.None

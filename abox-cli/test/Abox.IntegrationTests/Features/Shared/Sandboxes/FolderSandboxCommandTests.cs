@@ -194,7 +194,7 @@ public sealed class FolderSandboxCommandTests
 
     private sealed class Fixture : IDisposable
     {
-        private readonly List<SandboxInfo> inventory = [];
+        private readonly List<SandboxInfo> _inventory = [];
 
         public Fixture()
         {
@@ -224,7 +224,7 @@ public sealed class FolderSandboxCommandTests
             Calls.Count(call => call.FileName == "sbx" && call.Arguments[0] == "ls");
 
         public void Sandbox(string name, string? workspace = null) =>
-            inventory.Add(
+            _inventory.Add(
                 new SandboxInfo(name, "running", null)
                 {
                     Workspaces = workspace is null ? [] : [workspace],
@@ -262,7 +262,7 @@ public sealed class FolderSandboxCommandTests
                 "version" => """{"client":{"version":"0.51.0"}}""",
                 "diagnose" => """{"checks":[]}""",
                 "ls" => JsonSerializer.Serialize(
-                    inventory.Select(sandbox => new
+                    _inventory.Select(sandbox => new
                     {
                         name = sandbox.Name,
                         status = sandbox.Status,

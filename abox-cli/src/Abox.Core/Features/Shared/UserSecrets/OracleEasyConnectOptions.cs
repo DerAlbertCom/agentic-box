@@ -2,24 +2,24 @@ namespace Abox.Features.Shared.UserSecrets;
 
 internal sealed class OracleEasyConnectOptions(string suffix)
 {
-    private int position;
+    private int _position;
 
     internal static bool Valid(string suffix)
     {
         var question = suffix.IndexOf('?');
         return question < 0
-            || new OracleEasyConnectOptions(suffix) { position = question + 1 }.Read();
+            || new OracleEasyConnectOptions(suffix) { _position = question + 1 }.Read();
     }
 
     private bool Read()
     {
-        while (position < suffix.Length)
+        while (_position < suffix.Length)
         {
             if (!ReadKey() || !ReadValue())
                 return false;
             if (
-                position < suffix.Length
-                && (suffix[position++] != '&' || position == suffix.Length)
+                _position < suffix.Length
+                && (suffix[_position++] != '&' || _position == suffix.Length)
             )
                 return false;
         }
@@ -28,16 +28,16 @@ internal sealed class OracleEasyConnectOptions(string suffix)
 
     private bool ReadKey()
     {
-        var start = position;
+        var start = _position;
         while (
-            position < suffix.Length
-            && (char.IsAsciiLetterOrDigit(suffix[position]) || suffix[position] is '_' or '.')
+            _position < suffix.Length
+            && (char.IsAsciiLetterOrDigit(suffix[_position]) || suffix[_position] is '_' or '.')
         )
-            position++;
-        var key = suffix[start..position].ToUpperInvariant();
+            _position++;
+        var key = suffix[start.._position].ToUpperInvariant();
         return key.Length > 0
-            && position < suffix.Length
-            && suffix[position++] == '='
+            && _position < suffix.Length
+            && suffix[_position++] == '='
             && key
                 is not (
                     "HOST"
@@ -54,14 +54,14 @@ internal sealed class OracleEasyConnectOptions(string suffix)
 
     private bool ReadValue()
     {
-        if (position < suffix.Length && suffix[position] is '\'' or '"')
-            return ReadQuotedValue(suffix[position++]);
-        while (position < suffix.Length)
+        if (_position < suffix.Length && suffix[_position] is '\'' or '"')
+            return ReadQuotedValue(suffix[_position++]);
+        while (_position < suffix.Length)
         {
-            var character = suffix[position++];
+            var character = suffix[_position++];
             if (character == '&')
             {
-                position--;
+                _position--;
                 return true;
             }
             else if (char.IsWhiteSpace(character) || character is '\'' or '"' or '(' or ')' or '\\')
@@ -72,11 +72,11 @@ internal sealed class OracleEasyConnectOptions(string suffix)
 
     private bool ReadQuotedValue(char quote)
     {
-        while (position < suffix.Length)
+        while (_position < suffix.Length)
         {
-            var character = suffix[position++];
-            if (character == '\\' && position < suffix.Length)
-                position++;
+            var character = suffix[_position++];
+            if (character == '\\' && _position < suffix.Length)
+                _position++;
             else if (character == quote)
                 return true;
         }

@@ -8,27 +8,29 @@ namespace Abox.Tests;
 /// <summary>Simulates a CLI export failure without store access or external processes.</summary>
 internal sealed class SyntheticCertificateExport : IDisposable
 {
-    private readonly string condition;
-    private readonly SyntheticDevelopmentCertificate identity;
-    private readonly CancellationTokenSource cancellation = new();
-    private readonly byte[] bytes;
-    private readonly JsonArray before;
-    private readonly JsonArray after;
-    private int reads;
+    private readonly string _condition;
+    private readonly SyntheticDevelopmentCertificate _identity;
+    private readonly CancellationTokenSource _cancellation = new();
+    private readonly byte[] _bytes;
+    private readonly JsonArray _before;
+    private readonly JsonArray _after;
+    private int _reads;
 
     internal SyntheticCertificateExport(string condition, string password)
     {
-        this.condition = condition;
-        identity = new SyntheticDevelopmentCertificate(
+        _condition = condition;
+        _identity = new SyntheticDevelopmentCertificate(
             format: condition == "bad-format" ? 4 : 6,
             dnsName: condition == "bad-san" ? "not-localhost" : "localhost",
             before: condition == "future-pfx" ? DateTimeOffset.UtcNow.AddDays(1) : null,
             after: condition == "expired-pfx" ? DateTimeOffset.UtcNow.AddDays(-1) : null
         );
-        bytes =
-            condition == "no-key" ? identity.ExportPublicOnly(password) : identity.Export(password);
-        before = EligibleReport();
-        after = FreshReport();
+        _bytes =
+            condition == "no-key"
+                ? _identity.ExportPublicOnly(password)
+                : _identity.Export(password);
+        _before = EligibleReport();
+        _after = FreshReport();
         Runner = Substitute.For<IProcessRunner>();
         Runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
@@ -36,25 +38,25 @@ internal sealed class SyntheticCertificateExport : IDisposable
     }
 
     internal IProcessRunner Runner { get; }
-    internal CancellationToken Token => cancellation.Token;
+    internal CancellationToken Token => _cancellation.Token;
 
     private JsonArray EligibleReport()
     {
-        var metadata = identity.Metadata();
+        var metadata = _identity.Metadata();
         metadata[0]!["Version"] = 6;
-        if (condition == "wrong-identity")
+        if (_condition == "wrong-identity")
             metadata[0]!["Thumbprint"] = new string('A', 40);
-        if (condition == "future-pfx")
+        if (_condition == "future-pfx")
             metadata[0]!["ValidityNotBefore"] = DateTime.UtcNow.AddDays(-1);
-        if (condition == "expired-pfx")
+        if (_condition == "expired-pfx")
             metadata[0]!["ValidityNotAfter"] = DateTime.UtcNow.AddDays(1);
         return metadata;
     }
 
     private JsonArray FreshReport()
     {
-        var metadata = before.DeepClone().AsArray();
-        switch (condition)
+        var metadata = _before.DeepClone().AsArray();
+        switch (_condition)
         {
             case "post-untrusted":
                 metadata[0]!["TrustLevel"] = "None";
@@ -72,12 +74,12 @@ internal sealed class SyntheticCertificateExport : IDisposable
                 metadata[0]!["Version"] = 7;
                 break;
             case "post-valid-from":
-                metadata[0]!["ValidityNotBefore"] = identity
+                metadata[0]!["ValidityNotBefore"] = _identity
                     .Certificate.NotBefore.ToUniversalTime()
                     .AddDays(-1);
                 break;
             case "post-valid-until":
-                metadata[0]!["ValidityNotAfter"] = identity
+                metadata[0]!["ValidityNotAfter"] = _identity
                     .Certificate.NotAfter.ToUniversalTime()
                     .AddDays(1);
                 break;
@@ -89,25 +91,25 @@ internal sealed class SyntheticCertificateExport : IDisposable
     {
         if (!child.Arguments.Contains("--export-path"))
         {
-            if (condition == "post-cancel" && reads != 0)
+            if (_condition == "post-cancel" && _reads != 0)
                 return Cancel();
             return Task.FromResult(
                 new ProcessResult(
                     0,
-                    (reads++ == 0 ? before : after).ToJsonString(),
+                    (_reads++ == 0 ? _before : _after).ToJsonString(),
                     "secret metadata"
                 )
             );
         }
         var path = child.Arguments[Array.IndexOf(child.Arguments.ToArray(), "--export-path") + 1];
         WriteExport(path);
-        if (condition == "cancel")
+        if (_condition == "cancel")
             return Cancel();
-        if (condition == "throw")
+        if (_condition == "throw")
             return Task.FromException<ProcessResult>(new IOException("secret export"));
         return Task.FromResult(
             new ProcessResult(
-                condition == "partial-export" ? 9 : 0,
+                _condition == "partial-export" ? 9 : 0,
                 "secret export",
                 "secret password"
             )
@@ -116,32 +118,32 @@ internal sealed class SyntheticCertificateExport : IDisposable
 
     private void WriteExport(string path)
     {
-        if (condition == "missing-pfx")
+        if (_condition == "missing-pfx")
             return;
         File.WriteAllBytes(
             path,
-            condition switch
+            _condition switch
             {
                 "empty-pfx" => [],
                 "oversized-pfx" => new byte[1024 * 1024 + 1],
                 "invalid-pfx" => [1, 2, 3],
-                _ => bytes,
+                _ => _bytes,
             }
         );
     }
 
     private Task<ProcessResult> Cancel()
     {
-        cancellation.Cancel();
+        _cancellation.Cancel();
         return Task.FromException<ProcessResult>(
-            new OperationCanceledException("secret cancellation", cancellation.Token)
+            new OperationCanceledException("secret cancellation", _cancellation.Token)
         );
     }
 
     public void Dispose()
     {
-        CryptographicOperations.ZeroMemory(bytes);
-        identity.Dispose();
-        cancellation.Dispose();
+        CryptographicOperations.ZeroMemory(_bytes);
+        _identity.Dispose();
+        _cancellation.Dispose();
     }
 }

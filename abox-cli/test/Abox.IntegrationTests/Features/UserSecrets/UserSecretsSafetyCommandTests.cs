@@ -142,26 +142,26 @@ public sealed class UserSecretsSafetyCommandTests
 
     private sealed class UserSecretsSafetyCommandFixture : IDisposable
     {
-        private readonly UserSecretsCliHarness cli = new(
+        private readonly UserSecretsCliHarness _cli = new(
             new AboxConfig { UserSecretsDenyList = ["prod.example"] }
         );
-        public TempDirectory Root => cli.Root;
-        public TestConsole Console => cli.Console;
-        public IPreflightChecks Preflight => cli.Preflight;
-        public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
-        public ISandboxLifecycle Lifecycle => cli.Lifecycle;
+        public TempDirectory Root => _cli.Root;
+        public TestConsole Console => _cli.Console;
+        public IPreflightChecks Preflight => _cli.Preflight;
+        public ISandboxUserSecrets UserSecrets => _cli.UserSecrets;
+        public ISandboxLifecycle Lifecycle => _cli.Lifecycle;
         public string SourcePath =>
             Path.Combine(Root.Path, "appdata/Microsoft/UserSecrets/sample/secrets.json");
 
         public UserSecretsSafetyCommandFixture()
         {
-            cli.Configure("""{"userSecrets":["sample"]}""");
+            _cli.Configure("""{"userSecrets":["sample"]}""");
         }
 
-        public void Store(string json) => cli.Store("sample", json);
+        public void Store(string json) => _cli.Store("sample", json);
 
-        public Task<int> Run(params string[] args) => cli.Run(args);
+        public Task<int> Run(params string[] args) => _cli.Run(args);
 
-        public void Dispose() => cli.Dispose();
+        public void Dispose() => _cli.Dispose();
     }
 }

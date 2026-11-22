@@ -7,9 +7,9 @@ namespace Abox.Tests;
 public sealed class PublishServiceDockerTests
 {
     private readonly PublishServiceFixture _fixture = new();
-    private TestConsole _console => _fixture.Console;
-    private List<ProcessRequest> _calls => _fixture.Calls;
-    private PublishService _service => _fixture.Service;
+    private TestConsole Console => _fixture.Console;
+    private List<ProcessRequest> Calls => _fixture.Calls;
+    private PublishService Service => _fixture.Service;
 
     private PublishRequest Request(params string[] squads) => _fixture.Request(squads);
 
@@ -30,7 +30,7 @@ public sealed class PublishServiceDockerTests
         try
         {
             // Act
-            await _service.PublishAsync(
+            await Service.PublishAsync(
                 Request("ac") with
                 {
                     Builder = "publisher",
@@ -39,7 +39,7 @@ public sealed class PublishServiceDockerTests
             );
 
             // Assert
-            var pushes = _calls.Where(call => call.Arguments.Contains("--push")).ToList();
+            var pushes = Calls.Where(call => call.Arguments.Contains("--push")).ToList();
             var workload = pushes.Single(call =>
                 call.Arguments.Any(arg => arg.Contains("/components/workload:"))
             );
@@ -52,8 +52,8 @@ public sealed class PublishServiceDockerTests
                 workload
                     .Arguments.Should()
                     .ContainInOrder("--secret", "id=github_token,env=GITHUB_TOKEN");
-                _calls.SelectMany(call => call.Arguments).Should().NotContain(token);
-                _console.AllText.Should().NotContain(token);
+                Calls.SelectMany(call => call.Arguments).Should().NotContain(token);
+                Console.AllText.Should().NotContain(token);
             }
             pushes
                 .Where(call => call != workload)
