@@ -1,8 +1,10 @@
 # Reproducible synthetic CLI tests
 
-`Abox.Tests` is an xUnit v3 executable targeting .NET 10. Run that executable
-directly: a successful `dotnet test` command that only builds/discovers tests is
-not execution evidence. Discovery and execution are separate commands below.
+The tests are split into four xUnit v3 executables targeting .NET 10:
+`Abox.Core.Tests`, `Abox.Infrastructure.Tests`, `Abox.IntegrationTests` and
+`Abox.Tests` (see [ADR 0004](../adr/0004-core-and-infrastructure-projects.md)).
+`dotnet test` in `abox-cli` runs all of them. For evidence, run each executable
+directly as below, with discovery and execution as separate commands.
 
 ## Prerequisites and resource ownership
 
@@ -35,15 +37,18 @@ repo="$PWD"
 evidence="$HOME/abox-test-evidence-$(date +%Y%m%d%H%M%S)"
 mkdir -p "$evidence"
 dotnet build abox-cli/agentic-box.slnx
-ordinary="$repo/abox-cli/test/Abox.Tests/bin/Debug/net10.0/Abox.Tests.dll"
-dotnet "$ordinary" -noColor -list tests/json -preEnumerateTheories > "$evidence/ordinary-inventory.json"
-dotnet "$ordinary" -noColor -result-xml "$evidence/ordinary.xml"
+for project in Abox.Core.Tests Abox.Infrastructure.Tests Abox.IntegrationTests Abox.Tests; do
+  ordinary="$repo/abox-cli/test/$project/bin/Debug/net10.0/$project.dll"
+  dotnet "$ordinary" -noColor -list tests/json -preEnumerateTheories > "$evidence/ordinary-$project-inventory.json"
+  dotnet "$ordinary" -noColor -result-xml "$evidence/ordinary-$project.xml"
+done
 ```
 
 `-list tests/json` lists cases and does **not** run them. The second invocation
-runs the suite and emits passed/failed/skipped counts plus an XML report. A
-non-zero exit is a failure; do not mask it. Use `-class Abox.Tests.<ClassName>`
-on the execution command for a focused run.
+runs the project's tests and emits passed/failed/skipped counts plus an XML report.
+A non-zero exit is a failure; do not mask it. Every project uses the `Abox.Tests`
+namespace; use `-class Abox.Tests.<ClassName>` on the execution command of the
+project that holds the class for a focused run.
 
 ## Isolated build and unrelated working directory
 
@@ -53,10 +58,12 @@ the checkout; do not create fixture-discovery links back to the repository.
 ```sh
 artifacts="$evidence/artifacts"
 dotnet build "$repo/abox-cli/agentic-box.slnx" --artifacts-path "$artifacts"
-isolated="$artifacts/bin/Abox.Tests/debug/Abox.Tests.dll"
 cd "$evidence"
-dotnet "$isolated" -noColor -list tests/json -preEnumerateTheories > isolated-inventory.json
-dotnet "$isolated" -noColor -result-xml isolated.xml
+for project in Abox.Core.Tests Abox.Infrastructure.Tests Abox.IntegrationTests Abox.Tests; do
+  isolated="$artifacts/bin/$project/debug/$project.dll"
+  dotnet "$isolated" -noColor -list tests/json -preEnumerateTheories > "isolated-$project-inventory.json"
+  dotnet "$isolated" -noColor -result-xml "isolated-$project.xml"
+done
 ```
 
 Compare inventories as sorted lists (retain duplicates), not just totals:
@@ -65,15 +72,17 @@ Compare inventories as sorted lists (retain duplicates), not just totals:
 python3 - "$evidence" <<'PY'
 import json, pathlib, sys, xml.etree.ElementTree as ET
 root = pathlib.Path(sys.argv[1])
-inventories = [json.loads((root / f"{name}-inventory.json").read_text())
-               for name in ("ordinary", "isolated")]
-assert sorted(inventories[0]) == sorted(inventories[1])
-print("Matching discovered cases:", len(inventories[0]))
-for name in ("ordinary", "isolated"):
-    assembly = ET.parse(root / f"{name}.xml").getroot().find("assembly")
-    print(name, {key: assembly.attrib[key]
-                 for key in ("total", "passed", "failed", "skipped", "errors")})
-    assert assembly.attrib["failed"] == assembly.attrib["errors"] == "0"
+projects = ("Abox.Core.Tests", "Abox.Infrastructure.Tests", "Abox.IntegrationTests", "Abox.Tests")
+for project in projects:
+    inventories = [json.loads((root / f"{name}-{project}-inventory.json").read_text())
+                   for name in ("ordinary", "isolated")]
+    assert sorted(inventories[0]) == sorted(inventories[1])
+    print(project, "matching discovered cases:", len(inventories[0]))
+    for name in ("ordinary", "isolated"):
+        assembly = ET.parse(root / f"{name}-{project}.xml").getroot().find("assembly")
+        print(" ", name, {key: assembly.attrib[key]
+                          for key in ("total", "passed", "failed", "skipped", "errors")})
+        assert assembly.attrib["failed"] == assembly.attrib["errors"] == "0"
 PY
 ```
 
