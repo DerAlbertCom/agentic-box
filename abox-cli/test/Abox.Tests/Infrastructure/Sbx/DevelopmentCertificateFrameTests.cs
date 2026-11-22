@@ -11,17 +11,17 @@ public sealed class DevelopmentCertificateFrameTests
     [InlineData(1, "nul\0password")]
     [InlineData(1, null)]
     [InlineData(1, "oversized")]
-    public void InvalidPayloadIsRejectedBeforeAnySandboxOperation(int length, string? password)
+    public void InvalidPayloadIsNotFramed(int length, string? password)
     {
         // Arrange
         if (password == "oversized")
             password = new string('é', 1025);
 
         // Act
-        var action = () => DevelopmentCertificateFrame.Create(new byte[length], password!, null);
+        var frame = DevelopmentCertificateFrame.Create(new byte[length], password!, null);
 
         // Assert
-        action.Should().Throw<AboxException>().WithMessage("*no sandbox operation was started*");
+        frame.Should().BeNull();
     }
 
     [Fact]

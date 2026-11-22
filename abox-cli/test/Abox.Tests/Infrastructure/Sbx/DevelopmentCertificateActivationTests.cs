@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Https;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -45,25 +46,24 @@ public sealed class DevelopmentCertificateActivationTests
                     "synthetic private child output"
                 );
             });
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
 
         // Act
-        var action = () =>
-            client.ActivateDevelopmentCertificateAsync(
-                "actual",
-                pfx,
-                password,
-                CancellationToken.None
-            );
+        var activation = await client.ActivateAsync(
+            "actual",
+            pfx,
+            password,
+            CancellationToken.None
+        );
 
         // Assert
-        if (trusted)
-            await action();
-        else
-            (await action.Should().ThrowAsync<AboxException>())
-                .Which.Message.Should()
-                .Contain("sandbox trust")
-                .And.NotContain("synthetic private");
+        activation
+            .Status.Should()
+            .Be(
+                trusted
+                    ? SandboxCertificateActivationStatus.Activated
+                    : SandboxCertificateActivationStatus.TrustFailed
+            );
         var rootCall = calls.Single(process => process.Arguments.Contains("root"));
         rootCall.StandardInput.Should().Be(certificate.ExportCertificatePem());
         rootCall.StandardInput.Should().NotContain(password).And.NotContain("PRIVATE KEY");
@@ -78,7 +78,7 @@ public sealed class DevelopmentCertificateActivationTests
     }
 
     [Fact]
-    public async Task ExistingParentFailureIsActionableAndNeverSilentlyRestartsIt()
+    public async Task StaleExistingParentsAreReportedAndNeverSilentlyRestarted()
     {
         // Arrange
         using var root = new CertificateTestDirectory();
@@ -86,19 +86,13 @@ public sealed class DevelopmentCertificateActivationTests
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(new ProcessResult(42, "private", "private"));
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
 
         // Act
-        var action = () =>
-            client.VerifyDevelopmentCertificateActivationAsync("actual", CancellationToken.None);
+        var status = await client.VerifyActivationAsync("actual", CancellationToken.None);
 
         // Assert
-        var failure = (await action.Should().ThrowAsync<AboxException>()).Which;
-        failure
-            .Message.Should()
-            .Contain("fresh")
-            .And.Contain("hc server restart --fresh")
-            .And.NotContain("private");
+        status.Should().Be(SandboxCertificateStatus.StaleParents);
         await runner
             .Received(1)
             .RunAsync(
@@ -111,13 +105,14 @@ public sealed class DevelopmentCertificateActivationTests
     }
 
     [Theory]
-    [InlineData(43, "/proc")]
-    [InlineData(44, "NODE_EXTRA_CA_CERTS")]
-    [InlineData(75, "busy")]
-    [InlineData(17, "Cannot verify protected HTTPS launch configuration")]
-    public async Task ReadinessExplainsProcessVisibilityAndExtraCaFailuresWithoutClaimingCompletion(
+    [InlineData(0, SandboxCertificateStatus.Succeeded)]
+    [InlineData(43, SandboxCertificateStatus.ProcessEnvironmentsUnavailable)]
+    [InlineData(44, SandboxCertificateStatus.NodeExtraCaIncomplete)]
+    [InlineData(75, SandboxCertificateStatus.Busy)]
+    [InlineData(17, SandboxCertificateStatus.Failed)]
+    public async Task ReadinessExitCodesBecomeTheirReadinessOutcome(
         int code,
-        string guidance
+        SandboxCertificateStatus expected
     )
     {
         // Arrange
@@ -126,15 +121,13 @@ public sealed class DevelopmentCertificateActivationTests
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(new ProcessResult(code, "private child stdout", "private child stderr"));
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
 
         // Act
-        var action = () =>
-            client.VerifyDevelopmentCertificateActivationAsync("actual", CancellationToken.None);
+        var status = await client.VerifyActivationAsync("actual", CancellationToken.None);
 
         // Assert
-        var failure = (await action.Should().ThrowAsync<AboxException>()).Which;
-        failure.Message.Should().Contain(guidance).And.NotContain("private child");
+        status.Should().Be(expected);
         var observed = (ProcessRequest)
             runner.ReceivedCalls().Should().ContainSingle().Which.GetArguments()[0]!;
         observed.Arguments.Should().Contain("status").And.NotContain("root").And.NotContain("-i");
@@ -157,30 +150,55 @@ public sealed class DevelopmentCertificateActivationTests
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(new ProcessResult(0, uid, "synthetic private identity"));
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
 
         // Act
-        var action = () =>
-            client.ActivateDevelopmentCertificateAsync(
-                "actual",
-                pfx,
-                "password",
-                CancellationToken.None
-            );
+        var activation = await client.ActivateAsync(
+            "actual",
+            pfx,
+            "password",
+            CancellationToken.None
+        );
 
         // Assert
-        (await action.Should().ThrowAsync<AboxException>())
-            .Which.ToString()
-            .Should()
-            .Contain("sandbox trust")
-            .And.NotContain("synthetic private");
+        activation.Status.Should().Be(SandboxCertificateActivationStatus.TrustFailed);
         var observed = (ProcessRequest)
             runner.ReceivedCalls().Should().ContainSingle().Which.GetArguments()[0]!;
         observed.Arguments.Should().Equal("exec", "actual", "id", "-u");
         observed.OutputPolicy.Should().Be(ProcessOutputPolicy.CapturedSensitive);
     }
 
-    private static byte[] SyntheticCertificatePayload()
+    [Fact]
+    public async Task AnUntransferablePasswordIsReportedAfterTrustWithoutAPrivateTransfer()
+    {
+        // Arrange
+        using var root = new CertificateTestDirectory();
+        var calls = new List<ProcessRequest>();
+        var runner = Substitute.For<IProcessRunner>();
+        runner
+            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                var process = call.Arg<ProcessRequest>();
+                calls.Add(process);
+                return new ProcessResult(0, process.Arguments.Contains("id") ? "1000\n" : "", "");
+            });
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+
+        // Act
+        var activation = await client.ActivateAsync(
+            "actual",
+            SyntheticCertificatePayload(""),
+            "",
+            CancellationToken.None
+        );
+
+        // Assert
+        activation.Status.Should().Be(SandboxCertificateActivationStatus.InvalidPayload);
+        calls.Should().NotContain(process => process.Arguments.Contains("activate"));
+    }
+
+    private static byte[] SyntheticCertificatePayload(string password = "password")
     {
         using var key = RSA.Create(2048);
         var request = new CertificateRequest(
@@ -193,16 +211,14 @@ public sealed class DevelopmentCertificateActivationTests
             DateTimeOffset.UtcNow.AddMinutes(-1),
             DateTimeOffset.UtcNow.AddDays(1)
         );
-        return certificate.Export(X509ContentType.Pfx, "password");
+        return certificate.Export(X509ContentType.Pfx, password);
     }
 
     [Theory]
     [InlineData("prepare")]
     [InlineData("activate")]
     [InlineData("refresh-bootstrap")]
-    public async Task RuntimeLockTimeoutGivesRetryGuidanceWithoutLeakingChildDiagnostics(
-        string mode
-    )
+    public async Task RuntimeLockTimeoutIsReportedAsBusy(string mode)
     {
         // Arrange
         using var root = new CertificateTestDirectory();
@@ -220,45 +236,35 @@ public sealed class DevelopmentCertificateActivationTests
                     "private child stderr"
                 );
             });
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
 
         // Act
-        Func<Task> action =
-            mode == "prepare"
-                ? async () =>
-                {
-                    await client.GetDevelopmentCertificatePasswordAsync(
-                        "actual",
-                        CancellationToken.None
-                    );
-                }
-            : mode == "refresh-bootstrap"
-                ? () =>
-                    client.RefreshDevelopmentCertificateBootstrapAsync(
-                        "actual",
-                        CancellationToken.None
-                    )
-            : () =>
-                client.ActivateDevelopmentCertificateAsync(
+        var busy = mode switch
+        {
+            "prepare" => (await client.PrepareAsync("actual", CancellationToken.None)).Status
+                == SandboxCertificateStatus.Busy,
+            "refresh-bootstrap" => await client.RefreshBootstrapAsync(
+                "actual",
+                CancellationToken.None
+            ) == SandboxCertificateStatus.Busy,
+            _ => (
+                await client.ActivateAsync(
                     "actual",
                     SyntheticCertificatePayload(),
                     "password",
                     CancellationToken.None
-                );
+                )
+            ) == new SandboxCertificateActivation(SandboxCertificateActivationStatus.TransferBusy),
+        };
 
         // Assert
-        var failure = (await action.Should().ThrowAsync<AboxException>()).Which;
-        failure
-            .Message.Should()
-            .Contain("busy")
-            .And.Contain("retry")
-            .And.NotContain("private child");
+        busy.Should().BeTrue();
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task BootstrapRefreshFailureAndCancellationNeverExposeRawDiagnostics(bool cancel)
+    public async Task BootstrapRefreshThatCannotRunOrIsCanceledIsReportedAsSuch(bool cancel)
     {
         // Arrange
         using var root = new CertificateTestDirectory();
@@ -272,16 +278,14 @@ public sealed class DevelopmentCertificateActivationTests
                         : new AboxException("private child diagnostics")
                 )
             );
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
 
         // Act
-        var action = () =>
-            client.RefreshDevelopmentCertificateBootstrapAsync("actual", CancellationToken.None);
+        var status = await client.RefreshBootstrapAsync("actual", CancellationToken.None);
 
         // Assert
-        var failure = cancel
-            ? (Exception)(await action.Should().ThrowAsync<OperationCanceledException>()).Which
-            : (await action.Should().ThrowAsync<AboxException>()).Which;
-        failure.Message.Should().Contain("bootstrap").And.NotContain("private child");
+        status
+            .Should()
+            .Be(cancel ? SandboxCertificateStatus.Canceled : SandboxCertificateStatus.Unavailable);
     }
 }

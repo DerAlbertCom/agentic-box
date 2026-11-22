@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
@@ -206,6 +207,10 @@ public sealed class FolderSandboxCommandTests
                 );
             Cli.Services.AddSingleton(runner);
             Cli.Services.AddSingleton<ISbxClient, SbxClient>();
+            Cli.Services.AddSingleton<
+                ISandboxDevelopmentCertificates,
+                SbxDevelopmentCertificates
+            >();
             Cli.Services.AddSingleton<ISandboxLifecycle, SbxSandboxLifecycle>();
             Cli.Services.AddSingleton<IMcpServerRegistry, SbxMcpServerRegistry>();
             Cli.Services.AddSingleton<ISandboxInspection, SbxSandboxInspection>();

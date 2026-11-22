@@ -65,7 +65,7 @@ and public-store correlation required the same sole, date-valid, exportable,
 format-6 **Full**-trust host identity with private-key association and localhost
 SAN: SHA-1 **`8E84EA4F2F4EC8548DAF359CCB1179008251C714`**, full DER SHA-256
 **`6A53FFA474740955141D2A0162D5D686A5B27851EF4FF62ED71F4EE465CE26FC`**.
-Actual production `HostDevelopmentCertificate` CLI-only export, protected staging,
+Actual production `DotnetDevelopmentCertificate` CLI-only export, protected staging,
 root/public-only trust and non-root activation supplied setup. No synthetic export,
 manual PFX/configuration, profile environment or extra trust supplied this pass.
 
@@ -309,7 +309,7 @@ sole development identity and private-key association with the known public DER:
 
 The actual Release production `dotnet <abox.dll> ports --location <workspace>`
 ran as a **separate process and exited 0 before the app was started**. Its genuine
-`HostDevelopmentCertificate` discovery, CLI-only export, protected staging,
+`DotnetDevelopmentCertificate` discovery, CLI-only export, protected staging,
 root/public-only trust receiver, non-root activation, readiness and forwarding
 supplied the setup; no synthetic exporter or manual receiver/configuration was
 used. Child-only temp settings selected the previously approved owner-only

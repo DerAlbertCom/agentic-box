@@ -112,7 +112,8 @@ public static class AboxServiceCollection
         services.AddSingleton<IFolderRealPath, ShellFolderRealPath>();
         services.AddSingleton<UserSecretsCopy>();
         services.AddSingleton<AppPorts>();
-        services.AddSingleton<HostDevelopmentCertificate>();
+        services.AddSingleton<IHostDevelopmentCertificate, DotnetDevelopmentCertificate>();
+        services.AddSingleton<ISandboxDevelopmentCertificates, SbxDevelopmentCertificates>();
         services.AddSingleton<SandboxHttps>();
         services.AddSingleton<IPreflightChecks, SbxPreflightChecks>();
         services.AddSingleton<Preflight>();

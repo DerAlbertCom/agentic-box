@@ -63,8 +63,8 @@ public sealed class DevelopmentCertificateReceiverTests
                     captured = request;
                 return new ProcessResult(0, request.Arguments.Contains("id") ? "1000\n" : "", "");
             });
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
-        await client.ActivateDevelopmentCertificateAsync(
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        await client.ActivateAsync(
             "synthetic",
             identity.Export("synthetic-private-password"),
             "synthetic-private-password",

@@ -1,4 +1,5 @@
 using Abox.Features.Shared.ApplicationPorts;
+using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,10 +16,10 @@ public sealed class AppPortsLifecycleCancellationTests
         using var fixture = new AppPortsLifecycleFixture();
         using var certificate = new LifecycleCertificateCli(fixture.Console);
         using var cancellation = new CancellationTokenSource();
-        fixture.Services.AddSingleton(certificate.Exporter);
+        fixture.Services.AddSingleton<IHostDevelopmentCertificate>(certificate.Exporter);
         fixture.Web();
         fixture
-            .Sbx.ActivateDevelopmentCertificateAsync(
+            .Certificates.ActivateAsync(
                 Arg.Any<string>(),
                 Arg.Any<ReadOnlyMemory<byte>>(),
                 Arg.Any<string>(),
@@ -27,7 +28,7 @@ public sealed class AppPortsLifecycleCancellationTests
             .Returns(_ =>
             {
                 cancellation.Cancel();
-                return Task.CompletedTask;
+                return Task.FromResult(SandboxFactory.Activated);
             });
 
         // Act
@@ -36,11 +37,8 @@ public sealed class AppPortsLifecycleCancellationTests
         // Assert
         exit.Should().Be(130, fixture.Console.AllText);
         await fixture
-            .Sbx.DidNotReceive()
-            .VerifyDevelopmentCertificateActivationAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .VerifyActivationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         fixture
             .Console.AllText.Should()
             .Contain("record retained")
@@ -86,11 +84,8 @@ public sealed class AppPortsLifecycleCancellationTests
         exit.Should().Be(130, fixture.Console.AllText);
         fixture.Records.Load(fixture.Name).Should().NotBeNull();
         await fixture
-            .Sbx.DidNotReceive()
-            .GetDevelopmentCertificatePasswordAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         fixture
             .Console.AllText.Should()
             .Contain("record retained")

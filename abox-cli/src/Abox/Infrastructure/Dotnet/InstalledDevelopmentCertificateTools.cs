@@ -1,9 +1,8 @@
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
-using Abox.Infrastructure;
 
-namespace Abox.Features.Shared.Https;
+namespace Abox.Infrastructure.Dotnet;
 
 /// <summary>Inspects installed SDK tool metadata; never loads an assembly or installs a tool.</summary>
 internal sealed class InstalledDevelopmentCertificateTools(IProcessRunner runner)

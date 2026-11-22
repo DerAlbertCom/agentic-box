@@ -67,7 +67,7 @@ internal sealed class RunFlowFixture
             Create,
             Inspection,
             Exec,
-            SandboxFactory.Https(Sbx, Exec, Console),
+            SandboxFactory.Https(Exec, Console),
             SandboxFactory.Resolver(Lifecycle, SandboxFactory.Hints(Config, Store, Records)),
             SandboxFactory.Hints(Config, Store, Records),
             hostPrograms,

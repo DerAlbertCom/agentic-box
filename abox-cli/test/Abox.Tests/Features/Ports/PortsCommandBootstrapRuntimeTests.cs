@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -42,7 +43,7 @@ public sealed class PortsCommandBootstrapRuntimeTests
                     );
                 return await receiver.RunAsync(request, call.Arg<CancellationToken>());
             });
-        var client = new SbxClient(runner, AboxPaths.For(fixture.Root.Path, fixture.Root.Path));
+        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
         var exec = new SbxSandboxExec(runner);
         using var key = RSA.Create(2048);
         var certificateRequest = new CertificateRequest(
@@ -56,12 +57,16 @@ public sealed class PortsCommandBootstrapRuntimeTests
             DateTimeOffset.UtcNow.AddDays(1)
         );
         var password = new string('a', 64);
-        await client.ActivateDevelopmentCertificateAsync(
-            fixture.Name,
-            certificate.Export(X509ContentType.Pfx, password),
-            password,
-            CancellationToken.None
-        );
+        (
+            await client.ActivateAsync(
+                fixture.Name,
+                certificate.Export(X509ContentType.Pfx, password),
+                password,
+                CancellationToken.None
+            )
+        )
+            .Status.Should()
+            .Be(SandboxCertificateActivationStatus.Activated);
         var bootstrap = Path.Combine(runtime, "bootstrap.py");
         var verified = await File.ReadAllBytesAsync(bootstrap);
         var marker = Path.Combine(fixture.Location, "unverified-code-ran");
@@ -88,7 +93,7 @@ public sealed class PortsCommandBootstrapRuntimeTests
         // Act
         var exit = await fixture.Run("--refresh-https-bootstrap");
 
-        // Assert: real CLI -> SbxClient -> embedded receiver; no activation/export repair.
+        // Assert: real CLI -> sbx certificate adapter -> embedded receiver; no activation/export repair.
         exit.Should().Be(0, fixture.Console.AllText);
         File.Exists(marker).Should().BeFalse();
         (await File.ReadAllBytesAsync(bootstrap)).Should().Equal(verified);

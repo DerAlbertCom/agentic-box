@@ -3,6 +3,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
@@ -33,6 +34,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public ISandboxInspection Inspection => application.Inspection;
     public IServiceCollection Services => application.Services;
     public IApplicationPortPublisher Publisher => application.Publisher;
+    public ISandboxDevelopmentCertificates Certificates => application.Certificates;
     public IHostSecretStore HostSecrets => application.HostSecrets;
     public ISandboxSquadFileReader SquadFiles => application.SquadFiles;
     public ServiceProvider Provider => application.Provider;

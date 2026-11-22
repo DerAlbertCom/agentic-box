@@ -7,6 +7,7 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -20,6 +21,7 @@ internal sealed class PortsCommandFixture : IDisposable
     public IPreflightChecks Preflight { get; } = ReadyPreflight.Checks();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     public IApplicationPortPublisher Publisher => application.Publisher;
+    public ISandboxDevelopmentCertificates Certificates => application.Certificates;
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public string Location { get; }
     public string Name => SandboxName.For(Location);
@@ -29,7 +31,7 @@ internal sealed class PortsCommandFixture : IDisposable
     public PortsCommandFixture(
         AboxConfig? config = null,
         IProcessRunner? runner = null,
-        HostDevelopmentCertificate? exporter = null
+        DotnetDevelopmentCertificate? exporter = null
     )
     {
         Location = Root.CreateDirectory("folder");
@@ -58,12 +60,16 @@ internal sealed class PortsCommandFixture : IDisposable
         else
         {
             application.Services.AddSingleton<ISandboxLifecycle>(new SbxSandboxLifecycle(runner));
-            application.Services.AddSingleton<IApplicationPortPublisher>(
-                new SbxApplicationPorts(new SbxInvoker(runner))
-            );
+            application
+                .Services.AddSingleton<IApplicationPortPublisher>(
+                    new SbxApplicationPorts(new SbxInvoker(runner))
+                )
+                .AddSingleton<ISandboxDevelopmentCertificates>(
+                    new SbxDevelopmentCertificates(new SbxInvoker(runner))
+                );
         }
         if (exporter is not null)
-            application.Services.AddSingleton(exporter);
+            application.Services.AddSingleton<IHostDevelopmentCertificate>(exporter);
         _ = application.Provider;
     }
 

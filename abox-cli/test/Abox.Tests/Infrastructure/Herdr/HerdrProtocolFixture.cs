@@ -2,6 +2,7 @@ using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Herdr;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -68,7 +69,12 @@ internal sealed class HerdrProtocolFixture
             argv,
             new Dictionary<string, string>(),
             Exec,
-            new SandboxHttps(new HostDevelopmentCertificate(Runner, Console), Sbx, Exec, Console)
+            new SandboxHttps(
+                new DotnetDevelopmentCertificate(Runner, Console),
+                SandboxFactory.Certificates(),
+                Exec,
+                Console
+            )
         );
 
     internal Task<int> LaunchAsync() => Launcher.RunAsync(Session, CancellationToken.None);

@@ -385,11 +385,8 @@ public sealed class PortsCommandTests
                 .And.NotContain("Application ports published");
             await fixture.NoPublishing();
             await fixture
-                .Sbx.DidNotReceive()
-                .GetDevelopmentCertificatePasswordAsync(
-                    Arg.Any<string>(),
-                    Arg.Any<CancellationToken>()
-                );
+                .Certificates.DidNotReceive()
+                .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
         finally
         {

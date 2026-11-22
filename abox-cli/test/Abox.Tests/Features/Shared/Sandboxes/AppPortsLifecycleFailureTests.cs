@@ -3,6 +3,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -45,11 +46,8 @@ public sealed class AppPortsLifecycleFailureTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .GetDevelopmentCertificatePasswordAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         fixture
             .Console.AllText.Should()
             .Contain("abox user-secrets --location")
@@ -104,11 +102,8 @@ public sealed class AppPortsLifecycleFailureTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .GetDevelopmentCertificatePasswordAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.DidNotReceive()
+            .PrepareAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -127,7 +122,9 @@ public sealed class AppPortsLifecycleFailureTests
             .Returns(
                 Task.FromException<ProcessResult>(new Win32Exception("private child diagnostic"))
             );
-        fixture.Services.AddSingleton(new HostDevelopmentCertificate(runner, fixture.Console));
+        fixture.Services.AddSingleton<IHostDevelopmentCertificate>(
+            new DotnetDevelopmentCertificate(runner, fixture.Console)
+        );
 
         // Act
         var exit = await fixture.Replace(entry);
@@ -164,15 +161,10 @@ public sealed class AppPortsLifecycleFailureTests
         // Arrange
         using var fixture = new AppPortsLifecycleFixture();
         using var certificate = new LifecycleCertificateCli(fixture.Console);
-        fixture.Services.AddSingleton(certificate.Exporter);
+        fixture.Services.AddSingleton<IHostDevelopmentCertificate>(certificate.Exporter);
         fixture.Existing();
         fixture.Web();
-        var failure = Task.FromException(
-            cancel
-                ? new OperationCanceledException()
-                : new AboxException("synthetic activation failure")
-        );
-        fixture.HttpsOutcome(stage, failure);
+        fixture.HttpsOutcome(stage, cancel);
 
         // Act
         var failed = await fixture.Replace("run");
@@ -189,7 +181,7 @@ public sealed class AppPortsLifecycleFailureTests
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
 
         // Act
-        fixture.HttpsOutcome(stage, Task.CompletedTask);
+        fixture.HttpsOutcome(stage, cancel: null);
         var retry = await fixture.Invoke(
             "ports",
             "--location",

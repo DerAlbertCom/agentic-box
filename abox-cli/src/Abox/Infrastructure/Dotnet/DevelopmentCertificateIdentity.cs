@@ -3,7 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Abox.Features.Shared.Https;
+namespace Abox.Infrastructure.Dotnet;
 
 /// <summary>The complete CLI identity, retained for exact before/after correlation.</summary>
 internal sealed record DevelopmentCertificateIdentity(

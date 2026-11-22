@@ -3,6 +3,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,7 @@ internal sealed class CliTestApplication : IDisposable
         Services = new ServiceCollection().AddAbox(console, trailing);
         Services.AddSingleton(paths);
         Services.AddSingleton(Publisher);
+        Services.AddSingleton(Certificates);
         Services.AddSingleton(HostSecrets);
         Services.AddSingleton(SquadFiles);
         Services.AddSingleton(Approvals);
@@ -32,6 +34,9 @@ internal sealed class CliTestApplication : IDisposable
     internal ISandboxSquadFileReader SquadFiles { get; } =
         Substitute.For<ISandboxSquadFileReader>();
     internal ICredentialApprovals Approvals { get; } = Substitute.For<ICredentialApprovals>();
+
+    /// <summary>Substituted so that no CLI test drives sandbox HTTPS through a real runner by accident.</summary>
+    internal ISandboxDevelopmentCertificates Certificates { get; } = SandboxFactory.Certificates();
 
     internal IServiceCollection Services { get; }
     internal ServiceProvider Provider => provider ??= Services.BuildServiceProvider();

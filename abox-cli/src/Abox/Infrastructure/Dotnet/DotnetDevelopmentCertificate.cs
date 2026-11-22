@@ -1,15 +1,18 @@
-using System.Security.Cryptography;
-using Abox.Infrastructure;
+using Abox.Features.Shared.Https;
 
-namespace Abox.Features.Shared.Https;
+namespace Abox.Infrastructure.Dotnet;
 
-/// <summary>CLI-only export of an already eligible, exactly correlated trusted identity.</summary>
-public sealed class HostDevelopmentCertificate(IProcessRunner runner, IConsole console)
+/// <summary>
+/// CLI-only export of an already eligible, exactly correlated trusted identity through an
+/// installed SDK's <c>dotnet dev-certs</c> tool.
+/// </summary>
+public sealed class DotnetDevelopmentCertificate(IProcessRunner runner, IConsole console)
+    : IHostDevelopmentCertificate
 {
     private readonly string temporaryParent = Path.GetTempPath();
     private readonly IReadOnlyList<DevelopmentCertificateTool>? tools;
 
-    internal HostDevelopmentCertificate(
+    internal DotnetDevelopmentCertificate(
         IProcessRunner runner,
         IConsole console,
         string temporaryParent,
@@ -70,22 +73,4 @@ public sealed class HostDevelopmentCertificate(IProcessRunner runner, IConsole c
         new(
             "Cannot export an exact existing trusted ASP.NET Core development certificate. Require one date-valid, exportable CN=localhost identity with localhost DNS SAN and Full trust, eligible for an already-installed SDK dev-certs tool's current certificate format. Inspect 'dotnet dev-certs https --check --trust' and installed SDKs; resolve missing/untrusted/ambiguous/older-format certificates explicitly, then retry. abox will not install tools, generate an alternative, export through a native-store fallback, or change host trust. Do not renew/delete certificates concurrently with export. Child diagnostics were suppressed."
         );
-}
-
-public sealed class ExportedDevelopmentCertificate : IDisposable
-{
-    private readonly byte[] pfx;
-
-    internal ExportedDevelopmentCertificate(byte[] pfx, string password)
-    {
-        this.pfx = pfx;
-        Password = password;
-    }
-
-    public ReadOnlyMemory<byte> Pfx => pfx;
-    public string Password { get; }
-
-    public override string ToString() => "ExportedDevelopmentCertificate (private material hidden)";
-
-    public void Dispose() => CryptographicOperations.ZeroMemory(pfx);
 }

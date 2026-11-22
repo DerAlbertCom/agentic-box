@@ -1,6 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Abox.Features.Shared.ApplicationPorts;
+using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,7 +38,7 @@ public sealed class AppPortsLifecycleHttpsTests
         // Arrange
         using var fixture = new AppPortsLifecycleFixture();
         using var certificate = new LifecycleCertificateCli(fixture.Console);
-        fixture.Services.AddSingleton(certificate.Exporter);
+        fixture.Services.AddSingleton<IHostDevelopmentCertificate>(certificate.Exporter);
         var path = fixture.Root.File("folder/" + file, "");
         await File.WriteAllTextAsync(path, project, Encoding.GetEncoding(encoding));
         fixture.Root.File(
@@ -45,8 +46,13 @@ public sealed class AppPortsLifecycleHttpsTests
             """{"profiles":{"https":{"applicationUrl":"https://localhost:8203"}}}"""
         );
         fixture
-            .Sbx.GetDevelopmentCertificatePasswordAsync(fixture.Name, Arg.Any<CancellationToken>())
-            .Returns(new string('a', 64));
+            .Certificates.PrepareAsync(fixture.Name, Arg.Any<CancellationToken>())
+            .Returns(
+                new SandboxCertificatePreparation(
+                    SandboxCertificateStatus.Succeeded,
+                    new string('a', 64)
+                )
+            );
 
         // Act
         var exit = await fixture.Create(false);
@@ -74,7 +80,7 @@ public sealed class AppPortsLifecycleHttpsTests
         // Arrange
         using var fixture = new AppPortsLifecycleFixture();
         using var certificate = new LifecycleCertificateCli(fixture.Console);
-        fixture.Services.AddSingleton(certificate.Exporter);
+        fixture.Services.AddSingleton<IHostDevelopmentCertificate>(certificate.Exporter);
         fixture.Web();
         fixture.Angular();
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"],"portOffset":20000}""");
@@ -104,7 +110,7 @@ public sealed class AppPortsLifecycleHttpsTests
                 return Task.CompletedTask;
             });
         fixture
-            .Sbx.ActivateDevelopmentCertificateAsync(
+            .Certificates.ActivateAsync(
                 fixture.Name,
                 Arg.Any<ReadOnlyMemory<byte>>(),
                 Arg.Any<string>(),
@@ -113,7 +119,7 @@ public sealed class AppPortsLifecycleHttpsTests
             .Returns(_ =>
             {
                 events.Add("activate");
-                return Task.CompletedTask;
+                return Task.FromResult(SandboxFactory.Activated);
             });
 
         // Act
@@ -124,11 +130,8 @@ public sealed class AppPortsLifecycleHttpsTests
         events.Should().Equal("secrets", "ports", "activate");
         certificate.Exports.Should().Be(1);
         await fixture
-            .Sbx.Received(1)
-            .VerifyDevelopmentCertificateActivationAsync(
-                fixture.Name,
-                Arg.Any<CancellationToken>()
-            );
+            .Certificates.Received(1)
+            .VerifyActivationAsync(fixture.Name, Arg.Any<CancellationToken>());
         fixture
             .Console.AllText.Should()
             .Contain("| 4200 | 24200")
@@ -146,12 +149,12 @@ public sealed class AppPortsLifecycleHttpsTests
         // Arrange
         using var fixture = new AppPortsLifecycleFixture();
         using var certificate = new LifecycleCertificateCli(fixture.Console);
-        fixture.Services.AddSingleton(certificate.Exporter);
+        fixture.Services.AddSingleton<IHostDevelopmentCertificate>(certificate.Exporter);
         fixture.Web();
         fixture.Angular();
         var installed = new List<string>();
         fixture
-            .Sbx.ActivateDevelopmentCertificateAsync(
+            .Certificates.ActivateAsync(
                 fixture.Name,
                 Arg.Any<ReadOnlyMemory<byte>>(),
                 Arg.Any<string>(),
@@ -165,7 +168,7 @@ public sealed class AppPortsLifecycleHttpsTests
                     X509KeyStorageFlags.EphemeralKeySet
                 );
                 installed.Add(pfx.Thumbprint);
-                return Task.CompletedTask;
+                return Task.FromResult(SandboxFactory.Activated);
             });
         (await fixture.Create(false)).Should().Be(0, fixture.Console.AllText);
         var first = certificate.Current.Thumbprint;
