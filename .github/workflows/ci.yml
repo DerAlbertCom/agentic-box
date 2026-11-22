@@ -36,5 +36,8 @@ jobs:
       - run: dotnet tool restore
       - run: dotnet csharpier check abox-cli
       - run: dotnet build abox-cli/agentic-box.slnx
-      # The xUnit v3 executable runs the suite; see docs/verification/synthetic-cli-tests.md.
+      # The xUnit v3 executables run the suites; see docs/verification/synthetic-cli-tests.md.
+      - run: dotnet abox-cli/test/Abox.Core.Tests/bin/Debug/net10.0/Abox.Core.Tests.dll -noColor
+      - run: dotnet abox-cli/test/Abox.Infrastructure.Tests/bin/Debug/net10.0/Abox.Infrastructure.Tests.dll -noColor
+      - run: dotnet abox-cli/test/Abox.IntegrationTests/bin/Debug/net10.0/Abox.IntegrationTests.dll -noColor
       - run: dotnet abox-cli/test/Abox.Tests/bin/Debug/net10.0/Abox.Tests.dll -noColor

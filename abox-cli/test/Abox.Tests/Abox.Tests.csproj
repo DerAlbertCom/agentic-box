@@ -11,7 +11,6 @@
 
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageReference Include="NSubstitute" Version="6.2.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" />
@@ -20,23 +19,26 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Abox/Abox.csproj" />
+    <ProjectReference Include="../Abox.TestUtilities/Abox.TestUtilities.csproj" />
   </ItemGroup>
 
+  <!-- The CLI test application lives in Abox.IntegrationTests; the host tests compile it in. -->
   <ItemGroup>
-    <Content
-      Include="../../../docs/verification/application-ports/ReceiverChecks.py"
-      Link="Fixtures/Verification/ApplicationPortsReceiverChecks.py"
-      CopyToOutputDirectory="PreserveNewest"
+    <Compile
+      Include="../Abox.IntegrationTests/Support/CliTestApplication.cs"
+      Link="Support/CliTestApplication.cs"
     />
-    <Content
-      Include="../../../kits/opencode-config/opencode-config.yaml;../../../kits/pi-config/pi-config.yaml"
-      Link="Fixtures/Kits/%(Filename)/%(Filename)%(Extension)"
-      CopyToOutputDirectory="PreserveNewest"
+    <Compile
+      Include="../Abox.IntegrationTests/Support/LocalWorkloadFactory.cs"
+      Link="Support/LocalWorkloadFactory.cs"
     />
-    <Content
-      Include="../../../docs/verification/user-secrets/metadata/*.policy.kit.json"
-      Link="Fixtures/Verification/%(Filename)%(Extension)"
-      CopyToOutputDirectory="PreserveNewest"
+    <Compile
+      Include="../Abox.IntegrationTests/Support/SandboxFactory.cs"
+      Link="Support/SandboxFactory.cs"
+    />
+    <Compile
+      Include="../Abox.IntegrationTests/Support/TestServiceGraphs.cs"
+      Link="Support/TestServiceGraphs.cs"
     />
   </ItemGroup>
 </Project>

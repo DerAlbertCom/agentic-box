@@ -8,7 +8,7 @@ internal static class SyntheticTestResources
         var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", relativePath);
         if (!System.IO.File.Exists(path))
             throw new FileNotFoundException(
-                $"Synthetic test resource is missing: {path}. Rebuild Abox.Tests and retain its Fixtures directory alongside the executable.",
+                $"Synthetic test resource is missing: {path}. Rebuild the test project and retain its Fixtures directory alongside the executable.",
                 path
             );
         return path;

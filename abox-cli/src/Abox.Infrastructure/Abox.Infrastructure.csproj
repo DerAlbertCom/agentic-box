@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Abox.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="Abox.IntegrationTests" />
     <InternalsVisibleTo Include="Abox.Tests" />
     <!-- NSubstitute builds its substitutes of internal interfaces in this assembly. -->
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />

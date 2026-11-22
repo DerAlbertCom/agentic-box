@@ -9,7 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Abox.Core.Tests" />
+    <InternalsVisibleTo Include="Abox.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="Abox.IntegrationTests" />
     <InternalsVisibleTo Include="Abox.Tests" />
+    <InternalsVisibleTo Include="Abox.TestUtilities" />
     <!-- NSubstitute builds its substitutes of internal interfaces in this assembly. -->
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
     <EmbeddedResource Include="Features/Build/Assets/rwe_inspection_certificate_chain.pem" />

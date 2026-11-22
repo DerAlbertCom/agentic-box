@@ -16,6 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Abox.IntegrationTests" />
     <InternalsVisibleTo Include="Abox.Tests" />
     <None Include="../../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
