@@ -10,7 +10,7 @@ namespace Abox.Infrastructure.Sbx;
 /// </summary>
 public sealed partial class SbxClient : ISbxClient
 {
-    private const string ExecutableName = "sbx";
+    internal const string ExecutableName = "sbx";
     private readonly SbxInvoker _invoker;
     private readonly SbxDevelopmentCertificates _certificates;
     private readonly SbxApplicationPorts _applicationPorts;
@@ -139,39 +139,6 @@ public sealed partial class SbxClient : ISbxClient
             .ToList();
     }
 
-    /// <summary>The template images the local runtime holds.</summary>
-    public async Task<IReadOnlyList<TemplateImage>> ListTemplatesAsync(
-        CancellationToken cancellationToken
-    )
-    {
-        var templates = await _invoker.RunJsonAsync<List<SbxTemplate>>(
-            ["template", "ls", "--json"],
-            "sbx template ls",
-            cancellationToken
-        );
-        return templates
-            .Where(template => !string.IsNullOrEmpty(template.Tag))
-            .Select(template => new TemplateImage(
-                template.Repository ?? string.Empty,
-                template.Tag!,
-                template.Id ?? string.Empty,
-                template.CreatedAt
-            ))
-            .ToList();
-    }
-
-    /// <summary>Removes one template image by reference, without asking.</summary>
-    public Task<SbxOutcome> RemoveTemplateAsync(
-        string reference,
-        CancellationToken cancellationToken
-    )
-    {
-        return _invoker.RunOutcomeAsync(
-            new ProcessRequest(ExecutableName, ["template", "rm", reference, "--force"]),
-            cancellationToken
-        );
-    }
-
     /// <summary>
     /// Creates a sandbox from a workload kit and its mixins. sbx never asks: abox reads
     /// nothing from the terminal while it runs, so a question would wait forever. Its lines
@@ -254,15 +221,6 @@ public sealed partial class SbxClient : ISbxClient
     {
         return _invoker.RunOutcomeAsync(
             new ProcessRequest(ExecutableName, ["rm", name, "--force"]),
-            cancellationToken
-        );
-    }
-
-    /// <summary>Stops one sandbox without removing it.</summary>
-    public Task<SbxOutcome> StopSandboxAsync(string name, CancellationToken cancellationToken)
-    {
-        return _invoker.RunOutcomeAsync(
-            new ProcessRequest(ExecutableName, ["stop", name]),
             cancellationToken
         );
     }

@@ -14,6 +14,7 @@ using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.SandboxCleanup;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
@@ -81,6 +82,7 @@ public static class AboxServiceCollection
         services.AddSingleton<IOciRegistry, OciRegistry>();
         services.AddSingleton<IHostPrograms, HostPrograms>();
         services.AddSingleton<ISbxClient, SbxClient>();
+        services.AddSingleton<ISandboxCleanup, SbxSandboxCleanup>();
         services.AddSingleton(UserSecretsHost.Create());
         services.AddSingleton<UserSecretsCopy>();
         services.AddSingleton<AppPorts>();

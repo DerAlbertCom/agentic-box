@@ -2,6 +2,7 @@ using System.CommandLine;
 using Abox.Cli;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.SandboxCleanup;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -24,22 +25,29 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.Errors.Should().BeEmpty();
         cli.Scenario.Console.Output.Should().Contain("Removed sbx-kit-src:old.");
         cli.Scenario.SbxCalls.Should()
+            .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+        cli.CleanupCalls.Should()
             .Equal(
-                "GetVersionAsync",
-                "DiagnoseAsync",
-                "SignInAsync",
-                "DiagnoseAsync",
                 "ListSandboxesAsync",
                 "StopSandboxAsync",
                 "ListTemplatesAsync",
                 "RemoveTemplateAsync"
             );
+        Received.InOrder(() =>
+        {
+            cli.Scenario.Sbx.DiagnoseAsync(Arg.Any<CancellationToken>());
+            cli.Scenario.Sbx.DiagnoseAsync(Arg.Any<CancellationToken>());
+            cli.Cleanup.ListSandboxesAsync(Arg.Any<CancellationToken>());
+        });
         await cli
-            .Scenario.Sbx.Received(1)
+            .Cleanup.Received(1)
             .StopSandboxAsync("synthetic-running", Arg.Any<CancellationToken>());
         await cli
-            .Scenario.Sbx.Received(1)
-            .RemoveTemplateAsync("sbx-kit-src:old", Arg.Any<CancellationToken>());
+            .Cleanup.Received(1)
+            .RemoveTemplateAsync(
+                Arg.Is<TemplateImage>(image => image.Reference == "sbx-kit-src:old"),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -58,6 +66,7 @@ public sealed class PrunePreflightTests
             .Equal("Signing in failed. Run 'sbx login' and try again.");
         cli.Scenario.Console.AllText.Should().NotContain("credential-sentinel");
         cli.Scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync");
+        cli.CleanupCalls.Should().BeEmpty();
     }
 
     [Fact]
@@ -75,6 +84,7 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.Errors.Should()
             .Equal("sbx is not signed in. Run 'sbx login' and try again.");
         cli.Scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync");
+        cli.CleanupCalls.Should().BeEmpty();
     }
 
     [Theory]
@@ -99,6 +109,7 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.AllText.Should().NotContain("credential-sentinel");
         cli.Scenario.SbxCalls.Should()
             .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+        cli.CleanupCalls.Should().BeEmpty();
     }
 
     [Fact]
@@ -125,6 +136,7 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.AllText.Should().NotContain("credential-sentinel");
         cli.Scenario.SbxCalls.Should()
             .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+        cli.CleanupCalls.Should().BeEmpty();
     }
 
     [Fact]
@@ -143,6 +155,7 @@ public sealed class PrunePreflightTests
             .Contain("not on PATH")
             .And.Contain("never installs anything itself");
         cli.Scenario.SbxCalls.Should().BeEmpty();
+        cli.CleanupCalls.Should().BeEmpty();
         cli.Scenario.Programs.Received(1).Exists("sbx");
     }
 
@@ -163,6 +176,7 @@ public sealed class PrunePreflightTests
             .Contain("too old")
             .And.Contain("Upgrade sbx and try again.");
         cli.Scenario.SbxCalls.Should().Equal("GetVersionAsync");
+        cli.CleanupCalls.Should().BeEmpty();
     }
 
     [Fact]
@@ -188,6 +202,7 @@ public sealed class PrunePreflightTests
         exitCode.Should().Be(130);
         cli.Scenario.Console.Errors.Should().Equal("error: the command was cancelled.");
         cli.Scenario.SbxCalls.Should().Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync");
+        cli.CleanupCalls.Should().BeEmpty();
         // System.CommandLine links the invocation token; use the actual token seen at version checking.
         cli.Scenario.CommandToken.IsCancellationRequested.Should().BeTrue();
         await cli.Scenario.Sbx.Received(1).SignInAsync(cli.Scenario.CommandToken);
@@ -220,6 +235,7 @@ public sealed class PrunePreflightTests
         cli.Scenario.Console.Errors.Should().Equal("error: the command was cancelled.");
         cli.Scenario.SbxCalls.Should()
             .Equal("GetVersionAsync", "DiagnoseAsync", "SignInAsync", "DiagnoseAsync");
+        cli.CleanupCalls.Should().BeEmpty();
         cli.Scenario.CommandToken.IsCancellationRequested.Should().BeTrue();
         await cli.Scenario.Sbx.Received(2).DiagnoseAsync(cli.Scenario.CommandToken);
     }
@@ -241,20 +257,19 @@ public sealed class PrunePreflightTests
             var services = _application.Services;
             services.AddSingleton(Scenario.Sbx);
             services.AddSingleton(Scenario.Programs);
+            services.AddSingleton(Cleanup);
             _ = _application.Provider;
         }
 
         // A bypass must reach real stop/removal targets, not pass on an empty inventory.
         private void SeedPrunableRuntime()
         {
-            Scenario
-                .Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
-                .Returns(new[] { new SandboxInfo("synthetic-running", "running", null) });
-            Scenario
-                .Sbx.StopSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-                .Returns(new SbxOutcome(0, ""));
-            Scenario
-                .Sbx.ListTemplatesAsync(Arg.Any<CancellationToken>())
+            Cleanup
+                .ListSandboxesAsync(Arg.Any<CancellationToken>())
+                .Returns(new[] { new SandboxSummary("synthetic-running", true) });
+            Cleanup.StopSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+            Cleanup
+                .ListTemplatesAsync(Arg.Any<CancellationToken>())
                 .Returns(
                     new[]
                     {
@@ -266,10 +281,15 @@ public sealed class PrunePreflightTests
                         ),
                     }
                 );
-            Scenario
-                .Sbx.RemoveTemplateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-                .Returns(new SbxOutcome(0, ""));
+            Cleanup
+                .RemoveTemplateAsync(Arg.Any<TemplateImage>(), Arg.Any<CancellationToken>())
+                .Returns(TemplateRemoval.Done);
         }
+
+        public ISandboxCleanup Cleanup { get; } = Substitute.For<ISandboxCleanup>();
+
+        public IEnumerable<string> CleanupCalls =>
+            Cleanup.ReceivedCalls().Select(call => call.GetMethodInfo().Name);
 
         public PreflightScenario Scenario { get; }
         public AboxRootCommand Root => _application.Provider.GetRequiredService<AboxRootCommand>();

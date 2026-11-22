@@ -134,10 +134,8 @@ public sealed class SbxClientTests : IDisposable
     }
 
     [Theory]
-    [InlineData("remove-template")]
     [InlineData("create")]
     [InlineData("remove-sandbox")]
-    [InlineData("stop")]
     [InlineData("inspect")]
     [InlineData("set-secret")]
     [InlineData("set-custom-secret")]
@@ -155,7 +153,6 @@ public sealed class SbxClientTests : IDisposable
         var outcome = await (
             command switch
             {
-                "remove-template" => _client.RemoveTemplateAsync("image", cancellationToken),
                 "create" => _client.CreateAsync(
                     new SbxCreateRequest(
                         "kit",
@@ -169,7 +166,6 @@ public sealed class SbxClientTests : IDisposable
                     cancellationToken
                 ),
                 "remove-sandbox" => _client.RemoveSandboxAsync("sample", cancellationToken),
-                "stop" => _client.StopSandboxAsync("sample", cancellationToken),
                 "inspect" => _client.InspectKitAsync("kit", cancellationToken),
                 "set-secret" => _client.SetSecretAsync("service", "value", cancellationToken),
                 "set-custom-secret" => _client.SetCustomSecretAsync(
@@ -462,52 +458,6 @@ public sealed class SbxClientTests : IDisposable
         sandboxes[0].CreatedAt.Should().Be(DateTimeOffset.Parse("2026-11-08T14:27:10Z"));
         sandboxes[1].IsRunning.Should().BeFalse();
         sandboxes[1].CreatedAt.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task TheTemplatesAreReadFromTheJsonOutput()
-    {
-        // Arrange
-        _runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(
-                new ProcessResult(
-                    0,
-                    """
-                    [
-                      {
-                        "id": "527ef0280e47",
-                        "repository": "docker.io/library/sandbox-kit-assembled",
-                        "tag": "0307199587cd420e",
-                        "flavor": "shell-docker",
-                        "created_at": "2026-11-08T14:49:51Z",
-                        "size": 1389240008
-                      },
-                      {
-                        "id": "ecc48f9d23bd",
-                        "repository": "docker.io/library/sbx-kit-src",
-                        "tag": "pi-config-eacbe0b12b58",
-                        "created_at": "2026-11-08T14:55:39Z",
-                        "size": 6957
-                      }
-                    ]
-                    """,
-                    string.Empty
-                )
-            );
-
-        // Act
-        var templates = await _client.ListTemplatesAsync(CancellationToken.None);
-
-        // Assert
-        templates.Should().HaveCount(2);
-        templates[0]
-            .Reference.Should()
-            .Be("docker.io/library/sandbox-kit-assembled:0307199587cd420e");
-        templates[0].Id.Should().Be("527ef0280e47");
-        templates[0].CreatedAt.Should().Be(DateTimeOffset.Parse("2026-11-08T14:49:51Z"));
-        templates[1].Repository.Should().Be("docker.io/library/sbx-kit-src");
-        templates[1].CreatedAt.Should().NotBeNull();
     }
 
     [Fact]
