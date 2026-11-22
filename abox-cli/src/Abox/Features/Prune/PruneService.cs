@@ -1,7 +1,7 @@
 using System.Collections.Frozen;
 using System.Text.RegularExpressions;
 using Abox.Infrastructure;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Prune;
 

@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using Abox.Configuration;
+using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;

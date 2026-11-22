@@ -1,5 +1,5 @@
 using Abox.Infrastructure;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 

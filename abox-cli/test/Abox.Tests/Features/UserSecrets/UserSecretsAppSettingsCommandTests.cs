@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.Json;
-using Abox.Configuration;
+using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;

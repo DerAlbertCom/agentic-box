@@ -1,8 +1,5 @@
 using Abox.Features.Prune;
-using Abox.Features.Run;
-using Abox.Features.Secrets;
-using Abox.Infrastructure;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;

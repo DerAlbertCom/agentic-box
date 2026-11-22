@@ -1,12 +1,12 @@
-using Abox.Configuration;
 using Abox.Features.Create;
-using Abox.Health;
+using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.Sandboxes;
+using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Kits;
-using Abox.LocalState;
-using Abox.Sandboxes;
-using Abox.Sbx;
-using Abox.UserSecrets;
+using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;

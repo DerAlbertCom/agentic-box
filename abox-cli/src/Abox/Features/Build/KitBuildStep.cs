@@ -1,5 +1,5 @@
+using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Kits;
 
 namespace Abox.Features.Build;
 

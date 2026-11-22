@@ -1,6 +1,6 @@
-using Abox.LocalState;
-using Abox.Naming;
-using Abox.Sandboxes;
+using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using NSubstitute;
 
 namespace Abox.Tests;

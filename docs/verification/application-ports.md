@@ -68,7 +68,7 @@ scope waiver. Requiring developers to override application binds was not approve
 The implementation keeps sbx for host-loopback publication and adds only the
 missing sandbox-to-localhost TCP hop.
 
-The embedded `Sbx/application_ports.py` receiver requires **existing Python 3.8+ as
+The embedded `Infrastructure/Sbx/application_ports.py` receiver requires **existing Python 3.8+ as
 `python3` in the Linux sandbox**, with its standard library and a non-root default
 application user. This was weighed against installing a forwarding tool or shipping
 an additional platform-specific binary: the standard-library receiver needs no
@@ -257,7 +257,7 @@ below cover the Python receiver, not host forwarding or application availability
 ### Retained receiver checks
 
 [ReceiverChecks.py](application-ports/ReceiverChecks.py) now loads the production
-`abox-cli/src/Abox/Sbx/application_ports.py` directly. Run in a disposable Linux checkout
+`abox-cli/src/Abox/Infrastructure/Sbx/application_ports.py` directly. Run in a disposable Linux checkout
 with Python 3.8+ as a non-root user (no .NET project, sbx or npm needed):
 
 ```sh

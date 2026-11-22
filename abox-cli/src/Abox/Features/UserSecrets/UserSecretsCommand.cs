@@ -1,9 +1,10 @@
 using System.CommandLine;
-using Abox.Configuration;
-using Abox.Health;
+using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.Sandboxes;
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Sandboxes;
-using Abox.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Features.UserSecrets;

@@ -1,5 +1,5 @@
-using Abox.Configuration;
-using Abox.UserSecrets;
+using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 

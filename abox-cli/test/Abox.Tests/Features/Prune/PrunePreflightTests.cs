@@ -1,8 +1,8 @@
 using System.CommandLine;
 using Abox.Cli;
-using Abox.Configuration;
-using Abox.Infrastructure;
-using Abox.Sbx;
+using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Configuration;
+using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 

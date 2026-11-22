@@ -1,8 +1,8 @@
+using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Kits;
-using Abox.LocalState;
-using Abox.Naming;
-using Abox.Sbx;
+using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Build;
 
@@ -74,7 +74,7 @@ public sealed class BuildService(
             new SquadBuildIdentity(team.Name, squad.Name, request.Tag)
         );
 
-        var workloadDirectory = Path.Combine(buildDirectory, WorkloadKitGenerator.KitName);
+        var workloadDirectory = Path.Combine(buildDirectory, LocalWorkloadImages.WorkloadKitName);
         workloadGenerator.Generate(squad.Workload, workloadDirectory);
         console.WriteLine(
             $"Workload kit '{squad.Workload.Name}' written to '{workloadDirectory}'."
@@ -113,7 +113,7 @@ public sealed class BuildService(
                     buildDirectory,
                     "runtime",
                     Guid.NewGuid().ToString("N"),
-                    WorkloadKitGenerator.KitName
+                    LocalWorkloadImages.WorkloadKitName
                 ),
                 cancellationToken
             );

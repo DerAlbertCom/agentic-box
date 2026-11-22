@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Abox.Configuration;
+using Abox.Features.Shared.Configuration;
 using NSubstitute;
 
 namespace Abox.Tests;

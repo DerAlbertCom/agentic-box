@@ -1,7 +1,6 @@
 using System.Text.Json;
-using Abox.Configuration;
-using Abox.Sbx;
-using Abox.UserSecrets;
+using Abox.Features.Shared.Configuration;
+using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;

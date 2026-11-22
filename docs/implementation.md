@@ -376,7 +376,7 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
    sources (`ResolvedTeam.RootDirectory`); without them it is skipped. For each
    `credential@1` with an `apiKey` mechanism of a local kit it checks the stored
    value, with the identity rules of `abox secrets list`, and the binding in sbx's
-   `credentials.yaml` (`Sbx/SbxCredentialBindings`), which must cover every
+   `credentials.yaml` (`Infrastructure/Sbx/SbxCredentialBindings`), which must cover every
    `apiKey.inject[].domain`. On a terminal it asks for a missing value of a declared
    service (as `abox secrets set` does) and for each missing approval; an approval
    merges the domains into the file and keeps every other entry. Without a terminal
@@ -476,7 +476,7 @@ Frontend resolution, registry-kit metadata and custom mixin recipes can still
 need network/build work; `--local` does not promise fully offline creation or
 prebuild arbitrary mixin recipes. The repository's mixins are declaration-only.
 
-`Kits/StateEntry` owns the shared portable state-path and overlap rules for `.abox`
+`Squads/StateEntry` owns the shared portable state-path and overlap rules for `.abox`
 resolution, consumed local manifests and bundled published metadata. Creation
 validates the entire stored state list before MCP lookup/registration, state
 directory preparation or sandbox replacement, then mounts only those validated
@@ -572,7 +572,7 @@ content can break the framing; the wrapper returns the raw texts.
 declarations: descriptors are parsed with `KitDescriptor.Parse` (the same
 `credential@1` extraction as for a kit directory, including `apiKey.inject` domains)
 and merged with `CredentialRequest.Merge`, the merge the create-time check uses for
-local kits, so both agree. `Secrets` entries are read as `Kits/SquadMetadataSecret`, the same
+local kits, so both agree. `Secrets` entries are read as `Squads/SquadMetadataSecret`, the same
 record the build writes them with, and become `SecretDeclaration`s with the same
 encoding validation as `.abox` files; a missing service or input name, an
 unknown encoding, a duplicate service or invalid JSON fails with a message naming the
@@ -594,7 +594,7 @@ know it exists and refuses it. abox does not tell sbx's built-in services from k
 services; it does not need to. Older
   sandboxes print a hint to recreate the sandbox from a current build or publication.
   A command-backed declaration with a withheld command is never run: when it is not
-  stored, `set` prints `Sbx/SbxCustomSecretArguments.CommandLine` (hosts, env,
+  stored, `set` prints `Infrastructure/Sbx/SbxCustomSecretArguments.CommandLine` (hosts, env,
   placeholder and `--command '<host command>'`, the same arguments `SbxClient` passes)
   with where to find the command (the squad's `secrets` in the team's sources, or the
   team's README) and fails; when stored it says so. Before storing a
@@ -610,7 +610,7 @@ services; it does not need to. Older
   attached-console streams or raw pipes.
 - `remove` takes the values off the host. Custom secrets are matched by `--host`,
   or by sbx's `--env-name` selector when only `env` was declared; service names
-  are used only for service secrets. `Sbx/HostSecrets` matches a declaration to a
+  are used only for service secrets. `Infrastructure/Sbx/HostSecrets` matches a declaration to a
   stored secret by the same identity (`SecretDeclaration.Identity`): a service secret
   by name; a custom secret with hosts when a stored custom secret is sent to all its
   hosts, one with only `env` by that variable; when both name a variable it must be
@@ -922,7 +922,7 @@ configuration writes are introduced. See [offset semantics and evidence](applica
 The sbx adapter completes a fixed noninteractive `exec <sandbox> true` before reading
 `ports <sandbox> --json`: this waits for startup and restores existing bindings,
 avoiding a verified sbx 0.51.0 stopped-publishing race. Native publishing does not
-reach sandbox loopback, so `Sbx/application_ports.py` is an embedded receiver sent
+reach sandbox loopback, so `Infrastructure/Sbx/application_ports.py` is an embedded receiver sent
 through the same argv/stdin adapter. It requires existing sandbox Python 3.8+, uses
 only its standard library, and never installs tools. Detached, non-root sandbox
 relays listen on separate high ports and connect to application IPv4/IPv6 loopback
@@ -1182,80 +1182,92 @@ abox-cli/src/Abox/
   AboxException.cs  the safe application error reported by command handling
   Assets/           embedded workload certificate assets
   Cli/              the composition root: the service collection and the root command
-  Features/
+  Features/         the command slices and the shared features
     Build/          abox build: the command and the service that does its work
+      StateMixinGenerator.cs      the state mixin of a built squad
+      WorkloadKitGenerator.cs     turns a workload into a sandbox kit
+      SquadConfigurationMixin.cs  the squad.json allowlist and its mixin
     Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly
     Create/         abox create: the command and its slice registration
     Run/            abox run: the command and the Run flow (common Launcher steps)
+      ShellLauncher.cs  the default launcher: a shell in the workspace
     Secrets/        abox secrets: the command and the service that does its work
+      SandboxSquadMetadata.cs  staged descriptors and squad.json Secrets of a sandbox
     UserSecrets/    abox user-secrets: on-demand command only
     Ports/          abox ports: on-demand command only
     Prune/          abox prune: the command and the service that does its work
     Sandbox/        the commands other programs call: abox exec and abox pipe
       SandboxCommand.cs     shared hidden-command construction and argv validation;
                             passes the named sandbox to sbx exec
-    CommandHandling.cs  turns an abox error into a message and an exit code
-  Configuration/    the directories and the user configuration
-    FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
-  UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
-                    endpoint override generation and runtime copy flow
-  ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
-  Https/            shared host certificate preparation and sandbox HTTPS activation
-  Credentials/      shared kit credential requests and their merge, the sandbox
-                    squad-metadata model (staged descriptors and squad.json Secrets),
-                    secret value prompting/storing (used by abox secrets) and the
-                    create-time credential check
-  Kits/             the .abox and .workload files, the chain, the kit generators
-    McpDeclaration.cs      shared MCP name and HTTP(S) URL validation
-    YamlScalar.cs          shared generated-YAML scalar quoting, including supplementary Unicode
-  LocalState/       local on-disk state shared by the command slices
-    BuildManifest.cs
-    BuildSources.cs
-    BuildStore.cs
-    LocalWorkloadImages.cs
-    PersonalConfigurations.cs
-    SquadConfigurationMixin.cs  the squad.json allowlist and its mixin, for local create and publish
-    SandboxRecord.cs
-    SandboxRecordStore.cs
-  Launchers/        one class per launcher
-    ILauncher.cs           launcher contract; launcher services are constructor-injected
-    LauncherSession.cs     what a launcher gets: location, sandbox, workspace, argv,
-                           exec in the sandbox and ensure launch-ready
-  Sandboxes/        orchestration and resolution shared by create, run, ports and user-secrets
-    SandboxCreator.cs       the create operation shared by create and run
-    FolderSandbox.cs        this folder's Sandbox: one listing, current-first, exact legacy fallback
-    CreateRecoveryHints.cs  renders the create hint for a missing sandbox or an image
-                            that lacks a launcher's required program
-    PublishedSquadSource.cs reads the published set's bundled squad metadata
-    PublishedConfigArchive.cs safely reads squad metadata from Docker-save archives
-    PublishedRuntimeMetadata.cs validates bundled state and MCP runtime declarations
-    SquadSources.cs         local and remote ISquadSource adapters
-  Sbx/              every call to sbx: CLI arguments, settings and response models
-    SbxClient.cs    the public facade; owns the executable name and version query
-    SbxInvoker.cs   shared captured execution, JSON and failure handling
-    SbxFailureHeadline.cs  the cause of a failed sbx call, ahead of its full output
-    SbxDevelopmentCertificates.cs  protected HTTPS runtime and certificate operations
-    SbxApplicationPorts.cs         application relay and port mapping operations
-    SbxUserSecrets.cs              secret transport and network-policy operations
-    SbxKitSources.cs               repository-scoped kit-source trust settings
-    SbxCredentialBindings.cs       reads and merges the approvals in sbx's credentials.yaml
-    SandboxSquadFiles.cs           raw staged kit descriptors and squad.json of a sandbox
-    SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line
-    HostSecrets.cs                 the stored secrets; matches a declaration by its identity
-    PullPolicy.cs                 closed pull choices, mapped to flags by the wrapper
-  Health/           runtime preflight for sandbox commands, secrets and normal builds;
-                    checks the queried sbx version against the required minimum
-  Infrastructure/   the console, the processes, the YAML
-    OciRegistry.cs          intent-level Docker operations, Buildx checks and OCI inspection
+    Shared/         everything shared by commands, one folder per use case
+      CommandLine/      the trailing arguments after "--" and command handling, which
+                        turns an abox error into a message and an exit code
+      Configuration/    the directories and the user configuration
+        FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
+      UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
+                        endpoint override generation and runtime copy flow
+      ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
+      Https/            shared host certificate preparation and sandbox HTTPS activation
+      Credentials/      shared kit credential requests and their merge, secret value
+                        prompting/storing (used by abox secrets) and the create-time
+                        credential check
+      Squads/           the .abox and .workload files, the chain, squad resolution
+        McpDeclaration.cs      shared MCP name and HTTP(S) URL validation
+        YamlScalar.cs          shared generated-YAML scalar quoting, including supplementary Unicode
+      Builds/           the local build state shared by the command slices
+        BuildManifest.cs
+        BuildSources.cs
+        BuildStore.cs
+        LocalWorkloadImages.cs  prebuilt workload images; owns the workload kit name
+        PersonalConfigurations.cs
+      Launchers/        the launcher abstraction
+        ILauncher.cs           launcher contract; launcher services are constructor-injected
+        LauncherSession.cs     what a launcher gets: location, sandbox, workspace, argv,
+                               exec in the sandbox and ensure launch-ready
+        LauncherRegistry.cs    the launchers abox knows
+      Sandboxes/        orchestration and resolution shared by create, run, ports and user-secrets
+        SandboxCreator.cs       the create operation shared by create and run
+        FolderSandbox.cs        this folder's Sandbox: one listing, current-first, exact legacy fallback
+        LegacySandboxName.cs    the sandbox names of earlier abox versions
+        SandboxRecord.cs
+        SandboxRecordStore.cs
+        CreateRecoveryHints.cs  renders the create hint for a missing sandbox or an image
+                                that lacks a launcher's required program
+        PublishedSquadSource.cs reads the published set's bundled squad metadata
+        PublishedConfigArchive.cs safely reads squad metadata from Docker-save archives
+        PublishedRuntimeMetadata.cs validates bundled state and MCP runtime declarations
+        SquadSources.cs         local and remote ISquadSource adapters
+      Preflight/        runtime preflight for sandbox commands, secrets and normal builds;
+                        checks the queried sbx version against the required minimum
+      Naming/           sandbox and image names
+        ImageName.cs            the unqualified team reference of a local build
+        TcpPort.cs              shared TCP parsing and the 1–65535 range
+        WindowsDeviceName.cs    shared reserved device-name validation
+        SquadBuildIdentity.cs  validated team/squad/tag and shared repository naming
+  Infrastructure/   the external tools and the generic helpers: the console, the
+                    processes, the YAML
     ProcessOutput.cs        captured-output diagnostics and output policy
     SecretRedactor.cs       credential collection and diagnostic redaction
     PrivateStagingException.cs  structural protected-staging failure classification
     TemporaryDirectory.cs   temporary working directories and their cleanup
-  Naming/           sandbox and image names
-    ImageName.cs            the unqualified team reference of a local build
-    TcpPort.cs              shared TCP parsing and the 1–65535 range
-    WindowsDeviceName.cs    shared reserved device-name validation
-    SquadBuildIdentity.cs  validated team/squad/tag and shared repository naming
+    Sbx/              every call to sbx: CLI arguments, settings and response models
+      SbxClient.cs    the public facade; owns the executable name and version query
+      SbxInvoker.cs   shared captured execution, JSON and failure handling
+      SbxFailureHeadline.cs  the cause of a failed sbx call, ahead of its full output
+      SbxDevelopmentCertificates.cs  protected HTTPS runtime and certificate operations
+      SbxApplicationPorts.cs         application relay and port mapping operations
+      SbxUserSecrets.cs              secret transport and network-policy operations
+      SbxKitSources.cs               repository-scoped kit-source trust settings
+      SbxCredentialBindings.cs       reads and merges the approvals in sbx's credentials.yaml
+      SandboxSquadFiles.cs           raw staged kit descriptors and squad.json of a sandbox
+      SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line
+      HostSecrets.cs                 the stored secrets; matches a declaration by its identity
+      PullPolicy.cs                  closed pull choices, mapped to flags by the wrapper
+      *.py, *.sh                     the embedded scripts sbx runs in the sandbox
+    Docker/
+      OciRegistry.cs  intent-level Docker operations, Buildx checks and OCI inspection
+    Herdr/
+      HerdrAppLauncher.cs  the Herdr launcher and its protocol responses
 ```
 
 ```
