@@ -8,6 +8,6 @@ internal static class PortsFeature
 {
     public static IServiceCollection AddPortsFeature(this IServiceCollection services) =>
         services
-            .AddSingleton<Command, PortsCommand>()
+            .AddScoped<Command, PortsCommand>()
             .AddScoped<ICommandHandler<PortsParameters>, PortsHandler>();
 }

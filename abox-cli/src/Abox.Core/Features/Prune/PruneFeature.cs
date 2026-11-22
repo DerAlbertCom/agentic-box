@@ -11,8 +11,8 @@ internal static class PruneFeature
 {
     public static IServiceCollection AddPruneFeature(this IServiceCollection services)
     {
-        services.AddSingleton<PruneService>();
-        services.AddSingleton<Command, PruneCommand>();
+        services.AddScoped<PruneService>();
+        services.AddScoped<Command, PruneCommand>();
         services.AddScoped<ICommandHandler<PruneParameters>, PruneHandler>();
         return services;
     }

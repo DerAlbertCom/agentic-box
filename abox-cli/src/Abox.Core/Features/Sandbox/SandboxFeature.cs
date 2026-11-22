@@ -12,8 +12,8 @@ internal static class SandboxFeature
 {
     public static IServiceCollection AddSandboxFeature(this IServiceCollection services)
     {
-        services.AddSingleton<Command, ExecCommand>();
-        services.AddSingleton<Command, PipeCommand>();
+        services.AddScoped<Command, ExecCommand>();
+        services.AddScoped<Command, PipeCommand>();
         services.AddScoped<ICommandHandler<SandboxExecParameters>, SandboxExecHandler>();
         return services;
     }

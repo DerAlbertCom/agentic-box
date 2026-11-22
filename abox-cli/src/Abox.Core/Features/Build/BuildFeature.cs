@@ -11,11 +11,11 @@ internal static class BuildFeature
 {
     public static IServiceCollection AddBuildFeature(this IServiceCollection services)
     {
-        services.AddSingleton<BuildService>();
-        services.AddSingleton<KitBuildStep>();
-        services.AddSingleton<WorkloadKitGenerator>();
-        services.AddSingleton<StateMixinGenerator>();
-        services.AddSingleton<Command, BuildCommand>();
+        services.AddScoped<BuildService>();
+        services.AddScoped<KitBuildStep>();
+        services.AddScoped<WorkloadKitGenerator>();
+        services.AddScoped<StateMixinGenerator>();
+        services.AddScoped<Command, BuildCommand>();
         services.AddScoped<ICommandHandler<BuildParameters>, BuildHandler>();
         return services;
     }

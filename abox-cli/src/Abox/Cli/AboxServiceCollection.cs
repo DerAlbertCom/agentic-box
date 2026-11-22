@@ -21,7 +21,7 @@ public static class AboxServiceCollection
         services.AddAboxCore(console, trailing).AddAboxInfrastructure();
 
         // The root holds all the slice commands, in registration order.
-        services.AddSingleton<AboxRootCommand>();
+        services.AddScoped<AboxRootCommand>();
 
         return services;
     }

@@ -11,20 +11,29 @@ namespace Abox.Features.Shared.CommandLine;
 /// </summary>
 public sealed class CommandRunner(IServiceProvider services, IConsole console)
 {
-    internal Task<int> RunAsync<TParameters>(
+    internal async Task<int> RunAsync<TParameters>(
         AboxCommand<TParameters> command,
         ParseResult parseResult,
         CancellationToken cancellationToken
     )
-        where TParameters : notnull =>
-        CommandHandling.RunAsync(
-            async () =>
-            {
-                var defaults = services.GetRequiredService<InvocationDefaults>();
-                var parameters = await command.BindAsync(parseResult, defaults, cancellationToken);
-                var handler = services.GetRequiredService<ICommandHandler<TParameters>>();
-                return await handler.HandleAsync(parameters, cancellationToken);
-            },
-            console
-        );
+        where TParameters : notnull
+    {
+        try
+        {
+            var defaults = services.GetRequiredService<InvocationDefaults>();
+            var parameters = await command.BindAsync(parseResult, defaults, cancellationToken);
+            var handler = services.GetRequiredService<ICommandHandler<TParameters>>();
+            return await handler.HandleAsync(parameters, cancellationToken);
+        }
+        catch (AboxException exception)
+        {
+            console.WriteError($"error: {exception.Message}");
+            return 1;
+        }
+        catch (OperationCanceledException)
+        {
+            console.WriteError("error: the command was cancelled.");
+            return 130;
+        }
+    }
 }

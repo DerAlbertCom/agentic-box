@@ -12,10 +12,10 @@ internal static class RunFeature
 {
     public static IServiceCollection AddRunFeature(this IServiceCollection services)
     {
-        services.AddSingleton<RunFlow>();
-        services.AddSingleton<ILauncher, ShellLauncher>();
-        services.AddSingleton<LauncherRegistry>();
-        services.AddSingleton<Command, RunCommand>();
+        services.AddScoped<RunFlow>();
+        services.AddScoped<ILauncher, ShellLauncher>();
+        services.AddScoped<LauncherRegistry>();
+        services.AddScoped<Command, RunCommand>();
         services.AddScoped<ICommandHandler<RunParameters>, RunHandler>();
         return services;
     }

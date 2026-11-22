@@ -390,7 +390,7 @@ public sealed class RunCommandTests
         public TestConsole Console { get; } = new();
         public string Location { get; }
         public string Name => SandboxName.For(Location);
-        public ServiceProvider Provider => application.Provider;
+        public IServiceProvider Provider => application.Provider;
         public string Workspace { get; init; } = "/home/agent/workspace";
         public int ExecExitCode { get; init; }
         public HashSet<string> MissingOnHost { get; } = [];

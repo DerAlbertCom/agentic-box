@@ -13,8 +13,14 @@ return await CommandHandling.RunAsync(
             console,
             new TrailingArguments { Values = trailing }
         );
-        using var provider = services.BuildServiceProvider();
-        return await provider.GetRequiredService<AboxRootCommand>().InvokeAsync(arguments);
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true }
+        );
+        // One scope per process run: the root command and every handler come from it.
+        await using var scope = provider.CreateAsyncScope();
+        return await scope
+            .ServiceProvider.GetRequiredService<AboxRootCommand>()
+            .InvokeAsync(arguments);
     },
     console
 );

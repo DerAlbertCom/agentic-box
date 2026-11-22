@@ -206,13 +206,10 @@ public sealed class FolderSandboxCommandTests
                     Respond(call.Arg<ProcessRequest>(), call.Arg<CancellationToken>())
                 );
             Cli.Services.AddSingleton(runner);
-            Cli.Services.AddSingleton<
-                ISandboxDevelopmentCertificates,
-                SbxDevelopmentCertificates
-            >();
-            Cli.Services.AddSingleton<ISandboxLifecycle, SbxSandboxLifecycle>();
-            Cli.Services.AddSingleton<IMcpServerRegistry, SbxMcpServerRegistry>();
-            Cli.Services.AddSingleton<ISandboxInspection, SbxSandboxInspection>();
+            Cli.Services.AddScoped<ISandboxDevelopmentCertificates, SbxDevelopmentCertificates>();
+            Cli.Services.AddScoped<ISandboxLifecycle, SbxSandboxLifecycle>();
+            Cli.Services.AddScoped<IMcpServerRegistry, SbxMcpServerRegistry>();
+            Cli.Services.AddScoped<ISandboxInspection, SbxSandboxInspection>();
         }
 
         public UserSecretsCliHarness Cli { get; } =

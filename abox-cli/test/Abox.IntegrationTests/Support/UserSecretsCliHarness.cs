@@ -35,7 +35,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public ISandboxDevelopmentCertificates Certificates => application.Certificates;
     public IHostSecretStore HostSecrets => application.HostSecrets;
     public ISandboxSquadFileReader SquadFiles => application.SquadFiles;
-    public ServiceProvider Provider => application.Provider;
+    public IServiceProvider Provider => application.Provider;
 
     public UserSecretsCliHarness(
         AboxConfig? config = null,

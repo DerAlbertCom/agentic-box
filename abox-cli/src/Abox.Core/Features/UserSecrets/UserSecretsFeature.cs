@@ -8,6 +8,6 @@ internal static class UserSecretsFeature
 {
     public static IServiceCollection AddUserSecretsFeature(this IServiceCollection services) =>
         services
-            .AddSingleton<Command, UserSecretsCommand>()
+            .AddScoped<Command, UserSecretsCommand>()
             .AddScoped<ICommandHandler<UserSecretsParameters>, UserSecretsHandler>();
 }

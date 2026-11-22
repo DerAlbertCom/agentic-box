@@ -3,8 +3,8 @@ using Abox.Features.Shared.Common;
 namespace Abox.Features.Shared.CommandLine;
 
 /// <summary>
-/// Turns abox errors into exit code 1 and cancellation into exit code 130.
-/// Used by command actions and by the entry point, which also guards composition.
+/// Turns abox errors into exit code 1 and cancellation into exit code 130, the same way the
+/// command runner does for actions. The entry point guards the composition with it.
 /// </summary>
 public static class CommandHandling
 {

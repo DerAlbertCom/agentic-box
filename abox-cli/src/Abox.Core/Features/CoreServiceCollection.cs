@@ -53,13 +53,12 @@ public static class CoreServiceCollection
         TrailingArguments trailing
     )
     {
+        // The one real terminal, shared by every invocation scope.
         services.AddSingleton(console);
-        services.AddSingleton(trailing);
-        services.AddSingleton<Verbosity>();
-        services.AddSingleton(AboxPaths.Create());
-        // Commands describe their syntax eagerly, but resolve configuration-dependent work only in actions.
-        services.AddSingleton(typeof(Lazy<>), typeof(LazyService<>));
-        services.AddSingleton(provider =>
+        services.AddScoped(_ => trailing);
+        services.AddScoped<Verbosity>();
+        services.AddScoped(_ => AboxPaths.Create());
+        services.AddScoped(provider =>
             AboxConfigLoader.Load(
                 provider.GetRequiredService<AboxPaths>(),
                 provider.GetRequiredService<IYamlParser>()
@@ -72,23 +71,23 @@ public static class CoreServiceCollection
             provider.GetRequiredService<IYamlParser>(),
             provider.GetRequiredService<TrailingArguments>()
         ));
-        services.AddSingleton<UserSecretsCopy>();
-        services.AddSingleton<AppPorts>();
-        services.AddSingleton<SandboxHttps>();
-        services.AddSingleton<Preflight>();
-        services.AddSingleton<SquadResolver>();
-        services.AddSingleton<SecretValues>();
-        services.AddSingleton<SquadCredentials>();
-        services.AddSingleton<BuildStore>();
-        services.AddSingleton<SandboxRecordStore>();
-        services.AddSingleton<CreateRecoveryHints>();
-        services.AddSingleton<FolderSandbox>();
-        services.AddSingleton<PersonalConfigurations>();
-        services.AddSingleton<LocalWorkloadImages>();
-        services.AddSingleton<SandboxCreator>();
-        services.AddSingleton<LocalSquadSource>();
-        services.AddSingleton<RemoteSquadSource>();
-        services.AddSingleton<IPublishedSquadSource, PublishedSquadSource>();
+        services.AddScoped<UserSecretsCopy>();
+        services.AddScoped<AppPorts>();
+        services.AddScoped<SandboxHttps>();
+        services.AddScoped<Preflight>();
+        services.AddScoped<SquadResolver>();
+        services.AddScoped<SecretValues>();
+        services.AddScoped<SquadCredentials>();
+        services.AddScoped<BuildStore>();
+        services.AddScoped<SandboxRecordStore>();
+        services.AddScoped<CreateRecoveryHints>();
+        services.AddScoped<FolderSandbox>();
+        services.AddScoped<PersonalConfigurations>();
+        services.AddScoped<LocalWorkloadImages>();
+        services.AddScoped<SandboxCreator>();
+        services.AddScoped<LocalSquadSource>();
+        services.AddScoped<RemoteSquadSource>();
+        services.AddScoped<IPublishedSquadSource, PublishedSquadSource>();
         return services;
     }
 }

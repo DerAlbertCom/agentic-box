@@ -29,40 +29,40 @@ public static class InfrastructureServiceCollection
 {
     public static IServiceCollection AddAboxInfrastructure(this IServiceCollection services)
     {
-        services.AddSingleton<IYamlParser, YamlDotNetParser>();
-        services.AddSingleton<ProcessOutput>();
-        services.AddSingleton<IProcessRunner, ProcessRunner>();
-        services.AddSingleton<DockerWorkloadImages>();
-        services.AddSingleton<IWorkloadImageBuilder>(provider =>
+        services.AddScoped<IYamlParser, YamlDotNetParser>();
+        services.AddScoped<ProcessOutput>();
+        services.AddScoped<IProcessRunner, ProcessRunner>();
+        services.AddScoped<DockerWorkloadImages>();
+        services.AddScoped<IWorkloadImageBuilder>(provider =>
             provider.GetRequiredService<DockerWorkloadImages>()
         );
-        services.AddSingleton<ILocalWorkloadImageStore>(provider =>
+        services.AddScoped<ILocalWorkloadImageStore>(provider =>
             provider.GetRequiredService<DockerWorkloadImages>()
         );
-        services.AddSingleton<IRegistryPublisher, DockerRegistryPublisher>();
-        services.AddSingleton<IPublishedImageReader, DockerPublishedImageReader>();
-        services.AddSingleton<IHostPrograms, ShellHostPrograms>();
-        services.AddSingleton<SbxInvoker>();
-        services.AddSingleton<IApplicationPortPublisher, SbxApplicationPorts>();
-        services.AddSingleton<ISandboxCleanup, SbxSandboxCleanup>();
-        services.AddSingleton<ISandboxExec, SbxSandboxExec>();
-        services.AddSingleton<IHostUserSecretStores>(DotnetUserSecretStores.Create());
-        services.AddSingleton<ISandboxUserSecrets, SbxUserSecrets>();
-        services.AddSingleton<IHostSecretStore, SbxHostSecretStore>();
-        services.AddSingleton<ISandboxSquadFileReader, SbxSandboxSquadFileReader>();
-        services.AddSingleton<ISandboxLifecycle, SbxSandboxLifecycle>();
-        services.AddSingleton<IMcpServerRegistry, SbxMcpServerRegistry>();
-        services.AddSingleton<IKitSourceTrust, SbxKitSourceTrust>();
-        services.AddSingleton<ISandboxInspection, SbxSandboxInspection>();
-        services.AddSingleton<IFolderRealPath, ShellFolderRealPath>();
-        services.AddSingleton<IHostDevelopmentCertificate, DotnetDevelopmentCertificate>();
-        services.AddSingleton<ISandboxDevelopmentCertificates, SbxDevelopmentCertificates>();
-        services.AddSingleton<IPreflightChecks, SbxPreflightChecks>();
-        services.AddSingleton<ICredentialApprovals>(SbxCredentialBindings.Create());
-        services.AddSingleton<IKitInspector, SbxKitInspector>();
-        services.AddSingleton<IKitBuildScript, ShellKitBuildScript>();
+        services.AddScoped<IRegistryPublisher, DockerRegistryPublisher>();
+        services.AddScoped<IPublishedImageReader, DockerPublishedImageReader>();
+        services.AddScoped<IHostPrograms, ShellHostPrograms>();
+        services.AddScoped<SbxInvoker>();
+        services.AddScoped<IApplicationPortPublisher, SbxApplicationPorts>();
+        services.AddScoped<ISandboxCleanup, SbxSandboxCleanup>();
+        services.AddScoped<ISandboxExec, SbxSandboxExec>();
+        services.AddScoped<IHostUserSecretStores>(_ => DotnetUserSecretStores.Create());
+        services.AddScoped<ISandboxUserSecrets, SbxUserSecrets>();
+        services.AddScoped<IHostSecretStore, SbxHostSecretStore>();
+        services.AddScoped<ISandboxSquadFileReader, SbxSandboxSquadFileReader>();
+        services.AddScoped<ISandboxLifecycle, SbxSandboxLifecycle>();
+        services.AddScoped<IMcpServerRegistry, SbxMcpServerRegistry>();
+        services.AddScoped<IKitSourceTrust, SbxKitSourceTrust>();
+        services.AddScoped<ISandboxInspection, SbxSandboxInspection>();
+        services.AddScoped<IFolderRealPath, ShellFolderRealPath>();
+        services.AddScoped<IHostDevelopmentCertificate, DotnetDevelopmentCertificate>();
+        services.AddScoped<ISandboxDevelopmentCertificates, SbxDevelopmentCertificates>();
+        services.AddScoped<IPreflightChecks, SbxPreflightChecks>();
+        services.AddScoped<ICredentialApprovals>(_ => SbxCredentialBindings.Create());
+        services.AddScoped<IKitInspector, SbxKitInspector>();
+        services.AddScoped<IKitBuildScript, ShellKitBuildScript>();
         // The launchers that open apps through an external tool, after the run slice's own.
-        services.AddSingleton<ILauncher, HerdrAppLauncher>();
+        services.AddScoped<ILauncher, HerdrAppLauncher>();
         return services;
     }
 

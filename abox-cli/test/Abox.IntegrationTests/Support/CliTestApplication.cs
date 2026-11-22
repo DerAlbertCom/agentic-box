@@ -15,6 +15,7 @@ namespace Abox.Tests;
 internal sealed class CliTestApplication : IDisposable
 {
     private ServiceProvider? provider;
+    private IServiceScope? scope;
 
     internal CliTestApplication(IConsole console, AboxPaths paths, TrailingArguments trailing)
     {
@@ -39,7 +40,9 @@ internal sealed class CliTestApplication : IDisposable
     internal ISandboxDevelopmentCertificates Certificates { get; } = SandboxFactory.Certificates();
 
     internal IServiceCollection Services { get; }
-    internal ServiceProvider Provider => provider ??= Services.BuildServiceProvider();
+
+    /// <summary>The invocation scope, opened once like the entry point opens it per process run.</summary>
+    internal IServiceProvider Provider => (scope ??= OpenScope()).ServiceProvider;
     internal ISandboxLifecycle Lifecycle { get; } = Substitute.For<ISandboxLifecycle>();
     internal IMcpServerRegistry Mcp { get; } = Substitute.For<IMcpServerRegistry>();
     internal IKitSourceTrust KitSources { get; } = Substitute.For<IKitSourceTrust>();
@@ -55,5 +58,17 @@ internal sealed class CliTestApplication : IDisposable
         return this;
     }
 
-    public void Dispose() => provider?.Dispose();
+    private IServiceScope OpenScope()
+    {
+        provider = Services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true }
+        );
+        return provider.CreateScope();
+    }
+
+    public void Dispose()
+    {
+        scope?.Dispose();
+        provider?.Dispose();
+    }
 }

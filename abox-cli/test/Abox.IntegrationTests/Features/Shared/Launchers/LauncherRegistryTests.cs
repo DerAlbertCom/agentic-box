@@ -17,7 +17,7 @@ public sealed class LauncherRegistryTests
         var console = new TestConsole();
         var paths = AboxPaths.For(root.Path, root.Path);
         var application = new CliTestApplication(console, paths, new TrailingArguments());
-        application.Services.AddSingleton<ILauncher, ShellLauncher>();
+        application.Services.AddScoped<ILauncher, ShellLauncher>();
 
         // Act
         var exitCode = await CommandHandling.RunAsync(

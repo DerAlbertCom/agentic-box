@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Yaml;
@@ -38,7 +39,7 @@ internal sealed class InvocationDefaults(
     /// </summary>
     public SandboxLocation SandboxLocationWithDeferredFolderConfiguration(string? location)
     {
-        var fullPath = configuration.Value.ResolveLocation(location);
+        var fullPath = FullPath(location);
         return new SandboxLocation(
             fullPath,
             cancellationToken => FolderConfig.LoadAsync(fullPath, parser, cancellationToken)
@@ -47,17 +48,19 @@ internal sealed class InvocationDefaults(
 
     /// <summary>The sandbox location without reading its folder configuration.</summary>
     public SandboxLocation SandboxLocationWithoutFolderConfiguration(string? location) =>
-        new(
-            configuration.Value.ResolveLocation(location),
-            _ => Task.FromResult<FolderConfig?>(null)
-        );
+        new(FullPath(location), _ => Task.FromResult<FolderConfig?>(null));
 
     /// <summary>The given team, otherwise the required <c>defaultTeam</c>.</summary>
-    public string Team(string? team) => configuration.Value.ResolveTeam(team);
+    public string Team(string? team) =>
+        team
+        ?? configuration.Value.DefaultTeam
+        ?? throw new AboxException(
+            "No team is given. Give --team <name> or set 'defaultTeam' in the user configuration."
+        );
 
     /// <summary>Every given team, otherwise the required <c>defaultTeam</c>.</summary>
     public IReadOnlyList<string> Teams(IReadOnlyList<string>? teams) =>
-        configuration.Value.ResolveTeams(teams);
+        teams is { Count: > 0 } ? teams : [Team(null)];
 
     /// <summary>The given tag, otherwise <c>defaultTag</c>, validated as a registry tag.</summary>
     public string Tag(string? tag)
@@ -71,4 +74,9 @@ internal sealed class InvocationDefaults(
     /// The given tag, otherwise <c>defaultTag</c>, for a caller that validates it later.
     /// </summary>
     public string TagWithoutValidation(string? tag) => tag ?? configuration.Value.DefaultTag;
+
+    private string FullPath(string? location) =>
+        Path.GetFullPath(
+            location ?? configuration.Value.DefaultLocation ?? Directory.GetCurrentDirectory()
+        );
 }

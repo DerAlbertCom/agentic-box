@@ -11,8 +11,8 @@ internal static class SecretsFeature
 {
     public static IServiceCollection AddSecretsFeature(this IServiceCollection services)
     {
-        services.AddSingleton<SecretsService>();
-        services.AddSingleton<Command, SecretsCommand>();
+        services.AddScoped<SecretsService>();
+        services.AddScoped<Command, SecretsCommand>();
         services.AddScoped<ICommandHandler<SecretsListParameters>, SecretsListHandler>();
         services.AddScoped<ICommandHandler<SecretsSetParameters>, SecretsSetHandler>();
         services.AddScoped<ICommandHandler<SecretsRemoveParameters>, SecretsRemoveHandler>();
