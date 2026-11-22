@@ -1224,7 +1224,8 @@ abox-cli/src/Abox/
         ILauncher.cs           launcher contract; launcher services are constructor-injected
         LauncherSession.cs     what a launcher gets: location, sandbox, workspace, argv,
                                exec in the sandbox and ensure launch-ready
-        LauncherRegistry.cs    the launchers abox knows
+        LauncherRegistry.cs    the launchers abox knows: the run slice's shell and the
+                               infrastructure adapters the composition root adds
       Sandboxes/        orchestration and resolution shared by create, run, ports and user-secrets
         SandboxCreator.cs       the create operation shared by create and run
         FolderSandbox.cs        this folder's Sandbox: one listing, current-first, exact legacy fallback
@@ -1267,7 +1268,9 @@ abox-cli/src/Abox/
     Docker/
       OciRegistry.cs  intent-level Docker operations, Buildx checks and OCI inspection
     Herdr/
-      HerdrAppLauncher.cs  the Herdr launcher and its protocol responses
+      HerdrAppLauncher.cs  the herdr-app launcher (an ILauncher adapter, registered by
+                           the composition root); its programs stay internal
+      HerdrResponses.cs    the internal hc and herdr-app protocol responses
 ```
 
 ```

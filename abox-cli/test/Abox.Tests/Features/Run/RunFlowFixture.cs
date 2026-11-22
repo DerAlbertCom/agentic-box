@@ -6,7 +6,6 @@ using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Herdr;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -26,10 +25,11 @@ internal sealed class RunFlowFixture
 
     internal RunFlowFixture()
     {
-        var launchers = new LauncherRegistry([
-            new ShellLauncher(),
-            new HerdrAppLauncher(Substitute.For<IProcessRunner>(), Console),
-        ]);
+        var appLauncher = Substitute.For<ILauncher>();
+        appLauncher.Id.Returns("app");
+        appLauncher.HostRequirements.Returns([]);
+        appLauncher.SandboxRequirements.Returns(["app-core"]);
+        var launchers = new LauncherRegistry([new ShellLauncher(), appLauncher]);
         var hostPrograms = Substitute.For<IHostPrograms>();
         hostPrograms.Exists(Arg.Any<string>()).Returns(true);
         Paths = AboxPaths.For(Path.Combine(Root.Path, "config"), Path.Combine(Root.Path, "state"));

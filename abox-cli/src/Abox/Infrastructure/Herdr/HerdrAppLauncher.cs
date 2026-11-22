@@ -7,7 +7,7 @@ namespace Abox.Infrastructure.Herdr;
 /// The launcher that opens a space in the Herdr desktop app. The Herdr app runs the agents
 /// in terminals that stay alive in <c>hc</c>, so they keep running when the window closes.
 /// </summary>
-public sealed class HerdrAppLauncher(IProcessRunner runner, IConsole console) : ILauncher
+internal sealed class HerdrAppLauncher(IProcessRunner runner, IConsole console) : ILauncher
 {
     private const string AppProgram = "herdr-app";
     private const string CoreProgram = "hc";
