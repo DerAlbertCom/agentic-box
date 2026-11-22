@@ -4,10 +4,6 @@ import { useCommandHome } from "../src/testing";
 
 const home = useCommandHome();
 
-function install(name: string, module: string) {
-  return home.install(name, { module });
-}
-
 function withSummary(summary: string) {
   return `export default { summary: ${JSON.stringify(summary)}, run() {} };\n`;
 }
@@ -15,9 +11,8 @@ function withSummary(summary: string) {
 describe("sbox <command>", () => {
   test("runs the command's module with the remaining arguments and returns its exit code", async () => {
     // Arrange
-    await install(
-      "hello",
-      `export default {
+    await home.install("hello", {
+      module: `export default {
         summary: "Say hello",
         run(args, ctx) {
           ctx.stdout.write("hello " + JSON.stringify(args) + "\\n");
@@ -25,7 +20,7 @@ describe("sbox <command>", () => {
           return 3;
         },
       };\n`,
-    );
+    });
 
     // Act
     const result = await home.run(["hello", "world", "--loud"]);
@@ -38,10 +33,9 @@ describe("sbox <command>", () => {
 
   test("reports an error thrown by the command and fails", async () => {
     // Arrange
-    await install(
-      "hello",
-      `export default { summary: "Fail", run() { throw new Error("no theme named 'x'"); } };\n`,
-    );
+    await home.install("hello", {
+      module: `export default { summary: "Fail", run() { throw new Error("no theme named 'x'"); } };\n`,
+    });
 
     // Act
     const result = await home.run(["hello"]);
@@ -60,7 +54,7 @@ describe("sbox <command>", () => {
 
   test("hands the command its state and data folders and the environment", async () => {
     // Arrange
-    await install("hello", reportContext);
+    await home.install("hello", { module: reportContext });
 
     // Act
     const result = await home.run(["hello"], { env: { SBOX_THEME: "nord" } });
@@ -79,7 +73,7 @@ describe("sbox <command>", () => {
 
   test("tells the command when it runs in a terminal", async () => {
     // Arrange
-    await install("hello", reportContext);
+    await home.install("hello", { module: reportContext });
 
     // Act
     const result = await home.run(["hello"], { tty: true });
@@ -97,7 +91,7 @@ describe("sbox <command>", () => {
 
   test("styles the output in a terminal", async () => {
     // Arrange
-    await install("hello", styled);
+    await home.install("hello", { module: styled });
 
     // Act
     const result = await home.run(["hello"], { tty: true });
@@ -108,7 +102,7 @@ describe("sbox <command>", () => {
 
   test("leaves the output plain when it is not a terminal or NO_COLOR is set", async () => {
     // Arrange
-    await install("hello", styled);
+    await home.install("hello", { module: styled });
 
     // Act
     const piped = await home.run(["hello"]);
@@ -123,7 +117,7 @@ describe("sbox <command>", () => {
 describe("sbox <unknown>", () => {
   test("fails and lists the installed commands", async () => {
     // Arrange
-    await install("hello", withSummary("Say hello"));
+    await home.install("hello", { module: withSummary("Say hello") });
 
     // Act
     const result = await home.run(["themes", "nord"]);
@@ -137,7 +131,7 @@ describe("sbox <unknown>", () => {
 
   test("does not treat a path as a command name", async () => {
     // Arrange
-    await install("hello", withSummary("Say hello"));
+    await home.install("hello", { module: withSummary("Say hello") });
 
     // Act
     const result = await home.run(["../commands/hello"]);
@@ -151,8 +145,8 @@ describe("sbox <unknown>", () => {
 describe("sbox --help", () => {
   test("lists the installed commands with their summaries, sorted by name", async () => {
     // Arrange
-    await install("themes", withSummary("Switch the color theme"));
-    await install("hello", withSummary("Say hello"));
+    await home.install("themes", { module: withSummary("Switch the color theme") });
+    await home.install("hello", { module: withSummary("Say hello") });
 
     // Act
     const result = await home.run(["--help"]);
@@ -166,7 +160,7 @@ describe("sbox --help", () => {
 
   test("is also shown without arguments", async () => {
     // Arrange
-    await install("hello", withSummary("Say hello"));
+    await home.install("hello", { module: withSummary("Say hello") });
 
     // Act
     const result = await home.run([]);
