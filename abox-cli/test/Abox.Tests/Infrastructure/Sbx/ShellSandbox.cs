@@ -11,7 +11,7 @@ internal sealed class ShellSandbox : IProcessRunner, IDisposable
     private static readonly Lazy<string?> Shell = new(FindShell);
     private readonly TempDirectory root;
     private readonly bool appData;
-    public SbxClient Client { get; }
+    public SbxUserSecrets Client { get; }
     public string RootPath => root.Path;
     public string SecretsRoot { get; }
     public string StorePath => Path.Combine(SecretsRoot, "synthetic", "secrets.json");
@@ -33,7 +33,7 @@ internal sealed class ShellSandbox : IProcessRunner, IDisposable
             root.Path,
             appData ? "appdata/Microsoft/UserSecrets" : "home/.microsoft/usersecrets"
         );
-        Client = new SbxClient(this, AboxPaths.For(root.Path, root.Path));
+        Client = new SbxUserSecrets(this);
     }
 
     public Task<ProcessResult> RunUntilReadyAsync(

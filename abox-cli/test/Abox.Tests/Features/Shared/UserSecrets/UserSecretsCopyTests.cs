@@ -1,12 +1,14 @@
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
 
 public sealed class UserSecretsCopyTests
 {
+    private readonly IHostUserSecretStores host = Substitute.For<IHostUserSecretStores>();
+    private readonly ISandboxUserSecrets sandbox = Substitute.For<ISandboxUserSecrets>();
+
     [Theory]
     [InlineData("{\"userSecrets\":[\"sample\"]}")]
     [InlineData(
@@ -18,35 +20,28 @@ public sealed class UserSecretsCopyTests
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File("folder/abox.yaml", configuration);
-        var source = root.File(
-            "home/.microsoft/usersecrets/sample/secrets.json",
-            """{"Nested":{"Password":"synthetic-original"}}"""
-        );
-        var sbx = Substitute.For<ISbxClient>();
-        var copy = new UserSecretsCopy(
-            new AboxConfig(),
-            new UserSecretsHost(null, Path.Combine(root.Path, "home")),
-            sbx
-        );
+        root.File("abox.yaml", configuration);
+        Store("sample", """{"Nested":{"Password":"synthetic-original"}}""");
+        var copy = new UserSecretsCopy(new AboxConfig(), host, sandbox);
 
         // Act
         var prepared = await copy.PrepareAsync(
-            await FolderConfig.LoadAsync(Path.Combine(root.Path, "folder"), CancellationToken.None),
+            await FolderConfig.LoadAsync(root.Path, CancellationToken.None),
             false,
             CancellationToken.None
         );
         // Assert
-        sbx.ReceivedCalls().Should().BeEmpty();
+        sandbox.ReceivedCalls().Should().BeEmpty();
 
         // Arrange
-        File.WriteAllText(source, "malformed changed after validation");
+        Store("sample", "malformed changed after validation");
 
         // Act
         var report = await copy.CopyAsync(prepared, "sandbox", CancellationToken.None);
 
         // Assert
-        await sbx.Received(1)
+        await sandbox
+            .Received(1)
             .WriteUserSecretsAsync(
                 "sandbox",
                 "sample",
@@ -59,14 +54,13 @@ public sealed class UserSecretsCopyTests
     }
 
     [Fact]
-    public async Task MissingFolderConfigurationIsANoopEvenWithoutUsableHostEnvironment()
+    public async Task MissingFolderConfigurationIsANoopWithoutTouchingHostOrSandbox()
     {
         // Arrange
-        var sbx = Substitute.For<ISbxClient>();
         var copy = new UserSecretsCopy(
             new AboxConfig { UserSecretsDenyList = [""] },
-            new UserSecretsHost(null, null),
-            sbx
+            host,
+            sandbox
         );
 
         // Act
@@ -75,7 +69,8 @@ public sealed class UserSecretsCopyTests
 
         // Assert
         report.Stores.Should().BeEmpty();
-        sbx.ReceivedCalls().Should().BeEmpty();
+        host.ReceivedCalls().Should().BeEmpty();
+        sandbox.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]
@@ -86,11 +81,10 @@ public sealed class UserSecretsCopyTests
         // Arrange
         using var root = new TempDirectory();
         root.File("abox.yaml", """{"userSecrets":["missing"]}""");
-        var sbx = Substitute.For<ISbxClient>();
         var copy = new UserSecretsCopy(
             new AboxConfig { UserSecretsDenyList = null! },
-            new UserSecretsHost(null, null),
-            sbx
+            host,
+            sandbox
         );
         var folder = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
 
@@ -99,36 +93,58 @@ public sealed class UserSecretsCopyTests
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*userSecretsDenyList*");
-        sbx.ReceivedCalls().Should().BeEmpty();
+        host.ReceivedCalls().Should().BeEmpty();
+        sandbox.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("relative")]
-    public async Task InvalidAppDataDoesNotFallBackToAnOtherwiseUsableHome(string appData)
+    [InlineData(nameof(HostUserSecretStore.Missing))]
+    [InlineData(nameof(HostUserSecretStore.Unreadable))]
+    public async Task AStoreThatCannotBeReadWithoutProjectSettingsStopsTheCopy(string state)
     {
         // Arrange
         using var root = new TempDirectory();
         root.File("abox.yaml", """{"userSecrets":["sample"]}""");
-        root.File(".microsoft/usersecrets/sample/secrets.json", "{}");
-        var sbx = Substitute.For<ISbxClient>();
-        var copy = new UserSecretsCopy(
-            new AboxConfig(),
-            new UserSecretsHost(appData, root.Path),
-            sbx
-        );
+        host.ReadAsync("sample", Arg.Any<CancellationToken>())
+            .Returns(
+                state == nameof(HostUserSecretStore.Missing)
+                    ? HostUserSecretStore.Missing
+                    : HostUserSecretStore.Unreadable
+            );
+        var copy = new UserSecretsCopy(new AboxConfig(), host, sandbox);
+        var folder = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
 
         // Act
-        var action = async () =>
-            await copy.PrepareAsync(
-                await FolderConfig.LoadAsync(root.Path, CancellationToken.None),
-                true,
-                CancellationToken.None
-            );
+        var action = () => copy.PrepareAsync(folder, false, CancellationToken.None);
 
         // Assert
-        await action.Should().ThrowAsync<AboxException>().WithMessage("*APPDATA*HOME*");
-        sbx.ReceivedCalls().Should().BeEmpty();
+        await action
+            .Should()
+            .ThrowAsync<AboxException>()
+            .WithMessage("Cannot read user-secret store 'sample'.*appsettings.json*");
+        sandbox.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AStoreWithInvalidUtf8StopsTheCopy()
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        root.File("abox.yaml", """{"userSecrets":["sample"]}""");
+        host.ReadAsync("sample", Arg.Any<CancellationToken>())
+            .Returns(HostUserSecretStore.InvalidUtf8);
+        var copy = new UserSecretsCopy(new AboxConfig(), host, sandbox);
+        var folder = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
+
+        // Act
+        var action = () => copy.PrepareAsync(folder, false, CancellationToken.None);
+
+        // Assert
+        await action
+            .Should()
+            .ThrowAsync<AboxException>()
+            .WithMessage("User-secret store 'sample' has invalid UTF-8.*");
+        sandbox.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -137,9 +153,8 @@ public sealed class UserSecretsCopyTests
         // Arrange
         using var root = new TempDirectory();
         root.File("abox.yaml", """{"userSecrets":["sample"]}""");
-        root.File(".microsoft/usersecrets/sample/secrets.json", "{}");
-        var sbx = Substitute.For<ISbxClient>();
-        var copy = new UserSecretsCopy(new AboxConfig(), new UserSecretsHost(null, root.Path), sbx);
+        Store("sample", "{}");
+        var copy = new UserSecretsCopy(new AboxConfig(), host, sandbox);
         var folder = await FolderConfig.LoadAsync(root.Path, CancellationToken.None);
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
@@ -158,7 +173,8 @@ public sealed class UserSecretsCopyTests
 
         // Assert
         await copying.Should().ThrowAsync<OperationCanceledException>();
-        await sbx.DidNotReceive()
+        await sandbox
+            .DidNotReceive()
             .WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -166,4 +182,7 @@ public sealed class UserSecretsCopyTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    private void Store(string id, string json) =>
+        host.ReadAsync(id, Arg.Any<CancellationToken>()).Returns(HostUserSecretStore.Read(json));
 }

@@ -9,7 +9,7 @@ namespace Abox.Tests;
 internal sealed class UserSecretsPolicyFixture : IDisposable
 {
     private readonly TempDirectory root = new();
-    private readonly SbxClient client;
+    private readonly SbxUserSecrets client;
     private readonly JsonObject inventory;
     private readonly string sandbox;
 
@@ -58,7 +58,7 @@ internal sealed class UserSecretsPolicyFixture : IDisposable
                     check["resource_value"] = request.Arguments[^1];
                 return new ProcessResult(0, check.ToJsonString(), "");
             });
-        client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        client = new SbxUserSecrets(runner);
     }
 
     internal JsonArray Rules => inventory["rules"]!.AsArray();

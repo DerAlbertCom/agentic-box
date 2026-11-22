@@ -1,17 +1,46 @@
+using System.Text;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.UserSecrets;
 
-namespace Abox.Features.Shared.UserSecrets;
+namespace Abox.Infrastructure.Dotnet;
 
 /// <summary>The host's .NET store convention, independent of abox's config directory.</summary>
-public sealed class UserSecretsHost(string? appData, string? home)
+public sealed class DotnetUserSecretStores(string? appData, string? home) : IHostUserSecretStores
 {
-    public static UserSecretsHost Create() =>
+    public static DotnetUserSecretStores Create() =>
         new(
             Environment.GetEnvironmentVariable("APPDATA"),
             Environment.GetEnvironmentVariable("HOME")
         );
 
-    internal string StorePath(string id)
+    public async Task<HostUserSecretStore> ReadAsync(string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return HostUserSecretStore.Read(
+                await File.ReadAllTextAsync(
+                    StorePath(id),
+                    new UTF8Encoding(false, true),
+                    cancellationToken
+                )
+            );
+        }
+        catch (Exception exception)
+            when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return HostUserSecretStore.Missing;
+        }
+        catch (DecoderFallbackException)
+        {
+            return HostUserSecretStore.InvalidUtf8;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return HostUserSecretStore.Unreadable;
+        }
+    }
+
+    private string StorePath(string id)
     {
         UserSecretId.Validate(id);
         // The configured store root is trusted; profiles above it may legitimately be linked.
@@ -24,7 +53,7 @@ public sealed class UserSecretsHost(string? appData, string? home)
         return path;
     }
 
-    internal IReadOnlyList<string> StoreIds(CancellationToken cancellationToken)
+    public IReadOnlyList<string> StoreIds(CancellationToken cancellationToken)
     {
         try
         {

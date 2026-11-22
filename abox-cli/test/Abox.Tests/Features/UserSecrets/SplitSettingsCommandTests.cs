@@ -144,7 +144,7 @@ public sealed class SplitSettingsCommandTests
 
     private static void Mapped(UserSecretsCliHarness cli) =>
         cli
-            .Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            .UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
     [Theory]
@@ -465,7 +465,7 @@ public sealed class SplitSettingsCommandTests
         Project(cli, """{"Database_Config":{"Host":"localhost","Port":8004}}""");
         Mapped(cli);
         if (destination)
-            cli.Sbx.ValidateUserSecretsDestinationAsync(
+            cli.UserSecrets.ValidateUserSecretsDestinationAsync(
                     cli.Name,
                     Arg.Is<IReadOnlyList<string>>(ids =>
                         ids.SequenceEqual(new[] { "first", "sample" })
@@ -474,7 +474,7 @@ public sealed class SplitSettingsCommandTests
                 )
                 .Returns(Task.FromException(new AboxException("synthetic-private-destination")));
         else
-            cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(
                     Task.FromException<IReadOnlyList<int>>(
                         new AboxException("synthetic-private-policy")
@@ -645,7 +645,7 @@ public sealed class SplitSettingsCommandTests
                 ),
                 reverse ? "Api" : "Worker"
             );
-            cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(new[] { 8004, 8006 });
             var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
 

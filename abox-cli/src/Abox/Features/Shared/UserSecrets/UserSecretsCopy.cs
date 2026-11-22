@@ -1,12 +1,14 @@
-using System.Text;
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Shared.UserSecrets;
 
 /// <summary>Shared on-demand/lifecycle flow. Preparation never contacts or writes a sandbox.</summary>
-public sealed class UserSecretsCopy(AboxConfig config, UserSecretsHost host, ISbxClient sbx)
+public sealed class UserSecretsCopy(
+    AboxConfig config,
+    IHostUserSecretStores host,
+    ISandboxUserSecrets sandboxes
+)
 {
     public async Task<PreparedUserSecrets> PrepareAsync(
         FolderConfig? folderConfig,
@@ -45,35 +47,19 @@ public sealed class UserSecretsCopy(AboxConfig config, UserSecretsHost host, ISb
                     )
                 )
                 .ToArray();
-            string json;
-            try
+            var stored = await host.ReadAsync(selection.Id, cancellationToken);
+            var json = stored.State switch
             {
-                json = await File.ReadAllTextAsync(
-                    host.StorePath(selection.Id),
-                    new UTF8Encoding(false, true),
-                    cancellationToken
-                );
-            }
-            catch (Exception exception)
-                when (consumers.Any(project => project.HasAppSettingsSource)
-                    && exception is FileNotFoundException or DirectoryNotFoundException
-                )
-            {
-                json = "{}";
-            }
-            catch (DecoderFallbackException)
-            {
-                throw new AboxException(
+                HostUserSecretStoreState.Read => stored.Json,
+                HostUserSecretStoreState.Missing
+                    when consumers.Any(project => project.HasAppSettingsSource) => "{}",
+                HostUserSecretStoreState.InvalidUtf8 => throw new AboxException(
                     $"User-secret store '{selection.Id}' has invalid UTF-8. Fix the host file; no stores were copied."
-                );
-            }
-            catch (Exception exception)
-                when (exception is IOException or UnauthorizedAccessException)
-            {
-                throw new AboxException(
+                ),
+                _ => throw new AboxException(
                     $"Cannot read user-secret store '{selection.Id}'. Check its existence and file permissions on this host, or supply project-local appsettings.json/appsettings.development.json beneath this workspace with an unconditional literal UserSecretsId. Computed/imported IDs are not evaluated."
-                );
-            }
+                ),
+            };
             stores.Add(UserSecretSnapshot.Parse(selection, json));
         }
         var safetyOverride = false;
@@ -95,7 +81,7 @@ public sealed class UserSecretsCopy(AboxConfig config, UserSecretsHost host, ISb
         try
         {
             ports = (
-                await sbx.GetUserSecretsHostPortsAsync(sandbox, cancellationToken)
+                await sandboxes.GetUserSecretsHostPortsAsync(sandbox, cancellationToken)
             ).ToHashSet();
         }
         catch (OperationCanceledException)
@@ -120,7 +106,7 @@ public sealed class UserSecretsCopy(AboxConfig config, UserSecretsHost host, ISb
         }
         try
         {
-            await sbx.ValidateUserSecretsDestinationAsync(
+            await sandboxes.ValidateUserSecretsDestinationAsync(
                 sandbox,
                 targets.Select(target => target.Summary.Id).ToArray(),
                 cancellationToken
@@ -159,7 +145,7 @@ public sealed class UserSecretsCopy(AboxConfig config, UserSecretsHost host, ISb
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                await sbx.WriteUserSecretsAsync(
+                await sandboxes.WriteUserSecretsAsync(
                     sandbox,
                     store.Id,
                     // Raw text retains skipped comments; transfer parsed data only.

@@ -23,7 +23,7 @@ public sealed class UserSecretsEndpointCommandTests
         cli.Store("first", """{"Url":"http://localhost:8004/synthetic-private"}""");
         var source = JsonSerializer.Serialize(new { Endpoint = endpoint });
         var path = cli.Store("sample", source);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -69,7 +69,7 @@ public sealed class UserSecretsEndpointCommandTests
         var path = generated
             ? cli.Root.File("folder/Api/appsettings.json", source)
             : cli.Store("sample", source);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -78,7 +78,7 @@ public sealed class UserSecretsEndpointCommandTests
         // Assert
         exit.Should().Be(0, cli.Console.AllText);
         var write = cli
-            .Sbx.ReceivedCalls()
+            .UserSecrets.ReceivedCalls()
             .Single(call => call.GetMethodInfo().Name == "WriteUserSecretsAsync");
         using var written = JsonDocument.Parse((string)write.GetArguments()[2]!);
         var values = written.RootElement;

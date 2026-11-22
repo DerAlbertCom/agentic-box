@@ -119,7 +119,7 @@ public sealed class LegacySandboxCompatibilityTests
             .Returns(new[] { new SandboxInfo(legacy, "running", null) });
         cli.Configure("""{"userSecrets":["sample"]}""");
         cli.Store("sample", """{"Password":"synthetic-only"}""");
-        cli.Sbx.ValidateUserSecretsDestinationAsync(
+        cli.UserSecrets.ValidateUserSecretsDestinationAsync(
                 legacy,
                 Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<CancellationToken>()
@@ -211,7 +211,7 @@ public sealed class LegacySandboxCompatibilityTests
                     Arg.Any<CancellationToken>()
                 );
             await cli
-                .Sbx.Received(1)
+                .UserSecrets.Received(1)
                 .WriteUserSecretsAsync(name, "sample", "{}", Arg.Any<CancellationToken>());
             records.Load(name)!.BuildCreatedAt.Should().BeAfter(DateTimeOffset.MinValue);
         }
@@ -297,7 +297,7 @@ public sealed class LegacySandboxCompatibilityTests
                 );
             records.Load(name)!.Squad.Should().Be("ac");
             await cli
-                .Sbx.Received(1)
+                .UserSecrets.Received(1)
                 .WriteUserSecretsAsync(name, "sample", "{}", Arg.Any<CancellationToken>());
         }
         else
@@ -341,7 +341,7 @@ public sealed class LegacySandboxCompatibilityTests
         var records = new SandboxRecordStore(AboxPaths.For(cli.Root.Path, cli.Root.Path));
         if (recordedSquad is not null)
             records.Save(name, new SandboxRecord { Squad = recordedSquad });
-        cli.Sbx.GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<int>)[8004]);
 
         // Act
@@ -349,16 +349,18 @@ public sealed class LegacySandboxCompatibilityTests
 
         // Assert
         exitCode.Should().Be(0, cli.Console.AllText);
-        await cli.Sbx.Received(1).GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>());
         await cli
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
+            .GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>());
+        await cli
+            .UserSecrets.Received(1)
             .ValidateUserSecretsDestinationAsync(
                 name,
                 Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<CancellationToken>()
             );
         await cli
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 name,
                 "sample",

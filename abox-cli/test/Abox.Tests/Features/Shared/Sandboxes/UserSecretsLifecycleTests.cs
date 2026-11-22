@@ -44,7 +44,7 @@ public sealed class UserSecretsLifecycleTests
         else
         {
             await fixture
-                .Sbx.Received(1)
+                .UserSecrets.Received(1)
                 .WriteUserSecretsAsync(
                     fixture.Name,
                     "Cape.Deals",
@@ -52,7 +52,7 @@ public sealed class UserSecretsLifecycleTests
                     Arg.Any<CancellationToken>()
                 );
             await fixture
-                .Sbx.Received(1)
+                .UserSecrets.Received(1)
                 .WriteUserSecretsAsync(
                     fixture.Name,
                     "Cape.Position",
@@ -79,7 +79,7 @@ public sealed class UserSecretsLifecycleTests
         var source = fixture.Store("sample", """{"Password":"synthetic-only"}""");
         fixture.Store("unselected", "not JSON");
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 fixture.Name,
                 "sample",
                 Arg.Any<string>(),
@@ -98,7 +98,7 @@ public sealed class UserSecretsLifecycleTests
         // Assert
         exitCode.Should().Be(0);
         await fixture
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 fixture.Name,
                 "sample",
@@ -127,7 +127,7 @@ public sealed class UserSecretsLifecycleTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -184,10 +184,10 @@ public sealed class UserSecretsLifecycleTests
         // Assert
         exitCode.Should().Be(0, fixture.Console.AllText);
         await fixture
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(fixture.Name, "mine", "{}", Arg.Any<CancellationToken>());
         await fixture
-            .Sbx.DidNotReceive()
+            .UserSecrets.DidNotReceive()
             .WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 "shared",
@@ -283,7 +283,7 @@ public sealed class UserSecretsLifecycleTests
         fixture.Records.Load(fixture.Name)!.Squad.Should().Be("ac");
         if (configured)
             await fixture
-                .Sbx.Received(1)
+                .UserSecrets.Received(1)
                 .WriteUserSecretsAsync(fixture.Name, "sample", "{}", Arg.Any<CancellationToken>());
         else
             await fixture.NoCopy();
@@ -374,7 +374,7 @@ public sealed class UserSecretsLifecycleTests
         fixture.Store("sample", """{"Endpoint":"https://localhost:8004/path"}""");
         var copied = false;
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 fixture.Name,
                 "sample",
                 Arg.Any<string>(),
@@ -573,7 +573,7 @@ public sealed class UserSecretsLifecycleTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -712,7 +712,7 @@ public sealed class UserSecretsLifecycleTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -748,7 +748,7 @@ public sealed class UserSecretsLifecycleTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Store("sample", "{}");
         fixture
-            .Sbx.ValidateUserSecretsDestinationAsync(
+            .UserSecrets.ValidateUserSecretsDestinationAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<CancellationToken>()
@@ -768,7 +768,7 @@ public sealed class UserSecretsLifecycleTests
             .And.NotContain("synthetic-private-diagnostic")
             .And.NotContain("Created sandbox");
         await fixture
-            .Sbx.DidNotReceive()
+            .UserSecrets.DidNotReceive()
             .WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),

@@ -24,7 +24,7 @@ public sealed class AppPortsLifecycleFailureTests
         fixture.Configure("""{"squad":"ac","userSecrets":["sample"]}""");
         fixture.Root.File("appdata/Microsoft/UserSecrets/sample/secrets.json", "{}");
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),

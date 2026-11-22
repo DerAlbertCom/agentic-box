@@ -4,6 +4,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
     public IPreflightChecks Preflight => cli.Preflight;
     public ISbxClient Sbx => cli.Sbx;
     public ISandboxExec Exec => cli.Exec;
+    public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
     public string Location => cli.Location;
     public string Name => cli.Name;
     public SandboxRecordStore Records { get; }
@@ -130,15 +132,18 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
 
     public async Task NoCopy()
     {
-        await Sbx.DidNotReceive()
+        await UserSecrets
+            .DidNotReceive()
             .GetUserSecretsHostPortsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await Sbx.DidNotReceive()
+        await UserSecrets
+            .DidNotReceive()
             .ValidateUserSecretsDestinationAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<CancellationToken>()
             );
-        await Sbx.DidNotReceive()
+        await UserSecrets
+            .DidNotReceive()
             .WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),

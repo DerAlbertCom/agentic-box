@@ -25,11 +25,11 @@ internal sealed class GatedUserSecretsPolicyRunner : IProcessRunner, IDisposable
     {
         Sandbox = sandbox;
         inventory = Inventory(sandbox, resources);
-        Client = new SbxClient(this, AboxPaths.For(root.Path, root.Path));
+        Client = new SbxUserSecrets(this);
     }
 
     internal string Sandbox { get; }
-    internal SbxClient Client { get; }
+    internal SbxUserSecrets Client { get; }
     internal bool HoldCancellationCleanup { get; init; }
     internal ConcurrentQueue<ProcessRequest> Requests { get; } = new();
     internal int Active => Volatile.Read(ref active);

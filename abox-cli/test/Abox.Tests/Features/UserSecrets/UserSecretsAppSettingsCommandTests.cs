@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.Configuration;
@@ -33,7 +34,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "folder/Deals/backend/src/CS.Messaging.Deals/appsettings.json",
             "not JSON: unrelated appsettings must not be read"
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -71,7 +72,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><UserSecretsId>unselected</UserSecretsId></PropertyGroup></Project>"
         );
         cli.Root.File("folder/Worker/appsettings.json", "not JSON: definitely unselected consumer");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -147,7 +148,7 @@ public sealed class UserSecretsAppSettingsCommandTests
                     "<Project><PropertyGroup><UserSecretsId>sample</UserSecretsId></PropertyGroup><Target Name=\"SyntheticPrivateId\"><Error Text=\"Do not run\" /></Target></Project>"
                 );
             var originals = FileSnapshots.CaptureText(cli.Location);
-            cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(new[] { 8004 });
             var processes = Substitute.For<IProcessRunner>();
             cli.Services.AddSingleton(processes);
@@ -276,7 +277,7 @@ public sealed class UserSecretsAppSettingsCommandTests
                 "folder/Api/appsettings.json",
                 """{"Endpoint":"http://localhost:8004/path"}"""
             );
-            cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(new[] { 8004 });
         }
 
@@ -307,7 +308,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "<Project><PropertyGroup><UserSecretsId>sample</UserSecretsId></PropertyGroup></Project>"
         );
         cli.Root.File("folder/appsettings.json", """{"Api":"http://localhost:5000"}""");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 5000 });
 
         // Act
@@ -359,7 +360,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "folder/Api/appsettings.json",
             """{"Endpoint":"http://localhost:8004/path"}"""
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -417,7 +418,7 @@ public sealed class UserSecretsAppSettingsCommandTests
                 """{"Endpoint":"http://localhost:8004/path"}"""
             );
         }
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -480,7 +481,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "folder/appsettings.json",
             JsonSerializer.Serialize(new { Generated = endpoint })
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 5432 });
         var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
 
@@ -549,7 +550,7 @@ public sealed class UserSecretsAppSettingsCommandTests
                 : "folder/appsettings.Development.json",
             """{/* synthetic comment */ "Endpoints":[{"Url":"http://localhost:8004/path"}],} """
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -581,10 +582,10 @@ public sealed class UserSecretsAppSettingsCommandTests
             "<Project><PropertyGroup><UserSecretsId>sample</UserSecretsId></PropertyGroup></Project>"
         );
         cli.Root.File("folder/appsettings.json", """{"Endpoint":"http://localhost:8004/path"}""");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         if (destination)
-            cli.Sbx.ValidateUserSecretsDestinationAsync(
+            cli.UserSecrets.ValidateUserSecretsDestinationAsync(
                     cli.Name,
                     Arg.Is<IReadOnlyList<string>>(ids =>
                         ids.SequenceEqual(new[] { "first", "sample" })
@@ -593,7 +594,7 @@ public sealed class UserSecretsAppSettingsCommandTests
                 )
                 .Returns(Task.FromException(new AboxException("synthetic-private-destination")));
         else
-            cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(
                     Task.FromException<IReadOnlyList<int>>(
                         new AboxException("synthetic-private-policy")
@@ -625,10 +626,11 @@ public sealed class UserSecretsAppSettingsCommandTests
         // Assert
         emptyExit.Should().Be(0, cli.Console.AllText);
         await cli.NoWrites();
-        cli.Sbx.ReceivedCalls()
+        cli.UserSecrets.ReceivedCalls()
             .Should()
             .NotContain(call =>
-                call.GetMethodInfo().Name == nameof(ISbxClient.GetUserSecretsHostPortsAsync)
+                call.GetMethodInfo().Name
+                == nameof(ISandboxUserSecrets.GetUserSecretsHostPortsAsync)
             );
 
         // Arrange
@@ -636,7 +638,7 @@ public sealed class UserSecretsAppSettingsCommandTests
         cli.Configure("""{"userSecrets":["sample"]}""");
         cli.Store("sample", """{"Url":"http://localhost:8004/copied"}""");
         cli.Root.File("folder/appsettings.json", "not JSON: no associated project");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -698,7 +700,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "folder/appsettings.json",
             """{"Telemetry":"http://localhost:4317/old","LocalStack":"http://localhost:8006/old"}"""
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 4317, 8006 });
 
         // Act
@@ -761,7 +763,7 @@ public sealed class UserSecretsAppSettingsCommandTests
                 new { Copy = copied, Excluded = "http://localhost:8004/synthetic-denied" }
             )
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -804,7 +806,7 @@ public sealed class UserSecretsAppSettingsCommandTests
         var cycle = Path.Combine(target, "cycle");
         await LinkDirectory(alias, target);
         await LinkDirectory(cycle, cli.Location);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         try
         {
@@ -895,7 +897,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             }
             else
                 cli.Store("sample", JsonSerializer.Serialize(new { Endpoint = endpoint }));
-            cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
                 .Returns(new[] { 80, 8004, 5432 });
             var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
 
@@ -944,7 +946,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "folder/appsettings.json",
             """{"Telemetry":"http://localhost:8004/synthetic-private?token=synthetic-token"}"""
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -1023,7 +1025,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             JsonSerializer.Serialize(new { Generated = original })
         );
         cli.Store("sample", JsonSerializer.Serialize(new { Copied = original }));
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 80, 8004, 5432 });
 
         // Act
@@ -1080,7 +1082,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             """{"Url":"http://localhost:8004/not-authorized-by-association"}"""
         );
         cli.Store("sample", """{"Selected":"synthetic-only"}""");
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -1211,7 +1213,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "folder/Other/appsettings.json",
             "not JSON: unselected configuration must not be read"
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -1254,7 +1256,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             "sample",
             """{"SERVICES:Url":"http://127.0.0.1:8004/authoritative","Services:Null":null,"Override":"remote-authoritative"}"""
         );
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -1306,7 +1308,7 @@ public sealed class UserSecretsAppSettingsCommandTests
             """{"Telemetry":{"Endpoint":"http://localhost:4317/synthetic-private?token=synthetic-token"},"WorkerApi":"http://localhost:5000/api","Remote":"http://remote.test:4317"}"""
         );
         var originals = FileSnapshots.CaptureText(new[] { project, settings });
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 4317 });
         var processes = Substitute.For<IProcessRunner>();
         cli.Services.AddSingleton(processes);

@@ -725,12 +725,14 @@ Shared orchestration is in `UserSecrets/`, outside command slices:
   No hook framework or alternate pipeline is needed.
 - `UserSecretsReportWriter` formats the value-free store summaries once for both
   automatic and on-demand output, JSON-escaping rewritten key names.
-- Internal `SbxUserSecrets.cs`, reached through `SbxClient`, owns captured default-user exec, environment/path checks
+- `Infrastructure/Sbx/SbxUserSecrets.cs`, behind `ISandboxUserSecrets`, owns the sbx network-policy
+  queries, captured default-user exec, environment/path checks
   and the fixed receiver. All ancestor symlinks, nonregular/multiply-linked files
   and wrong-owned secret directories/files fail. It verifies stdin byte count and
   digest before same-directory atomic replacement. GNU-compatible coreutils are
   required. Secret root/store directories are 0700, files 0600. It does not assume
-  `/home/agent` or run as root. The host adapter and receiver both prefer APPDATA
+  `/home/agent` or run as root. The host adapter (`Infrastructure/Dotnet/DotnetUserSecretStores.cs`,
+  behind `IHostUserSecretStores`) and receiver both prefer APPDATA
   over HOME, even on Unix, and reject unusable environment roots rather than guess.
   Destination checks omit `exec -i` and explicitly close an empty redirected stdin;
   they cannot consume or forward host stdin.
@@ -1212,6 +1214,8 @@ abox-cli/src/Abox/
         FolderConfig.cs runtime-only abox.yaml + abox.user.yaml (not squad/build configuration)
       UserSecrets/      shared selection/policy, bounded project/appsettings discovery,
                         endpoint override generation and runtime copy flow
+        IHostUserSecretStores.cs  reading the host's .NET user-secret stores by ID
+        ISandboxUserSecrets.cs    a sandbox's authorized host ports and store transport
       ApplicationPorts/ shared static discovery, occurrence reporting and publishing flow
         IApplicationPortPublisher.cs  publishes ApplicationPortMappings of a sandbox on loopback
       Https/            shared host certificate preparation and sandbox HTTPS activation
@@ -1284,7 +1288,7 @@ abox-cli/src/Abox/
       SbxDevelopmentCertificates.cs  protected HTTPS runtime and certificate operations
       SbxApplicationPorts.cs         IApplicationPortPublisher: relay, sbx ports inventory and mapping
       ApplicationPortInventory.cs    strict decoding of sbx ports and relay acknowledgments
-      SbxUserSecrets.cs              secret transport and network-policy operations
+      SbxUserSecrets.cs              ISandboxUserSecrets: secret transport and network-policy operations
       SbxKitSources.cs               repository-scoped kit-source trust settings
       SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm
       SbxCredentialBindings.cs       reads and merges the approvals in sbx's credentials.yaml
@@ -1300,6 +1304,8 @@ abox-cli/src/Abox/
       DockerRegistryPublisher.cs     IRegistryPublisher: buildx build --push, imagetools
       DockerPublishedImageReader.cs  IPublishedImageReader: imagetools inspect, pull, save;
                                      never echoes Docker output
+    Dotnet/
+      DotnetUserSecretStores.cs  IHostUserSecretStores: the host's .NET user-secrets store layout
     Herdr/
       HerdrAppLauncher.cs  the herdr-app launcher (an ILauncher adapter, registered by
                            the composition root); its programs stay internal

@@ -36,7 +36,11 @@ public sealed class StatePathCreationTests : IDisposable
             _console,
             new LocalSquadSource(_store, LocalWorkloadFactory.Images(), _console),
             new RemoteSquadSource(new AboxConfig(), _sbx, _published),
-            new UserSecretsCopy(new AboxConfig(), new UserSecretsHost(null, null), _sbx)
+            new UserSecretsCopy(
+                new AboxConfig(),
+                Substitute.For<IHostUserSecretStores>(),
+                Substitute.For<ISandboxUserSecrets>()
+            )
         );
         _sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, ""));

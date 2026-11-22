@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
 using Abox.Features.Shared.UserSecrets;
 
@@ -18,7 +19,6 @@ const string payload = "{\"Nested\":{\"Password\":\"Grüße 🔒 synthetic only\
 const string file = "$HOME/.microsoft/usersecrets/abox-issue6-synthetic-only/secrets.json";
 var output = new ProcessOutput(new SystemConsole()) { Verbose = true };
 var runner = new ProcessRunner(output);
-var paths = AboxPaths.For(temporary, temporary);
 try
 {
     await File.WriteAllTextAsync(
@@ -28,8 +28,8 @@ try
     var store = Path.Combine(temporary, ".microsoft", "usersecrets", id);
     Directory.CreateDirectory(store);
     await File.WriteAllTextAsync(Path.Combine(store, "secrets.json"), payload);
-    var client = new SbxClient(runner, paths);
-    var copy = new UserSecretsCopy(new AboxConfig(), new UserSecretsHost(null, temporary), client);
+    var client = new SbxUserSecrets(runner);
+    var copy = new UserSecretsCopy(new AboxConfig(), new DotnetUserSecretStores(null, temporary), client);
     var prepared = await copy.PrepareAsync(
         await FolderConfig.LoadAsync(temporary, CancellationToken.None),
         false,
@@ -44,7 +44,7 @@ try
 
     foreach (var damage in new[] { "short", "corrupt" })
     {
-        var damaged = new SbxClient(
+        var damaged = new SbxUserSecrets(
             new MutatingRunner(
                 runner,
                 request =>
@@ -55,8 +55,7 @@ try
                                 ? request.StandardInput![..^3]
                                 : request.StandardInput![..^1] + "x",
                     }
-            ),
-            paths
+            )
         );
         try
         {
@@ -94,7 +93,7 @@ try
         null
     );
 
-    var appDataClient = new SbxClient(
+    var appDataClient = new SbxUserSecrets(
         new MutatingRunner(
             runner,
             request =>
@@ -108,8 +107,7 @@ try
                         .. request.Arguments.Skip(3),
                     ],
                 }
-        ),
-        paths
+        )
     );
     await appDataClient.WriteUserSecretsAsync(sandbox, id, payload, CancellationToken.None);
     await Check(

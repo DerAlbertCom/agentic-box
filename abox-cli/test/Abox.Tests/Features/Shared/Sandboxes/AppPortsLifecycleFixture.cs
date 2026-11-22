@@ -5,6 +5,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,7 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
     public ISbxClient Sbx => cli.Sbx;
     public IApplicationPortPublisher Publisher => cli.Publisher;
     public ISandboxExec Exec => cli.Exec;
+    public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
     public string Location => cli.Location;
     public string Name { get; set; }
     public SandboxRecordStore Records { get; }

@@ -24,7 +24,7 @@ public sealed class UserSecretsReceiverSafetyTests
         // Arrange
         using var root = new TempDirectory();
         var runner = Substitute.For<IProcessRunner>();
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxUserSecrets(runner);
 
         // Act
         var action = async () =>
@@ -205,7 +205,7 @@ public sealed class UserSecretsReceiverSafetyTests
                 captured = call.Arg<ProcessRequest>();
                 return new ProcessResult(0, "", "");
             });
-        var client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+        var client = new SbxUserSecrets(runner);
 
         // Act
         await client.ValidateUserSecretsDestinationAsync(

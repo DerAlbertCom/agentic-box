@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -21,14 +20,13 @@ public sealed class UserSecretsSafetyTests
         // Arrange
         using var root = new TempDirectory();
         root.File("abox.yaml", """{"userSecrets":["sample"]}""");
-        root.File(
-            ".microsoft/usersecrets/sample/secrets.json",
-            JsonSerializer.Serialize(new { Db = value })
-        );
+        var host = Substitute.For<IHostUserSecretStores>();
+        host.ReadAsync("sample", Arg.Any<CancellationToken>())
+            .Returns(HostUserSecretStore.Read(JsonSerializer.Serialize(new { Db = value })));
         var copy = new UserSecretsCopy(
             new AboxConfig { UserSecretsDenyList = ["prod.example"] },
-            new UserSecretsHost(null, root.Path),
-            Substitute.For<ISbxClient>()
+            host,
+            Substitute.For<ISandboxUserSecrets>()
         );
 
         // Act

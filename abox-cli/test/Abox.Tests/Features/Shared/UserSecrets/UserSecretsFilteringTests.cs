@@ -1,6 +1,5 @@
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -12,40 +11,42 @@ public sealed class UserSecretsFilteringTests
     {
         // Arrange
         using var root = new TempDirectory();
-        root.File(
-            "folder/abox.yaml",
-            """{"userSecrets":[{"id":"sample","keys":["Nested:Keep"]}]}"""
-        );
-        var source = root.File(
-            "home/.microsoft/usersecrets/sample/secrets.json",
-            """
-            {"Nested":{"Keep":"synthetic-original","Ignored":"https://PROD.EXAMPLE/unmatched"}}
-            """
-        );
-        var sbx = Substitute.For<ISbxClient>();
+        root.File("abox.yaml", """{"userSecrets":[{"id":"sample","keys":["Nested:Keep"]}]}""");
+        var host = Substitute.For<IHostUserSecretStores>();
+        host.ReadAsync("sample", Arg.Any<CancellationToken>())
+            .Returns(
+                HostUserSecretStore.Read(
+                    """
+                    {"Nested":{"Keep":"synthetic-original","Ignored":"https://PROD.EXAMPLE/unmatched"}}
+                    """
+                )
+            );
+        var sandbox = Substitute.For<ISandboxUserSecrets>();
         var copy = new UserSecretsCopy(
             new AboxConfig { UserSecretsDenyList = ["prod.example"] },
-            new UserSecretsHost(null, Path.Combine(root.Path, "home")),
-            sbx
+            host,
+            sandbox
         );
 
         // Act
         var prepared = await copy.PrepareAsync(
-            await FolderConfig.LoadAsync(Path.Combine(root.Path, "folder"), CancellationToken.None),
+            await FolderConfig.LoadAsync(root.Path, CancellationToken.None),
             false,
             CancellationToken.None
         );
         // Assert
-        sbx.ReceivedCalls().Should().BeEmpty();
+        sandbox.ReceivedCalls().Should().BeEmpty();
 
         // Arrange
-        File.WriteAllText(source, "malformed changed after validation");
+        host.ReadAsync("sample", Arg.Any<CancellationToken>())
+            .Returns(HostUserSecretStore.Read("malformed changed after validation"));
 
         // Act
         var report = await copy.CopyAsync(prepared, "sandbox", CancellationToken.None);
 
         // Assert
-        await sbx.Received(1)
+        await sandbox
+            .Received(1)
             .WriteUserSecretsAsync(
                 "sandbox",
                 "sample",

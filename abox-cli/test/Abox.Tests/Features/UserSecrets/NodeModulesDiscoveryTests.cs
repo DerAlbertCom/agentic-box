@@ -199,7 +199,7 @@ public sealed class NodeModulesDiscoveryTests
         var name = SandboxName.For(location);
         cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", null) });
-        cli.Sbx.GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         var originals = FileSnapshots.CaptureText(cli.Root.Path);
 
@@ -275,6 +275,6 @@ public sealed class NodeModulesDiscoveryTests
 
     private static void Authorize(UserSecretsCliHarness cli) =>
         cli
-            .Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+            .UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 }

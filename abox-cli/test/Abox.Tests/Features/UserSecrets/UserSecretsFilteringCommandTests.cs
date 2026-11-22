@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -123,6 +124,7 @@ public sealed class UserSecretsFilteringCommandTests
         exitCode.Should().Be(1);
         fixture.Writes.Should().BeEmpty();
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
         fixture.Console.AllText.Should().NotBeNullOrWhiteSpace();
         fixture.Console.AllText.Should().NotContain("synthetic-private");
     }
@@ -199,6 +201,7 @@ public sealed class UserSecretsFilteringCommandTests
         // Arrange
         fixture.Writes.Clear();
         fixture.Sbx.ClearReceivedCalls();
+        fixture.UserSecrets.ClearReceivedCalls();
         fixture.Store("later", """{"Safe":"https://PROD.EXAMPLE/synthetic-selected"}""");
 
         // Act
@@ -219,6 +222,7 @@ public sealed class UserSecretsFilteringCommandTests
         {
             fixture.Writes.Should().BeEmpty();
             fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+            fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
             fixture
                 .Console.AllText.Should()
                 .Contain("later")
@@ -251,6 +255,7 @@ public sealed class UserSecretsFilteringCommandTests
         exitCode.Should().Be(1);
         fixture.Writes.Should().BeEmpty();
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
         fixture.Console.AllText.Should().Contain("later").And.NotContain("synthetic-");
     }
 
@@ -364,12 +369,14 @@ public sealed class UserSecretsFilteringCommandTests
         public TempDirectory Root => cli.Root;
         public TestConsole Console => cli.Console;
         public ISbxClient Sbx => cli.Sbx;
+        public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
         public List<(string Id, string Json)> Writes { get; } = [];
 
         public UserSecretsFilteringCommandFixture(AboxConfig? config = null)
         {
             cli = new UserSecretsCliHarness(config);
-            Sbx.WriteUserSecretsAsync(
+            UserSecrets
+                .WriteUserSecretsAsync(
                     Arg.Any<string>(),
                     Arg.Any<string>(),
                     Arg.Any<string>(),

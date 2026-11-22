@@ -2,6 +2,7 @@ using System.Text.Json;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -528,8 +529,8 @@ public sealed class UserSecretsRewriteTests
                 });
             copy = new UserSecretsCopy(
                 config ?? new AboxConfig(),
-                new UserSecretsHost(null, root.Path),
-                new SbxClient(runner, AboxPaths.For(root.Path, root.Path))
+                new DotnetUserSecretStores(null, root.Path),
+                new SbxUserSecrets(runner)
             );
         }
 

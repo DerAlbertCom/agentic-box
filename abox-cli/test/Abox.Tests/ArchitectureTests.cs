@@ -31,7 +31,6 @@ public sealed class ArchitectureTests
         "Abox.Features.Shared.Sandboxes.RemoteSquadSource -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Sandboxes.SandboxCreationRequest -> Abox.Infrastructure.Sbx",
         "Abox.Features.Shared.Sandboxes.SandboxCreator -> Abox.Infrastructure.Sbx",
-        "Abox.Features.Shared.UserSecrets.UserSecretsCopy -> Abox.Infrastructure.Sbx",
         "Abox.Features.UserSecrets.UserSecretsCommand -> Abox.Infrastructure.Sbx",
     ];
 

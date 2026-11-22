@@ -81,7 +81,12 @@ public sealed class AppPortsLifecycleHttpsTests
         fixture.Root.File("appdata/Microsoft/UserSecrets/sample/secrets.json", "{}");
         var events = new List<string>();
         fixture
-            .Sbx.WriteUserSecretsAsync(fixture.Name, "sample", "{}", Arg.Any<CancellationToken>())
+            .UserSecrets.WriteUserSecretsAsync(
+                fixture.Name,
+                "sample",
+                "{}",
+                Arg.Any<CancellationToken>()
+            )
             .Returns(_ =>
             {
                 events.Add("secrets");

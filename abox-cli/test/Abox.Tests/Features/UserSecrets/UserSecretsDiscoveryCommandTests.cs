@@ -40,7 +40,7 @@ public sealed class UserSecretsDiscoveryCommandTests
         var originals = FileSnapshots.CaptureBytes(cli.Root.Path);
         var processes = Substitute.For<IProcessRunner>();
         cli.Services.AddSingleton(processes);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -114,7 +114,7 @@ public sealed class UserSecretsDiscoveryCommandTests
             symbolic
         );
         await links.Add(Path.Combine(target, "nested/cycle"), cli.Location, symbolic);
-        cli.Sbx.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(cli.Name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
         var projectOriginal = File.ReadAllBytes(project);
         var settingsOriginal = File.ReadAllBytes(settings);
@@ -152,7 +152,7 @@ public sealed class UserSecretsDiscoveryCommandTests
         var name = SandboxName.For(location);
         cli.Sbx.ListSandboxesAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", null) });
-        cli.Sbx.GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>())
+        cli.UserSecrets.GetUserSecretsHostPortsAsync(name, Arg.Any<CancellationToken>())
             .Returns(new[] { 8004 });
 
         // Act
@@ -161,7 +161,7 @@ public sealed class UserSecretsDiscoveryCommandTests
         // Assert
         exit.Should().Be(0, cli.Console.AllText);
         await cli
-            .Sbx.Received(1)
+            .UserSecrets.Received(1)
             .WriteUserSecretsAsync(
                 name,
                 "shared",

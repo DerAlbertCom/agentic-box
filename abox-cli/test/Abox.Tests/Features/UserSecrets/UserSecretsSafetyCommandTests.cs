@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -30,7 +31,7 @@ public sealed class UserSecretsSafetyCommandTests
                 .Returns(Array.Empty<SandboxInfo>());
         if (result == "destination")
             fixture
-                .Sbx.ValidateUserSecretsDestinationAsync(
+                .UserSecrets.ValidateUserSecretsDestinationAsync(
                     Arg.Any<string>(),
                     Arg.Any<IReadOnlyList<string>>(),
                     Arg.Any<CancellationToken>()
@@ -38,7 +39,7 @@ public sealed class UserSecretsSafetyCommandTests
                 .Returns(Task.FromException(new AboxException("synthetic failure")));
         var overrideReportedDuringCopy = false;
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -117,7 +118,7 @@ public sealed class UserSecretsSafetyCommandTests
         fixture.Store(source);
         string? transferred = null;
         fixture
-            .Sbx.WriteUserSecretsAsync(
+            .UserSecrets.WriteUserSecretsAsync(
                 Arg.Any<string>(),
                 "sample",
                 Arg.Do<string>(json => transferred = json),
@@ -147,6 +148,7 @@ public sealed class UserSecretsSafetyCommandTests
         public TestConsole Console => cli.Console;
         public IPreflightChecks Preflight => cli.Preflight;
         public ISbxClient Sbx => cli.Sbx;
+        public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
         public string SourcePath =>
             Path.Combine(Root.Path, "appdata/Microsoft/UserSecrets/sample/secrets.json");
 

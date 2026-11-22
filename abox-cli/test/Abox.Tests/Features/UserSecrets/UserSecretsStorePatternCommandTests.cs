@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -32,6 +33,7 @@ public sealed class UserSecretsStorePatternCommandTests
             .And.Contain("existence")
             .And.NotContain("No user-secret stores selected");
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -133,12 +135,9 @@ public sealed class UserSecretsStorePatternCommandTests
                         """;
                 return new ProcessResult(0, json, "");
             });
-        var policyClient = new SbxClient(
-            runner,
-            AboxPaths.For(fixture.Root.Path, fixture.Root.Path)
-        );
+        var policyClient = new SbxUserSecrets(runner);
         fixture
-            .Sbx.GetUserSecretsHostPortsAsync(fixture.Name, Arg.Any<CancellationToken>())
+            .UserSecrets.GetUserSecretsHostPortsAsync(fixture.Name, Arg.Any<CancellationToken>())
             .Returns(call =>
                 policyClient.GetUserSecretsHostPortsAsync(
                     fixture.Name,
@@ -197,6 +196,7 @@ public sealed class UserSecretsStorePatternCommandTests
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("collide case-insensitively");
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]
@@ -218,6 +218,7 @@ public sealed class UserSecretsStorePatternCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -236,6 +237,7 @@ public sealed class UserSecretsStorePatternCommandTests
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("Unsafe user-secret ID pattern");
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -269,6 +271,7 @@ public sealed class UserSecretsStorePatternCommandTests
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("missing").And.Contain("permissions");
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -285,6 +288,7 @@ public sealed class UserSecretsStorePatternCommandTests
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("duplicate");
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -302,6 +306,7 @@ public sealed class UserSecretsStorePatternCommandTests
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("Unsafe user-secret ID");
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]
@@ -325,7 +330,7 @@ public sealed class UserSecretsStorePatternCommandTests
         fixture.Console.AllText.Should().Contain("No user-secret stores selected");
         await fixture.NoWrites();
         await fixture
-            .Sbx.DidNotReceive()
+            .UserSecrets.DidNotReceive()
             .GetUserSecretsHostPortsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
@@ -391,6 +396,7 @@ public sealed class UserSecretsStorePatternCommandTests
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("Unsafe user-secret ID pattern");
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]
@@ -414,6 +420,7 @@ public sealed class UserSecretsStorePatternCommandTests
             .Contain("Unsafe user-secret ID")
             .And.NotContain("unsafe-synthetic");
         fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+        fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]
@@ -448,6 +455,7 @@ public sealed class UserSecretsStorePatternCommandTests
         else
         {
             fixture.Sbx.ReceivedCalls().Should().BeEmpty();
+            fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
             fixture
                 .Console.AllText.Should()
                 .Contain("Cape.Z")
@@ -558,8 +566,10 @@ public sealed class UserSecretsStorePatternCommandTests
         // Assert
         exitCode.Should().Be(0, fixture.Console.AllText);
         var writes = fixture
-            .Sbx.ReceivedCalls()
-            .Where(call => call.GetMethodInfo().Name == nameof(ISbxClient.WriteUserSecretsAsync))
+            .UserSecrets.ReceivedCalls()
+            .Where(call =>
+                call.GetMethodInfo().Name == nameof(ISandboxUserSecrets.WriteUserSecretsAsync)
+            )
             .Select(call => (string)call.GetArguments()[1]!);
         writes.Should().Equal("Cape.Deals", "Cape.Position");
         fixture
@@ -573,8 +583,10 @@ public sealed class UserSecretsStorePatternCommandTests
 
     private static (string Id, string Json)[] Writes(UserSecretsCliHarness fixture) =>
         fixture
-            .Sbx.ReceivedCalls()
-            .Where(call => call.GetMethodInfo().Name == nameof(ISbxClient.WriteUserSecretsAsync))
+            .UserSecrets.ReceivedCalls()
+            .Where(call =>
+                call.GetMethodInfo().Name == nameof(ISandboxUserSecrets.WriteUserSecretsAsync)
+            )
             .Select(call => ((string)call.GetArguments()[1]!, (string)call.GetArguments()[2]!))
             .ToArray();
 }
