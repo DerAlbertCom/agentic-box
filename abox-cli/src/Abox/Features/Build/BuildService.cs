@@ -1,8 +1,8 @@
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Build;
 
@@ -34,7 +34,7 @@ public sealed class BuildService(
     BuildStore store,
     LocalWorkloadImages images,
     KitBuildStep kitBuildStep,
-    ISbxClient sbx,
+    IKitInspector inspector,
     IConsole console
 )
 {
@@ -172,7 +172,7 @@ public sealed class BuildService(
         foreach (var (name, directory, arguments) in kits)
         {
             console.WriteLine($"Checking kit declarations '{name}'...");
-            var outcome = await sbx.InspectKitAsync(directory, cancellationToken, arguments);
+            var outcome = await inspector.InspectAsync(directory, arguments, cancellationToken);
             if (!outcome.Succeeded)
             {
                 throw new AboxException(

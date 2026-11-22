@@ -136,7 +136,6 @@ public sealed class SbxClientTests : IDisposable
     [Theory]
     [InlineData("create")]
     [InlineData("remove-sandbox")]
-    [InlineData("inspect")]
     [InlineData("set-secret")]
     [InlineData("set-custom-secret")]
     [InlineData("remove-secret")]
@@ -166,7 +165,6 @@ public sealed class SbxClientTests : IDisposable
                     cancellationToken
                 ),
                 "remove-sandbox" => _client.RemoveSandboxAsync("sample", cancellationToken),
-                "inspect" => _client.InspectKitAsync("kit", cancellationToken),
                 "set-secret" => _client.SetSecretAsync("service", "value", cancellationToken),
                 "set-custom-secret" => _client.SetCustomSecretAsync(
                     new SecretDeclaration("service", Hosts: ["host"], EnvironmentVariable: "ENV"),

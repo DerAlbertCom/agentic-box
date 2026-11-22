@@ -36,7 +36,6 @@ public sealed class BuildMcpValidationTests : IDisposable
             new PersonalConfigurations(_paths),
             _store,
             LocalWorkloadFactory.Images(programs, _runner, _console),
-            _sbx,
             _console
         );
         _command = new BuildCommand(

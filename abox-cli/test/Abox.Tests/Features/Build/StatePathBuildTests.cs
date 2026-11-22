@@ -31,7 +31,6 @@ public sealed class StatePathBuildTests : IDisposable
             new PersonalConfigurations(paths),
             _store,
             LocalWorkloadFactory.Images(_runner),
-            _sbx,
             new TestConsole()
         );
     }

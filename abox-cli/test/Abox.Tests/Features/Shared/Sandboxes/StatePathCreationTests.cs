@@ -239,7 +239,6 @@ public sealed class StatePathCreationTests : IDisposable
             new PersonalConfigurations(_paths),
             _store,
             LocalWorkloadFactory.Images(),
-            _sbx,
             _console
         );
         var name = SandboxName.For(_root.Path);

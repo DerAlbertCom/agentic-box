@@ -40,7 +40,6 @@ public sealed class AgentGuidanceBuildTests
             new PersonalConfigurations(paths),
             store,
             LocalWorkloadFactory.Images(runner),
-            sbx,
             new TestConsole()
         );
 

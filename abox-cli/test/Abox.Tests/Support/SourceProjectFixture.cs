@@ -2,6 +2,7 @@ using Abox.Cli;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
@@ -64,12 +65,6 @@ internal sealed class SourceProjectFixture : IDisposable
                     ? PublishTestProcess.Run(request)
                     : LocalWorkloadFactory.Result(request);
             });
-        Sbx.InspectKitAsync(
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>(),
-                Arg.Any<IReadOnlyDictionary<string, string>?>()
-            )
-            .Returns(new SbxOutcome(0, ""));
         Sbx.CreateAsync(Arg.Any<SbxCreateRequest>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, ""));
         Sbx.ListSecretsAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets([], []));
@@ -89,6 +84,7 @@ internal sealed class SourceProjectFixture : IDisposable
         services.AddSingleton(Sbx);
         services.AddSingleton(Exec);
         services.AddSingleton(ReadyPreflight.Checks());
+        services.AddSingleton(Inspector);
         _ = _application.Provider;
     }
 
@@ -98,6 +94,7 @@ internal sealed class SourceProjectFixture : IDisposable
     public IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
+    public IKitInspector Inspector { get; } = TestServiceGraphs.AcceptingKitInspector();
     public string ProjectDirectory { get; }
     public string NestedDirectory { get; }
     public string Workspace { get; }

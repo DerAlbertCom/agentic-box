@@ -12,6 +12,8 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Https;
+using Abox.Features.Shared.KitBuildSteps;
+using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Registry;
@@ -25,6 +27,7 @@ using Abox.Infrastructure.Docker;
 using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Herdr;
 using Abox.Infrastructure.Sbx;
+using Abox.Infrastructure.Shell;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abox.Cli;
@@ -115,6 +118,8 @@ public static class AboxServiceCollection
         services.AddSingleton<CreateRecoveryHints>();
         services.AddSingleton<FolderSandbox>();
         services.AddSingleton<PersonalConfigurations>();
+        services.AddSingleton<IKitInspector, SbxKitInspector>();
+        services.AddSingleton<IKitBuildScript, ShellKitBuildScript>();
         services.AddSingleton<LocalWorkloadImages>();
         services.AddSingleton<SandboxCreator>();
         services.AddSingleton<LocalSquadSource>();

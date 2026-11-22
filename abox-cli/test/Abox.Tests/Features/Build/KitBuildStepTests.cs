@@ -1,9 +1,11 @@
 using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.KitBuildSteps;
+using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace Abox.Tests;
 
@@ -11,7 +13,8 @@ public sealed class KitBuildStepTests
 {
     private readonly BuildServiceFixture _fixture = new();
     private TempDirectory _root => _fixture.Root;
-    private ISbxClient _sbx => _fixture.Sbx;
+    private IKitInspector _inspector => _fixture.Inspector;
+    private IKitBuildScript _script => _fixture.BuildScript;
     private BuildStore _store => _fixture.Store;
     private SquadResolver _resolver => _fixture.Resolver;
     private BuildService _service => _fixture.Service;
@@ -22,14 +25,25 @@ public sealed class KitBuildStepTests
         // Arrange
         _root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
         _root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
-        BuildScript("built", "echo generated > \"$1/generated.txt\"\n");
-        var inspected = new List<string>();
-        _sbx.InspectKitAsync(
-                Arg.Do<string>(inspected.Add),
-                Arg.Any<CancellationToken>(),
-                Arg.Any<IReadOnlyDictionary<string, string>>()
+        KitBuildScripts.Write(_root, "built", "exit 0\n");
+        _script
+            .When(script =>
+                script.RunAsync(Arg.Any<KitBuildScriptRun>(), Arg.Any<CancellationToken>())
             )
-            .Returns(new SbxOutcome(0, ""));
+            .Do(call =>
+                File.WriteAllText(
+                    Path.Combine(call.Arg<KitBuildScriptRun>().StagedDirectory, "generated.txt"),
+                    "generated\n"
+                )
+            );
+        var inspected = new List<string>();
+        _inspector
+            .InspectAsync(
+                Arg.Do<string>(inspected.Add),
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new KitInspectionOutcome(true, ""));
 
         // Act
         await _service.BuildAsync(Request(), CancellationToken.None);
@@ -45,37 +59,47 @@ public sealed class KitBuildStepTests
     }
 
     [Fact]
-    public async Task TheBuildFileGetsTheStagedFolderAndRunsFromTheKitFolder()
+    public async Task TheBuildFileRunsIntoTheStagedCopyFromTheKitFolder()
     {
         // Arrange
         _root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
         _root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
-        BuildScript("built", "printf '%s\\n%s\\n' \"$PWD\" \"$1\" > \"$1/invocation.txt\"\n");
+        var build = KitBuildScripts.Write(_root, "built", "exit 0\n");
 
         // Act
         await _service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
         var kit = Manifest().Kits.Should().ContainSingle(kit => kit.Name == "built").Subject;
-        File.ReadAllLines(Path.Combine(kit.Reference, "invocation.txt"))
-            .Should()
-            .Equal(Path.Combine(_root.Path, "kits", "built"), kit.Reference);
+        await _script
+            .Received(1)
+            .RunAsync(
+                new KitBuildScriptRun(
+                    "built",
+                    build,
+                    kit.Reference,
+                    Path.Combine(_root.Path, "kits", "built")
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
-    public async Task AFailingBuildFailsTheBuildWithTheOutputOfTheBuildFile()
+    public async Task AFailingBuildFailsTheBuild()
     {
         // Arrange
         _root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
         _root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
-        BuildScript("built", "echo compiling\necho 'syntax error in main.ts' >&2\nexit 3\n");
+        KitBuildScripts.Write(_root, "built", "exit 3\n");
+        _script
+            .RunAsync(Arg.Any<KitBuildScriptRun>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new AboxException("The build of kit 'built' failed"));
 
         // Act
         var build = () => _service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
-        var failure = await build.Should().ThrowAsync<AboxException>();
-        failure.WithMessage("*built*compiling*syntax error in main.ts*");
+        await build.Should().ThrowAsync<AboxException>().WithMessage("*kit 'built' failed*");
         _store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
     }
 
@@ -98,7 +122,8 @@ public sealed class KitBuildStepTests
                 : "*build file of kit 'plain'*not executable*chmod +x*"
         );
         _store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
-        await _sbx.DidNotReceiveWithAnyArgs().InspectKitAsync(default!, default, default!);
+        await _script.DidNotReceiveWithAnyArgs().RunAsync(default!, default);
+        await _inspector.DidNotReceiveWithAnyArgs().InspectAsync(default!, default!, default);
     }
 
     [Fact]
@@ -118,11 +143,13 @@ public sealed class KitBuildStepTests
             .ContainSingle(kit => kit.Name == "plain")
             .Which.Reference.Should()
             .Be(source);
-        await _sbx.Received(1)
-            .InspectKitAsync(
+        await _script.DidNotReceiveWithAnyArgs().RunAsync(default!, default);
+        await _inspector
+            .Received(1)
+            .InspectAsync(
                 source,
-                Arg.Any<CancellationToken>(),
-                Arg.Any<IReadOnlyDictionary<string, string>>()
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
             );
     }
 
@@ -131,6 +158,4 @@ public sealed class KitBuildStepTests
 
     private BuildManifest Manifest() =>
         _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-
-    private void BuildScript(string kit, string body) => KitBuildScripts.Write(_root, kit, body);
 }

@@ -41,16 +41,17 @@ public sealed class BuildDiscoveryTests
         if (metadataOnly)
         {
             project.Sbx.ReceivedCalls().Should().BeEmpty();
+            project.Inspector.ReceivedCalls().Should().BeEmpty();
             project.Runner.ReceivedCalls().Should().BeEmpty();
         }
         else
         {
             await project
-                .Sbx.Received(2)
-                .InspectKitAsync(
+                .Inspector.Received(2)
+                .InspectAsync(
                     project.ProjectKit,
-                    Arg.Any<CancellationToken>(),
-                    Arg.Any<IReadOnlyDictionary<string, string>?>()
+                    Arg.Any<IReadOnlyDictionary<string, string>>(),
+                    Arg.Any<CancellationToken>()
                 );
         }
     }

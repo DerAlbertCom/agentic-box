@@ -48,7 +48,6 @@ public sealed class BuildTagCommandTests
             new PersonalConfigurations(paths),
             store,
             LocalWorkloadFactory.Images(programs, runner, console),
-            sbx,
             console
         );
         var command = new BuildCommand(
@@ -126,7 +125,6 @@ public sealed class BuildTagCommandTests
             new PersonalConfigurations(paths),
             new BuildStore(paths),
             LocalWorkloadFactory.Images(programs, runner, console),
-            sbx,
             console
         );
         var command = new BuildCommand(

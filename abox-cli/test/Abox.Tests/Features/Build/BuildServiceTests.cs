@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
@@ -13,7 +14,7 @@ public sealed class BuildServiceTests
 {
     private readonly BuildServiceFixture _fixture = new();
     private TempDirectory _root => _fixture.Root;
-    private ISbxClient _sbx => _fixture.Sbx;
+    private IKitInspector _inspector => _fixture.Inspector;
     private IProcessRunner _runner => _fixture.Runner;
     private TestConsole _console => _fixture.Console;
     private BuildStore _store => _fixture.Store;
@@ -186,11 +187,12 @@ public sealed class BuildServiceTests
                 .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
                 .SourceHashes.Should()
                 .BeEmpty();
-            await _sbx.Received(1)
-                .InspectKitAsync(
+            await _inspector
+                .Received(1)
+                .InspectAsync(
                     Path.Combine(_root.Path, "kits", "private"),
-                    Arg.Any<CancellationToken>(),
-                    Arg.Any<IReadOnlyDictionary<string, string>>()
+                    Arg.Any<IReadOnlyDictionary<string, string>>(),
+                    Arg.Any<CancellationToken>()
                 );
         }
         else
@@ -211,10 +213,11 @@ public sealed class BuildServiceTests
     {
         // Arrange
         _root.File("teams/sample/ac.abox", "workload: sample\nkits: [private]\n");
-        _sbx.InspectKitAsync(
+        _inspector
+            .InspectAsync(
                 Arg.Any<string>(),
-                Arg.Any<CancellationToken>(),
-                Arg.Any<IReadOnlyDictionary<string, string>>()
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
             )
             .Returns(call =>
             {
@@ -226,7 +229,7 @@ public sealed class BuildServiceTests
                     ),
                     "description: changed during verification\n"
                 );
-                return new SbxOutcome(0, "");
+                return new KitInspectionOutcome(true, "");
             });
 
         // Act
@@ -494,11 +497,12 @@ public sealed class BuildServiceTests
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--load")),
                 Arg.Any<CancellationToken>()
             );
-        await _sbx.DidNotReceive()
-            .InspectKitAsync(
+        await _inspector
+            .DidNotReceive()
+            .InspectAsync(
                 Arg.Any<string>(),
-                Arg.Any<CancellationToken>(),
-                Arg.Any<IReadOnlyDictionary<string, string>>()
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
             );
     }
 
@@ -519,7 +523,7 @@ public sealed class BuildServiceTests
             _root.File("teams/sample/sample.workload", "template: example.com/other:2\n");
         }
         _runner.ClearReceivedCalls();
-        _sbx.ClearReceivedCalls();
+        _inspector.ClearReceivedCalls();
 
         // Act
         var exitCode = await _service.BuildAsync(
@@ -544,7 +548,7 @@ public sealed class BuildServiceTests
         File.Exists(Path.Combine(image.RuntimeKitDirectory, "workload.yaml")).Should().BeTrue();
         _console.AllText.Should().Contain("invalidated").And.Contain("not deleted");
         _runner.ReceivedCalls().Should().BeEmpty();
-        _sbx.ReceivedCalls().Should().BeEmpty();
+        _inspector.ReceivedCalls().Should().BeEmpty();
     }
 
     private sealed class LinkUnavailableException(string message) : Exception(message);
