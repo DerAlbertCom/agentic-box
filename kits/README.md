@@ -35,8 +35,12 @@ actions. It runs on Bun, which the workload must install through mise (`bun@1.4.
 | `~/.local/share/sbox/commands/<command>/command.js` | a command, installed by its command kit |
 | `~/.local/state/sbox/<command>/` | the state folder of a command |
 
-`sbox --help` lists the installed commands; with no command kit it lists none. The
-bundle is produced by the kit's [build step](../docs/authoring.md#kit-build-step)
+`sbox --help` lists the installed commands; with no command kit it lists none. A
+command whose module fails to load or does not export a command is listed as broken
+with the reason, and running it fails with that reason; the other commands keep
+working.
+
+The bundle is produced by the kit's [build step](../docs/authoring.md#kit-build-step)
 (`kits/sbox/build`) when `abox build` runs, so it is not committed. The build runs
 Bun in Docker through `sbox-cli/bundle` and keeps Bun's package cache in the volume
 `agentic-box-bun-cache`.

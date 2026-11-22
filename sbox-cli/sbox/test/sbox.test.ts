@@ -45,6 +45,46 @@ describe("sbox <command>", () => {
     expect(result.stderr).toBe("sbox hello: no theme named 'x'\n");
   });
 
+  test.each([
+    [
+      "throws while loading",
+      `throw new Error("Cannot find package 'smol-toml'\\n    at x.js:1");\n`,
+      "failed to load: Cannot find package 'smol-toml'",
+    ],
+    [
+      "has no default export",
+      `export const summary = "Say oops";\n`,
+      "command.js does not export a command: it has no default export",
+    ],
+  ])("reports a command that %s in one line and fails", async (_, module, reason) => {
+    // Arrange
+    await home.install("oops", { module });
+
+    // Act
+    const result = await home.run(["oops", "now"]);
+
+    // Assert
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(`sbox oops: ${reason}\n`);
+  });
+
+  test("runs a working command next to a broken one", async () => {
+    // Arrange
+    await home.install("hello", {
+      module: `export default { summary: "Say hello", run(args, ctx) { ctx.stdout.write("hello\\n"); return 4; } };\n`,
+    });
+    await home.install("oops", { module: `throw new Error("boom");\n` });
+
+    // Act
+    const result = await home.run(["hello"]);
+
+    // Assert
+    expect(result.code).toBe(4);
+    expect(result.stdout).toBe("hello\n");
+    expect(result.stderr).toBe("");
+  });
+
   const reportContext = `export default {
     summary: "Report the context",
     run(args, ctx) {
@@ -129,6 +169,24 @@ describe("sbox <unknown>", () => {
     expect(result.stderr).toMatch(/hello\s+Say hello/);
   });
 
+  test("still lists the installed commands when one of them is broken", async () => {
+    // Arrange
+    await home.install("hello", { module: withSummary("Say hello") });
+    await home.install("oops", { module: `export default {};\n` });
+
+    // Act
+    const result = await home.run(["themes"]);
+
+    // Assert
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      "sbox: the command 'themes' is not installed.\n\n" +
+        "Commands:\n" +
+        "  hello  Say hello\n" +
+        "  oops   broken: command.js does not export a command: its summary is not a string\n",
+    );
+  });
+
   test("does not treat a path as a command name", async () => {
     // Arrange
     await home.install("hello", { module: withSummary("Say hello") });
@@ -194,6 +252,57 @@ describe("sbox --help", () => {
     expect(result.stderr).toContain("Usage: sbox <command> [args...]");
   });
 
+  test("lists the working commands and marks one that throws while loading as broken with the error", async () => {
+    // Arrange
+    await home.install("hello", { module: withSummary("Say hello") });
+    await home.install("oops", { module: `throw new Error("Cannot find package 'smol-toml'\\n    at x.js:1");\n` });
+
+    // Act
+    const result = await home.run(["--help"]);
+
+    // Assert
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toEndWith(
+      "Commands:\n" +
+        "  hello  Say hello\n" +
+        "  oops   broken: failed to load: Cannot find package 'smol-toml'\n",
+    );
+  });
+
+  test.each([
+    ["no default export", `export const summary = "Say oops";\n`, "it has no default export"],
+    ["no summary", `export default { run() {} };\n`, "its summary is not a string"],
+    ["no run function", `export default { summary: "Say oops" };\n`, "it has no run function"],
+  ])("marks a command with %s as broken, as not being a command", async (_, module, reason) => {
+    // Arrange
+    await home.install("hello", { module: withSummary("Say hello") });
+    await home.install("oops", { module });
+
+    // Act
+    const result = await home.run(["--help"]);
+
+    // Assert
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toEndWith(
+      "Commands:\n" + "  hello  Say hello\n" + `  oops   broken: command.js does not export a command: ${reason}\n`,
+    );
+  });
+
+  test("styles the broken marker in a terminal only", async () => {
+    // Arrange
+    await home.install("oops", { module: `throw new Error("boom");\n` });
+
+    // Act
+    const terminal = await home.run(["--help"], { tty: true });
+    const noColor = await home.run(["--help"], { tty: true, env: { NO_COLOR: "1" } });
+
+    // Assert
+    expect(terminal.stdout).toEndWith("  oops  \x1b[31mbroken\x1b[39m: failed to load: boom\n");
+    expect(noColor.stdout).toEndWith("  oops  broken: failed to load: boom\n");
+  });
+
   test("says that no commands are installed when the commands folder is missing", async () => {
     // Arrange
 
@@ -203,6 +312,19 @@ describe("sbox --help", () => {
     // Assert
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("Usage: sbox <command> [args...]");
+    expect(result.stdout).toContain("No commands are installed.");
+  });
+
+  test("says that no commands are installed when the commands folder is a file", async () => {
+    // Arrange
+    await home.write(".local/share/sbox/commands", "");
+
+    // Act
+    const result = await home.run(["--help"]);
+
+    // Assert
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
     expect(result.stdout).toContain("No commands are installed.");
   });
 });
