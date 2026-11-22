@@ -9,10 +9,8 @@ namespace Abox.Infrastructure.Sbx;
 /// Kit-source trust through sbx's <c>kit.allowedSources</c> setting; updates are serialized
 /// by a lock file under the state directory.
 /// </summary>
-public sealed class SbxKitSourceTrust(IProcessRunner runner, AboxPaths paths) : IKitSourceTrust
+public sealed class SbxKitSourceTrust(SbxInvoker invoker, AboxPaths paths) : IKitSourceTrust
 {
-    private readonly SbxInvoker _invoker = new(runner);
-
     /// <summary>Preserves the evaluated allowlist, adding only the requested repository prefix.</summary>
     public async Task EnsureTrustedAsync(
         string repositoryPrefix,
@@ -50,11 +48,13 @@ public sealed class SbxKitSourceTrust(IProcessRunner runner, AboxPaths paths) : 
         }
 
         var updated = sources.Append(repositoryPrefix).ToArray();
-        var result = await _invoker.RunAsync(
-            new ProcessRequest(
-                _invoker.ExecutableName,
-                ["settings", "set", KitSourceAllowlist.Key, JsonSerializer.Serialize(updated)]
-            ),
+        var result = await invoker.RunAsync(
+            invoker.Call([
+                "settings",
+                "set",
+                KitSourceAllowlist.Key,
+                JsonSerializer.Serialize(updated),
+            ]),
             cancellationToken
         );
         if (!result.Succeeded)
@@ -91,11 +91,8 @@ public sealed class SbxKitSourceTrust(IProcessRunner runner, AboxPaths paths) : 
         CancellationToken cancellationToken
     )
     {
-        var result = await _invoker.RunAsync(
-            new ProcessRequest(
-                _invoker.ExecutableName,
-                ["settings", "get", KitSourceAllowlist.Key, "--json"]
-            ),
+        var result = await invoker.RunAsync(
+            invoker.Call(["settings", "get", KitSourceAllowlist.Key, "--json"]),
             cancellationToken
         );
         if (!result.Succeeded)

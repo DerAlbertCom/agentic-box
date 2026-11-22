@@ -12,7 +12,7 @@ public sealed class SbxSandboxCleanupTests
 
     public SbxSandboxCleanupTests()
     {
-        _cleanup = new SbxSandboxCleanup(_runner);
+        _cleanup = new SbxSandboxCleanup(new SbxInvoker(_runner));
     }
 
     [Fact]
@@ -86,18 +86,64 @@ public sealed class SbxSandboxCleanupTests
             .Should()
             .Equal(
                 new TemplateImage(
-                    "docker.io/library/sandbox-kit-assembled",
+                    "docker.io/library/sandbox-kit-assembled:0307199587cd420e",
+                    TemplateKind.AssembledSet,
                     "0307199587cd420e",
                     "527ef0280e47",
                     DateTimeOffset.Parse("2026-11-08T14:49:51Z")
                 ),
                 new TemplateImage(
-                    "docker.io/library/sbx-kit-src",
-                    "pi-config-eacbe0b12b58",
+                    "docker.io/library/sbx-kit-src:pi-config-eacbe0b12b58",
+                    TemplateKind.KitSource,
+                    string.Empty,
                     "ecc48f9d23bd",
                     DateTimeOffset.Parse("2026-11-08T14:55:39Z")
                 )
             );
+    }
+
+    [Theory]
+    [InlineData("sandbox-kit-assembled", "new", TemplateKind.AssembledSet, "new")]
+    [InlineData("sandbox-kit-assembled", "new-kit-0", TemplateKind.AssembledSet, "new")]
+    [InlineData("sandbox-kit-assembled", "new-kit-12", TemplateKind.AssembledSet, "new")]
+    [InlineData("sandbox-kit-assembled", "new-template", TemplateKind.AssembledSet, "new")]
+    [InlineData("sandbox-kit-assembled", "new-kit-a", TemplateKind.AssembledSet, "new-kit-a")]
+    [InlineData("docker.io/library/sandbox-kit-assembled", "new", TemplateKind.AssembledSet, "new")]
+    [InlineData(
+        "registry.example:5000/runtime/sandbox-kit-assembled",
+        "new",
+        TemplateKind.AssembledSet,
+        "new"
+    )]
+    [InlineData("sbx-kit-src", "unused", TemplateKind.KitSource, "")]
+    [InlineData("docker.io/library/sbx-kit-src", "unused", TemplateKind.KitSource, "")]
+    [InlineData("other-sandbox-kit-assembled", "old", TemplateKind.Unrelated, "")]
+    [InlineData("docker.io/library/other-sbx-kit-src", "unused", TemplateKind.Unrelated, "")]
+    [InlineData("sandbox-kit-assembled-other", "old", TemplateKind.Unrelated, "")]
+    [InlineData("sbx-kit-src-other", "unused", TemplateKind.Unrelated, "")]
+    [InlineData("agentic-box-rwest-team/squad", "local", TemplateKind.Unrelated, "")]
+    public async Task TheTemplatesAreClassifiedByExactRepositoryAndAssembledSet(
+        string repository,
+        string tag,
+        TemplateKind kind,
+        string set
+    )
+    {
+        // Arrange
+        Answer(
+            ["template", "ls", "--json"],
+            new ProcessResult(
+                0,
+                $$"""[{ "id": "id", "repository": "{{repository}}", "tag": "{{tag}}" }]""",
+                string.Empty
+            )
+        );
+
+        // Act
+        var templates = await _cleanup.ListTemplatesAsync(CancellationToken.None);
+
+        // Assert
+        templates.Should().Equal(new TemplateImage($"{repository}:{tag}", kind, set, "id", null));
     }
 
     [Fact]
@@ -143,7 +189,13 @@ public sealed class SbxSandboxCleanupTests
 
         // Act
         var removal = await _cleanup.RemoveTemplateAsync(
-            new TemplateImage("docker.io/library/sbx-kit-src", "old", "id", null),
+            new TemplateImage(
+                "docker.io/library/sbx-kit-src:old",
+                TemplateKind.KitSource,
+                string.Empty,
+                "id",
+                null
+            ),
             CancellationToken.None
         );
 
@@ -166,7 +218,7 @@ public sealed class SbxSandboxCleanupTests
 
         // Act
         var removal = await _cleanup.RemoveTemplateAsync(
-            new TemplateImage("sbx-kit-src", "old", "id", null),
+            new TemplateImage("sbx-kit-src:old", TemplateKind.KitSource, string.Empty, "id", null),
             CancellationToken.None
         );
 

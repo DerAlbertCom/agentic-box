@@ -1,16 +1,11 @@
-namespace Abox.Infrastructure;
+using Abox.Features.Shared.Preflight;
 
-/// <summary>
-/// Finds programs on the host's PATH.
-/// </summary>
-public interface IHostPrograms
-{
-    bool Exists(string program);
-}
+namespace Abox.Infrastructure.Shell;
 
-public sealed class HostPrograms(string pathDirectories) : IHostPrograms
+/// <summary>Finds programs in the directories of the host's PATH, as a shell would.</summary>
+public sealed class ShellHostPrograms(string pathDirectories) : IHostPrograms
 {
-    public HostPrograms()
+    public ShellHostPrograms()
         : this(Environment.GetEnvironmentVariable("PATH") ?? string.Empty) { }
 
     public bool Exists(string program)

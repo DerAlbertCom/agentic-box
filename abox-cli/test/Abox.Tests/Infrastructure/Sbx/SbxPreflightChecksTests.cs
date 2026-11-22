@@ -13,7 +13,7 @@ public sealed class SbxPreflightChecksTests
 
     public SbxPreflightChecksTests()
     {
-        _checks = new SbxPreflightChecks(_runner, _programs);
+        _checks = new SbxPreflightChecks(new SbxInvoker(_runner), _programs);
     }
 
     [Theory]

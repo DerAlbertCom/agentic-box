@@ -43,7 +43,11 @@ public sealed record SandboxExecRequest(
 );
 
 /// <summary>How the command ended.</summary>
-/// <param name="ExitCode">The exit code of the command, or of the HTTPS bootstrap that refused it.</param>
+/// <param name="ExitCode">
+/// The exit code abox returns for the run: the command's own, or, when the HTTPS
+/// protection refused to start the command, the code of that refusal. The two cannot
+/// be told apart: the refusal ends the run in the command's place.
+/// </param>
 public sealed record SandboxExecOutcome(int ExitCode)
 {
     public bool Succeeded => ExitCode == 0;

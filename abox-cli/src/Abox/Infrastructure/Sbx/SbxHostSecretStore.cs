@@ -4,13 +4,11 @@ using Abox.Features.Shared.Squads;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>The host secrets through <c>sbx secret</c>.</summary>
-public sealed class SbxHostSecretStore(IProcessRunner runner) : IHostSecretStore
+public sealed class SbxHostSecretStore(SbxInvoker invoker) : IHostSecretStore
 {
-    private readonly SbxInvoker _invoker = new(runner);
-
     public async Task<HostSecrets> ListAsync(CancellationToken cancellationToken)
     {
-        var list = await _invoker.RunJsonAsync<SbxSecrets>(
+        var list = await invoker.RunJsonAsync<SbxSecrets>(
             ["secret", "ls", "--json"],
             "sbx secret ls",
             cancellationToken
@@ -35,12 +33,11 @@ public sealed class SbxHostSecretStore(IProcessRunner runner) : IHostSecretStore
         CancellationToken cancellationToken
     ) =>
         RunAsync(
-            new ProcessRequest(
-                SbxInvoker.Executable,
-                ["secret", "set", service],
-                StandardInput: value,
-                UseUtf8StandardInput: true
-            ),
+            invoker.Call(["secret", "set", service]) with
+            {
+                StandardInput = value,
+                UseUtf8StandardInput = true,
+            },
             cancellationToken
         );
 
@@ -66,21 +63,17 @@ public sealed class SbxHostSecretStore(IProcessRunner runner) : IHostSecretStore
                         nameof(value)
                     )
             );
-            return RunAsync(
-                new ProcessRequest(SbxInvoker.Executable, arguments),
-                cancellationToken
-            );
+            return RunAsync(invoker.Call(arguments), cancellationToken);
         }
 
         arguments.Add("--value-stdin");
 
         return RunAsync(
-            new ProcessRequest(
-                SbxInvoker.Executable,
-                arguments,
-                StandardInput: value,
-                UseUtf8StandardInput: true
-            ),
+            invoker.Call(arguments) with
+            {
+                StandardInput = value,
+                UseUtf8StandardInput = true,
+            },
             cancellationToken
         );
     }
@@ -109,7 +102,7 @@ public sealed class SbxHostSecretStore(IProcessRunner runner) : IHostSecretStore
         arguments.Add(value);
         arguments.Add("--force");
 
-        return RunAsync(new ProcessRequest(SbxInvoker.Executable, arguments), cancellationToken);
+        return RunAsync(invoker.Call(arguments), cancellationToken);
     }
 
     /// <summary>The <c>sbx secret set-custom</c> command line, quoted for a POSIX shell.</summary>
@@ -123,7 +116,7 @@ public sealed class SbxHostSecretStore(IProcessRunner runner) : IHostSecretStore
         CancellationToken cancellationToken
     )
     {
-        var outcome = await _invoker.RunOutcomeAsync(request, cancellationToken);
+        var outcome = await invoker.RunOutcomeAsync(request, cancellationToken);
         return new HostSecretChange(outcome.Succeeded, outcome.Output.Trim());
     }
 }

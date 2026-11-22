@@ -21,7 +21,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
     public ApplicationPortsTests()
     {
-        client = new SbxApplicationPorts(runner);
+        client = new SbxApplicationPorts(new SbxInvoker(runner));
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(call => RespondToRuntime(call.Arg<ProcessRequest>()));

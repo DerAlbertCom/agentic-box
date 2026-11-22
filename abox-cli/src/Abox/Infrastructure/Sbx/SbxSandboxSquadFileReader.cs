@@ -3,7 +3,7 @@ using Abox.Features.Shared.Credentials;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>Reads the squad files of a sandbox through <c>sbx exec</c>.</summary>
-public sealed class SbxSandboxSquadFileReader(IProcessRunner runner) : ISandboxSquadFileReader
+public sealed class SbxSandboxSquadFileReader(SbxInvoker invoker) : ISandboxSquadFileReader
 {
     private const string Script = """
         for descriptor in /usr/share/sandbox/kit/*/kit.yaml; do
@@ -22,8 +22,6 @@ public sealed class SbxSandboxSquadFileReader(IProcessRunner runner) : ISandboxS
         fi
         """;
 
-    private readonly SbxInvoker _invoker = new(runner);
-
     /// <summary>
     /// One exec, which starts a stopped sandbox, prints each file on its own line as
     /// <c>kit</c>, its base64-encoded folder name and base64-encoded content, or
@@ -35,12 +33,11 @@ public sealed class SbxSandboxSquadFileReader(IProcessRunner runner) : ISandboxS
         CancellationToken cancellationToken
     )
     {
-        var result = await _invoker.RunOrThrowAsync(
-            new ProcessRequest(
-                SbxInvoker.Executable,
-                ["exec", sandbox, "sh", "-c", Script],
-                StandardInput: string.Empty
-            ),
+        var result = await invoker.RunOrThrowAsync(
+            invoker.Call(["exec", sandbox, "sh", "-c", Script]) with
+            {
+                StandardInput = string.Empty,
+            },
             $"sbx exec {sandbox}",
             cancellationToken
         );

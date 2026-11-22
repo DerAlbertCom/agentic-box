@@ -164,8 +164,8 @@ public sealed class DevelopmentCertificateNodeTrustTests
                 .Returns(call =>
                     Receiver.RunAsync(call.Arg<ProcessRequest>(), call.Arg<CancellationToken>())
                 );
-            Client = new SbxDevelopmentCertificates(runner);
-            Exec = new SbxSandboxExec(runner);
+            Client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+            Exec = new SbxSandboxExec(new SbxInvoker(runner));
         }
 
         internal static async Task<Scenario> Create() =>

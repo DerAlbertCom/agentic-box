@@ -8,10 +8,9 @@ namespace Abox.Infrastructure.Sbx;
 /// Protected development HTTPS through <c>sbx exec</c>: owns the embedded receiver, trust and
 /// exec scripts and maps their exit codes to the domain outcomes of each operation.
 /// </summary>
-internal sealed class SbxDevelopmentCertificates(IProcessRunner runner)
+internal sealed class SbxDevelopmentCertificates(SbxInvoker invoker)
     : ISandboxDevelopmentCertificates
 {
-    private readonly SbxInvoker _invoker = new(runner);
     private static readonly Lazy<string> DevelopmentCertificateExecBootstrap = new(() =>
         ReadDevelopmentCertificateResource("Abox.DevelopmentCertificateExec")
     );
@@ -109,13 +108,12 @@ internal sealed class SbxDevelopmentCertificates(IProcessRunner runner)
         CancellationToken cancellationToken
     )
     {
-        var user = await _invoker.RunAsync(
-            new ProcessRequest(
-                _invoker.ExecutableName,
-                ["exec", sandbox, "id", "-u"],
-                StandardInput: "",
-                OutputPolicy: ProcessOutputPolicy.CapturedSensitive
-            ),
+        var user = await invoker.RunAsync(
+            invoker.Call(["exec", sandbox, "id", "-u"]) with
+            {
+                StandardInput = "",
+                OutputPolicy = ProcessOutputPolicy.CapturedSensitive,
+            },
             cancellationToken
         );
         var uid = user.StandardOutput.Trim();
@@ -134,24 +132,23 @@ internal sealed class SbxDevelopmentCertificates(IProcessRunner runner)
         CancellationToken cancellationToken
     )
     {
-        var trust = await _invoker.RunAsync(
-            new ProcessRequest(
-                _invoker.ExecutableName,
-                [
-                    "exec",
-                    "-i",
-                    "-u",
-                    "root",
-                    sandbox,
-                    "python3",
-                    "-I",
-                    "-c",
-                    ReadDevelopmentCertificateResource("Abox.DevelopmentCertificateTrust"),
-                    uid,
-                ],
-                StandardInput: publicCertificate,
-                OutputPolicy: ProcessOutputPolicy.Sensitive
-            ),
+        var trust = await invoker.RunAsync(
+            invoker.Call([
+                "exec",
+                "-i",
+                "-u",
+                "root",
+                sandbox,
+                "python3",
+                "-I",
+                "-c",
+                ReadDevelopmentCertificateResource("Abox.DevelopmentCertificateTrust"),
+                uid,
+            ]) with
+            {
+                StandardInput = publicCertificate,
+                OutputPolicy = ProcessOutputPolicy.Sensitive,
+            },
             cancellationToken
         );
         if (!trust.Succeeded)
@@ -167,7 +164,7 @@ internal sealed class SbxDevelopmentCertificates(IProcessRunner runner)
         ProcessResult result;
         try
         {
-            result = await _invoker.RunAsync(
+            result = await invoker.RunAsync(
                 DevelopmentCertificateReceiverRequest(
                     sandbox,
                     "prepare",
@@ -343,7 +340,7 @@ internal sealed class SbxDevelopmentCertificates(IProcessRunner runner)
         string? frame,
         CancellationToken cancellationToken
     ) =>
-        _invoker.RunAsync(
+        invoker.RunAsync(
             DevelopmentCertificateReceiverRequest(sandbox, mode, transfer, frame),
             cancellationToken
         );
@@ -367,12 +364,11 @@ internal sealed class SbxDevelopmentCertificates(IProcessRunner runner)
             mode,
             transfer,
         ]);
-        return new ProcessRequest(
-            _invoker.ExecutableName,
-            arguments,
-            StandardInput: frame ?? string.Empty,
-            OutputPolicy: ProcessOutputPolicy.Sensitive
-        );
+        return invoker.Call(arguments) with
+        {
+            StandardInput = frame ?? string.Empty,
+            OutputPolicy = ProcessOutputPolicy.Sensitive,
+        };
     }
 
     private static string DevelopmentCertificateReceiverProgram =>

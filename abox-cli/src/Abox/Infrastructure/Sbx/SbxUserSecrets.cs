@@ -7,9 +7,8 @@ using Abox.Features.Shared.UserSecrets;
 
 namespace Abox.Infrastructure.Sbx;
 
-public sealed class SbxUserSecrets(IProcessRunner runner) : ISandboxUserSecrets
+public sealed class SbxUserSecrets(SbxInvoker invoker) : ISandboxUserSecrets
 {
-    private readonly SbxInvoker invoker = new(runner);
     private const int MaximumConcurrentUserSecretsPolicyChecks = 4;
 
     public async Task<IReadOnlyList<int>> GetUserSecretsHostPortsAsync(
@@ -96,11 +95,10 @@ public sealed class SbxUserSecrets(IProcessRunner runner) : ISandboxUserSecrets
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = await invoker.RunAsync(
-            new ProcessRequest(
-                invoker.ExecutableName,
-                arguments,
-                OutputPolicy: ProcessOutputPolicy.CapturedSensitive
-            ),
+            invoker.Call(arguments) with
+            {
+                OutputPolicy = ProcessOutputPolicy.CapturedSensitive,
+            },
             cancellationToken
         );
         cancellationToken.ThrowIfCancellationRequested();
@@ -157,12 +155,11 @@ public sealed class SbxUserSecrets(IProcessRunner runner) : ISandboxUserSecrets
             ]);
             arguments.AddRange(ids);
             result = await invoker.RunAsync(
-                new ProcessRequest(
-                    invoker.ExecutableName,
-                    arguments,
-                    StandardInput: frame ?? string.Empty,
-                    OutputPolicy: ProcessOutputPolicy.Sensitive
-                ),
+                invoker.Call(arguments) with
+                {
+                    StandardInput = frame ?? string.Empty,
+                    OutputPolicy = ProcessOutputPolicy.Sensitive,
+                },
                 cancellationToken
             );
         }

@@ -301,8 +301,9 @@ public sealed class PrunePreflightTests
                     new[]
                     {
                         new TemplateImage(
-                            "sbx-kit-src",
-                            "old",
+                            "sbx-kit-src:old",
+                            TemplateKind.KitSource,
+                            string.Empty,
                             "synthetic-id",
                             DateTimeOffset.Parse("2026-11-01T00:00:00Z")
                         ),

@@ -76,7 +76,7 @@ public sealed class SbxSecretInputTests
                     call.Arg<CancellationToken>()
                 );
             });
-        var store = new SbxHostSecretStore(runner);
+        var store = new SbxHostSecretStore(new SbxInvoker(runner));
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var previousEncoding = Console.InputEncoding;
         try
@@ -145,7 +145,7 @@ public sealed class SbxSecretInputTests
         runner
             .RunAsync(Arg.Any<ProcessRequest>(), cancellation.Token)
             .Returns(Task.FromCanceled<ProcessResult>(cancellation.Token));
-        var store = new SbxHostSecretStore(runner);
+        var store = new SbxHostSecretStore(new SbxInvoker(runner));
 
         // Act
         var action = () =>

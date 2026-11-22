@@ -82,6 +82,39 @@ public sealed class BuildStoreTests
             .Be("/home/agent/.config/opencode");
     }
 
+    [Fact]
+    public void TheLocalWorkloadOfAnEarlierBuildIsStillRead()
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        var store = Store(root);
+        var directory = store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest"));
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(
+            Path.Combine(directory, "build.json"),
+            """
+            {
+              "Squad": "ac",
+              "Tag": "latest",
+              "Reference": "agentic-box-rwest-sample:latest",
+              "LocalWorkload": {
+                "Reference": "docker.io/library/abox-workload:0123",
+                "ImageId": "sha256:abc",
+                "DockerContext": "desktop-linux",
+                "RuntimeKitDirectory": "/runtime",
+                "RuntimeKitHash": "hash"
+              }
+            }
+            """
+        );
+
+        // Act
+        var manifest = store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+
+        // Assert
+        manifest.LocalWorkload!.ImageStore.Should().Be("desktop-linux");
+    }
+
     private static BuildStore Store(TempDirectory root) =>
         new(AboxPaths.For(Path.Combine(root.Path, "config"), Path.Combine(root.Path, "state")));
 

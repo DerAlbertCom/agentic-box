@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Registry;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;

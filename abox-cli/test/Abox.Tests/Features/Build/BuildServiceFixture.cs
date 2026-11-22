@@ -1,7 +1,7 @@
 using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
-using Abox.Features.Shared.KitBuildSteps;
+using Abox.Features.Shared.KitBuildScripts;
 using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;

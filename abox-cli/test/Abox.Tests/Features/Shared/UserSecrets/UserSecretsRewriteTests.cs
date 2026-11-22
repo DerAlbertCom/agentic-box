@@ -530,7 +530,7 @@ public sealed class UserSecretsRewriteTests
             copy = new UserSecretsCopy(
                 config ?? new AboxConfig(),
                 new DotnetUserSecretStores(null, root.Path),
-                new SbxUserSecrets(runner)
+                new SbxUserSecrets(new SbxInvoker(runner))
             );
         }
 

@@ -1,6 +1,7 @@
 using Abox.Cli;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;

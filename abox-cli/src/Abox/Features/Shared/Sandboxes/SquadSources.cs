@@ -16,7 +16,7 @@ public sealed record PreparedSquad(
     IReadOnlyList<string> Mixins,
     IReadOnlyDictionary<string, string> Arguments,
     PullPolicy PullPolicy,
-    string? DockerContext = null,
+    string? HostImageStore = null,
     string? KitReference = null
 );
 
@@ -76,7 +76,7 @@ public sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages image
             mixins,
             arguments,
             PullPolicy: PullPolicy.Never,
-            DockerContext: image.DockerContext
+            HostImageStore: image.ImageStore
         );
     }
 

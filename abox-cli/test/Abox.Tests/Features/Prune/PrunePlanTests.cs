@@ -9,14 +9,14 @@ public sealed class PrunePlanTests
     public void NormalPruneKeepsEveryNewestGroupIncludingOlderKitsAliasesAndSharedSources()
     {
         // Arrange
-        var firstNewest = Image("sandbox-kit-assembled", "new-a", "a", 3);
-        var olderKit = Image("sandbox-kit-assembled", "new-a-kit-0", "shared", 1);
-        var alias = Image("sandbox-kit-assembled", "new-a-template", "shared", 1);
-        var tiedNewest = Image("sandbox-kit-assembled", "new-b", "b", 3);
-        var sharedSource = Image("sbx-kit-src", "shared-source", "shared", 1);
-        var stale = Image("sandbox-kit-assembled", "old", "old", 2);
-        var staleAlias = Image("sandbox-kit-assembled", "old-template", "shared", 1);
-        var unused = Image("sbx-kit-src", "unused", "unused", 1);
+        var firstNewest = Assembled("new-a", "new-a", "a", 3);
+        var olderKit = Assembled("new-a", "new-a-kit-0", "shared", 1);
+        var alias = Assembled("new-a", "new-a-template", "shared", 1);
+        var tiedNewest = Assembled("new-b", "new-b", "b", 3);
+        var sharedSource = Source("shared-source", "shared", 1);
+        var stale = Assembled("old", "old", "old", 2);
+        var staleAlias = Assembled("old", "old-template", "shared", 1);
+        var unused = Source("unused", "unused", 1);
         TemplateImage[] retained = [firstNewest, olderKit, alias, tiedNewest, sharedSource];
 
         // Act
@@ -38,14 +38,14 @@ public sealed class PrunePlanTests
     )
     {
         // Arrange
-        var uncertain = Image("sandbox-kit-assembled", "uncertain-kit-0", "uncertain", 1);
+        var uncertain = Assembled("uncertain", "uncertain-kit-0", "uncertain", 1);
         uncertain = missingAge ? uncertain with { CreatedAt = null } : uncertain with { Id = "" };
-        var sibling = Image("sandbox-kit-assembled", "uncertain-kit-1", "sibling", 1);
-        var alias = Image("sandbox-kit-assembled", "uncertain-template", "sibling", 1);
-        var sharedSource = Image("sbx-kit-src", "shared", "sibling", 1);
-        var potentialSource = Image("sbx-kit-src", "unknown-dependency", "potential", 1);
-        var newest = Image("sandbox-kit-assembled", "new", "new", 3);
-        var stale = Image("sandbox-kit-assembled", "stale", "stale", 2);
+        var sibling = Assembled("uncertain", "uncertain-kit-1", "sibling", 1);
+        var alias = Assembled("uncertain", "uncertain-template", "sibling", 1);
+        var sharedSource = Source("shared", "sibling", 1);
+        var potentialSource = Source("unknown-dependency", "potential", 1);
+        var newest = Assembled("new", "new", "new", 3);
+        var stale = Assembled("stale", "stale", "stale", 2);
         TemplateImage[] retained = [uncertain, sibling, alias, sharedSource, potentialSource];
         TemplateImage[] images = [.. retained, newest, stale];
 
@@ -58,20 +58,23 @@ public sealed class PrunePlanTests
     }
 
     [Theory]
-    [InlineData(false, "sandbox-kit-assembled", false)]
-    [InlineData(false, "sandbox-kit-assembled", true)]
-    [InlineData(true, "sandbox-kit-assembled", false)]
-    [InlineData(true, "sandbox-kit-assembled", true)]
-    [InlineData(false, "sbx-kit-src", false)]
-    [InlineData(false, "sbx-kit-src", true)]
-    [InlineData(true, "sbx-kit-src", false)]
-    [InlineData(true, "sbx-kit-src", true)]
-    public void MissingAgeOrIdentityPreventsRemoval(bool full, string repository, bool missingAge)
+    [InlineData(false, TemplateKind.AssembledSet, false)]
+    [InlineData(false, TemplateKind.AssembledSet, true)]
+    [InlineData(true, TemplateKind.AssembledSet, false)]
+    [InlineData(true, TemplateKind.AssembledSet, true)]
+    [InlineData(false, TemplateKind.KitSource, false)]
+    [InlineData(false, TemplateKind.KitSource, true)]
+    [InlineData(true, TemplateKind.KitSource, false)]
+    [InlineData(true, TemplateKind.KitSource, true)]
+    public void MissingAgeOrIdentityPreventsRemoval(bool full, TemplateKind kind, bool missingAge)
     {
         // Arrange
-        var uncertain = Image(repository, "old", "old", 1);
+        var uncertain =
+            kind == TemplateKind.AssembledSet
+                ? Assembled("old", "old", "old", 1)
+                : Source("old", "old", 1);
         uncertain = missingAge ? uncertain with { CreatedAt = null } : uncertain with { Id = "" };
-        var newest = Image("sandbox-kit-assembled", "new", "new", 2);
+        var newest = Assembled("new", "new", "new", 2);
         TemplateImage[] images = [uncertain, newest];
 
         // Act
@@ -83,28 +86,18 @@ public sealed class PrunePlanTests
     }
 
     [Theory]
-    [InlineData(false, "")]
-    [InlineData(true, "")]
-    [InlineData(false, "docker.io/library/")]
-    [InlineData(true, "docker.io/library/")]
-    [InlineData(false, "registry.example:5000/runtime/")]
-    [InlineData(true, "registry.example:5000/runtime/")]
-    public void OnlyExactRepositoryNamesOrQualifiedPathComponentsAreEligible(
-        bool full,
-        string prefix
-    )
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UnrelatedImagesAreNeverEligible(bool full)
     {
         // Arrange
-        var newest = Image(prefix + "sandbox-kit-assembled", "new", "new", 2);
-        var stale = Image(prefix + "sandbox-kit-assembled", "old", "old", 1);
-        var source = Image(prefix + "sbx-kit-src", "unused", "unused", 1);
+        var newest = Assembled("new", "new", "new", 2);
+        var stale = Assembled("old", "old", "old", 1);
+        var source = Source("unused", "unused", 1);
         TemplateImage[] unrelated =
         [
-            Image(prefix + "other-sandbox-kit-assembled", "old", "lookalike", 1),
-            Image(prefix + "other-sbx-kit-src", "unused", "lookalike-source", 1),
-            Image(prefix + "sandbox-kit-assembled-other", "old", "other", 1),
-            Image(prefix + "sbx-kit-src-other", "unused", "other-source", 1),
-            Image("agentic-box-rwest-team/squad", "local", "local", 1),
+            Unrelated("other", "old", "lookalike", 1),
+            Unrelated("agentic-box-rwest-team/squad", "local", "local", 1),
         ];
         TemplateImage[] images = [newest, stale, source, .. unrelated];
 
@@ -123,12 +116,12 @@ public sealed class PrunePlanTests
     public void GroupAgeIncludesAliasesAndKitsWhilePartitionsPreserveOrderAndDuplicates(bool full)
     {
         // Arrange
-        var root = Image("sandbox-kit-assembled", "new-a", "root", 1);
-        var alias = Image("sandbox-kit-assembled", "new-a-template", "alias", 4);
-        var tiedKit = Image("sandbox-kit-assembled", "new-b-kit-12", "kit", 4);
-        var source = Image("sbx-kit-src", "shared", "root", 1);
-        var stale = Image("sandbox-kit-assembled", "old", "root", 3);
-        var unrelated = Image("other", "new", "other", 5);
+        var root = Assembled("new-a", "new-a", "root", 1);
+        var alias = Assembled("new-a", "new-a-template", "alias", 4);
+        var tiedKit = Assembled("new-b", "new-b-kit-12", "kit", 4);
+        var source = Source("shared", "root", 1);
+        var stale = Assembled("old", "old", "root", 3);
+        var unrelated = Unrelated("other", "new", "other", 5);
         TemplateImage[] images = [stale, root, unrelated, alias, stale, tiedKit, source];
 
         // Act
@@ -153,10 +146,10 @@ public sealed class PrunePlanTests
     )
     {
         // Arrange
-        var uncertain = Image("sandbox-kit-assembled", "old-kit-10", id!, 1);
-        var alias = Image("sandbox-kit-assembled", "old-template", "alias", 1);
-        var source = Image("sbx-kit-src", "potential", "source", 1);
-        var newest = Image("sandbox-kit-assembled", "new", "new", 2);
+        var uncertain = Assembled("old", "old-kit-10", id!, 1);
+        var alias = Assembled("old", "old-template", "alias", 1);
+        var source = Source("potential", "source", 1);
+        var newest = Assembled("new", "new", "new", 2);
         TemplateImage[] images = [uncertain, alias, source, newest];
 
         // Act
@@ -167,6 +160,20 @@ public sealed class PrunePlanTests
         plan.Remove.Should().Equal(full ? [newest] : []);
     }
 
-    private static TemplateImage Image(string repository, string tag, string id, int day) =>
-        new(repository, tag, id, new DateTimeOffset(2026, 11, day, 0, 0, 0, TimeSpan.Zero));
+    private static TemplateImage Assembled(string set, string tag, string id, int day) =>
+        Image($"assembled:{tag}", TemplateKind.AssembledSet, set, id, day);
+
+    private static TemplateImage Source(string tag, string id, int day) =>
+        Image($"source:{tag}", TemplateKind.KitSource, string.Empty, id, day);
+
+    private static TemplateImage Unrelated(string repository, string tag, string id, int day) =>
+        Image($"{repository}:{tag}", TemplateKind.Unrelated, string.Empty, id, day);
+
+    private static TemplateImage Image(
+        string reference,
+        TemplateKind kind,
+        string set,
+        string id,
+        int day
+    ) => new(reference, kind, set, id, new DateTimeOffset(2026, 11, day, 0, 0, 0, TimeSpan.Zero));
 }

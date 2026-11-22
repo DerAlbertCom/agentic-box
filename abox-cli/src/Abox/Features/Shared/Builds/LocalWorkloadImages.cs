@@ -2,7 +2,10 @@ using Abox.Infrastructure;
 
 namespace Abox.Features.Shared.Builds;
 
-/// <summary>Prebuilds workload content in host Docker; sbx only wraps it as a v3 kit at create.</summary>
+/// <summary>
+/// Prebuilds workload content into the host image store; at create, the sandbox runtime
+/// only wraps it as a thin runtime kit.
+/// </summary>
 public sealed class LocalWorkloadImages(
     IWorkloadImageBuilder builder,
     ILocalWorkloadImageStore store,
@@ -18,10 +21,10 @@ public sealed class LocalWorkloadImages(
         CancellationToken cancellationToken
     )
     {
-        var context = await HostContextAsync(cancellationToken);
+        var imageStore = await HostImageStoreAsync(cancellationToken);
         var (reference, imageId) = await BuildImageAsync(
             workloadDirectory,
-            context,
+            imageStore,
             cancellationToken
         );
         WriteRuntimeKit(workloadDirectory, runtimeDirectory, reference);
@@ -30,37 +33,37 @@ public sealed class LocalWorkloadImages(
         {
             Reference = reference,
             ImageId = imageId,
-            DockerContext = context,
+            ImageStore = imageStore,
             RuntimeKitDirectory = runtimeDirectory,
             RuntimeKitHash = BuildSources.DirectoryHash(runtimeDirectory),
         };
     }
 
-    private async Task<string> HostContextAsync(CancellationToken cancellationToken)
+    private async Task<string> HostImageStoreAsync(CancellationToken cancellationToken)
     {
-        RequireDocker();
-        return await builder.HostContextAsync(cancellationToken);
+        RequireImageTools();
+        return await builder.HostImageStoreAsync(cancellationToken);
     }
 
     private async Task<(string Reference, string ImageId)> BuildImageAsync(
         string workloadDirectory,
-        string context,
+        string imageStore,
         CancellationToken cancellationToken
     )
     {
         var sourceHash = BuildSources.DirectoryHash(workloadDirectory);
-        var reference = "docker.io/library/abox-workload:" + Guid.NewGuid().ToString("N");
+        var reference = builder.NewImageReference();
         console.WriteLine($"Building reusable workload image '{reference}'...");
         await builder.BuildAsync(
             new WorkloadImageBuild(
                 workloadDirectory,
                 Path.Combine(workloadDirectory, WorkloadKitName + ".yaml"),
                 reference,
-                context
+                imageStore
             ),
             cancellationToken
         );
-        var imageId = await store.ImageIdAsync(context, reference, cancellationToken);
+        var imageId = await store.ImageIdAsync(imageStore, reference, cancellationToken);
         if (BuildSources.DirectoryHash(workloadDirectory) != sourceHash)
         {
             throw new AboxException(
@@ -94,7 +97,7 @@ public sealed class LocalWorkloadImages(
         CancellationToken cancellationToken
     )
     {
-        RequireDocker();
+        RequireImageTools();
         try
         {
             if (BuildSources.DirectoryHash(image.RuntimeKitDirectory) != image.RuntimeKitHash)
@@ -112,9 +115,9 @@ public sealed class LocalWorkloadImages(
             );
         }
 
-        await store.RequireHostBuilderAsync(image.DockerContext, cancellationToken);
+        await store.RequireHostBuilderAsync(image.ImageStore, cancellationToken);
         if (
-            await store.ImageIdAsync(image.DockerContext, image.Reference, cancellationToken)
+            await store.ImageIdAsync(image.ImageStore, image.Reference, cancellationToken)
             != image.ImageId
         )
         {
@@ -124,7 +127,7 @@ public sealed class LocalWorkloadImages(
         }
     }
 
-    private void RequireDocker()
+    private void RequireImageTools()
     {
         if (!store.IsInstalled)
             throw new AboxException(

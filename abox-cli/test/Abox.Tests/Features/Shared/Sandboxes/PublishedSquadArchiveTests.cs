@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;

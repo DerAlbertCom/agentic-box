@@ -7,13 +7,15 @@ against the later #30 baseline is recorded below.
 ## Scope
 
 - Shared creation and record-writing behavior is covered by
-  `Sandboxes/SandboxCreatorTests.cs`, renamed from `CreateServiceTests` to name
+  `Features/Shared/Sandboxes/SandboxCreatorTests.cs`, renamed from `CreateServiceTests` to name
   the production interface actually exercised.
 - Legacy naming, inventory selection and cross-command compatibility suites are
-  grouped under `Sandboxes`, alongside published-source and state-creation tests.
-- Build-store tests and the local-workload fixture are grouped under `LocalState`,
-  alongside the existing local-image and tag-safety tests.
-- Sandbox/published-source fixtures live under `Sandboxes`. Existing `Abox.Tests`
+  grouped under `Features/Shared/Sandboxes`, alongside published-source and
+  state-creation tests.
+- Build-store tests and the local-workload fixture are grouped under
+  `Features/Shared/Builds`, alongside the existing local-image
+  and tag-safety tests.
+- Sandbox/published-source fixtures live under `Features/Shared/Sandboxes`. Existing `Abox.Tests`
   namespaces and shared fixture signatures remain compatible with other batches.
 - Every test in these two module folders has explicit Arrange/Act/Assert markers.
   Actions previously embedded in success assertions are captured separately;
@@ -39,7 +41,7 @@ The Debug test executable was run before and after the changes with
 ## Verification
 
 - `dotnet build abox-cli/agentic-box.slnx -c Debug -m:1`: zero warnings/errors.
-- Direct executable runner, all `Sandboxes`/`LocalState` classes: **219 passed**,
+- Direct executable runner, all sandbox and local-state (now `Builds`) classes: **219 passed**,
   zero failures/skips.
 - Direct executable runner, full Debug suite before and after: **1,557 passed**,
   **7 skipped**, zero failures/errors (1,564 total in each run).

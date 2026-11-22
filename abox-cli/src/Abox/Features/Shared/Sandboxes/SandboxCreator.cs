@@ -126,7 +126,7 @@ public sealed class SandboxCreator(
                 mounts,
                 manifest.Mcp.Select(server => server.Name).ToList(),
                 PullPolicy: prepared.PullPolicy,
-                HostDockerContext: prepared.DockerContext,
+                HostImageStore: prepared.HostImageStore,
                 Progress: line =>
                 {
                     streamed = true;

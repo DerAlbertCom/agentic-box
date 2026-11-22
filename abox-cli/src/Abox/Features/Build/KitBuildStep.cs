@@ -1,4 +1,4 @@
-using Abox.Features.Shared.KitBuildSteps;
+using Abox.Features.Shared.KitBuildScripts;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 

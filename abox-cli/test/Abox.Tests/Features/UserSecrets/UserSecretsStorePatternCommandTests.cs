@@ -135,7 +135,7 @@ public sealed class UserSecretsStorePatternCommandTests
                         """;
                 return new ProcessResult(0, json, "");
             });
-        var policyClient = new SbxUserSecrets(runner);
+        var policyClient = new SbxUserSecrets(new SbxInvoker(runner));
         fixture
             .UserSecrets.GetUserSecretsHostPortsAsync(fixture.Name, Arg.Any<CancellationToken>())
             .Returns(call =>

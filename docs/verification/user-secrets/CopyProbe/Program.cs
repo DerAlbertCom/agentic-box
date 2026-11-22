@@ -28,7 +28,7 @@ try
     var store = Path.Combine(temporary, ".microsoft", "usersecrets", id);
     Directory.CreateDirectory(store);
     await File.WriteAllTextAsync(Path.Combine(store, "secrets.json"), payload);
-    var client = new SbxUserSecrets(runner);
+    var client = new SbxUserSecrets(new SbxInvoker(runner));
     var copy = new UserSecretsCopy(new AboxConfig(), new DotnetUserSecretStores(null, temporary), client);
     var prepared = await copy.PrepareAsync(
         await FolderConfig.LoadAsync(temporary, CancellationToken.None),
@@ -44,8 +44,7 @@ try
 
     foreach (var damage in new[] { "short", "corrupt" })
     {
-        var damaged = new SbxUserSecrets(
-            new MutatingRunner(
+        var damaged = new SbxUserSecrets(new SbxInvoker(new) MutatingRunner(
                 runner,
                 request =>
                     request with
@@ -93,8 +92,7 @@ try
         null
     );
 
-    var appDataClient = new SbxUserSecrets(
-        new MutatingRunner(
+    var appDataClient = new SbxUserSecrets(new SbxInvoker(new) MutatingRunner(
             runner,
             request =>
                 request with

@@ -29,7 +29,7 @@ public sealed class SbxSandboxLifecycleTests
 
     public SbxSandboxLifecycleTests()
     {
-        _lifecycle = new SbxSandboxLifecycle(_runner);
+        _lifecycle = new SbxSandboxLifecycle(new SbxInvoker(_runner));
     }
 
     [Fact]
@@ -384,7 +384,7 @@ public sealed class SbxSandboxLifecycleTests
                 new Dictionary<string, string> { ["mode"] = "team" },
                 [],
                 ["elastic"],
-                HostDockerContext: "desktop-linux"
+                HostImageStore: "desktop-linux"
             ),
             CancellationToken.None
         );
