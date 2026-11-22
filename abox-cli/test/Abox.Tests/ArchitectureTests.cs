@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using Abox.Cli;
+using Abox.Features.Shared.Common;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 
@@ -86,7 +87,6 @@ public sealed class ArchitectureTests
     /// </summary>
     private static readonly string[] GenericHelpers =
     [
-        "IConsole",
         "SystemConsole",
         "IProcessRunner",
         "ProcessRunner",
@@ -98,7 +98,6 @@ public sealed class ArchitectureTests
         "ProcessOutput",
         "PrivateStagingException",
         "ProtectedTemporaryDirectory",
-        "TemporaryDirectory",
         "SecretRedactor",
         "YamlReader",
         "YamlSources",

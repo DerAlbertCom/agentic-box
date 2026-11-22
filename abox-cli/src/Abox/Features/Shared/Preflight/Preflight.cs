@@ -1,4 +1,4 @@
-using Abox.Infrastructure;
+using Abox.Features.Shared.Common;
 
 namespace Abox.Features.Shared.Preflight;
 

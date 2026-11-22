@@ -1,3 +1,5 @@
+using Abox.Features.Shared.Common;
+
 namespace Abox.Infrastructure;
 
 /// <summary>A value-free failure to prepare private certificate staging before export.</summary>

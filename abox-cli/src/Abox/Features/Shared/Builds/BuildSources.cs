@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Abox.Features.Shared.Common;
 
 namespace Abox.Features.Shared.Builds;
 

@@ -2,6 +2,7 @@ using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text.Json;
+using Abox.Features.Shared.Common;
 
 namespace Abox.Infrastructure;
 

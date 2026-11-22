@@ -1,3 +1,5 @@
+using Abox.Features.Shared.Common;
+
 namespace Abox.Features.Shared.Https;
 
 /// <summary>The actionable failure of each sandbox HTTPS step, rendered from its outcome.</summary>

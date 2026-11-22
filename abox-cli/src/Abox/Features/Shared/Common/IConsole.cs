@@ -1,4 +1,4 @@
-namespace Abox.Infrastructure;
+namespace Abox.Features.Shared.Common;
 
 /// <summary>
 /// The terminal abox talks to. Abstracted so commands can be tested without a console.

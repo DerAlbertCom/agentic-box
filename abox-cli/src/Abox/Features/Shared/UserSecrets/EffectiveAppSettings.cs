@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 
 namespace Abox.Features.Shared.UserSecrets;

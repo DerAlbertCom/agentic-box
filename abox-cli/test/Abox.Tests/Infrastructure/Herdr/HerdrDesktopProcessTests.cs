@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Abox.Features.Shared.Common;
 using Abox.Infrastructure;
 using NSubstitute;
 

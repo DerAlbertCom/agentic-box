@@ -1,8 +1,8 @@
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure;
 
 namespace Abox.Features.Secrets;
 

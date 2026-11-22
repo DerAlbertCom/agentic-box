@@ -1,3 +1,5 @@
+using Abox.Features.Shared.Common;
+
 namespace Abox.Features.Shared.UserSecrets;
 
 // One bounded traversal; resolve links before containment, exclusion and deduplication.

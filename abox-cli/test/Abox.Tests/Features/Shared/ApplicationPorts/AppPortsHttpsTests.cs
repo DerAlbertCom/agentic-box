@@ -1,6 +1,6 @@
 using Abox.Features.Shared.ApplicationPorts;
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Https;
-using Abox.Infrastructure;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 

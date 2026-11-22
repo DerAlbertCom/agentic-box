@@ -2,6 +2,7 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;

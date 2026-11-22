@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.ApplicationPorts;
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Naming;
 using ApplicationBinding = Abox.Infrastructure.Sbx.ApplicationPortInventory.ApplicationBinding;
 

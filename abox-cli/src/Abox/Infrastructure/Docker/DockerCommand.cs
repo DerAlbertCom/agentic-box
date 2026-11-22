@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Registry;
 
 namespace Abox.Infrastructure.Docker;

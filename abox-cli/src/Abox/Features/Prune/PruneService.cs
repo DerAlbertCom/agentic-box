@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.SandboxCleanup;
-using Abox.Infrastructure;
 
 namespace Abox.Features.Prune;
 

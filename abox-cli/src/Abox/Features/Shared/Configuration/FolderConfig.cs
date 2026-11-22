@@ -1,4 +1,5 @@
 using System.Text;
+using Abox.Features.Shared.Common;
 using Abox.Infrastructure;
 
 namespace Abox.Features.Shared.Configuration;

@@ -1,4 +1,4 @@
-namespace Abox;
+namespace Abox.Features.Shared.Common;
 
 /// <summary>
 /// An error that abox reports to the user and that ends the command with exit code 1.

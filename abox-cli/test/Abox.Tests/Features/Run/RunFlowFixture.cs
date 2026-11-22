@@ -6,7 +6,6 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Infrastructure;
 using NSubstitute;
 
 namespace Abox.Tests;

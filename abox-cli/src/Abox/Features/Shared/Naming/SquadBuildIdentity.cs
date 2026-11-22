@@ -1,3 +1,5 @@
+using Abox.Features.Shared.Common;
+
 namespace Abox.Features.Shared.Naming;
 
 /// <summary>A squad build's portable identity, shared by local storage and registry operations.</summary>

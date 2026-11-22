@@ -1,3 +1,5 @@
+using Abox.Features.Shared.Common;
+
 namespace Abox.Features.Shared.Squads;
 
 /// <summary>How a secret value is stored in the host store.</summary>

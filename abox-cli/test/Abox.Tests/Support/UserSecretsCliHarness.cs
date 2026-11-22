@@ -8,7 +8,6 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Infrastructure;
 using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;

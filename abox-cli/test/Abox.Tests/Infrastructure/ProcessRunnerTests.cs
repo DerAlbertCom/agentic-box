@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Abox.Features.Shared.Common;
 using Abox.Infrastructure;
 
 namespace Abox.Tests;

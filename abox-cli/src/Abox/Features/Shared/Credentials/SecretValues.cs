@@ -1,5 +1,5 @@
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure;
 
 namespace Abox.Features.Shared.Credentials;
 

@@ -1,4 +1,4 @@
-namespace Abox.Infrastructure;
+namespace Abox.Features.Shared.Common;
 
 /// <summary>A temporary working directory whose cleanup failures are warnings.</summary>
 public sealed class TemporaryDirectory : IDisposable

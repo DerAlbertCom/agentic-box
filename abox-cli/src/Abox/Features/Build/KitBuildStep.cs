@@ -1,6 +1,6 @@
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.KitBuildScripts;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure;
 
 namespace Abox.Features.Build;
 

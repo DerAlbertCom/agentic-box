@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Common;
 using NSubstitute;
 
 namespace Abox.Tests;

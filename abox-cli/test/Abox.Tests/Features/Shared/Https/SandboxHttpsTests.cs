@@ -1,6 +1,6 @@
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Sandboxes;
-using Abox.Infrastructure;
 using NSubstitute;
 
 namespace Abox.Tests;

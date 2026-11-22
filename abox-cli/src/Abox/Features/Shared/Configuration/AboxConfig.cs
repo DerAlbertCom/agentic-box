@@ -1,3 +1,5 @@
+using Abox.Features.Shared.Common;
+
 namespace Abox.Features.Shared.Configuration;
 
 /// <summary>

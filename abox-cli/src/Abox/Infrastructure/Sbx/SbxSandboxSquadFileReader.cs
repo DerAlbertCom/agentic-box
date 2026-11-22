@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Credentials;
 
 namespace Abox.Infrastructure.Sbx;

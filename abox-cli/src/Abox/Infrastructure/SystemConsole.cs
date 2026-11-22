@@ -1,6 +1,7 @@
-namespace Abox.Infrastructure;
-
 using System.Text;
+using Abox.Features.Shared.Common;
+
+namespace Abox.Infrastructure;
 
 /// <summary>
 /// <see cref="IConsole"/> on top of <see cref="System.Console"/>.
