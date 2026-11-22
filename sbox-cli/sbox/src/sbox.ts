@@ -1,8 +1,6 @@
-import { join } from "node:path";
 import { parseArgs } from "node:util";
 import type { Output } from "./api";
-import { Commands } from "./commands";
-import { styleFor } from "./style";
+import { InstalledCommands } from "./installed-commands";
 
 export interface SboxIO {
   readonly env: Readonly<Record<string, string | undefined>>;
@@ -15,8 +13,7 @@ const usage = "Usage: sbox <command> [args...]\n";
 
 /** The sbox core: routes `sbox <command> [args...]` to the command's module in the commands folder. */
 export async function sbox(argv: string[], io: SboxIO): Promise<number> {
-  const home = io.env.HOME ?? "";
-  const commands = new Commands(join(home, ".local/share/sbox/commands"));
+  const commands = new InstalledCommands(io);
   // Options before the command name belong to sbox, everything after it to the command.
   const start = argv.findIndex((arg) => !arg.startsWith("-"));
   const [name, ...args] = start === -1 ? [] : argv.slice(start);
@@ -33,29 +30,12 @@ export async function sbox(argv: string[], io: SboxIO): Promise<number> {
   }
 
   if (help || name === undefined) {
-    io.stdout.write(usage + "\n" + (await commands.overview()));
+    io.stdout.write(usage + "\n" + (await commands.overview(io.stdout)));
     return 0;
   }
 
-  if (!commands.names().includes(name)) {
-    io.stderr.write(`sbox: the command '${name}' is not installed.\n\n${await commands.overview()}`);
-    return 1;
-  }
-
-  try {
-    const command = await commands.load(name);
-    const code = await command.run(args, {
-      name,
-      paths: { home, state: join(home, ".local/state/sbox", name), data: commands.folderOf(name) },
-      env: io.env,
-      stdout: io.stdout,
-      stderr: io.stderr,
-      style: styleFor(Boolean(io.stdout.isTTY) && !io.env.NO_COLOR),
-      isTTY: Boolean(io.stdin.isTTY && io.stdout.isTTY),
-    });
-    return code ?? 0;
-  } catch (error) {
-    io.stderr.write(`sbox ${name}: ${error instanceof Error ? error.message : String(error)}\n`);
-    return 1;
-  }
+  const code = await commands.run(name, args);
+  if (code !== undefined) return code;
+  io.stderr.write(`sbox: the command '${name}' is not installed.\n\n${await commands.overview(io.stderr)}`);
+  return 1;
 }

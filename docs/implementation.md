@@ -1266,7 +1266,11 @@ sbox-cli/           the Bun workspace of sbox, the command line inside the sandb
 
 sbox-cli/sbox/      the core of sbox (TypeScript on Bun)
   src/api.ts        the command API that command kits import type-only
-  src/sbox.ts       the core: options, help, routing to the commands folder
+  src/sbox.ts       the core: options, help, usage and exit codes
+  src/installed-commands.ts  the installed commands: the overview and running one by
+                    name; the commands and state folders, loading and checking a module,
+                    the command's context, containing a broken command
+  src/style.ts      the text styling of the command API
   src/main.ts       the bundle entry: process arguments, environment and streams;
                     a closed stdout pipe ends sbox quietly
   src/testing.ts    the testing entry (sbox/testing): the command home for tests
