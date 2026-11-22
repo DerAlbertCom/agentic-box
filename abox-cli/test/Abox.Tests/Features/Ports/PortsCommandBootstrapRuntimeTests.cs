@@ -43,7 +43,7 @@ public sealed class PortsCommandBootstrapRuntimeTests
                     );
                 return await receiver.RunAsync(request, call.Arg<CancellationToken>());
             });
-        var client = new SbxDevelopmentCertificates(new SbxInvoker(runner));
+        var client = new SbxDevelopmentCertificates(runner);
         var exec = new SbxSandboxExec(runner);
         using var key = RSA.Create(2048);
         var certificateRequest = new CertificateRequest(

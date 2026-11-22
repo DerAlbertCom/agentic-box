@@ -166,7 +166,7 @@ again survived unchanged; task-owned sandbox cleanup returned 0.
 The probe checks chosen host ports are free before creation, refuses an existing
 workspace/sandbox, uses an already available local template with `--pull never`,
 and removes only its task-owned sandbox in `finally`. All sbx calls are argv lists
-through `SbxClient`. No install, registry publication, runtime restart/upgrade,
+through the `Infrastructure/Sbx` adapters. No install, registry publication, runtime restart/upgrade,
 global settings, certificate/trust mutation, real secrets, user sandbox or Deals
 application was involved. This is not an independent Unix-host sbx verification.
 

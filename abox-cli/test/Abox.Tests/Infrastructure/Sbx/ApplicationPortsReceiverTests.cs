@@ -12,7 +12,7 @@ public sealed class ApplicationPortsReceiverTests
         RequireSupportedReceiverFixture();
         using var root = new TempDirectory();
         using var source = new StreamReader(
-            typeof(SbxClient).Assembly.GetManifestResourceStream("Abox.ApplicationPortsRelay")!
+            typeof(SbxInvoker).Assembly.GetManifestResourceStream("Abox.ApplicationPortsRelay")!
         );
         var receiver = root.File("embedded receiver.py", await source.ReadToEndAsync());
         var checks = SyntheticTestResources.File("Verification/ApplicationPortsReceiverChecks.py");

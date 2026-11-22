@@ -1,6 +1,6 @@
 """Install one exact PUBLIC leaf in the selected sandbox's Debian-style store.
 
-This program is invoked only by SbxClient with root exec. It never receives a PFX,
+This program is invoked only by SbxDevelopmentCertificates with root exec. It never receives a PFX,
 password or private key, never installs packages, and never modifies host trust.
 """
 import fcntl

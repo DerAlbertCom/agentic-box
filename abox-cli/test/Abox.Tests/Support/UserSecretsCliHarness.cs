@@ -22,7 +22,6 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public TempDirectory Root { get; } = new();
     public TestConsole Console { get; } = new();
     public IPreflightChecks Preflight { get; } = ReadyPreflight.Checks();
-    public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public ISandboxUserSecrets UserSecrets { get; } = Substitute.For<ISandboxUserSecrets>();
     public string Location { get; }
@@ -67,7 +66,6 @@ internal sealed class UserSecretsCliHarness : IDisposable
                     Root.CreateDirectory("home")
                 )
         );
-        Services.AddSingleton(Sbx);
         Services.AddSingleton(Exec);
         Services.AddSingleton(UserSecrets);
         Services.AddSingleton(programs);

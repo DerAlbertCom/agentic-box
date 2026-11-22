@@ -981,7 +981,7 @@ native-store export fallback, automatic alternative identity or host trust chang
 is allowed. CLI pre/post checks cannot make concurrent store renewal/deletion
 atomic; see [the explicit CLI race contract](https-development-certificates.md).
 
-`SbxClient` activates unchanged encrypted PFX bytes at an owner-only runtime path
+`SbxDevelopmentCertificates` activates unchanged encrypted PFX bytes at an owner-only runtime path
 outside workspace/HOME/build mounts. Protected `config.json` fixes the canonical
 Kestrel path/password for subsequent launches. Stable password/path make renewal
 one atomic PFX replacement rather than mismatched independent file updates.
@@ -1301,8 +1301,8 @@ abox-cli/src/Abox/
     SecretRedactor.cs       credential collection and diagnostic redaction
     PrivateStagingException.cs  structural protected-staging failure classification
     TemporaryDirectory.cs   temporary working directories and their cleanup
-    Sbx/              every call to sbx: CLI arguments, settings and response models
-      SbxClient.cs    the public facade of the sbx calls not yet behind a use-case interface
+    Sbx/              every call to sbx: one adapter per use-case interface, each building
+                      its own SbxInvoker over the process runner
       SbxInvoker.cs   the executable name, the minimum version and version query, shared
                       captured execution, JSON and failure handling
       SbxPreflightChecks.cs  IPreflightChecks: on PATH, sbx version, sbx diagnose, sbx login
@@ -1329,6 +1329,7 @@ abox-cli/src/Abox/
       InstalledDevelopmentCertificateTools.cs  finds installed SDK dev-certs tools
       DevelopmentCertificateExport.cs  one correlated export into protected staging
       DevelopmentCertificateIdentity.cs  dev-certs identity report and PFX proof
+      DotnetUserSecretStores.cs  IHostUserSecretStores: the host's .NET user-secrets store layout
     Docker/           every call to docker, with list arguments and use-case failure messages
       DockerCommand.cs               runs docker; maps OCI manifests to RegistryManifest
       DockerWorkloadImages.cs        IWorkloadImageBuilder and ILocalWorkloadImageStore:
@@ -1336,8 +1337,6 @@ abox-cli/src/Abox/
       DockerRegistryPublisher.cs     IRegistryPublisher: buildx build --push, imagetools
       DockerPublishedImageReader.cs  IPublishedImageReader: imagetools inspect, pull, save;
                                      never echoes Docker output
-    Dotnet/
-      DotnetUserSecretStores.cs  IHostUserSecretStores: the host's .NET user-secrets store layout
     Shell/
       ShellKitBuildScript.cs  IKitBuildScript: runs build <stagedKitDir> in the kit's folder
       ShellFolderRealPath.cs  IFolderRealPath: bash pwd -P; final link target on Windows

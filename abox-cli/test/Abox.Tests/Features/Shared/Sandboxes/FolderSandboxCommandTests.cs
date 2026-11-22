@@ -206,7 +206,6 @@ public sealed class FolderSandboxCommandTests
                     Respond(call.Arg<ProcessRequest>(), call.Arg<CancellationToken>())
                 );
             Cli.Services.AddSingleton(runner);
-            Cli.Services.AddSingleton<ISbxClient, SbxClient>();
             Cli.Services.AddSingleton<
                 ISandboxDevelopmentCertificates,
                 SbxDevelopmentCertificates

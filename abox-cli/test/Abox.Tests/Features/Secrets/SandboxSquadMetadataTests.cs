@@ -2,7 +2,6 @@ using Abox.Features.Secrets;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Squads;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Tests;
 

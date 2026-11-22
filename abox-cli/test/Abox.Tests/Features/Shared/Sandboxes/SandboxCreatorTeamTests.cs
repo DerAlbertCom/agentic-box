@@ -15,7 +15,6 @@ public sealed class SandboxCreatorTeamTests
     private readonly SandboxCreatorFixture _fixture = new();
     private TempDirectory _root => _fixture.Root;
     private TestConsole _console => _fixture.Console;
-    private ISbxClient _sbx => _fixture.Sbx;
     private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
     private IMcpServerRegistry _mcp => _fixture.Mcp;
     private IPublishedSquadSource _published => _fixture.Published;
@@ -33,7 +32,6 @@ public sealed class SandboxCreatorTeamTests
     {
         // Arrange
         var teams = await BuildSharedSquadsAsync(reverse);
-        _sbx.ClearReceivedCalls();
 
         // Act
         foreach (var team in teams)
@@ -138,7 +136,6 @@ public sealed class SandboxCreatorTeamTests
         (await create.Should().ThrowAsync<AboxException>()).WithMessage(
             "*abox build --team sample --tag latest*"
         );
-        _sbx.ReceivedCalls().Should().BeEmpty();
         _lifecycle.ReceivedCalls().Should().BeEmpty();
         _mcp.ReceivedCalls().Should().BeEmpty();
         _records.Load(SandboxName.For(_root.Path)).Should().BeNull();

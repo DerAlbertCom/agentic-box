@@ -17,15 +17,12 @@ public sealed class AppPortsLifecycleTransportTests
         using var fixture = new AppPortsLifecycleFixture();
         fixture.Angular();
         var transport = new Transport(fixture);
-        fixture.Services.AddSingleton<ISbxClient>(
-            new SbxClient(transport.Runner, AboxPaths.For(fixture.Root.Path, fixture.Root.Path))
-        );
         fixture.Services.AddSingleton<ISandboxLifecycle>(new SbxSandboxLifecycle(transport.Runner));
         fixture.Services.AddSingleton<ISandboxInspection>(
             new SbxSandboxInspection(transport.Runner)
         );
         fixture.Services.AddSingleton<IApplicationPortPublisher>(
-            new SbxApplicationPorts(new SbxInvoker(transport.Runner))
+            new SbxApplicationPorts(transport.Runner)
         );
 
         // Act

@@ -82,10 +82,11 @@ CLI seam or adding behavior:
   uses `sandbox.Name` throughout the existing-sandbox path. No creator change is
   needed: `existing?.Name ?? SandboxName.For(location)` already short-circuits,
   deriving a new name only when no existing sandbox was selected.
-- Historical real-path I/O now lives privately in `SandboxResolver`; naming retains
-  only pure sanitization/hash logic. Windows final-link and Unix physical/fallback
-  behavior is unchanged, with no new public interface or general path abstraction.
-- `SandboxTest.Resolver` shares existing service-test construction, and
+- Historical real-path I/O now lives behind `IFolderRealPath`
+  (`Infrastructure/Shell/ShellFolderRealPath`); naming retains only pure
+  sanitization/hash logic. Windows final-link and Unix physical/fallback behavior
+  is unchanged.
+- `SandboxFactory.Resolver` shares existing service-test construction, and
   `LegacySandboxFixture` shares the independently sourced literal identity across
   the three compatibility suites. No command coverage or historical fixture case
   was removed, and expected legacy identities never call the production helper.

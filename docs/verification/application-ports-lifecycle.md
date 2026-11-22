@@ -6,7 +6,7 @@ Implementation builds on `7274f59a5d6c3d94db922f86c53f616b493f6fa6` and reuses
 the existing `ApplicationPorts`, development HTTPS and sbx modules. The agreed test
 seams are composed create/run commands through real shared lifecycle/orchestration,
 with synthetic host files/certificate CLI output and substituted external adapters;
-one transport test also uses the real `SbxClient` with a substituted process runner.
+one transport test also uses the real `Infrastructure/Sbx` adapters with a substituted process runner.
 
 This is not evidence of registry publication, a new Linux host, real-host renewal,
 or a new browser/Herdr run. #46's [Windows acceptance clarification](https://github.com/DerAlbertCom/agentic-box/issues/46#issuecomment-6918879462)
@@ -95,7 +95,7 @@ The first verdict was **worse** (the enlarged creator method and mechanical test
 constructor injections). Cohesive extraction of required user-secret reporting and
 small touched-fixture construction helpers removed all worsened existing findings.
 The repeated verdict was **better**, eight existing files improved; production
-`AppPorts` **8.1 → 9.2**, `SandboxCreator` **6.6 → 7.1**, `DevelopmentHttps` **10 → 10**.
+`AppPorts` **8.1 → 9.2**, `SandboxCreator` **6.6 → 7.1**, `DevelopmentHttps` (now `SandboxHttps`) **10 → 10**.
 New matrix tests retain warnings for long arrange/assert blocks and boolean theory
 inputs; the new critical-length retry test was shortened to a warning. This is not
 a claim of a smell-free repository, nor a blanket refactor of unrelated debt.
@@ -105,7 +105,7 @@ a claim of a smell-free repository, nor a blanket refactor of unrelated debt.
 **This is synthetic live lifecycle/transport evidence, not a production host-export
 or browser-trust acceptance run.** An ad-hoc helper outside the repository referenced
 the exact committed product project. Its composed `AboxRootCommand` used the real
-`SandboxCreator`, `AppPorts`, `DevelopmentHttps` and `SbxClient`. To stay within the
+`SandboxCreator`, `AppPorts`, `SandboxHttps` and the `Infrastructure/Sbx` adapters. To stay within the
 authorization boundary, it substituted only:
 
 - Published squad metadata with synthetic empty state/MCP metadata, and the

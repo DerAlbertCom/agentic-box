@@ -6,7 +6,6 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -29,7 +28,6 @@ public sealed class BuildCommandTests
         var preflight = Substitute.For<IPreflightChecks>();
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
-        var sbx = Substitute.For<ISbxClient>();
         var config = new AboxConfig();
         var paths = AboxPaths.For(
             Path.Combine(root.Path, "config"),
@@ -83,6 +81,5 @@ public sealed class BuildCommandTests
         preflight.ReceivedCalls().Should().BeEmpty();
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
-        sbx.ReceivedCalls().Should().BeEmpty();
     }
 }

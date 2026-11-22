@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -115,7 +114,6 @@ public sealed class PortsCommandSandboxLookupTests
                 return new ProcessResult(0, output, "");
             });
         cli.Services.AddSingleton(runner);
-        cli.Services.AddSingleton<ISbxClient, SbxClient>();
         return calls;
     }
 }

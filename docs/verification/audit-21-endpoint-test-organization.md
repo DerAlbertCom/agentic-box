@@ -199,8 +199,8 @@ reread the complete #21/#35 bodies and empty comment lists through `gh issue vie
 This focused follow-up resolves the same S1/S2 gap reported by both final reviews:
 the two endpoint-generation theories still at the test-project root.
 
-- Moved the root `UserSecretsLifecycleTests.cs` to
-  `abox-cli/test/Abox.Tests/UserSecrets/UserSecretsLifecycleTests.EndpointGeneration.cs`.
+- Moved the two root endpoint-generation theories to what is now
+  `abox-cli/test/Abox.Tests/Features/Shared/Sandboxes/UserSecretsLifecycleEndpointGenerationTests.cs`.
   These cross-command create/replacement cases protect the shared user-secret flow,
   beside the existing selection/lifecycle partial and its private fixture.
 - Added explicit Arrange/Act/Assert markers to both methods. In the malformed-input
@@ -215,7 +215,7 @@ the two endpoint-generation theories still at the test-project root.
   replacement/copy and value-free project/appsettings diagnostics.
 - Reversing only the phase comments and named exit local makes the moved source
   identical to the original, ignoring blank lines. SHA-256 checks confirm the
-  existing `UserSecrets/UserSecretsLifecycleTests.cs`, transport `ShellSandbox`,
+  existing `Features/Shared/Sandboxes/UserSecretsLifecycleTests.cs`, transport `ShellSandbox`,
   receiver safety suite and both worktree/original launcher scripts are unchanged.
 
 ### Discovery, runtime metadata and skips

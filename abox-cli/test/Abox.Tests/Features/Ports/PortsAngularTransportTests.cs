@@ -67,9 +67,7 @@ public sealed class PortsAngularTransportTests
             .Services.AddSingleton(new AboxConfig { DefaultLocation = location })
             .AddSingleton(runner)
             .AddSingleton(programs)
-            .AddSingleton<IApplicationPortPublisher>(
-                new SbxApplicationPorts(new SbxInvoker(runner))
-            );
+            .AddSingleton<IApplicationPortPublisher>(new SbxApplicationPorts(runner));
         var provider = application.Provider;
 
         // Act

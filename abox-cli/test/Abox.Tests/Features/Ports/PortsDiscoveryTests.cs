@@ -1,6 +1,5 @@
 using Abox.Features.Shared.ApplicationPorts;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 

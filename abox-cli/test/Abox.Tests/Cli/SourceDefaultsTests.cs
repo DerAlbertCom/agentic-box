@@ -2,7 +2,6 @@ using Abox.Cli;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -23,7 +22,6 @@ public sealed class SourceDefaultsTests
         var console = new TestConsole();
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
-        var sbx = Substitute.For<ISbxClient>();
         using var application = new CliTestApplication(
             console,
             AboxPaths.For(root.Path, root.Path),
@@ -33,7 +31,6 @@ public sealed class SourceDefaultsTests
         services.AddSingleton(new AboxConfig());
         services.AddSingleton(programs);
         services.AddSingleton(runner);
-        services.AddSingleton(sbx);
         var provider = application.Provider;
 
         // Act
@@ -48,7 +45,6 @@ public sealed class SourceDefaultsTests
             );
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
-        sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]

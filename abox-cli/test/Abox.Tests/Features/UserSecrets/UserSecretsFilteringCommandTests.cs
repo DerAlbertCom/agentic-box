@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -123,7 +122,6 @@ public sealed class UserSecretsFilteringCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Writes.Should().BeEmpty();
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
         fixture.Console.AllText.Should().NotBeNullOrWhiteSpace();
         fixture.Console.AllText.Should().NotContain("synthetic-private");
@@ -200,7 +198,6 @@ public sealed class UserSecretsFilteringCommandTests
 
         // Arrange
         fixture.Writes.Clear();
-        fixture.Sbx.ClearReceivedCalls();
         fixture.UserSecrets.ClearReceivedCalls();
         fixture.Store("later", """{"Safe":"https://PROD.EXAMPLE/synthetic-selected"}""");
 
@@ -221,7 +218,6 @@ public sealed class UserSecretsFilteringCommandTests
         else
         {
             fixture.Writes.Should().BeEmpty();
-            fixture.Sbx.ReceivedCalls().Should().BeEmpty();
             fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
             fixture
                 .Console.AllText.Should()
@@ -254,7 +250,6 @@ public sealed class UserSecretsFilteringCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Writes.Should().BeEmpty();
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
         fixture.Console.AllText.Should().Contain("later").And.NotContain("synthetic-");
     }
@@ -368,7 +363,6 @@ public sealed class UserSecretsFilteringCommandTests
         private readonly UserSecretsCliHarness cli;
         public TempDirectory Root => cli.Root;
         public TestConsole Console => cli.Console;
-        public ISbxClient Sbx => cli.Sbx;
         public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
         public List<(string Id, string Json)> Writes { get; } = [];
 

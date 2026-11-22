@@ -94,10 +94,6 @@ public static class AboxServiceCollection
         services.AddSingleton<IRegistryPublisher, DockerRegistryPublisher>();
         services.AddSingleton<IPublishedImageReader, DockerPublishedImageReader>();
         services.AddSingleton<IHostPrograms, HostPrograms>();
-        services.AddSingleton<ISbxClient, SbxClient>();
-        services.AddSingleton(provider => new SbxInvoker(
-            provider.GetRequiredService<IProcessRunner>()
-        ));
         services.AddSingleton<IApplicationPortPublisher, SbxApplicationPorts>();
         services.AddSingleton<ISandboxCleanup, SbxSandboxCleanup>();
         services.AddSingleton<ISandboxExec, SbxSandboxExec>();

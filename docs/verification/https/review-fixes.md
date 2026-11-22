@@ -17,7 +17,7 @@ user `run-abox.ps1`, credentials and global settings were not changed.
 ## Production contract fixed
 
 - Activation extracts only the exact public leaf from the already-validated
-  encrypted PFX. `SbxClient` sends **public PEM only** through root exec to the
+  encrypted PFX. `SbxDevelopmentCertificates` sends **public PEM only** through root exec to the
   existing Debian-style system store/updater. PFX/password stay on the separate
   sensitive non-root transfer. Unsupported stores fail without package installs.
 - Root-owned narrow directory/file, ordinary files, strict ownership/modes,
@@ -53,7 +53,7 @@ user `run-abox.ps1`, credentials and global settings were not changed.
 
 ## Red → green evidence
 
-Public seams: production `SbxClient` requests/orchestration, executable receiver /
+Public seams: production `SbxDevelopmentCertificates` requests/orchestration, executable receiver /
 exec protocol in isolated Linux processes, static discovery and host export.
 
 1. A real `yes | head` / `pipefail` test failed with exit **1** and Broken pipe;

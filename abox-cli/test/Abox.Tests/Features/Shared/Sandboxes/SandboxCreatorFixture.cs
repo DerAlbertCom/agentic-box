@@ -5,7 +5,6 @@ using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -14,7 +13,6 @@ internal sealed class SandboxCreatorFixture
 {
     internal TempDirectory Root { get; } = new();
     internal TestConsole Console { get; } = new();
-    internal ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     internal IHostSecretStore HostSecrets { get; } = TestServiceGraphs.HostSecretStore();
     internal ICredentialApprovals Approvals { get; } = Substitute.For<ICredentialApprovals>();
     internal ISandboxLifecycle Lifecycle { get; } = Substitute.For<ISandboxLifecycle>();
@@ -50,7 +48,6 @@ internal sealed class SandboxCreatorFixture
         TestServiceGraphs.Creator(
             Records,
             Paths,
-            Sbx,
             Lifecycle,
             Mcp,
             Console,

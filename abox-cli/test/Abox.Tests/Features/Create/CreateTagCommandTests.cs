@@ -8,7 +8,6 @@ using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -44,7 +43,6 @@ public sealed class CreateTagCommandTests
         var preflight = Substitute.For<IPreflightChecks>();
         var programs = Substitute.For<IHostPrograms>();
         var runner = Substitute.For<IProcessRunner>();
-        var sbx = Substitute.For<ISbxClient>();
         var lifecycle = Substitute.For<ISandboxLifecycle>();
         var kitSources = Substitute.For<IKitSourceTrust>();
         var published = Substitute.For<IPublishedSquadSource>();
@@ -56,7 +54,6 @@ public sealed class CreateTagCommandTests
                 TestServiceGraphs.Creator(
                     new SandboxRecordStore(paths),
                     paths,
-                    sbx,
                     lifecycle,
                     Substitute.For<IMcpServerRegistry>(),
                     console,
@@ -90,7 +87,6 @@ public sealed class CreateTagCommandTests
         preflight.ReceivedCalls().Should().BeEmpty();
         programs.ReceivedCalls().Should().BeEmpty();
         runner.ReceivedCalls().Should().BeEmpty();
-        sbx.ReceivedCalls().Should().BeEmpty();
         lifecycle.ReceivedCalls().Should().BeEmpty();
         kitSources.ReceivedCalls().Should().BeEmpty();
         published.ReceivedCalls().Should().BeEmpty();

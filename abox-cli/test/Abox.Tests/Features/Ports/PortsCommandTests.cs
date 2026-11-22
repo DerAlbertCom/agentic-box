@@ -82,7 +82,6 @@ public sealed class PortsCommandTests
         // Assert
         exit.Should().Be(1);
         fixture.Console.AllText.Should().Contain("portOffset").And.Contain("integer");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]

@@ -3,7 +3,6 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -27,7 +26,6 @@ public sealed class CommandLocationTests
         };
         var location = explicitLocation ? root.CreateDirectory("explicit") : null;
         var expected = location ?? config.DefaultLocation ?? Directory.GetCurrentDirectory();
-        var sbx = Substitute.For<ISbxClient>();
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists(Arg.Any<string>()).Returns(true);
         var paths = AboxPaths.For(root.Path, root.Path);
@@ -41,7 +39,6 @@ public sealed class CommandLocationTests
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(new SandboxCreation(""));
         application.Services.AddSingleton(new Lazy<AboxConfig>(() => config));
-        application.Services.AddSingleton(sbx);
         application.Services.AddSingleton(programs);
         application.Services.AddSingleton(ReadyPreflight.Checks());
         application.Services.AddSingleton(PublishedSquadFactory.Source());

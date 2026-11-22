@@ -6,7 +6,6 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -14,7 +13,6 @@ namespace Abox.Tests;
 public sealed class BuildMcpValidationTests : IDisposable
 {
     private readonly TempDirectory _root = new();
-    private readonly ISbxClient _sbx = Substitute.For<ISbxClient>();
     private readonly IProcessRunner _runner = LocalWorkloadFactory.Runner();
     private readonly TestConsole _console = new();
     private readonly AboxPaths _paths;
@@ -79,7 +77,6 @@ public sealed class BuildMcpValidationTests : IDisposable
         if (origin == "base")
             _root.File("teams/sample/ac.abox", "base: base\n");
         _runner.ClearReceivedCalls();
-        _sbx.ClearReceivedCalls();
 
         // Act
         var exitCode = await BuildAsync(metadataOnly);
@@ -104,7 +101,6 @@ public sealed class BuildMcpValidationTests : IDisposable
             .Should()
             .BeEquivalentTo(before, "a failed build must preserve previous output");
         _runner.ReceivedCalls().Should().BeEmpty();
-        _sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     public static IEnumerable<object[]> UnsupportedDeclarations()
@@ -174,7 +170,6 @@ public sealed class BuildMcpValidationTests : IDisposable
             .And.Contain(Path.GetFullPath(other));
         Directory.Exists(_paths.StateDirectory).Should().BeFalse();
         _runner.ReceivedCalls().Should().BeEmpty();
-        _sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     [Theory]
@@ -205,7 +200,6 @@ public sealed class BuildMcpValidationTests : IDisposable
             .And.NotContain("password");
         Directory.Exists(_paths.StateDirectory).Should().BeFalse();
         _runner.ReceivedCalls().Should().BeEmpty();
-        _sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     private Task<int> BuildAsync(bool metadataOnly)

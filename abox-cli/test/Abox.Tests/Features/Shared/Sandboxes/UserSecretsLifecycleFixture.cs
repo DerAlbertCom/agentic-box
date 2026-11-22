@@ -6,7 +6,6 @@ using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -18,7 +17,6 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
     public TempDirectory Root => cli.Root;
     public TestConsole Console => cli.Console;
     public IPreflightChecks Preflight => cli.Preflight;
-    public ISbxClient Sbx => cli.Sbx;
     public ISandboxLifecycle Lifecycle => cli.Lifecycle;
     public ISandboxInspection Inspection => cli.Inspection;
     public ISandboxExec Exec => cli.Exec;

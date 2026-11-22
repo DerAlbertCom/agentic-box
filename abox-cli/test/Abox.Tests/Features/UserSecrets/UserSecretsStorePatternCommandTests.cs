@@ -33,7 +33,6 @@ public sealed class UserSecretsStorePatternCommandTests
             .Contain("Cape.Z")
             .And.Contain("existence")
             .And.NotContain("No user-secret stores selected");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -196,7 +195,6 @@ public sealed class UserSecretsStorePatternCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("collide case-insensitively");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -218,7 +216,6 @@ public sealed class UserSecretsStorePatternCommandTests
 
         // Assert
         exitCode.Should().Be(1);
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -237,7 +234,6 @@ public sealed class UserSecretsStorePatternCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("Unsafe user-secret ID pattern");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -271,7 +267,6 @@ public sealed class UserSecretsStorePatternCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("missing").And.Contain("permissions");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -288,7 +283,6 @@ public sealed class UserSecretsStorePatternCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("duplicate");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -306,7 +300,6 @@ public sealed class UserSecretsStorePatternCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("Unsafe user-secret ID");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -396,7 +389,6 @@ public sealed class UserSecretsStorePatternCommandTests
         // Assert
         exitCode.Should().Be(1);
         fixture.Console.AllText.Should().Contain("Unsafe user-secret ID pattern");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -420,7 +412,6 @@ public sealed class UserSecretsStorePatternCommandTests
             .Console.AllText.Should()
             .Contain("Unsafe user-secret ID")
             .And.NotContain("unsafe-synthetic");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
         fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -455,7 +446,6 @@ public sealed class UserSecretsStorePatternCommandTests
         }
         else
         {
-            fixture.Sbx.ReceivedCalls().Should().BeEmpty();
             fixture.UserSecrets.ReceivedCalls().Should().BeEmpty();
             fixture
                 .Console.AllText.Should()

@@ -6,7 +6,7 @@ Implemented only the explicit case-insensitive effective pair
 `Database_Config:Host` + `Database_Config:Port`, through existing preparation and
 copying. The confirmed primary seam is the real `user-secrets` CLI command with
 `UserSecretsCliHarness`, temporary synthetic workspace/host files and substituted
-`ISbxClient`; output assertions inspect the emitted sandbox secrets JSON.
+`ISandboxUserSecrets`; output assertions inspect the emitted sandbox secrets JSON.
 No developer secret stores or live services were read or required.
 
 ## TDD evidence

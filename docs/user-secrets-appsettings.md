@@ -217,7 +217,7 @@ use the printed retry command, not another recreation.
 Normal and verbose diagnostics identify stores, escaped effective key names and
 project paths/reasons, never endpoint values, credentials or sensitive URI parts.
 Configuration tests use only temporary synthetic sources and a substituted
-`ISbxClient` through the existing CLI command seam. They prove configuration
+`ISandboxUserSecrets` through the existing CLI command seam. They prove configuration
 output and safety, not database authentication, service readiness or an independent
 live sandbox run. Existing [policy/transport verification limits](verification/user-secrets/README.md)
 are unchanged.

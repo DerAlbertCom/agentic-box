@@ -6,7 +6,6 @@ using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -15,7 +14,6 @@ internal sealed class RunFlowFixture
 {
     internal TempDirectory Root { get; } = new();
     internal TestConsole Console { get; } = new();
-    internal ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     internal ISandboxLifecycle Lifecycle { get; } = Substitute.For<ISandboxLifecycle>();
     internal IMcpServerRegistry Mcp { get; } = Substitute.For<IMcpServerRegistry>();
     internal ISandboxInspection Inspection { get; } = Substitute.For<ISandboxInspection>();
@@ -42,7 +40,6 @@ internal sealed class RunFlowFixture
         Create = TestServiceGraphs.Creator(
             Records,
             Paths,
-            Sbx,
             Lifecycle,
             Mcp,
             Console,

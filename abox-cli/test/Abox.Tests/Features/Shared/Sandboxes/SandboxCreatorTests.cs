@@ -23,7 +23,6 @@ public sealed class SandboxCreatorTests
     private readonly SandboxCreatorFixture _fixture = new();
     private TempDirectory _root => _fixture.Root;
     private TestConsole _console => _fixture.Console;
-    private ISbxClient _sbx => _fixture.Sbx;
     private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
     private IMcpServerRegistry _mcp => _fixture.Mcp;
     private IKitSourceTrust _kitSources => _fixture.KitSources;
@@ -735,7 +734,6 @@ public sealed class SandboxCreatorTests
         programs.ReceivedCalls().Should().BeEmpty();
 
         // Arrange
-        _sbx.ClearReceivedCalls();
         _lifecycle.ClearReceivedCalls();
         _mcp.ClearReceivedCalls();
 
@@ -747,7 +745,6 @@ public sealed class SandboxCreatorTests
         (await local.Should().ThrowAsync<AboxException>()).WithMessage(
             "*no prebuilt local workload*abox build --team sample --tag latest*without --metadata-only*"
         );
-        _sbx.ReceivedCalls().Should().BeEmpty();
         _lifecycle.ReceivedCalls().Should().BeEmpty();
         _mcp.ReceivedCalls().Should().BeEmpty();
     }
@@ -812,7 +809,6 @@ public sealed class SandboxCreatorTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*republish*");
         // Only repository trust may be updated before published metadata is validated.
         _kitSources.ReceivedCalls().Should().ContainSingle();
-        _sbx.ReceivedCalls().Should().BeEmpty();
         _mcp.ReceivedCalls().Should().BeEmpty();
         _lifecycle.ReceivedCalls().Should().BeEmpty();
         _records.Load(name).Should().BeNull();

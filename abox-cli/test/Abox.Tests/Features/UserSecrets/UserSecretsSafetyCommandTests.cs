@@ -3,7 +3,6 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -148,7 +147,6 @@ public sealed class UserSecretsSafetyCommandTests
         public TempDirectory Root => cli.Root;
         public TestConsole Console => cli.Console;
         public IPreflightChecks Preflight => cli.Preflight;
-        public ISbxClient Sbx => cli.Sbx;
         public ISandboxUserSecrets UserSecrets => cli.UserSecrets;
         public ISandboxLifecycle Lifecycle => cli.Lifecycle;
         public string SourcePath =>

@@ -20,7 +20,6 @@ public sealed class PortsCommandBootstrapTests
             .Console.AllText.Should()
             .Contain("cannot be combined")
             .And.Contain("changes no ports");
-        fixture.Sbx.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

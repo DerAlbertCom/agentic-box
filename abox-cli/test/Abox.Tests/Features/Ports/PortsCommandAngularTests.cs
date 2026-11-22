@@ -1,5 +1,4 @@
 using Abox.Features.Shared.ApplicationPorts;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;

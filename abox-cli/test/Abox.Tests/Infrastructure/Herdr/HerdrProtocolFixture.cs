@@ -4,7 +4,6 @@ using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Dotnet;
 using Abox.Infrastructure.Herdr;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -12,7 +11,6 @@ namespace Abox.Tests;
 internal sealed class HerdrProtocolFixture
 {
     internal IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
-    internal ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     internal ISandboxExec Exec { get; } = SandboxFactory.Exec();
     internal TestConsole Console { get; } = new();
     internal HerdrAppLauncher Launcher => new(Runner, Console);

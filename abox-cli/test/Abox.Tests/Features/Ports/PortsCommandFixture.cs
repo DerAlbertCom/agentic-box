@@ -19,7 +19,6 @@ internal sealed class PortsCommandFixture : IDisposable
     public TempDirectory Root { get; } = new();
     public TestConsole Console { get; } = new();
     public IPreflightChecks Preflight { get; } = ReadyPreflight.Checks();
-    public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     public IApplicationPortPublisher Publisher => application.Publisher;
     public ISandboxDevelopmentCertificates Certificates => application.Certificates;
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
@@ -44,9 +43,6 @@ internal sealed class PortsCommandFixture : IDisposable
         );
         application
             .Services.AddSingleton(config ?? new AboxConfig { DefaultLocation = Location })
-            .AddSingleton<ISbxClient>(
-                runner is null ? Sbx : new SbxClient(runner, AboxPaths.For(Root.Path, Root.Path))
-            )
             .AddSingleton<ISandboxExec>(runner is null ? Exec : new SbxSandboxExec(runner))
             .AddSingleton(programs)
             .AddSingleton(Preflight);
@@ -61,11 +57,9 @@ internal sealed class PortsCommandFixture : IDisposable
         {
             application.Services.AddSingleton<ISandboxLifecycle>(new SbxSandboxLifecycle(runner));
             application
-                .Services.AddSingleton<IApplicationPortPublisher>(
-                    new SbxApplicationPorts(new SbxInvoker(runner))
-                )
+                .Services.AddSingleton<IApplicationPortPublisher>(new SbxApplicationPorts(runner))
                 .AddSingleton<ISandboxDevelopmentCertificates>(
-                    new SbxDevelopmentCertificates(new SbxInvoker(runner))
+                    new SbxDevelopmentCertificates(runner)
                 );
         }
         if (exporter is not null)

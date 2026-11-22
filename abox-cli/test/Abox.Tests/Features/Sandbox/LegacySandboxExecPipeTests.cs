@@ -1,6 +1,5 @@
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Sandboxes;
-using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
