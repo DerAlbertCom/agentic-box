@@ -46,15 +46,6 @@ public interface ISbxClient
     Task<SbxOutcome> RemoveSandboxAsync(string name, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Runs a command in the sandbox. Every exec carries the protected HTTPS bootstrap: when
-    /// the Sandbox has a protected HTTPS runtime, the verified reader sets the Kestrel
-    /// certificate and Node extra-CA environment first; a missing, changed or refusing
-    /// reader fails closed with its exit code (78 when unverifiable) and the command does
-    /// not run. Without a runtime the command runs unchanged.
-    /// </summary>
-    Task<int> ExecAsync(SbxExecRequest request, CancellationToken cancellationToken);
-
-    /// <summary>
     /// Reads every staged kit descriptor and the bundled squad metadata of a sandbox in one
     /// exec, starting the sandbox when it is stopped.
     /// </summary>

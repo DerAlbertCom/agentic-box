@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -42,6 +43,7 @@ public sealed class PortsCommandBootstrapRuntimeTests
                 return await receiver.RunAsync(request, call.Arg<CancellationToken>());
             });
         var client = new SbxClient(runner, AboxPaths.For(fixture.Root.Path, fixture.Root.Path));
+        var exec = new SbxSandboxExec(runner);
         using var key = RSA.Create(2048);
         var certificateRequest = new CertificateRequest(
             "CN=localhost",
@@ -67,8 +69,13 @@ public sealed class PortsCommandBootstrapRuntimeTests
             bootstrap,
             $"open({System.Text.Json.JsonSerializer.Serialize(marker)}, 'w').write('unsafe')"
         );
-        (await client.ExecAsync(new SbxExecRequest(fixture.Name, ["true"]), CancellationToken.None))
-            .Should()
+        (
+            await exec.RunAsync(
+                new SandboxExecRequest(fixture.Name, ["true"]),
+                CancellationToken.None
+            )
+        )
+            .ExitCode.Should()
             .Be(78);
         var retained = Directory
             .GetFiles(runtime)
@@ -96,8 +103,8 @@ public sealed class PortsCommandBootstrapRuntimeTests
                 || call.Arguments.Contains("--publish")
             );
         (
-            await client.ExecAsync(
-                new SbxExecRequest(
+            await exec.RunAsync(
+                new SandboxExecRequest(
                     fixture.Name,
                     [
                         "sh",
@@ -111,7 +118,7 @@ public sealed class PortsCommandBootstrapRuntimeTests
                 CancellationToken.None
             )
         )
-            .Should()
+            .ExitCode.Should()
             .Be(0);
     }
 }

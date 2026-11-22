@@ -88,6 +88,7 @@ public static class AboxServiceCollection
         ));
         services.AddSingleton<IApplicationPortPublisher, SbxApplicationPorts>();
         services.AddSingleton<ISandboxCleanup, SbxSandboxCleanup>();
+        services.AddSingleton<ISandboxExec, SbxSandboxExec>();
         services.AddSingleton(UserSecretsHost.Create());
         services.AddSingleton<UserSecretsCopy>();
         services.AddSingleton<AppPorts>();

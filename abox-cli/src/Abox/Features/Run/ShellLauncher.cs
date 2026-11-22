@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Launchers;
+using Abox.Features.Shared.Sandboxes;
 
 namespace Abox.Features.Run;
 
@@ -22,8 +23,7 @@ public sealed class ShellLauncher : ILauncher
         return session.ExecAsync(
             command,
             cancellationToken,
-            allocateTty: true,
-            keepStandardInputOpen: true,
+            SandboxExecInput.Terminal,
             workingDirectory: session.WorkspacePath
         );
     }

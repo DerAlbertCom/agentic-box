@@ -17,6 +17,7 @@ public sealed class RunFlowTests
     private TempDirectory _root => _fixture.Root;
     private TestConsole _console => _fixture.Console;
     private ISbxClient _sbx => _fixture.Sbx;
+    private ISandboxExec _exec => _fixture.Exec;
     private RunFlow _service => _fixture.Service;
     private BuildStore _store => _fixture.Store;
     private SandboxRecordStore _records => _fixture.Records;
@@ -40,12 +41,13 @@ public sealed class RunFlowTests
 
         // Assert
         exitCode.Should().Be(0);
-        await _sbx.Received(1)
-            .ExecAsync(
-                Arg.Is<SbxExecRequest>(request =>
+        await _exec
+            .Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request =>
                     request.Command.SequenceEqual(new[] { "bash", "-l" })
                     && request.WorkingDirectory == "/home/agent/workspace"
-                    && request.AllocateTty
+                    && request.Input == SandboxExecInput.Terminal
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -64,9 +66,10 @@ public sealed class RunFlowTests
         await _service.RunAsync(new RunRequest("shell", _root.Path, []), CancellationToken.None);
 
         // Assert
-        await _sbx.Received(1)
-            .ExecAsync(
-                Arg.Is<SbxExecRequest>(request => request.WorkingDirectory == _root.Path),
+        await _exec
+            .Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request => request.WorkingDirectory == _root.Path),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -86,9 +89,10 @@ public sealed class RunFlowTests
         );
 
         // Assert
-        await _sbx.Received(1)
-            .ExecAsync(
-                Arg.Is<SbxExecRequest>(request =>
+        await _exec
+            .Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request =>
                     request.Command.SequenceEqual(new[] { "ls", "-la" })
                 ),
                 Arg.Any<CancellationToken>()
@@ -113,8 +117,9 @@ public sealed class RunFlowTests
             .And.Contain("--squad <name>")
             .And.Contain("--team sample")
             .And.Contain("replace <name> placeholders");
-        await _sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+        await _exec
+            .DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -167,7 +172,8 @@ public sealed class RunFlowTests
             _records,
             _create,
             _sbx,
-            SandboxFactory.Https(_sbx, _console),
+            _exec,
+            SandboxFactory.Https(_sbx, _exec, _console),
             SandboxFactory.Resolver(_sbx, SandboxFactory.Hints(config, _store, _records)),
             SandboxFactory.Hints(config, _store, _records),
             Substitute.For<IHostPrograms>(),
@@ -295,7 +301,8 @@ public sealed class RunFlowTests
             _records,
             _create,
             _sbx,
-            SandboxFactory.Https(_sbx, _console),
+            _exec,
+            SandboxFactory.Https(_sbx, _exec, _console),
             SandboxFactory.Resolver(_sbx, SandboxFactory.Hints(new AboxConfig(), _store, _records)),
             SandboxFactory.Hints(new AboxConfig(), _store, _records),
             Substitute.For<IHostPrograms>(),
@@ -471,7 +478,9 @@ public sealed class RunFlowTests
         _console.AllText.Should().NotContain("newer build");
         await _sbx.DidNotReceive()
             .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _sbx.Received(1).ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+        await _exec
+            .Received(1)
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

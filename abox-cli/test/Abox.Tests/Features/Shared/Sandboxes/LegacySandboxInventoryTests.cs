@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,9 +45,9 @@ public sealed class LegacySandboxInventoryTests
         // Assert
         exitCode.Should().Be(0);
         await cli
-            .Sbx.Received(1)
-            .ExecAsync(
-                Arg.Is<SbxExecRequest>(request =>
+            .Exec.Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request =>
                     request.Sandbox == (explicitLocation ? otherName : LegacySandboxFixture.Name)
                 ),
                 Arg.Any<CancellationToken>()

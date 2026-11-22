@@ -1,4 +1,5 @@
 using Abox.Features.Shared.ApplicationPorts;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -87,8 +88,8 @@ public sealed class AppPortsLifecycleTests
             .And.NotContain("Created sandbox '")
             .And.NotContain("Open it with");
         await fixture
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]

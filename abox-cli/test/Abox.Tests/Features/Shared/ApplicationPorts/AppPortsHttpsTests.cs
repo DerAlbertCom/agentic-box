@@ -63,7 +63,7 @@ public sealed class AppPortsHttpsTests
         var ports = new AppPorts(
             Substitute.For<IApplicationPortPublisher>(),
             console,
-            new SandboxHttps(exporter, sbx, console)
+            new SandboxHttps(exporter, sbx, SandboxFactory.Exec(), console)
         );
 
         // Act

@@ -238,8 +238,8 @@ public sealed class RunRecoveryHintTests
         fixture.Cli.Root.File("builds/recorded/ac/release/build.json", metadata);
         fixture.Cli.ExistingSandbox();
         fixture
-            .Cli.Sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>())
-            .Returns(23);
+            .Cli.Exec.RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxExecOutcome(23));
 
         // Act
         var exitCode = await fixture.Run(false);

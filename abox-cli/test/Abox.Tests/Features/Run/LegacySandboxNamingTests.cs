@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -45,9 +46,9 @@ public sealed class LegacySandboxNamingTests
         // Assert
         exitCode.Should().Be(0, cli.Console.AllText);
         await cli
-            .Sbx.Received(1)
-            .ExecAsync(
-                Arg.Is<SbxExecRequest>(request => request.Sandbox == expectedName),
+            .Exec.Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request => request.Sandbox == expectedName),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -80,9 +81,9 @@ public sealed class LegacySandboxNamingTests
             // Assert
             exitCode.Should().Be(0, cli.Console.AllText);
             await cli
-                .Sbx.Received(1)
-                .ExecAsync(
-                    Arg.Is<SbxExecRequest>(request => request.Sandbox == expectedName),
+                .Exec.Received(1)
+                .RunAsync(
+                    Arg.Is<SandboxExecRequest>(request => request.Sandbox == expectedName),
                     Arg.Any<CancellationToken>()
                 );
         }

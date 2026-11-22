@@ -1,6 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Abox.Features.Shared.ApplicationPorts;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -166,11 +167,11 @@ public sealed class AppPortsLifecycleHttpsTests
         certificate.Renew();
         fixture.Existing();
         fixture
-            .Sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>())
+            .Exec.RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 installed.Should().HaveCount(2);
-                return 0;
+                return new SandboxExecOutcome(0);
             });
 
         // Act

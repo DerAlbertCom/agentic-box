@@ -16,6 +16,7 @@ internal sealed class RunFlowFixture
     internal TempDirectory Root { get; } = new();
     internal TestConsole Console { get; } = new();
     internal ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
+    internal ISandboxExec Exec { get; } = SandboxFactory.Exec();
     internal RunFlow Service { get; }
     internal AboxPaths Paths { get; }
     internal BuildStore Store { get; }
@@ -52,13 +53,13 @@ internal sealed class RunFlowFixture
             Records,
             Create,
             Sbx,
-            SandboxFactory.Https(Sbx, Console),
+            Exec,
+            SandboxFactory.Https(Sbx, Exec, Console),
             SandboxFactory.Resolver(Sbx, SandboxFactory.Hints(Config, Store, Records)),
             SandboxFactory.Hints(Config, Store, Records),
             hostPrograms,
             Console
         );
-        Sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>()).Returns(0);
         Sbx.HasProgramAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
     }

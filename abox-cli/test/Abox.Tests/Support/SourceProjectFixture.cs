@@ -3,6 +3,7 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -88,6 +89,7 @@ internal sealed class SourceProjectFixture : IDisposable
         services.AddSingleton(Programs);
         services.AddSingleton(Runner);
         services.AddSingleton(Sbx);
+        services.AddSingleton(Exec);
         _ = _application.Provider;
     }
 
@@ -96,6 +98,7 @@ internal sealed class SourceProjectFixture : IDisposable
     public IHostPrograms Programs { get; } = Substitute.For<IHostPrograms>();
     public IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
+    public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public string ProjectDirectory { get; }
     public string NestedDirectory { get; }
     public string Workspace { get; }

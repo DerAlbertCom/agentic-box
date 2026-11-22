@@ -1,7 +1,7 @@
 using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Sandbox;
 
@@ -12,7 +12,7 @@ namespace Abox.Features.Sandbox;
 /// </summary>
 public sealed class PipeCommand : Command
 {
-    public PipeCommand(ISbxClient sbx, TrailingArguments trailing, IConsole console)
+    public PipeCommand(ISandboxExec exec, TrailingArguments trailing, IConsole console)
         : base("pipe", "Run a command in a sandbox, with the standard streams attached.") =>
-        SandboxCommand.Configure(this, sbx, trailing, console, keepStandardInputOpen: true);
+        SandboxCommand.Configure(this, exec, trailing, console, SandboxExecInput.Forwarded);
 }

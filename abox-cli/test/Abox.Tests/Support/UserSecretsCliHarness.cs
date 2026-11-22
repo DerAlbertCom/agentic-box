@@ -3,6 +3,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
@@ -17,6 +18,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public TempDirectory Root { get; } = new();
     public TestConsole Console { get; } = new();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
+    public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public string Location { get; }
     public string Name => SandboxName.For(Location);
     private readonly CliTestApplication application;
@@ -54,6 +56,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
             )
         );
         Services.AddSingleton(Sbx);
+        Services.AddSingleton(Exec);
         Services.AddSingleton(programs);
     }
 

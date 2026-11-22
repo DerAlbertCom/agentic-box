@@ -4,6 +4,7 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,7 @@ internal sealed class PortsCommandFixture : IDisposable
     public TestConsole Console { get; } = new();
     public ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
     public IApplicationPortPublisher Publisher => application.Publisher;
+    public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public string Location { get; }
     public string Name => SandboxName.For(Location);
     private readonly CliTestApplication application;
@@ -44,6 +46,7 @@ internal sealed class PortsCommandFixture : IDisposable
             .AddSingleton<ISbxClient>(
                 runner is null ? Sbx : new SbxClient(runner, AboxPaths.For(Root.Path, Root.Path))
             )
+            .AddSingleton<ISandboxExec>(runner is null ? Exec : new SbxSandboxExec(runner))
             .AddSingleton(programs);
         if (runner is not null)
             application.Services.AddSingleton<IApplicationPortPublisher>(

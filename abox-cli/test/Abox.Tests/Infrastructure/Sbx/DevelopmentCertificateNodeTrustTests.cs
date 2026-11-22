@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -58,8 +59,8 @@ public sealed class DevelopmentCertificateNodeTrustTests
                 Scenario.Name,
                 CancellationToken.None
             );
-        var launch = await scenario.Client.ExecAsync(
-            new SbxExecRequest(
+        var launch = await scenario.Exec.RunAsync(
+            new SandboxExecRequest(
                 Scenario.Name,
                 [
                     "sh",
@@ -76,7 +77,7 @@ public sealed class DevelopmentCertificateNodeTrustTests
         (await readiness.Should().ThrowAsync<AboxException>())
             .Which.Message.Should()
             .Contain("NODE_EXTRA_CA_CERTS");
-        launch.Should().Be(0);
+        launch.ExitCode.Should().Be(0);
         Directory.GetFiles(scenario.Receiver.RuntimePath, "node-*").Should().BeEmpty();
     }
 
@@ -156,6 +157,7 @@ public sealed class DevelopmentCertificateNodeTrustTests
         internal SyntheticDevelopmentCertificate Certificate { get; } = new();
         internal DisposableCertificateRuntime Receiver { get; }
         internal SbxClient Client { get; }
+        internal SbxSandboxExec Exec { get; }
         internal string PublicPem => Certificate.Certificate.ExportCertificatePem();
 
         private Scenario(DisposableCertificateRuntime receiver)
@@ -168,6 +170,7 @@ public sealed class DevelopmentCertificateNodeTrustTests
                     Receiver.RunAsync(call.Arg<ProcessRequest>(), call.Arg<CancellationToken>())
                 );
             Client = new SbxClient(runner, AboxPaths.For(root.Path, root.Path));
+            Exec = new SbxSandboxExec(runner);
         }
 
         internal static async Task<Scenario> Create() =>
@@ -176,8 +179,10 @@ public sealed class DevelopmentCertificateNodeTrustTests
         internal Task Activate(byte[] pfx) =>
             Client.ActivateDevelopmentCertificateAsync(Name, pfx, Password, CancellationToken.None);
 
-        internal Task<int> Launch() =>
-            Client.ExecAsync(new SbxExecRequest(Name, ["true"]), CancellationToken.None);
+        internal async Task<int> Launch() =>
+            (
+                await Exec.RunAsync(new SandboxExecRequest(Name, ["true"]), CancellationToken.None)
+            ).ExitCode;
 
         internal byte[] Read(string name) =>
             File.ReadAllBytes(Path.Combine(Receiver.RuntimePath, name));

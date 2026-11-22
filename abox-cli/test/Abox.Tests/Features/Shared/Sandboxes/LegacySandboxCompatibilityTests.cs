@@ -54,8 +54,8 @@ public sealed class LegacySandboxCompatibilityTests
             .Sbx.DidNotReceive()
             .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await cli
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
         await cli.NoWrites();
         Directory.Exists(Path.Combine(cli.Root.Path, "sandboxes")).Should().BeFalse();
     }
@@ -227,9 +227,9 @@ public sealed class LegacySandboxCompatibilityTests
             records.Load(name)!.BuildCreatedAt.Should().Be(DateTimeOffset.MinValue);
         }
         await cli
-            .Sbx.Received(1)
-            .ExecAsync(
-                Arg.Is<SbxExecRequest>(request => request.Sandbox == name),
+            .Exec.Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request => request.Sandbox == name),
                 Arg.Any<CancellationToken>()
             );
         records.Load(cli.Name).Should().BeNull();
@@ -410,9 +410,9 @@ public sealed class LegacySandboxCompatibilityTests
         exitCode.Should().Be(0);
         await cli.Sbx.Received(1).GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>());
         await cli
-            .Sbx.Received(1)
-            .ExecAsync(
-                Arg.Is<SbxExecRequest>(request =>
+            .Exec.Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request =>
                     request.Sandbox == name && request.WorkingDirectory == "/legacy/workspace"
                 ),
                 Arg.Any<CancellationToken>()

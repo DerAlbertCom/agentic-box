@@ -6,6 +6,7 @@ using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
+using NSubstitute;
 
 namespace Abox.Tests;
 
@@ -24,8 +25,22 @@ internal static class SandboxFactory
         IApplicationPortPublisher publisher,
         ISbxClient sbx,
         IConsole console
-    ) => new(publisher, console, Https(sbx, console));
+    ) => new(publisher, console, Https(sbx, Exec(), console));
 
-    public static SandboxHttps Https(ISbxClient sbx, IConsole console) =>
-        new(new HostDevelopmentCertificate(LocalWorkloadFactory.Runner(), console), sbx, console);
+    public static SandboxHttps Https(ISbxClient sbx, ISandboxExec exec, IConsole console) =>
+        new(
+            new HostDevelopmentCertificate(LocalWorkloadFactory.Runner(), console),
+            sbx,
+            exec,
+            console
+        );
+
+    /// <summary>A sandbox exec whose commands all succeed.</summary>
+    public static ISandboxExec Exec()
+    {
+        var exec = Substitute.For<ISandboxExec>();
+        exec.RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxExecOutcome(0));
+        return exec;
+    }
 }

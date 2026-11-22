@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Https;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -141,8 +142,8 @@ public sealed class AppPortsLifecycleFailureTests
             .And.NotContain("Created sandbox '")
             .And.NotContain("private child diagnostic");
         await fixture
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -179,8 +180,8 @@ public sealed class AppPortsLifecycleFailureTests
             .And.Contain("may remain")
             .And.NotContain("Created sandbox '");
         await fixture
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
 
         // Act
         fixture.HttpsOutcome(stage, Task.CompletedTask);

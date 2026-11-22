@@ -217,50 +217,6 @@ public sealed partial class SbxClient : ISbxClient
         );
     }
 
-    /// <summary>Runs a command in a sandbox, starting the sandbox when it is stopped.</summary>
-    public async Task<int> ExecAsync(SbxExecRequest request, CancellationToken cancellationToken)
-    {
-        var arguments = new List<string> { "exec" };
-
-        if (request.KeepStandardInputOpen)
-        {
-            arguments.Add("-i");
-        }
-
-        if (request.AllocateTty)
-        {
-            arguments.Add("-t");
-        }
-
-        if (request.User is not null)
-        {
-            arguments.Add("-u");
-            arguments.Add(request.User);
-        }
-
-        if (request.WorkingDirectory is not null)
-        {
-            arguments.Add("-w");
-            arguments.Add(request.WorkingDirectory);
-        }
-
-        foreach (var (name, value) in request.Environment ?? new Dictionary<string, string>())
-        {
-            arguments.Add("-e");
-            arguments.Add($"{name}={value}");
-        }
-
-        arguments.Add(request.Sandbox);
-        SbxDevelopmentCertificates.AppendExecCommand(arguments, request.Command);
-
-        var result = await _invoker.RunAsync(
-            new ProcessRequest(ExecutableName, arguments, AttachConsole: true),
-            cancellationToken
-        );
-
-        return result.ExitCode;
-    }
-
     /// <summary>
     /// Reads the staged kit descriptors and the bundled squad metadata in one exec, which
     /// starts a stopped sandbox. Each file is printed on its own line as <c>kit</c>, its

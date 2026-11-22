@@ -534,8 +534,9 @@ published tag.
    `SBOX_TERMINAL_THEME=1` unless terminal colors are off, selected by
    `FolderConfig.SelectTerminalTheme(snapshot, config.TerminalTheme, option)`:
    `--terminal-theme`, then `terminalTheme` in `abox.user.yaml`, then `abox.yaml`,
-   then the user `config.yaml`, then `true`. `SbxClient` emits each variable of an
-   `SbxExecRequest` as `sbx exec -e NAME=value`. abox emits no escape sequences
+   then the user `config.yaml`, then `true`. The sbx adapter of `ISandboxExec`
+   (`SbxSandboxExec`) emits each variable of a `SandboxExecRequest` as
+   `sbx exec -e NAME=value`. abox emits no escape sequences
    itself; see [ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
 
 The launchers of this version are `shell` and `herdr-app`. `shell` runs `bash -l` in
@@ -979,7 +980,7 @@ atomic; see [the explicit CLI race contract](https-development-certificates.md).
 outside workspace/HOME/build mounts. Protected `config.json` fixes the canonical
 Kestrel path/password for subsequent launches. Stable password/path make renewal
 one atomic PFX replacement rather than mismatched independent file updates.
-Shared `ExecAsync` bootstrap covers shell/direct argv/exec/pipe and newly initialized
+The `ISandboxExec` bootstrap (`SbxSandboxExec`) covers shell/direct argv/exec/pipe and newly initialized
 agent/core children after abox exits; it preserves streams, argv, workdir, TTY flags
 and actual child exit status. It is not a shell-profile-only mechanism.
 
@@ -1233,6 +1234,7 @@ abox-cli/src/Abox/
         LauncherRegistry.cs    the launchers abox knows: the run slice's shell and the
                                infrastructure adapters the composition root adds
       Sandboxes/        orchestration and resolution shared by create, run, ports and user-secrets
+        ISandboxExec.cs         run a command in a sandbox: request, console input mode, outcome
         SandboxCreator.cs       the create operation shared by create and run
         FolderSandbox.cs        this folder's Sandbox: one listing, current-first, exact legacy fallback
         LegacySandboxName.cs    the sandbox names of earlier abox versions
@@ -1262,6 +1264,7 @@ abox-cli/src/Abox/
     Sbx/              every call to sbx: CLI arguments, settings and response models
       SbxClient.cs    the public facade; owns the executable name and version query
       SbxInvoker.cs   shared captured execution, JSON and failure handling
+      SbxSandboxExec.cs  ISandboxExec: sbx exec, privately wrapped in the HTTPS bootstrap
       SbxFailureHeadline.cs  the cause of a failed sbx call, ahead of its full output
       SbxDevelopmentCertificates.cs  protected HTTPS runtime and certificate operations
       SbxApplicationPorts.cs         IApplicationPortPublisher: relay, sbx ports inventory and mapping

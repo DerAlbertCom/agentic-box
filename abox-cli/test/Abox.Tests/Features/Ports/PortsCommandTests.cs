@@ -150,8 +150,8 @@ public sealed class PortsCommandTests
         exit.Should().Be(1);
         await fixture.NoPublishing();
         await fixture
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]

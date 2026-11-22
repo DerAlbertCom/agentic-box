@@ -16,6 +16,7 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
     public TempDirectory Root => cli.Root;
     public TestConsole Console => cli.Console;
     public ISbxClient Sbx => cli.Sbx;
+    public ISandboxExec Exec => cli.Exec;
     public string Location => cli.Location;
     public string Name => cli.Name;
     public SandboxRecordStore Records { get; }
@@ -44,7 +45,6 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
             .Returns(new SbxOutcome(0, ""));
         Sbx.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, ""));
-        Sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>()).Returns(0);
         var services = cli.Services;
         services.AddSingleton(
             new AboxConfig

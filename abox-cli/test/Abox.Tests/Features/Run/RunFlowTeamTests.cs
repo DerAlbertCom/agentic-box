@@ -14,6 +14,7 @@ public sealed class RunFlowTeamTests
     private TempDirectory _root => _fixture.Root;
     private TestConsole _console => _fixture.Console;
     private ISbxClient _sbx => _fixture.Sbx;
+    private ISandboxExec _exec => _fixture.Exec;
     private RunFlow _service => _fixture.Service;
     private BuildStore _store => _fixture.Store;
     private SandboxRecordStore _records => _fixture.Records;
@@ -74,7 +75,9 @@ public sealed class RunFlowTeamTests
         _console.AllText.Should().NotContain("newer build").And.NotContain("Replace the sandbox");
         if (storage != "qualified")
             _console.AllText.Should().Contain("abox build --team sample --tag latest");
-        await _sbx.Received(1).ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+        await _exec
+            .Received(1)
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
         await _sbx.DidNotReceive()
             .RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _sbx.DidNotReceive()
@@ -152,7 +155,9 @@ public sealed class RunFlowTeamTests
             );
         _records.Load(name)!.Team.Should().Be("sample");
         _records.Load(name)!.BuildCreatedAt.Should().Be(selected.CreatedAt);
-        await _sbx.Received(1).ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+        await _exec
+            .Received(1)
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]

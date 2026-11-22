@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 
@@ -11,6 +12,7 @@ namespace Abox.Features.Shared.Https;
 public sealed class SandboxHttps(
     HostDevelopmentCertificate exporter,
     ISbxClient sbx,
+    ISandboxExec exec,
     IConsole console
 )
 {
@@ -49,7 +51,7 @@ public sealed class SandboxHttps(
     /// </summary>
     public async Task EnsureLaunchReadyAsync(string sandbox, CancellationToken token)
     {
-        if (await sbx.ExecAsync(new SbxExecRequest(sandbox, ["true"]), token) != 0)
+        if (!(await exec.RunAsync(new SandboxExecRequest(sandbox, ["true"]), token)).Succeeded)
             throw new AboxException(
                 "Herdr was not opened: sandbox HTTPS launch readiness failed. Exit stale agents and explicitly initialize fresh core/service parents through abox after saving work; rerun 'abox ports' for recovery guidance. No core or app was restarted."
             );

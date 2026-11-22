@@ -108,9 +108,9 @@ public sealed class AppPortsLifecycleSelectionTests
             );
         if (entry == "run")
             await fixture
-                .Sbx.Received(1)
-                .ExecAsync(
-                    Arg.Is<SbxExecRequest>(request => request.Sandbox == fixture.Name),
+                .Exec.Received(1)
+                .RunAsync(
+                    Arg.Is<SandboxExecRequest>(request => request.Sandbox == fixture.Name),
                     Arg.Any<CancellationToken>()
                 );
     }

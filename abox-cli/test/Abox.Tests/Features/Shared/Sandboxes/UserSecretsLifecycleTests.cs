@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -147,8 +148,8 @@ public sealed class UserSecretsLifecycleTests
             .Sbx.Received(1)
             .RemoveSandboxAsync(fixture.Name, Arg.Any<CancellationToken>());
         await fixture
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
         fixture
             .Console.AllText.Should()
             .Contain("sandbox was created")
@@ -235,8 +236,8 @@ public sealed class UserSecretsLifecycleTests
         fixture.Console.AllText.Should().Contain("squad").And.Contain("abox.yaml");
         await fixture.NoReplacementOrCopy();
         await fixture
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -385,11 +386,11 @@ public sealed class UserSecretsLifecycleTests
                 return Task.CompletedTask;
             });
         fixture
-            .Sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>())
+            .Exec.RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 copied.Should().BeTrue();
-                return 0;
+                return new SandboxExecOutcome(0);
             });
 
         // Act
@@ -461,8 +462,8 @@ public sealed class UserSecretsLifecycleTests
         exitCode.Should().Be(0);
         await fixture.NoReplacementOrCopy();
         await fixture
-            .Sbx.Received(1)
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.Received(1)
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -492,8 +493,8 @@ public sealed class UserSecretsLifecycleTests
         exitCode.Should().Be(0);
         await fixture.NoReplacementOrCopy();
         await fixture
-            .Sbx.Received(1)
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.Received(1)
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -533,8 +534,8 @@ public sealed class UserSecretsLifecycleTests
         exitCode.Should().Be(0);
         await fixture.NoReplacementOrCopy();
         await fixture
-            .Sbx.Received(1)
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.Received(1)
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -593,8 +594,8 @@ public sealed class UserSecretsLifecycleTests
             .And.NotContain("synthetic-private")
             .And.NotContain("Created sandbox");
         await fixture
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -775,8 +776,8 @@ public sealed class UserSecretsLifecycleTests
                 Arg.Any<CancellationToken>()
             );
         await fixture
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
