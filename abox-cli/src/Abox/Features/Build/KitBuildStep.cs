@@ -1,3 +1,4 @@
+using Abox.Features.Shared.KitBuildSteps;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
 
@@ -9,7 +10,7 @@ namespace Abox.Features.Build;
 /// without a <c>build</c> file pass through unchanged; a <c>build</c> file that cannot run
 /// (not executable, or on Windows) fails the build.
 /// </summary>
-public sealed class KitBuildStep(IProcessRunner runner, IConsole console)
+public sealed class KitBuildStep(IKitBuildScript script, IConsole console)
 {
     /// <summary>The executable file that marks a kit with a build step.</summary>
     public const string BuildFileName = "build";
@@ -59,20 +60,10 @@ public sealed class KitBuildStep(IProcessRunner runner, IConsole console)
         CopyDirectory(source, staged);
 
         console.WriteLine($"Building kit '{kit.Name}'...");
-        var result = await runner.RunAsync(
-            new ProcessRequest(
-                Path.Combine(source, BuildFileName),
-                [staged],
-                WorkingDirectory: source
-            ),
+        await script.RunAsync(
+            new KitBuildScriptRun(kit.Name, Path.Combine(source, BuildFileName), staged, source),
             cancellationToken
         );
-        if (!result.Succeeded)
-        {
-            throw new AboxException(
-                $"The build of kit '{kit.Name}' failed with exit code {result.ExitCode}:{Environment.NewLine}{(result.StandardOutput + result.StandardError).Trim()}"
-            );
-        }
 
         return kit with
         {

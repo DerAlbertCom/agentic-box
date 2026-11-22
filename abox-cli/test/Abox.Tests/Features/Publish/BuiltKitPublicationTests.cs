@@ -33,7 +33,6 @@ public sealed class BuiltKitPublicationTests
                 new PersonalConfigurations(AboxPaths.For(_root.Path, _root.Path)),
                 _fixture.Store,
                 LocalWorkloadFactory.Images(),
-                Substitute.For<ISbxClient>(),
                 _fixture.Console
             )
             .BuildAsync(

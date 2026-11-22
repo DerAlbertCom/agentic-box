@@ -1,9 +1,9 @@
 using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -12,7 +12,7 @@ public sealed class BuildServiceTeamTests
 {
     private readonly BuildServiceFixture _fixture = new();
     private TempDirectory _root => _fixture.Root;
-    private ISbxClient _sbx => _fixture.Sbx;
+    private IKitInspector _inspector => _fixture.Inspector;
     private IProcessRunner _runner => _fixture.Runner;
     private BuildStore _store => _fixture.Store;
     private SquadResolver _resolver => _fixture.Resolver;
@@ -160,7 +160,7 @@ public sealed class BuildServiceTeamTests
             .LocalWorkload!;
         var other = _store.Load(new SquadBuildIdentity("other", "ac", "latest"))!;
         _runner.ClearReceivedCalls();
-        _sbx.ClearReceivedCalls();
+        _inspector.ClearReceivedCalls();
 
         // Act
         await _service.BuildAsync(
@@ -185,6 +185,6 @@ public sealed class BuildServiceTeamTests
         File.ReadAllText(legacy).Should().Be("legacy sentinel");
         BuildSources.EnsureUnchanged(other);
         _runner.ReceivedCalls().Should().BeEmpty();
-        _sbx.ReceivedCalls().Should().BeEmpty();
+        _inspector.ReceivedCalls().Should().BeEmpty();
     }
 }

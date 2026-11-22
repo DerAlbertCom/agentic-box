@@ -1192,6 +1192,7 @@ abox-cli/src/Abox/
   Cli/              the composition root: the service collection and the root command
   Features/         the command slices and the shared features
     Build/          abox build: the command and the service that does its work
+      KitBuildStep.cs             stages a kit with a build file and runs its build (ADR 0001)
       StateMixinGenerator.cs      the state mixin of a built squad
       WorkloadKitGenerator.cs     turns a workload into a sandbox kit
       SquadConfigurationMixin.cs  the squad.json allowlist and its mixin
@@ -1267,6 +1268,8 @@ abox-cli/src/Abox/
         InstallInstructions.cs  how to install sbx on the current system
       SandboxCleanup/   ISandboxCleanup for abox prune: list sandboxes and template images,
                         stop a sandbox, remove a template image
+      KitInspection/    IKitInspector: checks a local kit's declarations for abox build
+      KitBuildSteps/    IKitBuildScript: runs a local kit's build file into its staged copy
       Naming/           sandbox and image names
         ImageName.cs            the unqualified team reference of a local build
         TcpPort.cs              shared TCP parsing and the 1–65535 range
@@ -1291,6 +1294,7 @@ abox-cli/src/Abox/
       SbxUserSecrets.cs              ISandboxUserSecrets: secret transport and network-policy operations
       SbxKitSources.cs               repository-scoped kit-source trust settings
       SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm
+      SbxKitInspector.cs             IKitInspector: sbx kit inspect with the kit arguments
       SbxCredentialBindings.cs       reads and merges the approvals in sbx's credentials.yaml
       SandboxSquadFiles.cs           raw staged kit descriptors and squad.json of a sandbox
       SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line
@@ -1306,6 +1310,8 @@ abox-cli/src/Abox/
                                      never echoes Docker output
     Dotnet/
       DotnetUserSecretStores.cs  IHostUserSecretStores: the host's .NET user-secrets store layout
+    Shell/
+      ShellKitBuildScript.cs  IKitBuildScript: runs build <stagedKitDir> in the kit's folder
     Herdr/
       HerdrAppLauncher.cs  the herdr-app launcher (an ILauncher adapter, registered by
                            the composition root); its programs stay internal

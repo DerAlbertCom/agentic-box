@@ -15,7 +15,6 @@ public sealed class ArchitectureTests
     // #147 move each use behind a use-case interface and remove its entry here.
     private static readonly string[] KnownToolAdapterReferences =
     [
-        "Abox.Features.Build.BuildService -> Abox.Infrastructure.Sbx",
         "Abox.Features.Create.CreateCommand -> Abox.Infrastructure.Sbx",
         "Abox.Features.Ports.PortsCommand -> Abox.Infrastructure.Sbx",
         "Abox.Features.Run.RunFlow -> Abox.Infrastructure.Sbx",

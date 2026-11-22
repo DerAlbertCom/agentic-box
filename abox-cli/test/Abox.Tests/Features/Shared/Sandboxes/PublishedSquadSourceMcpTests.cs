@@ -84,7 +84,6 @@ public sealed class PublishedSquadSourceMcpTests
             new PersonalConfigurations(paths),
             store,
             images,
-            sbx,
             _console
         );
         await build.BuildAsync(

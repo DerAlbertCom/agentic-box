@@ -31,7 +31,6 @@ public sealed class BuildTagServiceTests
             new PersonalConfigurations(paths),
             new BuildStore(paths),
             LocalWorkloadFactory.Images(programs, runner, console),
-            sbx,
             console
         );
         var request = new BuildRequest([], root.Path, "../outside", MetadataOnly: metadataOnly);

@@ -153,7 +153,6 @@ public sealed class SandboxCreatorTeamTests
             new PersonalConfigurations(_paths),
             _store,
             LocalWorkloadFactory.Images(),
-            _sbx,
             _console
         );
         await build.BuildAsync(

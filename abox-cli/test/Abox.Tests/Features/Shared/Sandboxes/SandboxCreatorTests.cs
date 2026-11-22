@@ -659,7 +659,6 @@ public sealed class SandboxCreatorTests
             new PersonalConfigurations(_paths),
             _store,
             images,
-            _sbx,
             _console
         );
         await build.BuildAsync(

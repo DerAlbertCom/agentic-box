@@ -28,7 +28,6 @@ public sealed class BuiltKitCreationTests
                 new PersonalConfigurations(_fixture.Paths),
                 _fixture.Store,
                 LocalWorkloadFactory.Images(),
-                _fixture.Sbx,
                 _fixture.Console
             )
             .BuildAsync(
@@ -80,7 +79,6 @@ public sealed class BuiltKitCreationTests
                 new PersonalConfigurations(_fixture.Paths),
                 _fixture.Store,
                 LocalWorkloadFactory.Images(),
-                _fixture.Sbx,
                 _fixture.Console
             )
             .BuildAsync(

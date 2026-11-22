@@ -265,24 +265,6 @@ public sealed class SbxClient : ISbxClient
         return string.IsNullOrEmpty(directory) ? null : directory;
     }
 
-    /// <summary>Reads kit declarations; this command does not build recipe-based kits.</summary>
-    public Task<SbxOutcome> InspectKitAsync(
-        string kitDirectory,
-        CancellationToken cancellationToken,
-        IReadOnlyDictionary<string, string>? arguments = null
-    )
-    {
-        var command = new List<string> { "kit", "inspect", kitDirectory };
-        foreach (var (name, value) in arguments ?? new Dictionary<string, string>())
-        {
-            command.AddRange(["--kit-arg", $"{name}={value}"]);
-        }
-        return _invoker.RunOutcomeAsync(
-            new ProcessRequest(SbxInvoker.Executable, command),
-            cancellationToken
-        );
-    }
-
     /// <summary>The MCP servers registered on the host.</summary>
     public async Task<IReadOnlyList<string>> ListMcpServersAsync(
         CancellationToken cancellationToken

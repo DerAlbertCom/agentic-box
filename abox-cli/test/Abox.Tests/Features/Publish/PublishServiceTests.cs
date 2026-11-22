@@ -38,7 +38,6 @@ public sealed class PublishServiceTests
             new PersonalConfigurations(AboxPaths.For(configDirectory, _root.Path)),
             _store,
             LocalWorkloadFactory.Images(),
-            Substitute.For<Abox.Infrastructure.Sbx.ISbxClient>(),
             _console
         );
         await build.BuildAsync(

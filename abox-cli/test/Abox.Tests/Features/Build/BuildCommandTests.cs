@@ -42,7 +42,6 @@ public sealed class BuildCommandTests
             new PersonalConfigurations(paths),
             store,
             LocalWorkloadFactory.Images(programs, runner, console),
-            sbx,
             console
         );
         var command = new BuildCommand(

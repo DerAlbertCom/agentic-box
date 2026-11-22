@@ -56,7 +56,6 @@ public sealed class PublishServiceTeamTests
             new PersonalConfigurations(AboxPaths.For(_root.Path, _root.Path)),
             _store,
             LocalWorkloadFactory.Images(),
-            Substitute.For<ISbxClient>(),
             _console
         );
         foreach (var team in teams)

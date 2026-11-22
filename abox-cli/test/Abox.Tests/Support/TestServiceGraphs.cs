@@ -3,11 +3,14 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.KitBuildSteps;
+using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
+using Abox.Infrastructure.Shell;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -20,8 +23,9 @@ internal static class TestServiceGraphs
         PersonalConfigurations personal,
         BuildStore store,
         LocalWorkloadImages images,
-        ISbxClient sbx,
-        IConsole console
+        IConsole console,
+        IKitInspector? inspector = null,
+        IKitBuildScript? buildScript = null
     ) =>
         new(
             resolver,
@@ -30,10 +34,24 @@ internal static class TestServiceGraphs
             personal,
             store,
             images,
-            new KitBuildStep(new ProcessRunner(), console),
-            sbx,
+            new KitBuildStep(buildScript ?? new ShellKitBuildScript(new ProcessRunner()), console),
+            inspector ?? AcceptingKitInspector(),
             console
         );
+
+    /// <summary>A kit inspector that accepts every kit.</summary>
+    internal static IKitInspector AcceptingKitInspector()
+    {
+        var inspector = Substitute.For<IKitInspector>();
+        inspector
+            .InspectAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new KitInspectionOutcome(true, string.Empty));
+        return inspector;
+    }
 
     internal static SandboxCreator Creator(
         SandboxRecordStore records,
