@@ -11,7 +11,7 @@ public sealed class SbxSandboxInspectionTests
 
     public SbxSandboxInspectionTests()
     {
-        _inspection = new SbxSandboxInspection(_runner);
+        _inspection = new SbxSandboxInspection(new SbxInvoker(_runner));
     }
 
     [Theory]

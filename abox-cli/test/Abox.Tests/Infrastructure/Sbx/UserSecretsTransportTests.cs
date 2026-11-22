@@ -201,7 +201,7 @@ public sealed class UserSecretsTransportTests
                         new AboxException("synthetic-password 123456789 true")
                     )
             );
-        var client = new SbxUserSecrets(runner);
+        var client = new SbxUserSecrets(new SbxInvoker(runner));
 
         // Act
         var action = () =>
@@ -231,7 +231,7 @@ public sealed class UserSecretsTransportTests
                 captured = call.Arg<ProcessRequest>();
                 return new ProcessResult(0, "must not escape", "must not escape");
             });
-        var client = new SbxUserSecrets(runner);
+        var client = new SbxUserSecrets(new SbxInvoker(runner));
 
         // Act
         await client.WriteUserSecretsAsync("sandbox", "synthetic", payload, CancellationToken.None);

@@ -2,6 +2,7 @@ using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
@@ -55,7 +56,7 @@ public sealed class SandboxCreatorTests
                         == _store
                             .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
                             .LocalWorkload!.RuntimeKitDirectory
-                    && request.HostDockerContext == "test-context"
+                    && request.HostImageStore == "test-context"
                     && request.PullPolicy == PullPolicy.Never
                     && request.Name == SandboxName.For(_root.Path)
                     && request.Mixins.Contains("/kits/pi-config")
@@ -174,7 +175,7 @@ public sealed class SandboxCreatorTests
                     request.KitSource
                         == $"rwest.jfrog.io/{repository}/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
                     && request.PullPolicy == PullPolicy.Always
-                    && request.HostDockerContext == null
+                    && request.HostImageStore == null
                     && request.Mixins.Count == 0
                     && request.KitArguments.Count == 0
                     && request.Mounts.Count == 1
@@ -658,7 +659,7 @@ public sealed class SandboxCreatorTests
                         == $"rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
                     && request.Mixins.Count == 0
                     && request.KitArguments.Count == 0
-                    && request.HostDockerContext == null
+                    && request.HostImageStore == null
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -724,7 +725,7 @@ public sealed class SandboxCreatorTests
                         == $"rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
                     && request.Mixins.Count == 0
                     && request.KitArguments.Count == 0
-                    && request.HostDockerContext == null
+                    && request.HostImageStore == null
                     && request.Mounts.Count == 1
                     && request.StaticMcpServers.SequenceEqual(new[] { "elastic" })
                 ),

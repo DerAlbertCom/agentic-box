@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Abox.Features.Shared.Builds;
 
 /// <summary>What a local build holds.</summary>
@@ -58,12 +60,15 @@ public sealed class BuildManifest
     public Dictionary<string, string> SourceHashes { get; set; } = [];
 }
 
-/// <summary>A unique local tag guarded by its immutable Docker content ID.</summary>
+/// <summary>A unique local tag guarded by its immutable content ID.</summary>
 public sealed class LocalWorkloadImage
 {
     public string Reference { get; set; } = string.Empty;
     public string ImageId { get; set; } = string.Empty;
-    public string DockerContext { get; set; } = string.Empty;
+
+    /// <summary>The host image store holding the image; earlier builds recorded it under this name.</summary>
+    [JsonPropertyName("DockerContext")]
+    public string ImageStore { get; set; } = string.Empty;
     public string RuntimeKitDirectory { get; set; } = string.Empty;
     public string RuntimeKitHash { get; set; } = string.Empty;
 }

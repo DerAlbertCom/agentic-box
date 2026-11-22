@@ -3,13 +3,11 @@ using Abox.Features.Shared.Sandboxes;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>The sandbox lifecycle through <c>sbx ls</c>, <c>sbx create</c> and <c>sbx rm</c>.</summary>
-public sealed class SbxSandboxLifecycle(IProcessRunner runner) : ISandboxLifecycle
+public sealed class SbxSandboxLifecycle(SbxInvoker invoker) : ISandboxLifecycle
 {
-    private readonly SbxInvoker _invoker = new(runner);
-
     public async Task<IReadOnlyList<SandboxInfo>> ListAsync(CancellationToken cancellationToken)
     {
-        var sandboxes = await _invoker.RunJsonAsync<List<SbxSandbox>>(
+        var sandboxes = await invoker.RunJsonAsync<List<SbxSandbox>>(
             ["ls", "--json"],
             "sbx ls",
             cancellationToken
@@ -73,18 +71,17 @@ public sealed class SbxSandboxLifecycle(IProcessRunner runner) : ISandboxLifecyc
             arguments.Add(string.Join(",", definition.StaticMcpServers));
         }
 
-        var process = new ProcessRequest(
-            _invoker.ExecutableName,
-            arguments,
-            Environment: definition.HostDockerContext is { } context
+        var process = invoker.Call(arguments) with
+        {
+            Environment = definition.HostImageStore is { } context
                 ? new Dictionary<string, string>
                 {
                     ["SBX_KIT_BUILDER"] = "host",
                     ["BUILDX_BUILDER"] = context,
                     ["DOCKER_CONTEXT"] = context,
                 }
-                : null
-        );
+                : null,
+        };
         var redactor = new SecretRedactor(process);
         if (definition.Progress is { } progress)
             process = process with
@@ -92,18 +89,18 @@ public sealed class SbxSandboxLifecycle(IProcessRunner runner) : ISandboxLifecyc
                 OutputLineSink = line => progress(redactor.Redact(line.Text)),
             };
 
-        var outcome = await _invoker.RunOutcomeAsync(process, cancellationToken);
+        var outcome = await invoker.RunOutcomeAsync(process, cancellationToken);
         outcome = outcome with { Output = redactor.Redact(outcome.Output) };
         return new SandboxCreation(
             outcome.Output,
-            outcome.Succeeded ? null : SbxFailureHeadline.Describe(outcome)
+            outcome.Succeeded ? null : SbxInvoker.FailureHeadline(outcome)
         );
     }
 
     public async Task<SandboxRemoval> RemoveAsync(string name, CancellationToken cancellationToken)
     {
-        var outcome = await _invoker.RunOutcomeAsync(
-            new ProcessRequest(_invoker.ExecutableName, ["rm", name, "--force"]),
+        var outcome = await invoker.RunOutcomeAsync(
+            invoker.Call(["rm", name, "--force"]),
             cancellationToken
         );
         return new SandboxRemoval(outcome.Succeeded, outcome.Output);

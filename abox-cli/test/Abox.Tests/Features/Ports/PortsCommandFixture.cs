@@ -43,7 +43,9 @@ internal sealed class PortsCommandFixture : IDisposable
         );
         application
             .Services.AddSingleton(config ?? new AboxConfig { DefaultLocation = Location })
-            .AddSingleton<ISandboxExec>(runner is null ? Exec : new SbxSandboxExec(runner))
+            .AddSingleton<ISandboxExec>(
+                runner is null ? Exec : new SbxSandboxExec(new SbxInvoker(runner))
+            )
             .AddSingleton(programs)
             .AddSingleton(Preflight);
         if (runner is null)
@@ -55,11 +57,15 @@ internal sealed class PortsCommandFixture : IDisposable
         }
         else
         {
-            application.Services.AddSingleton<ISandboxLifecycle>(new SbxSandboxLifecycle(runner));
+            application.Services.AddSingleton<ISandboxLifecycle>(
+                new SbxSandboxLifecycle(new SbxInvoker(runner))
+            );
             application
-                .Services.AddSingleton<IApplicationPortPublisher>(new SbxApplicationPorts(runner))
+                .Services.AddSingleton<IApplicationPortPublisher>(
+                    new SbxApplicationPorts(new SbxInvoker(runner))
+                )
                 .AddSingleton<ISandboxDevelopmentCertificates>(
-                    new SbxDevelopmentCertificates(runner)
+                    new SbxDevelopmentCertificates(new SbxInvoker(runner))
                 );
         }
         if (exporter is not null)

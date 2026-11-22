@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Preflight;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -23,7 +24,7 @@ public sealed class DockerWorkloadImagesTests
     public async Task TheHostContextIsReturnedWhenItsBuilderSharesTheHostImageStore()
     {
         // Act
-        var context = await Images().HostContextAsync(CancellationToken.None);
+        var context = await Images().HostImageStoreAsync(CancellationToken.None);
 
         // Assert
         context.Should().Be("test-context");

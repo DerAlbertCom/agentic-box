@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using Abox.Cli;
+using Abox.Infrastructure;
+using Abox.Infrastructure.Sbx;
 
 namespace Abox.Tests;
 
@@ -78,6 +80,64 @@ public sealed class ArchitectureTests
         violations.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// The generic technical helpers, the only types the Infrastructure root may hold;
+    /// anything of one tool belongs in that tool's folder.
+    /// </summary>
+    private static readonly string[] GenericHelpers =
+    [
+        "IConsole",
+        "SystemConsole",
+        "IProcessRunner",
+        "ProcessRunner",
+        "ProcessRequest",
+        "ProcessStream",
+        "ProcessOutputLine",
+        "ProcessOutputPolicy",
+        "ProcessResult",
+        "ProcessOutput",
+        "PrivateStagingException",
+        "ProtectedTemporaryDirectory",
+        "TemporaryDirectory",
+        "SecretRedactor",
+        "YamlReader",
+        "YamlSources",
+        "YamlEntry",
+    ];
+
+    [Fact]
+    public void TheInfrastructureRootHoldsOnlyTheGenericHelpers()
+    {
+        // Arrange
+        var types = typeof(AboxRootCommand).Assembly.GetTypes();
+
+        // Act
+        var root = types
+            .Where(type => type.Namespace == Infrastructure && type.DeclaringType is null)
+            .Where(type => !type.Name.StartsWith('<'))
+            .Select(type => type.Name);
+
+        // Assert
+        root.Should().BeEquivalentTo(GenericHelpers);
+    }
+
+    [Fact]
+    public void EverySbxAdapterCallsSbxThroughTheOneInvoker()
+    {
+        // Arrange
+        var uses = TypeUses();
+
+        // Act
+        var violations = uses.Where(use => use.Owner.Namespace == typeof(SbxInvoker).Namespace)
+            .Where(use => use.Owner != typeof(SbxInvoker))
+            .Where(use => use.Used == typeof(IProcessRunner))
+            .Select(use => use.Owner.FullName)
+            .Distinct();
+
+        // Assert
+        violations.Should().BeEmpty();
+    }
+
     private static bool IsIn(string @namespace, string module) =>
         @namespace == module || @namespace.StartsWith(module + ".", StringComparison.Ordinal);
 
@@ -101,7 +161,24 @@ public sealed class ArchitectureTests
     {
         var assembly = typeof(AboxRootCommand).Assembly;
         var references = new HashSet<Reference>();
-        foreach (var type in assembly.GetTypes())
+        foreach (var (owner, used) in TypeUses())
+        {
+            foreach (var @namespace in Namespaces(used, assembly))
+            {
+                if (@namespace != owner.Namespace)
+                {
+                    references.Add(new Reference(owner.FullName!, owner.Namespace!, @namespace));
+                }
+            }
+        }
+
+        return references.OrderBy(reference => reference.ToString()).ToList();
+    }
+
+    /// <summary>Each type a top-level type of the abox assembly uses, as <see cref="ProjectReferences"/> sees it.</summary>
+    private static IEnumerable<(Type Owner, Type Used)> TypeUses()
+    {
+        foreach (var type in typeof(AboxRootCommand).Assembly.GetTypes())
         {
             var owner = type;
             while (owner.DeclaringType is not null)
@@ -116,17 +193,9 @@ public sealed class ArchitectureTests
 
             foreach (var used in UsedTypes(type))
             {
-                foreach (var @namespace in Namespaces(used, assembly))
-                {
-                    if (@namespace != owner.Namespace)
-                    {
-                        references.Add(new Reference(owner.FullName!, owner.Namespace, @namespace));
-                    }
-                }
+                yield return (owner, used);
             }
         }
-
-        return references.OrderBy(reference => reference.ToString()).ToList();
     }
 
     private static IEnumerable<string> Namespaces(Type type, Assembly assembly)

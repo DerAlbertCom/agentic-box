@@ -3,13 +3,11 @@ using Abox.Features.Shared.Sandboxes;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>The host's MCP servers through <c>sbx mcp ls</c> and <c>sbx mcp add</c>.</summary>
-public sealed class SbxMcpServerRegistry(IProcessRunner runner) : IMcpServerRegistry
+public sealed class SbxMcpServerRegistry(SbxInvoker invoker) : IMcpServerRegistry
 {
-    private readonly SbxInvoker _invoker = new(runner);
-
     public async Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken)
     {
-        var servers = await _invoker.RunJsonAsync<List<SbxMcpServer>>(
+        var servers = await invoker.RunJsonAsync<List<SbxMcpServer>>(
             ["mcp", "ls", "--json"],
             "sbx mcp ls",
             cancellationToken
@@ -27,8 +25,8 @@ public sealed class SbxMcpServerRegistry(IProcessRunner runner) : IMcpServerRegi
         CancellationToken cancellationToken
     )
     {
-        var outcome = await _invoker.RunOutcomeAsync(
-            new ProcessRequest(_invoker.ExecutableName, ["mcp", "add", name, "--url", url]),
+        var outcome = await invoker.RunOutcomeAsync(
+            invoker.Call(["mcp", "add", name, "--url", url]),
             cancellationToken
         );
         return new McpServerRegistration(outcome.Succeeded, outcome.Output);

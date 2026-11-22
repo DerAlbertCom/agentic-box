@@ -3,20 +3,19 @@ using Abox.Features.Shared.Preflight;
 namespace Abox.Infrastructure.Sbx;
 
 /// <summary>Preflight against sbx: on PATH, <c>sbx version</c>, <c>sbx diagnose</c> and <c>sbx login</c>.</summary>
-public sealed class SbxPreflightChecks(IProcessRunner runner, IHostPrograms programs)
+public sealed class SbxPreflightChecks(SbxInvoker invoker, IHostPrograms programs)
     : IPreflightChecks
 {
     private const string AuthenticationCheck = "Authentication";
-    private readonly SbxInvoker _invoker = new(runner);
 
-    public bool IsInstalled() => programs.Exists(SbxInvoker.Executable);
+    public bool IsInstalled() => invoker.IsOnPath(programs);
 
     public async Task<RuntimeVersion> CheckVersionAsync(CancellationToken cancellationToken) =>
-        new(await _invoker.GetVersionAsync(cancellationToken), SbxInvoker.MinimumVersion);
+        new(await invoker.GetVersionAsync(cancellationToken), SbxInvoker.MinimumVersion);
 
     public async Task<DiagnoseReport> DiagnoseAsync(CancellationToken cancellationToken)
     {
-        var report = await _invoker.RunJsonAsync<SbxDiagnose>(
+        var report = await invoker.RunJsonAsync<SbxDiagnose>(
             ["diagnose", "--json"],
             "sbx diagnose",
             cancellationToken
@@ -38,8 +37,11 @@ public sealed class SbxPreflightChecks(IProcessRunner runner, IHostPrograms prog
 
     public async Task<bool> SignInAsync(CancellationToken cancellationToken)
     {
-        var result = await _invoker.RunAsync(
-            new ProcessRequest(SbxInvoker.Executable, ["login"], AttachConsole: true),
+        var result = await invoker.RunAsync(
+            invoker.Call(["login"]) with
+            {
+                AttachConsole = true,
+            },
             cancellationToken
         );
         return result.Succeeded;

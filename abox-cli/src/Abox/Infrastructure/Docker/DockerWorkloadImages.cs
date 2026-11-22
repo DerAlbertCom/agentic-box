@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Registry;
 
 namespace Abox.Infrastructure.Docker;
@@ -17,7 +18,7 @@ public sealed class DockerWorkloadImages(IHostPrograms programs, IProcessRunner 
 
     public bool IsInstalled => programs.Exists(DockerCommand.Program);
 
-    public async Task<string> HostContextAsync(CancellationToken cancellationToken)
+    public async Task<string> HostImageStoreAsync(CancellationToken cancellationToken)
     {
         await _docker.RunAsync(["buildx", "version"], false, OperationFailure, cancellationToken);
         var context = (
@@ -34,16 +35,19 @@ public sealed class DockerWorkloadImages(IHostPrograms programs, IProcessRunner 
         return context;
     }
 
+    public string NewImageReference() =>
+        "docker.io/library/abox-workload:" + Guid.NewGuid().ToString("N");
+
     public async Task BuildAsync(WorkloadImageBuild build, CancellationToken cancellationToken)
     {
         var arguments = new List<string>
         {
             "--context",
-            build.Context,
+            build.ImageStore,
             "buildx",
             "build",
             "--builder",
-            build.Context,
+            build.ImageStore,
             "--file",
             build.Descriptor,
             "--tag",

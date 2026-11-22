@@ -12,7 +12,7 @@ public sealed class SbxSandboxSquadFileReaderTests
 
     public SbxSandboxSquadFileReaderTests()
     {
-        _reader = new SbxSandboxSquadFileReader(_runner);
+        _reader = new SbxSandboxSquadFileReader(new SbxInvoker(_runner));
     }
 
     [Fact]

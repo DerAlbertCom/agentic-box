@@ -11,7 +11,7 @@ public sealed class SbxKitInspectorTests
 
     public SbxKitInspectorTests()
     {
-        _inspector = new SbxKitInspector(_runner);
+        _inspector = new SbxKitInspector(new SbxInvoker(_runner));
     }
 
     [Fact]

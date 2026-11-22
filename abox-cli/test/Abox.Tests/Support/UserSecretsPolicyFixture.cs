@@ -58,7 +58,7 @@ internal sealed class UserSecretsPolicyFixture : IDisposable
                     check["resource_value"] = request.Arguments[^1];
                 return new ProcessResult(0, check.ToJsonString(), "");
             });
-        client = new SbxUserSecrets(runner);
+        client = new SbxUserSecrets(new SbxInvoker(runner));
     }
 
     internal JsonArray Rules => inventory["rules"]!.AsArray();

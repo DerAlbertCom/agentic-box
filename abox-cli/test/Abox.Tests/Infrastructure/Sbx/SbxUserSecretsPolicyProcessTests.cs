@@ -23,7 +23,7 @@ public sealed class SbxUserSecretsPolicyProcessTests
         var console = new TestConsole();
         var output = new ProcessOutput(console) { Verbose = verbose };
         var runner = new EchoPolicyRunner(new ProcessRunner(output), outcome);
-        var client = new SbxUserSecrets(runner);
+        var client = new SbxUserSecrets(new SbxInvoker(runner));
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
         // Act

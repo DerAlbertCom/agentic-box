@@ -25,7 +25,7 @@ internal sealed class GatedUserSecretsPolicyRunner : IProcessRunner, IDisposable
     {
         Sandbox = sandbox;
         inventory = Inventory(sandbox, resources);
-        Client = new SbxUserSecrets(this);
+        Client = new SbxUserSecrets(new SbxInvoker(this));
     }
 
     internal string Sandbox { get; }

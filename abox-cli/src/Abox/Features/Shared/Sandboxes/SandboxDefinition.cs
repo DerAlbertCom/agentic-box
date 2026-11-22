@@ -9,7 +9,7 @@ namespace Abox.Features.Shared.Sandboxes;
 /// <param name="Mounts">The host directories mounted into the sandbox.</param>
 /// <param name="StaticMcpServers">The MCP servers the sandbox always carries.</param>
 /// <param name="PullPolicy">Whether to refresh registry kits or use only local templates.</param>
-/// <param name="HostDockerContext">The host Docker context holding a prebuilt local workload; the kits are then built on the host.</param>
+/// <param name="HostImageStore">The host image store holding a prebuilt local workload; the kits are then built on the host.</param>
 /// <param name="Progress">Receives each line the runtime writes while it creates, in arrival order, with known secrets redacted.</param>
 public sealed record SandboxDefinition(
     string KitSource,
@@ -20,6 +20,6 @@ public sealed record SandboxDefinition(
     IReadOnlyList<SandboxMount> Mounts,
     IReadOnlyList<string> StaticMcpServers,
     PullPolicy PullPolicy = PullPolicy.Never,
-    string? HostDockerContext = null,
+    string? HostImageStore = null,
     Action<string>? Progress = null
 );

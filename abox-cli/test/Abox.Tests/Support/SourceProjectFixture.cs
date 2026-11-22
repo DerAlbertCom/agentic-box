@@ -4,6 +4,7 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;

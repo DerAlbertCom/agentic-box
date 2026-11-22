@@ -15,7 +15,8 @@ public sealed class LocalWorkloadImageSeamTests : IDisposable
     {
         _images = new LocalWorkloadImages(_builder, _store, new TestConsole());
         _store.IsInstalled.Returns(true);
-        _builder.HostContextAsync(Arg.Any<CancellationToken>()).Returns("host");
+        _builder.HostImageStoreAsync(Arg.Any<CancellationToken>()).Returns("host");
+        _builder.NewImageReference().Returns("workload:new");
         _store
             .ImageIdAsync("host", Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(ImageId);
@@ -32,20 +33,21 @@ public sealed class LocalWorkloadImageSeamTests : IDisposable
         );
 
     [Fact]
-    public async Task BuildRecordsTheHostContextAndTheImageIdOfTheBuiltImage()
+    public async Task BuildRecordsTheHostImageStoreAndTheImageIdOfTheBuiltImage()
     {
         // Act
         var image = await BuildAsync();
 
         // Assert
-        image.DockerContext.Should().Be("host");
+        image.ImageStore.Should().Be("host");
+        image.Reference.Should().Be("workload:new");
         image.ImageId.Should().Be(ImageId);
         await _builder
             .Received(1)
             .BuildAsync(
                 Arg.Is<WorkloadImageBuild>(build =>
-                    build.Context == "host"
-                    && build.Reference == image.Reference
+                    build.ImageStore == "host"
+                    && build.Reference == "workload:new"
                     && build.Descriptor == Path.Combine(_root.Path, "source", "workload.yaml")
                 ),
                 Arg.Any<CancellationToken>()

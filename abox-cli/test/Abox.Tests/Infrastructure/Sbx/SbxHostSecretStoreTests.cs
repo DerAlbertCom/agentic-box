@@ -13,7 +13,7 @@ public sealed class SbxHostSecretStoreTests
 
     public SbxHostSecretStoreTests()
     {
-        _store = new SbxHostSecretStore(_runner);
+        _store = new SbxHostSecretStore(new SbxInvoker(_runner));
     }
 
     [Fact]

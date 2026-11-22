@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Preflight;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -26,7 +27,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
         image.Reference.Should().StartWith("docker.io/library/abox-workload:");
         image.Reference.Should().NotBe(next.Reference);
         image.ImageId.Should().Be(LocalWorkloadFactory.ImageId);
-        image.DockerContext.Should().Be("test-context");
+        image.ImageStore.Should().Be("test-context");
         File.ReadAllText(Path.Combine(image.RuntimeKitDirectory, "workload.dockerfile"))
             .Should()
             .Be($"FROM {image.Reference}\n");

@@ -33,7 +33,7 @@ internal sealed class ShellSandbox : IProcessRunner, IDisposable
             root.Path,
             appData ? "appdata/Microsoft/UserSecrets" : "home/.microsoft/usersecrets"
         );
-        Client = new SbxUserSecrets(this);
+        Client = new SbxUserSecrets(new SbxInvoker(this));
     }
 
     public Task<ProcessResult> RunUntilReadyAsync(

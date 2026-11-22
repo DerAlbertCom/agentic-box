@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Text.RegularExpressions;
 using Abox.Features.Shared.SandboxCleanup;
 using Abox.Infrastructure;
 
@@ -19,24 +18,12 @@ public sealed record PrunePlan(
 public sealed record PruneRequest(bool Everything, bool StopSandboxes);
 
 /// <summary>
-/// Prunes the template images of the local sbx. Keeps the newest assembled kit set
+/// Prunes the template images of the local sandbox runtime. Keeps the newest assembled kit set
 /// and the kit sources it is built from, removes the older sets and the kit sources
 /// nothing uses. Never touches sandboxes, secrets, or images of any other repository.
 /// </summary>
-public sealed partial class PruneService(ISandboxCleanup cleanup, IConsole console)
+public sealed class PruneService(ISandboxCleanup cleanup, IConsole console)
 {
-    /// <summary>The repository sbx keeps the assembled kit sets in.</summary>
-    private const string AssembledRepository = "sandbox-kit-assembled";
-
-    /// <summary>The repository sbx keeps the built kits in.</summary>
-    private const string KitSourceRepository = "sbx-kit-src";
-
-    /// <summary>The suffix of the alias tag a build gets for its snapshot.</summary>
-    private const string TemplateSuffix = "-template";
-
-    [GeneratedRegex(@"-kit-\d+$")]
-    private static partial Regex KitIndexSuffix();
-
     /// <summary>Prunes the template images and returns the exit code of the command.</summary>
     public async Task<int> PruneTemplatesAsync(
         PruneRequest request,
@@ -137,7 +124,7 @@ public sealed partial class PruneService(ISandboxCleanup cleanup, IConsole conso
 
     /// <summary>
     /// The set of a full prune: every kit image of a known age and id, except uncertain
-    /// assembled sets and their potential kit sources. sbx refuses images a sandbox needs
+    /// assembled sets and their potential kit sources. The runtime refuses images a sandbox needs
     /// at removal time; the command reports those refusals without failing.
     /// </summary>
     public static PrunePlan Everything(IReadOnlyList<TemplateImage> images) =>
@@ -161,13 +148,13 @@ public sealed partial class PruneService(ISandboxCleanup cleanup, IConsole conso
         if (!HasKnownMetadata(image))
             return true;
 
-        if (IsRepository(image, AssembledRepository))
+        if (image.Kind == TemplateKind.AssembledSet)
         {
-            var group = facts.Builds[BuildIdOf(image.Tag)];
+            var group = facts.Builds[image.Set];
             return group.IsUncertain || (!everything && group.NewestAt == facts.NewestAt);
         }
 
-        if (IsRepository(image, KitSourceRepository))
+        if (image.Kind == TemplateKind.KitSource)
         {
             // An uncertain assembled group may depend on any source, not only a shared id.
             return facts.HasUncertainBuilds
@@ -193,8 +180,8 @@ public sealed partial class PruneService(ISandboxCleanup cleanup, IConsole conso
     private static RetentionFacts RetentionFactsOf(IReadOnlyList<TemplateImage> images)
     {
         var builds = images
-            .Where(image => IsRepository(image, AssembledRepository))
-            .GroupBy(image => BuildIdOf(image.Tag), StringComparer.Ordinal)
+            .Where(image => image.Kind == TemplateKind.AssembledSet)
+            .GroupBy(image => image.Set, StringComparer.Ordinal)
             .ToFrozenDictionary(group => group.Key, SummarizeBuild, StringComparer.Ordinal);
         var newest =
             builds.Count == 0
@@ -228,33 +215,15 @@ public sealed partial class PruneService(ISandboxCleanup cleanup, IConsole conso
         return new BuildFacts(newest, uncertain, ids.ToFrozenSet(StringComparer.Ordinal));
     }
 
-    private static bool IsRepository(TemplateImage image, string repository) =>
-        image.Repository.Equals(repository, StringComparison.Ordinal)
-        || image.Repository.EndsWith("/" + repository, StringComparison.Ordinal);
-
     private static bool HasKnownMetadata(TemplateImage image) =>
         image.CreatedAt is not null && !string.IsNullOrWhiteSpace(image.Id);
-
-    /// <summary>The build a tag of the assembled repository belongs to.</summary>
-    private static string BuildIdOf(string tag)
-    {
-        var kit = KitIndexSuffix().Match(tag);
-        if (kit.Success)
-        {
-            return tag[..kit.Index];
-        }
-
-        return tag.EndsWith(TemplateSuffix, StringComparison.Ordinal)
-            ? tag[..^TemplateSuffix.Length]
-            : tag;
-    }
 
     /// <summary>The ids of the sets a plan keeps, for the report.</summary>
     private static string KeptBuilds(PrunePlan plan)
     {
         var kept = plan
-            .Keep.Where(image => IsRepository(image, AssembledRepository))
-            .Select(image => BuildIdOf(image.Tag))
+            .Keep.Where(image => image.Kind == TemplateKind.AssembledSet)
+            .Select(image => image.Set)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();

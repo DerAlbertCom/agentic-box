@@ -4,6 +4,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Preflight;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,7 +68,9 @@ public sealed class PortsAngularTransportTests
             .Services.AddSingleton(new AboxConfig { DefaultLocation = location })
             .AddSingleton(runner)
             .AddSingleton(programs)
-            .AddSingleton<IApplicationPortPublisher>(new SbxApplicationPorts(runner));
+            .AddSingleton<IApplicationPortPublisher>(
+                new SbxApplicationPorts(new SbxInvoker(runner))
+            );
         var provider = application.Provider;
 
         // Act

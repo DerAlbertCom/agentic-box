@@ -12,7 +12,7 @@ public sealed class SbxMcpServerRegistryTests
 
     public SbxMcpServerRegistryTests()
     {
-        _registry = new SbxMcpServerRegistry(_runner);
+        _registry = new SbxMcpServerRegistry(new SbxInvoker(_runner));
     }
 
     [Fact]

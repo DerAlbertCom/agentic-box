@@ -19,7 +19,7 @@ public sealed class SbxKitSourceTrustTests : IDisposable
     public SbxKitSourceTrustTests()
     {
         _paths = AboxPaths.For(_root.Path, Path.Combine(_root.Path, "state"));
-        _trust = new SbxKitSourceTrust(_runner, _paths);
+        _trust = new SbxKitSourceTrust(new SbxInvoker(_runner), _paths);
         _runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(call =>
@@ -494,7 +494,7 @@ public sealed class SbxKitSourceTrustTests : IDisposable
                 }
                 return snapshot;
             });
-        var other = new SbxKitSourceTrust(_runner, _paths);
+        var other = new SbxKitSourceTrust(new SbxInvoker(_runner), _paths);
 
         // Act
         var first = _trust.EnsureTrustedAsync(Prefix, CancellationToken.None);
@@ -544,7 +544,7 @@ public sealed class SbxKitSourceTrustTests : IDisposable
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             using var cancellation = new CancellationTokenSource();
-            var other = new SbxKitSourceTrust(_runner, _paths);
+            var other = new SbxKitSourceTrust(new SbxInvoker(_runner), _paths);
 
             // Act
             var waiting = other.EnsureTrustedAsync(Prefix, cancellation.Token);
@@ -615,7 +615,10 @@ public sealed class SbxKitSourceTrustTests : IDisposable
 
         // Act
         var next = () =>
-            new SbxKitSourceTrust(_runner, _paths).EnsureTrustedAsync(Prefix, timeout.Token);
+            new SbxKitSourceTrust(new SbxInvoker(_runner), _paths).EnsureTrustedAsync(
+                Prefix,
+                timeout.Token
+            );
 
         // Assert
         await next.Should().NotThrowAsync();

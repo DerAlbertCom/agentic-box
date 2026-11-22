@@ -12,7 +12,7 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Https;
-using Abox.Features.Shared.KitBuildSteps;
+using Abox.Features.Shared.KitBuildScripts;
 using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Preflight;
@@ -93,7 +93,8 @@ public static class AboxServiceCollection
         );
         services.AddSingleton<IRegistryPublisher, DockerRegistryPublisher>();
         services.AddSingleton<IPublishedImageReader, DockerPublishedImageReader>();
-        services.AddSingleton<IHostPrograms, HostPrograms>();
+        services.AddSingleton<IHostPrograms, ShellHostPrograms>();
+        services.AddSingleton<SbxInvoker>();
         services.AddSingleton<IApplicationPortPublisher, SbxApplicationPorts>();
         services.AddSingleton<ISandboxCleanup, SbxSandboxCleanup>();
         services.AddSingleton<ISandboxExec, SbxSandboxExec>();

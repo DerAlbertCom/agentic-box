@@ -403,7 +403,7 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
     sbx's progress is shown live, indented, with stdout and stderr in arrival order
     and known secrets redacted. After a successful create, abox repeats sbx's `Note:`
     lines, such as a credential that was not injected. A failed create leads with a
-    headline from `SbxFailureHeadline`: the first failed kit step (`✗ … (kit=<kit>,
+    headline from the sbx invoker (`SbxInvoker`): the first failed kit step (`✗ … (kit=<kit>,
     …, exit <n>)`) with its `── captured output ──` lines, else the last `error:`
     line. It then says whether the old sandbox was already removed (its state
     directories are kept) and gives the create command to retry.
@@ -1062,7 +1062,9 @@ repositories, or removes host-Docker local builds or registry components. All re
 requests remain individual `sbx template rm` calls, subject to runtime in-use refusals.
 
 The prune service reaches the runtime only through `ISandboxCleanup`
-(`Features/Shared/SandboxCleanup`); its sbx adapter is `Infrastructure/Sbx/SbxSandboxCleanup`.
+(`Features/Shared/SandboxCleanup`); its sbx adapter is `Infrastructure/Sbx/SbxSandboxCleanup`,
+which also tells assembled sets (and the set each tag belongs to), kit sources and
+unrelated images apart, so the prune plan works on domain kinds, not repository names.
 
 ## The files
 
@@ -1244,9 +1246,10 @@ abox-cli/src/Abox/
         BuildSources.cs
         BuildStore.cs
         LocalWorkloadImages.cs  prebuilt workload images; owns the workload kit name
-        IWorkloadImageBuilder.cs  building workload images into the host image store and
-                                inspecting them there (the host-builder check); the
-                                workload build secrets
+        IWorkloadImageBuilder.cs  building workload images into the host image store,
+                                with fresh image references
+        ILocalWorkloadImageStore.cs  inspecting them there (the host-builder check)
+        WorkloadBuildSecrets.cs  the secrets workload recipes may mount
         PersonalConfigurations.cs
       Launchers/        the launcher abstraction
         ILauncher.cs           launcher contract; launcher services are constructor-injected
@@ -1282,6 +1285,7 @@ abox-cli/src/Abox/
       Preflight/        runtime preflight for sandbox commands, secrets and normal builds
         Preflight.cs            installed, new enough, healthy and signed in; the user messages
         IPreflightChecks.cs     what preflight asks of the sandbox runtime
+        IHostPrograms.cs        whether a program is on the host's PATH
         RuntimeVersion.cs       the installed version against the minimum
         DiagnoseReport.cs       the runtime's diagnosis: its checks and whether it is signed out
         DiagnosticCheck.cs      one check of the diagnosis
@@ -1289,7 +1293,7 @@ abox-cli/src/Abox/
       SandboxCleanup/   ISandboxCleanup for abox prune: list sandboxes and template images,
                         stop a sandbox, remove a template image
       KitInspection/    IKitInspector: checks a local kit's declarations for abox build
-      KitBuildSteps/    IKitBuildScript: runs a local kit's build file into its staged copy
+      KitBuildScripts/  IKitBuildScript: runs a local kit's build file into its staged copy
       Naming/           sandbox and image names
         ImageName.cs            the unqualified team reference of a local build
         TcpPort.cs              shared TCP parsing and the 1–65535 range
@@ -1301,13 +1305,12 @@ abox-cli/src/Abox/
     SecretRedactor.cs       credential collection and diagnostic redaction
     PrivateStagingException.cs  structural protected-staging failure classification
     TemporaryDirectory.cs   temporary working directories and their cleanup
-    Sbx/              every call to sbx: one adapter per use-case interface, each building
-                      its own SbxInvoker over the process runner
+    Sbx/              every call to sbx: one adapter per use-case interface, all calling
+                      sbx through the one SbxInvoker the composition root registers
       SbxInvoker.cs   the executable name, the minimum version and version query, shared
-                      captured execution, JSON and failure handling
+                      captured execution, JSON and failure handling, the failure headline
       SbxPreflightChecks.cs  IPreflightChecks: on PATH, sbx version, sbx diagnose, sbx login
       SbxSandboxExec.cs  ISandboxExec: sbx exec, privately wrapped in the HTTPS bootstrap
-      SbxFailureHeadline.cs  the cause of a failed sbx call, ahead of its full output
       SbxDevelopmentCertificates.cs  ISandboxDevelopmentCertificates: the receiver, trust and
                                      exec scripts; maps their exit codes to step outcomes
       SbxApplicationPorts.cs         IApplicationPortPublisher: relay, sbx ports inventory and mapping
@@ -1317,7 +1320,8 @@ abox-cli/src/Abox/
       SbxMcpServerRegistry.cs        IMcpServerRegistry: sbx mcp ls/add
       SbxKitSourceTrust.cs           IKitSourceTrust: kit.allowedSources, locked under the state folder
       SbxSandboxInspection.cs        ISandboxInspection: probes through sbx exec
-      SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm
+      SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm;
+                                     classifies template images by repository and tag
       SbxKitInspector.cs             IKitInspector: sbx kit inspect with the kit arguments
       SbxHostSecretStore.cs          IHostSecretStore: sbx secret ls/set/set-custom/rm
       SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line
@@ -1333,13 +1337,15 @@ abox-cli/src/Abox/
     Docker/           every call to docker, with list arguments and use-case failure messages
       DockerCommand.cs               runs docker; maps OCI manifests to RegistryManifest
       DockerWorkloadImages.cs        IWorkloadImageBuilder and ILocalWorkloadImageStore:
-                                     Buildx, the context, the docker-driver check, build and load
+                                     Buildx, the context, the docker-driver check, image
+                                     references, build and load
       DockerRegistryPublisher.cs     IRegistryPublisher: buildx build --push, imagetools
       DockerPublishedImageReader.cs  IPublishedImageReader: imagetools inspect, pull, save;
                                      never echoes Docker output
     Shell/
       ShellKitBuildScript.cs  IKitBuildScript: runs build <stagedKitDir> in the kit's folder
       ShellFolderRealPath.cs  IFolderRealPath: bash pwd -P; final link target on Windows
+      ShellHostPrograms.cs    IHostPrograms: the directories of PATH (and PATHEXT on Windows)
     Herdr/
       HerdrAppLauncher.cs  the herdr-app launcher (an ILauncher adapter, registered by
                            the composition root); its programs stay internal

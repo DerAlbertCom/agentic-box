@@ -26,7 +26,7 @@ var temporary = Path.Combine(Path.GetTempPath(), "abox-issue8-" + Guid.NewGuid()
 Directory.CreateDirectory(temporary);
 var output = new ProcessOutput(new SystemConsole()) { Verbose = true };
 var runner = new ProcessRunner(output);
-var client = new SbxUserSecrets(runner);
+var client = new SbxUserSecrets(new SbxInvoker(runner));
 using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 var token = timeout.Token;
 var source = JsonSerializer.Serialize(

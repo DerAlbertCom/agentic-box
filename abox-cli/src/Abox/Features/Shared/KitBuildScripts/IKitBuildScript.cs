@@ -1,4 +1,4 @@
-namespace Abox.Features.Shared.KitBuildSteps;
+namespace Abox.Features.Shared.KitBuildScripts;
 
 /// <summary>Runs the <c>build</c> file of a local kit (ADR 0001).</summary>
 public interface IKitBuildScript

@@ -5,12 +5,8 @@ namespace Abox.Infrastructure.Sbx;
 /// <summary>
 /// Runs commands with <c>sbx exec</c>, each wrapped in the protected HTTPS bootstrap.
 /// </summary>
-public sealed class SbxSandboxExec : ISandboxExec
+public sealed class SbxSandboxExec(SbxInvoker invoker) : ISandboxExec
 {
-    private readonly SbxInvoker _invoker;
-
-    public SbxSandboxExec(IProcessRunner runner) => _invoker = new SbxInvoker(runner);
-
     public async Task<SandboxExecOutcome> RunAsync(
         SandboxExecRequest request,
         CancellationToken cancellationToken
@@ -43,8 +39,11 @@ public sealed class SbxSandboxExec : ISandboxExec
         arguments.Add(request.Sandbox);
         SbxDevelopmentCertificates.AppendExecCommand(arguments, request.Command);
 
-        var result = await _invoker.RunAsync(
-            new ProcessRequest(_invoker.ExecutableName, arguments, AttachConsole: true),
+        var result = await invoker.RunAsync(
+            invoker.Call(arguments) with
+            {
+                AttachConsole = true,
+            },
             cancellationToken
         );
 

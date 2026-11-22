@@ -19,7 +19,7 @@ public sealed class SbxSandboxExecTests
     {
         // Arrange
         var (runner, observed) = Runner(37);
-        var exec = new SbxSandboxExec(runner);
+        var exec = new SbxSandboxExec(new SbxInvoker(runner));
         string[] command = ["sh", "-c", "printf '%s' \"$1\"", "_", "a b;$(literal)\n\"'🔒"];
 
         // Act
@@ -48,7 +48,7 @@ public sealed class SbxSandboxExecTests
     {
         // Arrange
         var (runner, observed) = Runner(0);
-        var exec = new SbxSandboxExec(runner);
+        var exec = new SbxSandboxExec(new SbxInvoker(runner));
 
         // Act
         var outcome = await exec.RunAsync(
@@ -69,7 +69,7 @@ public sealed class SbxSandboxExecTests
     {
         // Arrange
         var (runner, observed) = Runner(0);
-        var exec = new SbxSandboxExec(runner);
+        var exec = new SbxSandboxExec(new SbxInvoker(runner));
 
         // Act
         await exec.RunAsync(
