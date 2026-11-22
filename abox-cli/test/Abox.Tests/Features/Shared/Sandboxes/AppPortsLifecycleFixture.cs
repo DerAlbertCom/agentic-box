@@ -18,6 +18,7 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
     public TestConsole Console => cli.Console;
     public ISbxClient Sbx => cli.Sbx;
     public IApplicationPortPublisher Publisher => cli.Publisher;
+    public ISandboxExec Exec => cli.Exec;
     public string Location => cli.Location;
     public string Name { get; set; }
     public SandboxRecordStore Records { get; }
@@ -45,7 +46,6 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
             .Returns(new SbxOutcome(0, ""));
         Sbx.RemoveSandboxAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new SbxOutcome(0, ""));
-        Sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>()).Returns(0);
         Services.AddSingleton(
             new AboxConfig { DefaultTeam = "sample", DefaultLocation = Location }
         );

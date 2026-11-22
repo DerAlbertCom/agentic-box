@@ -1,5 +1,5 @@
-using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Https;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -13,11 +13,10 @@ public sealed class SandboxHttpsTests
     {
         // Arrange
         using var root = new CertificateTestDirectory();
-        var runner = Substitute.For<IProcessRunner>();
-        runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new ProcessResult(78, "", ""));
-        var https = Create(runner, root.Path);
+        var exec = Substitute.For<ISandboxExec>();
+        exec.RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxExecOutcome(78));
+        var https = Create(exec, root.Path);
 
         // Act
         var action = () => https.EnsureLaunchReadyAsync("actual", CancellationToken.None);
@@ -31,37 +30,35 @@ public sealed class SandboxHttpsTests
     }
 
     [Fact]
-    public async Task LaunchReadinessCrossesTheProtectedBootstrapInTheSandbox()
+    public async Task LaunchReadinessRunsANoOpCommandInTheSandbox()
     {
         // Arrange
         using var root = new CertificateTestDirectory();
-        var runner = Substitute.For<IProcessRunner>();
-        ProcessRequest? observed = null;
-        runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(call =>
-            {
-                observed = call.Arg<ProcessRequest>();
-                return new ProcessResult(0, "", "");
-            });
-        var https = Create(runner, root.Path);
+        var exec = SandboxFactory.Exec();
+        var https = Create(exec, root.Path);
 
         // Act
         await https.EnsureLaunchReadyAsync("actual", CancellationToken.None);
 
         // Assert
-        observed!.FileName.Should().Be("sbx");
-        observed.Arguments.Should().StartWith(["exec", "actual", "sh", "-c"]);
-        observed.Arguments.Should().Contain("abox-https");
-        observed.Arguments[^1].Should().Be("true");
+        await exec.Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request =>
+                    request.Sandbox == "actual"
+                    && request.Command.SequenceEqual(new[] { "true" })
+                    && request.Input == SandboxExecInput.None
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
-    private static SandboxHttps Create(IProcessRunner runner, string root)
+    private static SandboxHttps Create(ISandboxExec exec, string root)
     {
         var console = new TestConsole();
         return new SandboxHttps(
-            new HostDevelopmentCertificate(runner, console, root, []),
-            new SbxClient(runner, AboxPaths.For(root, root)),
+            new HostDevelopmentCertificate(Substitute.For<IProcessRunner>(), console, root, []),
+            Substitute.For<ISbxClient>(),
+            exec,
             console
         );
     }

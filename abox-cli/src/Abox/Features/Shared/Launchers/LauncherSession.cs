@@ -1,5 +1,5 @@
 using Abox.Features.Shared.Https;
-using Abox.Infrastructure.Sbx;
+using Abox.Features.Shared.Sandboxes;
 
 namespace Abox.Features.Shared.Launchers;
 
@@ -13,7 +13,7 @@ public sealed class LauncherSession(
     string workspacePath,
     IReadOnlyList<string> argv,
     IReadOnlyDictionary<string, string> environment,
-    ISbxClient sbx,
+    ISandboxExec exec,
     SandboxHttps https
 )
 {
@@ -30,24 +30,18 @@ public sealed class LauncherSession(
     public IReadOnlyList<string> Argv => argv;
 
     /// <summary>Runs a command in the sandbox with the session's variables and returns its exit code.</summary>
-    public Task<int> ExecAsync(
+    public async Task<int> ExecAsync(
         IReadOnlyList<string> command,
         CancellationToken cancellationToken,
-        bool allocateTty = false,
-        bool keepStandardInputOpen = false,
+        SandboxExecInput input = SandboxExecInput.None,
         string? workingDirectory = null
     ) =>
-        sbx.ExecAsync(
-            new SbxExecRequest(
-                sandboxName,
-                command,
-                allocateTty,
-                keepStandardInputOpen,
-                workingDirectory,
-                Environment: environment
-            ),
-            cancellationToken
-        );
+        (
+            await exec.RunAsync(
+                new SandboxExecRequest(sandboxName, command, input, workingDirectory, environment),
+                cancellationToken
+            )
+        ).ExitCode;
 
     /// <summary>Fails before anything starts when protected HTTPS refuses the launch.</summary>
     public Task EnsureLaunchReadyAsync(CancellationToken cancellationToken) =>

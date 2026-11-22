@@ -1,5 +1,6 @@
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Launchers;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Herdr;
 using Abox.Infrastructure.Sbx;
@@ -11,6 +12,7 @@ internal sealed class HerdrProtocolFixture
 {
     internal IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
     internal ISbxClient Sbx { get; } = Substitute.For<ISbxClient>();
+    internal ISandboxExec Exec { get; } = SandboxFactory.Exec();
     internal TestConsole Console { get; } = new();
     internal HerdrAppLauncher Launcher => new(Runner, Console);
     internal List<ProcessRequest> Calls { get; } = [];
@@ -65,8 +67,8 @@ internal sealed class HerdrProtocolFixture
             "/runtime/workspace",
             argv,
             new Dictionary<string, string>(),
-            Sbx,
-            new SandboxHttps(new HostDevelopmentCertificate(Runner, Console), Sbx, Console)
+            Exec,
+            new SandboxHttps(new HostDevelopmentCertificate(Runner, Console), Sbx, Exec, Console)
         );
 
     internal Task<int> LaunchAsync() => Launcher.RunAsync(Session, CancellationToken.None);

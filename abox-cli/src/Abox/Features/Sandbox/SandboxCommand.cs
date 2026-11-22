@@ -1,7 +1,7 @@
 using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Sandbox;
 
@@ -10,10 +10,10 @@ internal static class SandboxCommand
 {
     internal static void Configure(
         Command command,
-        ISbxClient sbx,
+        ISandboxExec exec,
         TrailingArguments trailing,
         IConsole console,
-        bool keepStandardInputOpen = false
+        SandboxExecInput input = SandboxExecInput.None
     )
     {
         command.Hidden = true;
@@ -35,15 +35,13 @@ internal static class SandboxCommand
                 }
 
                 return await CommandHandling.RunAsync(
-                    () =>
-                        sbx.ExecAsync(
-                            new SbxExecRequest(
-                                parseResult.GetValue(sandbox)!,
-                                argv,
-                                KeepStandardInputOpen: keepStandardInputOpen
-                            ),
-                            cancellationToken
-                        ),
+                    async () =>
+                        (
+                            await exec.RunAsync(
+                                new SandboxExecRequest(parseResult.GetValue(sandbox)!, argv, input),
+                                cancellationToken
+                            )
+                        ).ExitCode,
                     console
                 );
             }

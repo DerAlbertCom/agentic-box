@@ -4,6 +4,7 @@ using Abox.Features.Run;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Launchers;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
@@ -81,14 +82,15 @@ public sealed class AboxRootCommandTests
         using var root = new TempDirectory();
         root.File("config.yaml", "unknown-key: invalid\n");
         var console = new TestConsole();
-        var sbx = Substitute.For<ISbxClient>();
-        sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>()).Returns(0);
+        var exec = Substitute.For<ISandboxExec>();
+        exec.RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxExecOutcome(0));
         using var application = new CliTestApplication(
             console,
             AboxPaths.For(root.Path, Path.Combine(root.Path, "state")),
             new TrailingArguments { Values = ["echo", "hello"] }
         );
-        application.Services.AddSingleton(sbx);
+        application.Services.AddSingleton(exec);
         var provider = application.Provider;
 
         // Act
@@ -100,12 +102,17 @@ public sealed class AboxRootCommandTests
         Directory.Exists(Path.Combine(root.Path, "state")).Should().BeFalse();
         if (arguments[0] is "exec" or "pipe")
         {
-            await sbx.Received(1)
-                .ExecAsync(
-                    Arg.Is<SbxExecRequest>(request =>
+            await exec.Received(1)
+                .RunAsync(
+                    Arg.Is<SandboxExecRequest>(request =>
                         request.Sandbox == "sample"
                         && request.Command.SequenceEqual(new[] { "echo", "hello" })
-                        && request.KeepStandardInputOpen == (arguments[0] == "pipe")
+                        && request.Input
+                            == (
+                                arguments[0] == "pipe"
+                                    ? SandboxExecInput.Forwarded
+                                    : SandboxExecInput.None
+                            )
                     ),
                     Arg.Any<CancellationToken>()
                 );

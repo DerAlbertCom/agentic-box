@@ -1,4 +1,5 @@
 using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -15,7 +16,8 @@ public sealed class LegacySandboxExecPipeTests
         // Arrange
         using var cli = new UserSecretsCliHarness();
         cli.Provider.GetRequiredService<TrailingArguments>().Values = ["echo", "hello"];
-        cli.Sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>()).Returns(23);
+        cli.Exec.RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxExecOutcome(23));
 
         // Act
         var exitCode = await cli.Invoke(command, LegacySandboxFixture.Name);
@@ -23,11 +25,12 @@ public sealed class LegacySandboxExecPipeTests
         // Assert
         exitCode.Should().Be(23);
         await cli
-            .Sbx.Received(1)
-            .ExecAsync(
-                Arg.Is<SbxExecRequest>(request =>
+            .Exec.Received(1)
+            .RunAsync(
+                Arg.Is<SandboxExecRequest>(request =>
                     request.Sandbox == LegacySandboxFixture.Name
-                    && request.KeepStandardInputOpen == (command == "pipe")
+                    && request.Input
+                        == (command == "pipe" ? SandboxExecInput.Forwarded : SandboxExecInput.None)
                 ),
                 Arg.Any<CancellationToken>()
             );

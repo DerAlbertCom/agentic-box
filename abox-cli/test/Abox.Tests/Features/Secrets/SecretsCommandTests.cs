@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
@@ -62,8 +63,8 @@ public sealed class SecretsCommandTests : IDisposable
         Line("jfrog").Should().Contain("required");
         await _cli.Sbx.Received(1).ReadSquadFilesAsync(_cli.Name, Arg.Any<CancellationToken>());
         await _cli
-            .Sbx.DidNotReceive()
-            .ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>());
+            .Exec.DidNotReceive()
+            .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

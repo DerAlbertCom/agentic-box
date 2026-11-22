@@ -1,7 +1,7 @@
 using System.CommandLine;
 using Abox.Features.Shared.CommandLine;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Sbx;
 
 namespace Abox.Features.Sandbox;
 
@@ -11,7 +11,7 @@ namespace Abox.Features.Sandbox;
 /// </summary>
 public sealed class ExecCommand : Command
 {
-    public ExecCommand(ISbxClient sbx, TrailingArguments trailing, IConsole console)
+    public ExecCommand(ISandboxExec exec, TrailingArguments trailing, IConsole console)
         : base("exec", "Run a command in a sandbox.") =>
-        SandboxCommand.Configure(this, sbx, trailing, console);
+        SandboxCommand.Configure(this, exec, trailing, console);
 }

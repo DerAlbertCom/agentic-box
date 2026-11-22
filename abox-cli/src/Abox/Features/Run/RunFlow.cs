@@ -34,6 +34,7 @@ public sealed class RunFlow(
     SandboxRecordStore records,
     SandboxCreator create,
     ISbxClient sbx,
+    ISandboxExec exec,
     SandboxHttps https,
     FolderSandbox sandboxes,
     CreateRecoveryHints recoveryHints,
@@ -120,7 +121,7 @@ public sealed class RunFlow(
             terminalTheme
                 ? new Dictionary<string, string> { [TerminalThemeVariable] = TerminalThemeOn }
                 : new Dictionary<string, string>(),
-            sbx,
+            exec,
             https
         );
 

@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure.Sbx;
 using NSubstitute;
 
@@ -84,7 +85,9 @@ public sealed class HerdrAppLauncherTests
     {
         // Arrange
         var fixture = new HerdrProtocolFixture();
-        fixture.Sbx.ExecAsync(Arg.Any<SbxExecRequest>(), Arg.Any<CancellationToken>()).Returns(42);
+        fixture
+            .Exec.RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new SandboxExecOutcome(42));
 
         // Act
         var action = fixture.LaunchAsync;

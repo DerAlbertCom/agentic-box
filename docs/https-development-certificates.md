@@ -154,7 +154,7 @@ old transport bundle.
 
 ## Launch propagation and existing parents
 
-All `SbxClient.ExecAsync` launches cross a quiet shared bootstrap, including shell
+All `ISandboxExec` launches (`SbxSandboxExec`) cross a quiet shared bootstrap, including shell
 and explicit argv, hidden `abox exec` and byte-transparent `abox pipe` (Herdr's
 transport). Without HTTPS state it directly executes the original argv without
 requiring Python. With state, a short hash-checked installed Python reader validates
