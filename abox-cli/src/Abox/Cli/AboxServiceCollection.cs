@@ -14,6 +14,7 @@ using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.Registry;
 using Abox.Features.Shared.SandboxCleanup;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
@@ -79,7 +80,15 @@ public static class AboxServiceCollection
         );
         services.AddSingleton<ProcessOutput>();
         services.AddSingleton<IProcessRunner, ProcessRunner>();
-        services.AddSingleton<IOciRegistry, OciRegistry>();
+        services.AddSingleton<DockerWorkloadImages>();
+        services.AddSingleton<IWorkloadImageBuilder>(provider =>
+            provider.GetRequiredService<DockerWorkloadImages>()
+        );
+        services.AddSingleton<ILocalWorkloadImageStore>(provider =>
+            provider.GetRequiredService<DockerWorkloadImages>()
+        );
+        services.AddSingleton<IRegistryPublisher, DockerRegistryPublisher>();
+        services.AddSingleton<IPublishedImageReader, DockerPublishedImageReader>();
         services.AddSingleton<IHostPrograms, HostPrograms>();
         services.AddSingleton<ISbxClient, SbxClient>();
         services.AddSingleton(provider => new SbxInvoker(

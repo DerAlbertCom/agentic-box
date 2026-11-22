@@ -1226,6 +1226,9 @@ abox-cli/src/Abox/
         BuildSources.cs
         BuildStore.cs
         LocalWorkloadImages.cs  prebuilt workload images; owns the workload kit name
+        IWorkloadImageBuilder.cs  building workload images into the host image store and
+                                inspecting them there (the host-builder check); the
+                                workload build secrets
         PersonalConfigurations.cs
       Launchers/        the launcher abstraction
         ILauncher.cs           launcher contract; launcher services are constructor-injected
@@ -1246,6 +1249,11 @@ abox-cli/src/Abox/
         PublishedConfigArchive.cs safely reads squad metadata from Docker-save archives
         PublishedRuntimeMetadata.cs validates bundled state and MCP runtime declarations
         SquadSources.cs         local and remote ISquadSource adapters
+      Registry/         publishing images to and reading them from the registry
+        IRegistryPublisher.cs   push, inspect and tag for abox publish
+        IPublishedImageReader.cs  inspect and save published images for remote create
+        RegistryManifest.cs     a registry manifest: its kit descriptor or its platform images
+        ImageReferences.cs      digest, pinning and repository rules of image references
       Preflight/        runtime preflight for sandbox commands, secrets and normal builds;
                         checks the queried sbx version against the required minimum
       SandboxCleanup/   ISandboxCleanup for abox prune: list sandboxes and template images,
@@ -1278,8 +1286,13 @@ abox-cli/src/Abox/
       HostSecrets.cs                 the stored secrets; matches a declaration by its identity
       PullPolicy.cs                  closed pull choices, mapped to flags by the wrapper
       *.py, *.sh                     the embedded scripts sbx runs in the sandbox
-    Docker/
-      OciRegistry.cs  intent-level Docker operations, Buildx checks and OCI inspection
+    Docker/           every call to docker, with list arguments and use-case failure messages
+      DockerCommand.cs               runs docker; maps OCI manifests to RegistryManifest
+      DockerWorkloadImages.cs        IWorkloadImageBuilder and ILocalWorkloadImageStore:
+                                     Buildx, the context, the docker-driver check, build and load
+      DockerRegistryPublisher.cs     IRegistryPublisher: buildx build --push, imagetools
+      DockerPublishedImageReader.cs  IPublishedImageReader: imagetools inspect, pull, save;
+                                     never echoes Docker output
     Herdr/
       HerdrAppLauncher.cs  the herdr-app launcher (an ILauncher adapter, registered by
                            the composition root); its programs stay internal

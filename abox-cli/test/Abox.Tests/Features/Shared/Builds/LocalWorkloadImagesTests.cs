@@ -253,7 +253,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     {
         // Arrange
         var programs = Substitute.For<IHostPrograms>();
-        var images = new LocalWorkloadImages(programs, new OciRegistry(_runner), new TestConsole());
+        var images = LocalWorkloadFactory.Images(programs, _runner, new TestConsole());
 
         // Act
         Func<Task> action = checkAvailability

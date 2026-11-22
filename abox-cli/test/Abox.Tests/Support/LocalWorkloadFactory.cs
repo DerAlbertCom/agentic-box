@@ -33,11 +33,18 @@ internal static class LocalWorkloadFactory
     {
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists("docker").Returns(true);
-        return new LocalWorkloadImages(
-            programs,
-            new OciRegistry(runner ?? Runner()),
-            new TestConsole()
-        );
+        return Images(programs, runner ?? Runner(), new TestConsole());
+    }
+
+    /// <summary>Local workload images backed by the Docker adapter and the given fakes.</summary>
+    public static LocalWorkloadImages Images(
+        IHostPrograms programs,
+        IProcessRunner runner,
+        IConsole console
+    )
+    {
+        var docker = new DockerWorkloadImages(programs, runner);
+        return new LocalWorkloadImages(docker, docker, console);
     }
 
     public static LocalWorkloadImage Artifact(TempDirectory root)

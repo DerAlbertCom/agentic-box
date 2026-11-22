@@ -57,7 +57,7 @@ public sealed class CreateTagCommandTests
                     console,
                     new LocalSquadSource(
                         new BuildStore(paths),
-                        new LocalWorkloadImages(programs, new OciRegistry(runner), console),
+                        LocalWorkloadFactory.Images(programs, runner, console),
                         console
                     ),
                     new RemoteSquadSource(config.Value, sbx, published),

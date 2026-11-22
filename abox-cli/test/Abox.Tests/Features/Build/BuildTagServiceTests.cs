@@ -30,7 +30,7 @@ public sealed class BuildTagServiceTests
             new SquadResolver(new AboxConfig()),
             new PersonalConfigurations(paths),
             new BuildStore(paths),
-            new LocalWorkloadImages(programs, new OciRegistry(runner), console),
+            LocalWorkloadFactory.Images(programs, runner, console),
             sbx,
             console
         );

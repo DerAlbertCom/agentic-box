@@ -2,9 +2,9 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using Abox.Features.Build;
+using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Docker;
 
 namespace Abox.Tests;
 
@@ -584,7 +584,7 @@ public sealed class WorkloadKitGeneratorTests
 
         // Assert
         var dockerfile = File.ReadAllText(Path.Combine(_root.Path, "kit", "workload.dockerfile"));
-        dockerfile.Should().Contain($"--mount=type=secret,id={OciRegistry.GitHubTokenSecret}");
+        dockerfile.Should().Contain($"--mount=type=secret,id={WorkloadBuildSecrets.GitHubToken}");
         dockerfile.Should().NotContain("--build-arg");
     }
 

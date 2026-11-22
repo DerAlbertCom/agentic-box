@@ -1,8 +1,7 @@
 using System.Text.Json;
 using Abox.Features.Shared.Builds;
-using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Registry;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Docker;
 
 namespace Abox.Features.Publish;
 
@@ -22,17 +21,13 @@ internal sealed record PublicationPush(
 
 /// <summary>Publication's verified writes and all-runnable-platform inspection policy.</summary>
 internal sealed class VerifiedPublicationRegistry(
-    IOciRegistry registry,
+    IRegistryPublisher registry,
     IConsole console,
     string? builder
 )
 {
-    private static readonly OciFailure OperationFailure = new(exitCode =>
-        $"Publishing failed (docker buildx, exit code {exitCode}). Check the Buildx builder and run 'docker login {RegistryImageName.Registry}' with a JFrog identity allowed to push to the workload's publishRepository."
-    );
-
     internal Task RequireBuildxAsync(CancellationToken cancellationToken) =>
-        registry.RequireBuildxAsync(OperationFailure, cancellationToken);
+        registry.RequireReadyAsync(cancellationToken);
 
     internal async Task ValidateRegistryKitsAsync(
         IEnumerable<ManifestKit> kits,
@@ -56,27 +51,23 @@ internal sealed class VerifiedPublicationRegistry(
     )
     {
         console.WriteLine($"Publishing '{request.Reference}'...");
-        var metadata = Path.Combine(
-            request.PublicationDirectory,
-            Guid.NewGuid().ToString("N") + ".json"
-        );
-        await registry.BuildAndPushAsync(
-            new OciPushBuild(
+        var digest = await registry.PushAsync(
+            new RegistryPush(
                 request.Directory,
                 PublicationSources.Descriptor(request.Directory),
                 request.Reference,
-                metadata,
+                request.PublicationDirectory,
                 builder,
                 request.Kind == PublicationImageKind.Workload
             ),
-            OperationFailure,
             cancellationToken
         );
+        if (!ImageReferences.IsDigest(digest))
+            throw new AboxException(
+                $"Cannot read the pushed digest for '{request.Reference}'; the requested set tag was not promoted."
+            );
 
-        var pinned = OciRegistry.Pin(
-            request.Reference,
-            ReadPushedDigest(metadata, request.Reference)
-        );
+        var pinned = ImageReferences.Pin(request.Reference, digest!);
         await InspectAsync(new Inspection(pinned, request.Kind), cancellationToken);
         return pinned;
     }
@@ -89,41 +80,11 @@ internal sealed class VerifiedPublicationRegistry(
     {
         // Only a previously verified immutable candidate reaches this stage. A failure after
         // promotion cannot roll back this tag, nor any earlier squad's successful publication.
-        await registry.TagAsync(
-            new OciTag(candidate, requestedReference, builder),
-            OperationFailure,
-            cancellationToken
-        );
+        await registry.TagAsync(candidate, requestedReference, builder, cancellationToken);
         await InspectAsync(
             new Inspection(requestedReference, PublicationImageKind.Workload),
             cancellationToken
         );
-    }
-
-    private static string ReadPushedDigest(string metadata, string reference)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(File.ReadAllText(metadata));
-            var digest =
-                document.RootElement.GetProperty("containerimage.digest").GetString() ?? "";
-            if (!OciRegistry.IsDigest(digest))
-                throw new JsonException("Missing or invalid image digest.");
-            return digest;
-        }
-        catch (Exception exception)
-            when (exception
-                    is JsonException
-                        or KeyNotFoundException
-                        or InvalidOperationException
-                        or IOException
-            )
-        {
-            throw new AboxException(
-                $"Cannot read the pushed digest for '{reference}'; the requested set tag was not promoted.",
-                exception
-            );
-        }
     }
 
     private sealed record Inspection(string Reference, PublicationImageKind Kind, int Depth = 0);
@@ -141,18 +102,12 @@ internal sealed class VerifiedPublicationRegistry(
             throw new AboxException(
                 $"Registry artifact '{reference}' has too many nested image indexes."
             );
-        var result = await registry.InspectAsync(
-            new OciImage(reference, builder),
-            true,
-            OperationFailure,
-            cancellationToken
-        );
         try
         {
-            var root = OciRegistry.ParseManifest(result.StandardOutput);
-            if (!root.TryGetProperty("manifests", out var manifests))
-                return [OciRegistry.Descriptor(root, kind, $"Expected a v3 {kind} descriptor.")];
-            return await InspectPlatformsAsync(manifests, inspection, cancellationToken);
+            var manifest = await registry.InspectAsync(reference, builder, cancellationToken);
+            if (manifest.Platforms is not { } platforms)
+                return [manifest.Descriptor(kind, $"Expected a v3 {kind} descriptor.")];
+            return await InspectPlatformsAsync(platforms, inspection, cancellationToken);
         }
         catch (Exception exception)
             when (exception
@@ -170,24 +125,24 @@ internal sealed class VerifiedPublicationRegistry(
     }
 
     private async Task<IReadOnlyList<JsonElement>> InspectPlatformsAsync(
-        JsonElement manifests,
+        IReadOnlyList<PlatformManifest> platforms,
         Inspection inspection,
         CancellationToken cancellationToken
     )
     {
         var leaves = new List<JsonElement>();
-        foreach (var manifest in manifests.EnumerateArray())
+        foreach (var platform in platforms)
         {
-            if (IsAttestation(manifest))
+            if (IsAttestation(platform))
                 continue;
-            var digest = manifest.GetProperty("digest").GetString() ?? "";
-            if (!OciRegistry.IsDigest(digest))
+            var digest = platform.Digest;
+            if (!ImageReferences.IsDigest(digest))
                 throw new JsonException("Invalid platform manifest digest.");
             leaves.AddRange(
                 await InspectAsync(
                     inspection with
                     {
-                        Reference = OciRegistry.Repository(inspection.Reference) + "@" + digest,
+                        Reference = ImageReferences.Repository(inspection.Reference) + "@" + digest,
                         Depth = inspection.Depth + 1,
                     },
                     cancellationToken
@@ -199,13 +154,8 @@ internal sealed class VerifiedPublicationRegistry(
         return leaves;
     }
 
-    private static bool IsAttestation(JsonElement manifest) =>
-        manifest.TryGetProperty("annotations", out var annotations)
-        && annotations.TryGetProperty("vnd.docker.reference.type", out var type)
-        && type.GetString() == "attestation-manifest"
-        && manifest.TryGetProperty("platform", out var platform)
-        && platform.GetProperty("os").GetString() == "unknown"
-        && platform.GetProperty("architecture").GetString() == "unknown";
+    private static bool IsAttestation(PlatformManifest platform) =>
+        platform is { IsAttestation: true, Os: "unknown", Architecture: "unknown" };
 
     private static void ValidateArguments(
         JsonElement descriptor,

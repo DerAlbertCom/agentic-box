@@ -38,7 +38,7 @@ public sealed class BuildMcpValidationTests : IDisposable
             resolver,
             new PersonalConfigurations(_paths),
             _store,
-            new LocalWorkloadImages(programs, new OciRegistry(_runner), _console),
+            LocalWorkloadFactory.Images(programs, _runner, _console),
             _sbx,
             _console
         );

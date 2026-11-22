@@ -299,7 +299,11 @@ public sealed class VerifiedPublicationTests
             _store = new BuildStore(AboxPaths.For(_root.Path, Path.Combine(_root.Path, "state")));
             var programs = Substitute.For<IHostPrograms>();
             programs.Exists("docker").Returns(true);
-            _service = new PublishService(_store, programs, new OciRegistry(Runner), Console);
+            _service = new PublishService(
+                _store,
+                new DockerRegistryPublisher(programs, Runner),
+                Console
+            );
             Runner
                 .When(runner =>
                     runner.RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())

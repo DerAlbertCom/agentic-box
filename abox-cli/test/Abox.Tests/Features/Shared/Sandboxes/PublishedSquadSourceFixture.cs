@@ -148,7 +148,10 @@ internal sealed class PublishedSquadSourceFixture
     }
 
     internal Task<PublishedSquad> LoadAsync() =>
-        new PublishedSquadSource(new OciRegistry(Runner), Programs, Console).LoadAsync(
+        new PublishedSquadSource(
+            new DockerPublishedImageReader(Programs, Runner),
+            Console
+        ).LoadAsync(
             Reference,
             new SquadBuildIdentity("mti-ca", "ac", "latest"),
             CancellationToken.None

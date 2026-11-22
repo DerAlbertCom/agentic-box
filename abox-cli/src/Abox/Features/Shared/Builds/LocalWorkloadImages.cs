@@ -1,22 +1,16 @@
-using System.Text.Json;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Docker;
 
 namespace Abox.Features.Shared.Builds;
 
 /// <summary>Prebuilds workload content in host Docker; sbx only wraps it as a v3 kit at create.</summary>
 public sealed class LocalWorkloadImages(
-    IHostPrograms programs,
-    IOciRegistry registry,
+    IWorkloadImageBuilder builder,
+    ILocalWorkloadImageStore store,
     IConsole console
 )
 {
     /// <summary>The name of the generated workload kit descriptor, without the extension.</summary>
     public const string WorkloadKitName = "workload";
-
-    private static readonly OciFailure OperationFailure = new(exitCode =>
-        $"Local workload image operation failed (Docker, exit {exitCode}). Check the Docker context and run 'abox build' again. No source-build fallback is performed."
-    );
 
     public async Task<LocalWorkloadImage> BuildAsync(
         string workloadDirectory,
@@ -45,19 +39,7 @@ public sealed class LocalWorkloadImages(
     private async Task<string> HostContextAsync(CancellationToken cancellationToken)
     {
         RequireDocker();
-        await registry.RequireBuildxAsync(OperationFailure, cancellationToken);
-        var context = (
-            await registry.CurrentContextAsync(OperationFailure, cancellationToken)
-        ).StandardOutput.Trim();
-        if (string.IsNullOrWhiteSpace(context))
-        {
-            throw new AboxException("Docker did not report its current context.");
-        }
-
-        // A context's docker-driver builder shares the image store used by the thin FROM.
-        // A selected docker-container/remote builder cannot resolve host-only images.
-        await EnsureHostBuilderAsync(context, cancellationToken);
-        return context;
+        return await builder.HostContextAsync(cancellationToken);
     }
 
     private async Task<(string Reference, string ImageId)> BuildImageAsync(
@@ -69,17 +51,16 @@ public sealed class LocalWorkloadImages(
         var sourceHash = BuildSources.DirectoryHash(workloadDirectory);
         var reference = "docker.io/library/abox-workload:" + Guid.NewGuid().ToString("N");
         console.WriteLine($"Building reusable workload image '{reference}'...");
-        await registry.BuildAndLoadAsync(
-            new OciLoadBuild(
+        await builder.BuildAsync(
+            new WorkloadImageBuild(
                 workloadDirectory,
                 Path.Combine(workloadDirectory, WorkloadKitName + ".yaml"),
                 reference,
                 context
             ),
-            OperationFailure,
             cancellationToken
         );
-        var imageId = await ImageIdAsync(context, reference, cancellationToken);
+        var imageId = await store.ImageIdAsync(context, reference, cancellationToken);
         if (BuildSources.DirectoryHash(workloadDirectory) != sourceHash)
         {
             throw new AboxException(
@@ -131,9 +112,9 @@ public sealed class LocalWorkloadImages(
             );
         }
 
-        await EnsureHostBuilderAsync(image.DockerContext, cancellationToken);
+        await store.RequireHostBuilderAsync(image.DockerContext, cancellationToken);
         if (
-            await ImageIdAsync(image.DockerContext, image.Reference, cancellationToken)
+            await store.ImageIdAsync(image.DockerContext, image.Reference, cancellationToken)
             != image.ImageId
         )
         {
@@ -143,65 +124,11 @@ public sealed class LocalWorkloadImages(
         }
     }
 
-    private async Task EnsureHostBuilderAsync(string context, CancellationToken cancellationToken)
+    private void RequireDocker()
     {
-        var builders = (
-            await registry.ListBuildersAsync(OperationFailure, cancellationToken)
-        ).StandardOutput.Trim();
-        var drivers = new HashSet<string>();
-        try
-        {
-            foreach (var line in builders.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            {
-                using var document = JsonDocument.Parse(line);
-                var builder = document.RootElement;
-                if (builder.GetProperty("Name").GetString() == context)
-                {
-                    drivers.Add(builder.GetProperty("Driver").GetString() ?? "");
-                }
-            }
-        }
-        catch (Exception exception)
-            when (exception is JsonException or KeyNotFoundException or InvalidOperationException)
-        {
+        if (!store.IsInstalled)
             throw new AboxException(
-                "Cannot read Docker Buildx builders. Local images require a docker-driver builder; run 'abox build' again after fixing Buildx.",
-                exception
+                "Local workload images need Docker with Buildx on PATH. Install Docker and run 'abox build' again."
             );
-        }
-        if (drivers.Count != 1 || !drivers.Contains("docker"))
-        {
-            throw new AboxException(
-                $"Local workload images require the docker-driver builder for context '{context}', not '{string.Join(", ", drivers)}'. Select a Docker Engine context and run 'abox build' again."
-            );
-        }
     }
-
-    private async Task<string> ImageIdAsync(
-        string context,
-        string reference,
-        CancellationToken cancellationToken
-    )
-    {
-        var id = (
-            await registry.ImageIdAsync(
-                new OciLocalImage(context, reference),
-                OperationFailure,
-                cancellationToken
-            )
-        ).StandardOutput.Trim();
-        if (!OciRegistry.IsDigest(id))
-        {
-            throw new AboxException(
-                $"Docker did not report a valid content ID for '{reference}'. Run 'abox build' again."
-            );
-        }
-        return id;
-    }
-
-    private void RequireDocker() =>
-        OciRegistry.RequireDocker(
-            programs,
-            "Local workload images need Docker with Buildx on PATH. Install Docker and run 'abox build' again."
-        );
 }

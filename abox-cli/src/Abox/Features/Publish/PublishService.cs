@@ -1,9 +1,9 @@
 using System.Text.Json;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Registry;
 using Abox.Features.Shared.Squads;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Docker;
 
 namespace Abox.Features.Publish;
 
@@ -15,12 +15,7 @@ public sealed record PublishRequest(
 );
 
 /// <summary>Publishes verified source snapshots as v3 kits, then promotes a verified set.</summary>
-public sealed class PublishService(
-    BuildStore store,
-    IHostPrograms programs,
-    IOciRegistry registry,
-    IConsole console
-)
+public sealed class PublishService(BuildStore store, IRegistryPublisher registry, IConsole console)
 {
     public const string Registry = RegistryImageName.Registry;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -29,10 +24,10 @@ public sealed class PublishService(
     {
         RegistryImageName.ValidateTag(request.Tag);
         var builds = new PublicationSources(store).LoadBuilds(request);
-        OciRegistry.RequireDocker(
-            programs,
-            "Publishing v3 kits needs Docker with the Buildx plugin on PATH. Install it and configure a BuildKit builder; see docs/implementation.md."
-        );
+        if (!registry.IsInstalled)
+            throw new AboxException(
+                "Publishing v3 kits needs Docker with the Buildx plugin on PATH. Install it and configure a BuildKit builder; see docs/implementation.md."
+            );
 
         using var temporary = new TemporaryDirectory("abox-publish-", "publication", console);
         try

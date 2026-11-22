@@ -653,7 +653,7 @@ public sealed class SandboxCreatorTests
         var team = resolver.ResolveTeam(_root.Path, "sample");
         var runner = Substitute.For<IProcessRunner>();
         var programs = Substitute.For<IHostPrograms>();
-        var images = new LocalWorkloadImages(programs, new OciRegistry(runner), _console);
+        var images = LocalWorkloadFactory.Images(programs, runner, _console);
         var build = TestServiceGraphs.Build(
             resolver,
             new PersonalConfigurations(_paths),

@@ -2,8 +2,8 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Registry;
 using Abox.Infrastructure;
-using Abox.Infrastructure.Docker;
 
 namespace Abox.Features.Shared.Sandboxes;
 
@@ -21,11 +21,8 @@ public interface IPublishedSquadSource
 }
 
 /// <summary>Only registry reads: inspect the set, pull its small config mixin, and read its saved layers without executing or extracting them.</summary>
-public sealed class PublishedSquadSource(
-    IOciRegistry registry,
-    IHostPrograms programs,
-    IConsole console
-) : IPublishedSquadSource
+public sealed class PublishedSquadSource(IPublishedImageReader registry, IConsole console)
+    : IPublishedSquadSource
 {
     public async Task<PublishedSquad> LoadAsync(
         string reference,
@@ -33,10 +30,10 @@ public sealed class PublishedSquadSource(
         CancellationToken cancellationToken
     )
     {
-        OciRegistry.RequireDocker(
-            programs,
-            $"Remote create needs Docker with Buildx to read the published squad metadata. Install Docker and run 'docker login {RegistryImageName.Registry}' with read access; no local build or team sources are needed."
-        );
+        if (!registry.IsInstalled)
+            throw new AboxException(
+                $"Remote create needs Docker with Buildx to read the published squad metadata. Install Docker and run 'docker login {RegistryImageName.Registry}' with read access; no local build or team sources are needed."
+            );
 
         using var temporary = new TemporaryDirectory("abox-pull-", "download", console);
         try
@@ -77,21 +74,15 @@ public sealed class PublishedSquadSource(
             architecture,
             cancellationToken
         );
-        var pinned = OciRegistry.Pin(reference, digest);
+        var pinned = ImageReferences.Pin(reference, digest);
         var descriptor = Descriptor(manifest, "workload");
         var config = ConfigurationReference(descriptor, identity);
         Descriptor(
             (await ResolveManifestAsync(config, architecture, cancellationToken)).Manifest,
             "mixin"
         );
-        await registry.PullAsync(
-            config,
-            "linux/" + architecture,
-            OperationFailure("pull"),
-            cancellationToken
-        );
         var archive = Path.Combine(directory, "config.tar");
-        await registry.SaveAsync(config, archive, OperationFailure("image"), cancellationToken);
+        await registry.SaveAsync(config, "linux/" + architecture, archive, cancellationToken);
         var metadata = PublishedRuntimeMetadata.Read(
             PublishedConfigArchive.Read(archive),
             identity,
@@ -121,16 +112,16 @@ public sealed class PublishedSquadSource(
         var prefix = config[..config.IndexOf(suffix, StringComparison.Ordinal)];
         if (!RegistryImageName.IsValidRepository(prefix[(RegistryImageName.Registry.Length + 1)..]))
             throw new JsonException("Invalid configuration repository.");
-        OciRegistry.Digest(
+        ImageReferences.Digest(
             config[(config.IndexOf(suffix, StringComparison.Ordinal) + suffix.Length)..]
         );
         return config;
     }
 
-    private sealed record OciManifest(string Digest, JsonElement Manifest);
+    private sealed record ResolvedManifest(string Digest, RegistryManifest Manifest);
 
     // Remote consumption selects only this host's Linux image. Publication deliberately verifies all platforms.
-    private async Task<OciManifest> ResolveManifestAsync(
+    private async Task<ResolvedManifest> ResolveManifestAsync(
         string reference,
         string architecture,
         CancellationToken cancellationToken,
@@ -140,57 +131,32 @@ public sealed class PublishedSquadSource(
         if (depth > 4)
             throw new JsonException("Too many nested image indexes.");
 
-        string digest;
-        if (reference.Contains('@'))
-            digest = OciRegistry.Digest(reference[(reference.LastIndexOf('@') + 1)..]);
-        else
-        {
-            var resolved = await registry.InspectAsync(
-                new OciImage(reference),
-                false,
-                OperationFailure("buildx"),
-                cancellationToken
-            );
-            using var identity = JsonDocument.Parse(resolved.StandardOutput);
-            digest = OciRegistry.Digest(identity.RootElement.GetProperty("digest").GetString());
-        }
-        var result = await registry.InspectAsync(
-            new OciImage(OciRegistry.Repository(reference) + "@" + digest),
-            true,
-            OperationFailure("buildx"),
+        var digest = ImageReferences.Digest(
+            reference.Contains('@')
+                ? reference[(reference.LastIndexOf('@') + 1)..]
+                : await registry.ResolveDigestAsync(reference, cancellationToken)
+        );
+        var manifest = await registry.InspectAsync(
+            ImageReferences.Repository(reference) + "@" + digest,
             cancellationToken
         );
-        var root = OciRegistry.ParseManifest(result.StandardOutput);
-        if (!root.TryGetProperty("manifests", out var manifests))
-            return new OciManifest(digest, root);
+        if (manifest.Platforms is not { } platforms)
+            return new ResolvedManifest(digest, manifest);
 
-        var selected = manifests
-            .EnumerateArray()
-            .Where(manifest =>
-                manifest.TryGetProperty("platform", out var platform)
-                && platform.GetProperty("os").GetString() == "linux"
-                && platform.GetProperty("architecture").GetString() == architecture
-            )
+        var selected = platforms
+            .Where(platform => platform.Os == "linux" && platform.Architecture == architecture)
             .ToList();
         if (selected.Count != 1)
             throw new JsonException("No unambiguous runnable platform manifest.");
-        var childDigest = OciRegistry.Digest(selected[0].GetProperty("digest").GetString());
+        var childDigest = ImageReferences.Digest(selected[0].Digest);
         return await ResolveManifestAsync(
-            OciRegistry.Repository(reference) + "@" + childDigest,
+            ImageReferences.Repository(reference) + "@" + childDigest,
             architecture,
             cancellationToken,
             depth + 1
         );
     }
 
-    private static JsonElement Descriptor(JsonElement manifest, string kind) =>
-        OciRegistry.Descriptor(manifest, kind, "Expected a processed v3 kit descriptor.");
-
-    // Docker handles credentials; metadata reads must never echo their output.
-    private static OciFailure OperationFailure(string command) =>
-        new(
-            exitCode =>
-                $"Cannot read the published squad metadata (docker {command}, exit code {exitCode}). Check the published tag and Docker/Buildx, and run 'docker login {RegistryImageName.Registry}' with read access to the set and its bundled components. For an older artifact, ask a maintainer to republish it with current abox. The existing sandbox was not replaced.",
-            IncludeOutput: false
-        );
+    private static JsonElement Descriptor(RegistryManifest manifest, string kind) =>
+        manifest.Descriptor(kind, "Expected a processed v3 kit descriptor.");
 }
