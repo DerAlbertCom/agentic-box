@@ -1,28 +1,35 @@
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, rename, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { Liquid } from "liquidjs";
 import { foldersWith } from "./folders";
 import { channels, mix, type Palette } from "./palette";
 
 /** An app template: `<apps>/<app>/app.yaml` next to the app's Liquid templates. */
-export interface AppTemplate {
+interface AppTemplate {
   readonly name: string;
   readonly folder: string;
   /** Templates rendered to target files. */
   readonly files: readonly { template: string; target: string }[];
   /** JSON objects merged into existing settings files; string values are Liquid templates. */
   readonly settings: readonly { file: string; merge: Record<string, unknown> }[];
-  /** Shell commands run after rendering, from the home folder. */
+  /** Shell commands run after writing, from the home folder. */
   readonly run: readonly string[];
 }
 
-export interface Rendered {
-  /** Run commands that failed, with their output. */
-  readonly failures: string[];
+/** The app templates rendered with a palette, nothing written yet. */
+export interface RenderedApps {
+  /** The text of every file and settings file, by its path, in the order the apps render them. */
+  readonly files: ReadonlyMap<string, string>;
+  /** The apps' commands, in the order of the apps. */
+  readonly commands: readonly AppCommand[];
 }
 
-export function readAppTemplates(folder: string): AppTemplate[] {
+export interface AppCommand {
+  readonly app: string;
+  readonly command: string;
+}
+
+function readAppTemplates(folder: string): AppTemplate[] {
   return foldersWith(folder, "app.yaml").map((name) => readAppTemplate(name, join(folder, name)));
 }
 
@@ -76,48 +83,41 @@ function readAppTemplate(name: string, folder: string): AppTemplate {
   return { name, folder, files, settings, run };
 }
 
-/** Renders the app templates with the palette: writes the files, merges the settings, runs the commands. */
+/**
+ * Renders every app template in `folder` with the palette in memory: the files and merged settings
+ * to write and the commands to run. Writes nothing, so any error leaves the apps untouched.
+ */
 export async function renderAppTemplates(
-  apps: readonly AppTemplate[],
+  folder: string,
   palette: Palette,
-  env: Readonly<Record<string, string | undefined>>,
   home: string,
-): Promise<Rendered> {
-  const failures: string[] = [];
+): Promise<RenderedApps> {
+  const apps = readAppTemplates(folder);
+  const files = new Map<string, string>();
+  const commands: AppCommand[] = [];
+  const target = (path: string) => join(home, path.slice(2));
   for (const app of apps) {
     const liquid = engine(app.folder);
-    const target = (path: string) => join(home, path.slice(2));
 
     for (const file of app.files) {
       const text = await liquid.renderFile(file.template, palette).catch((error: Error) => {
         throw new Error(`${app.name}/${file.template}: ${error.message}`);
       });
-      await writeAtomically(target(file.target), text);
+      files.set(target(file.target), text);
     }
 
     for (const setting of app.settings) {
       const path = target(setting.file);
-      const current = existsSync(path) ? parseSettings(path) : {};
+      // What an earlier app renders to the same file is merged into, as if it were written already.
+      const text = files.get(path) ?? (existsSync(path) ? readFileSync(path, "utf8") : undefined);
+      const current = text === undefined ? {} : parseSettings(path, text);
       const merge = (await renderStrings(liquid, setting.merge, palette)) as Record<string, unknown>;
-      await writeAtomically(path, JSON.stringify(deepMerge(current, merge), null, 2) + "\n");
+      files.set(path, JSON.stringify(deepMerge(current, merge), null, 2) + "\n");
     }
 
-    for (const command of app.run) {
-      const result = Bun.spawnSync(["sh", "-c", command], {
-        cwd: home,
-        env: { ...env },
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      if (result.exitCode !== 0) {
-        const output = (result.stderr.toString() + result.stdout.toString()).trim();
-        failures.push(
-          `${app.name}: '${command}' failed with exit code ${result.exitCode}${output ? `:\n${output}` : ""}`,
-        );
-      }
-    }
+    for (const command of app.run) commands.push({ app: app.name, command });
   }
-  return { failures };
+  return { files, commands };
 }
 
 function engine(root: string): Liquid {
@@ -142,8 +142,8 @@ async function renderStrings(liquid: Liquid, value: unknown, palette: Palette): 
   return value;
 }
 
-function parseSettings(path: string): Record<string, unknown> {
-  const parsed = JSON.parse(readFileSync(path, "utf8"));
+function parseSettings(path: string, text: string): Record<string, unknown> {
+  const parsed = JSON.parse(text);
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
     throw new Error(`${path} does not hold a JSON object`);
   return parsed;
@@ -163,11 +163,4 @@ function deepMerge(
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function writeAtomically(path: string, text: string) {
-  await mkdir(dirname(path), { recursive: true });
-  const temporary = `${path}.sbox-${crypto.randomUUID()}`;
-  await writeFile(temporary, text);
-  await rename(temporary, path);
 }

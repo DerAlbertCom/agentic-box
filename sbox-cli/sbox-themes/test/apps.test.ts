@@ -401,3 +401,145 @@ describe("app templates", () => {
     expect(result.stderr).toStartWith("sbox themes: probe/probe.liquid: undefined variable: active_border_color");
   });
 });
+
+const dawn = ["background", "foreground", "red", "green", "yellow", "blue", "magenta", "cyan"]
+  .map((key, i) => `${key} = "#e0e0e${i}"`)
+  .join("\n");
+
+/** Two apps, alpha with a file and a settings merge, beta with a file; `beta` replaces beta's files. */
+function twoApps(beta: Record<string, string> = {}) {
+  return {
+    "themes/dusk/colors.toml": dusk,
+    "themes/dawn/colors.toml": dawn,
+    "apps/alpha/app.yaml":
+      "files:\n  - template: alpha.liquid\n    target: ~/alpha.txt\n" +
+      'settings:\n  - file: ~/alpha.json\n    merge:\n      theme: "{{ background }}"\n',
+    "apps/alpha/alpha.liquid": probe,
+    "apps/beta/app.yaml": "files:\n  - template: beta.liquid\n    target: ~/beta.txt\n",
+    "apps/beta/beta.liquid": probe,
+    ...beta,
+  };
+}
+
+/** What a theme switch may change: the apps' files, their settings and the saved choice. */
+async function snapshot() {
+  const paths = ["alpha.txt", "alpha.json", "beta.txt", "beta.json", ".local/state/sbox/themes/current"];
+  return Promise.all(paths.map(async (path) => ((await home.exists(path)) ? home.file(path) : null)));
+}
+
+/** Applying first dawn, then dusk: by switching, or with --apply and the kit's default theme. */
+const ways = [
+  { way: "sbox themes <name>", from: ["themes", "dawn"], to: ["themes", "dusk"], env: (_: string) => ({}) },
+  {
+    way: "sbox themes --apply",
+    from: ["themes", "--apply"],
+    to: ["themes", "--apply"],
+    env: (theme: string) => ({ SBOX_THEME: theme }),
+  },
+];
+
+describe.each(ways)("$way", ({ from, to, env }) => {
+  test("changes nothing when a later app's template fails", async () => {
+    // Arrange
+    await home.install("themes", { package: themesPackage, files: twoApps() });
+    await home.run(from, { env: env("dawn") });
+    const before = await snapshot();
+    await home.install("themes", {
+      package: themesPackage,
+      files: twoApps({ "apps/beta/beta.liquid": "{{ nope }}" }),
+    });
+
+    // Act
+    const result = await home.run(to, { env: env("dusk") });
+
+    // Assert
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toStartWith("sbox themes: beta/beta.liquid: undefined variable: nope");
+    expect(await snapshot()).toEqual(before);
+    expect(before[0]).toStartWith("mode=light\n");
+  });
+
+  test("changes nothing when a later app's settings file is not a JSON object", async () => {
+    // Arrange
+    await home.install("themes", { package: themesPackage, files: twoApps() });
+    await home.run(from, { env: env("dawn") });
+    await home.write("beta.json", "[]\n");
+    const before = await snapshot();
+    const settings = 'settings:\n  - file: ~/beta.json\n    merge:\n      theme: "{{ background }}"\n';
+    await home.install("themes", {
+      package: themesPackage,
+      files: twoApps({ "apps/beta/app.yaml": settings }),
+    });
+
+    // Act
+    const result = await home.run(to, { env: env("dusk") });
+
+    // Assert
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(`sbox themes: ${home.path}/beta.json does not hold a JSON object\n`);
+    expect(await snapshot()).toEqual(before);
+  });
+
+  test("changes nothing when a later app's definition is malformed", async () => {
+    // Arrange
+    await home.install("themes", { package: themesPackage, files: twoApps() });
+    await home.run(from, { env: env("dawn") });
+    const before = await snapshot();
+    await home.install("themes", {
+      package: themesPackage,
+      files: twoApps({ "apps/beta/app.yaml": "colours: []\n" }),
+    });
+
+    // Act
+    const result = await home.run(to, { env: env("dusk") });
+
+    // Assert
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("beta/app.yaml: unknown key 'colours'");
+    expect(await snapshot()).toEqual(before);
+  });
+});
+
+describe("sbox themes <name> with two apps", () => {
+  test("merges the settings of both into one settings file", async () => {
+    // Arrange
+    const settings = 'settings:\n  - file: ~/alpha.json\n    merge:\n      mode: "{{ mode }}"\n';
+    await home.install("themes", {
+      package: themesPackage,
+      files: twoApps({ "apps/beta/app.yaml": settings }),
+    });
+    await home.write("alpha.json", JSON.stringify({ keep: true }));
+
+    // Act
+    const result = await home.run(["themes", "dusk"]);
+
+    // Assert
+    expect(result.code).toBe(0);
+    expect(await home.json("alpha.json")).toEqual({ keep: true, theme: "#101010", mode: "dark" });
+  });
+
+  test("runs every app's commands when an earlier one fails and keeps the switch", async () => {
+    // Arrange
+    await home.install("themes", {
+      package: themesPackage,
+      files: twoApps({
+        "apps/alpha/app.yaml": "run:\n  - echo broken >&2; exit 3\n",
+        "apps/beta/app.yaml":
+          "files:\n  - template: beta.liquid\n    target: ~/beta.txt\nrun:\n  - head -1 beta.txt > ran.txt\n",
+      }),
+    });
+
+    // Act
+    const result = await home.run(["themes", "dusk"]);
+
+    // Assert
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe("sbox themes: alpha: 'echo broken >&2; exit 3' failed with exit code 3:\nbroken\n");
+    expect(result.stdout).toBe("Switched to the theme 'dusk'. Some apps show it only after a restart.\n");
+    expect(await home.file("ran.txt")).toBe("mode=dark\n");
+    expect(await home.file(".local/state/sbox/themes/current")).toBe("dusk\n");
+  });
+});

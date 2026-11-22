@@ -1274,10 +1274,13 @@ sbox-cli/sbox/      the core of sbox (TypeScript on Bun)
 
 sbox-cli/sbox-themes/  the themes command of sbox, installed by the themes kit
   package.json      declares the data folders themes and apps
-  src/command.ts    the command: options, theme resolution, the saved choice
+  src/command.ts    the command: options, the picker, the messages, the terminal recoloring
+  src/theme-application.ts  theme application: the current theme, then all or nothing:
+                    render every app in memory, write, run the apps' commands, save
   src/palette.ts    colors.toml, upstream's fallbacks and the palette's closed set of
                     colors, each checked; mix
-  src/apps.ts       app.yaml, the Liquid templates and their filters, settings, run
+  src/apps.ts       app.yaml, the Liquid templates and their filters, settings merges;
+                    renders in memory, writes nothing
   src/folders.ts    the theme and app template folders
   src/sync-themes.ts  the manual palette refresh from upstream (src/sync.ts); checks
                     every palette before writing
