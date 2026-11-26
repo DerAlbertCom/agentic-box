@@ -34,11 +34,11 @@ requirements listed below.
 
 ## Install
 
-The NuGet package is **`rwest-agentic-box`**; the installed command is **`abox`**.
+The NuGet package is **`RwestAgenticBox.Cli`**; the installed command is **`abox`**.
 Once your maintainer has published the package to a NuGet source you have configured:
 
 ```sh
-dotnet tool install --global rwest-agentic-box
+dotnet tool install --global RwestAgenticBox.Cli
 abox --help
 ```
 
@@ -49,8 +49,8 @@ Ensure the global tools directory is on `PATH`: `$HOME/.dotnet/tools` on Linux/m
 or `%USERPROFILE%\.dotnet\tools` on Windows. The installer reports any setup needed.
 
 ```sh
-dotnet tool update --global rwest-agentic-box
-dotnet tool uninstall --global rwest-agentic-box
+dotnet tool update --global RwestAgenticBox.Cli
+dotnet tool uninstall --global RwestAgenticBox.Cli
 ```
 
 ## Quickstart

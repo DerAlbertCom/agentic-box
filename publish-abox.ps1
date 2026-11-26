@@ -4,7 +4,7 @@
 Packs the abox .NET tool and pushes it to the JFrog NuGet push feed.
 
 .DESCRIPTION
-Reads the latest published version of rwest-agentic-box from the feed, asks whether to
+Reads the latest published version of RwestAgenticBox.Cli from the feed, asks whether to
 bump the patch or the minor version, then packs framework-dependent, ReadyToRun,
 RID-specific tool packages plus a portable "any" package and the pointer package that
 names them (see abox-cli/src/Abox/Abox.csproj). It pushes the RID packages first and
@@ -35,7 +35,7 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 
 $source = 'https://rwest.jfrog.io/artifactory/api/nuget/v3/mtiae-agentic-box-local'
-$packageId = 'rwest-agentic-box'
+$packageId = 'RwestAgenticBox.Cli'
 $cliRoot = Join-Path $PSScriptRoot 'abox-cli'
 $project = Join-Path $cliRoot 'src/Abox/Abox.csproj'
 

@@ -60,9 +60,9 @@ changing your global tools or publishing anything:
 
 ```sh
 dotnet pack abox-cli/src/Abox/Abox.csproj --configuration Release --output abox-cli/src/Abox/bin/packages
-dotnet tool install rwest-agentic-box --source ./abox-cli/src/Abox/bin/packages --tool-path ./abox-cli/src/Abox/bin/tool-test
+dotnet tool install RwestAgenticBox.Cli --source ./abox-cli/src/Abox/bin/packages --tool-path ./abox-cli/src/Abox/bin/tool-test
 ./abox-cli/src/Abox/bin/tool-test/abox --help
-dotnet tool uninstall rwest-agentic-box --tool-path ./abox-cli/src/Abox/bin/tool-test
+dotnet tool uninstall RwestAgenticBox.Cli --tool-path ./abox-cli/src/Abox/bin/tool-test
 ```
 
 `--source` restricts installation to the local package directory. The package and
@@ -72,10 +72,10 @@ from outside the repository. No sbx daemon is needed for help.
 
 ### The tool packages
 
-`dotnet pack` writes one pointer package, `rwest-agentic-box`, and one package per
-runtime identifier, `rwest-agentic-box.<rid>`, for every Windows, Linux (glibc and musl)
+`dotnet pack` writes one pointer package, `RwestAgenticBox.Cli`, and one package per
+runtime identifier, `RwestAgenticBox.Cli.<rid>`, for every Windows, Linux (glibc and musl)
 and macOS RID listed in `ToolPackageRuntimeIdentifiers` in `Abox.csproj`. Each is
-framework-dependent and compiled ReadyToRun. A portable `rwest-agentic-box.any`
+framework-dependent and compiled ReadyToRun. A portable `RwestAgenticBox.Cli.any`
 package without ReadyToRun serves every other platform. `dotnet tool install` picks the
 package that matches the host; this needs the .NET 10 SDK or newer. The tool runs on
 .NET 10, or rolls forward to the lowest newer major runtime when 10 is not installed
