@@ -377,6 +377,35 @@ public sealed class CreateCommandTests : IDisposable
         File.Exists(Path.Combine(_root.Path, "abox.user.yaml")).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task EachStepIsAnnouncedBeforeItRuns()
+    {
+        // Arrange
+        var command = Command("");
+        _root.File("abox.yaml", "squad: ac\n");
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--tag", "release"]);
+
+        // Assert
+        exitCode.Should().Be(0);
+        _console
+            .Output.Where(line => line.EndsWith("...", StringComparison.Ordinal))
+            .Select(line => line.Split(' ', 2)[0])
+            .Should()
+            .Equal(
+                "Checking", // sbx
+                "Finding", // the application ports
+                "Reading", // the published squad set
+                "Looking", // for an existing sandbox
+                "Checking", // the credentials
+                "Preparing", // the state directories
+                "Creating", // the sandbox
+                "Copying", // the user secrets
+                "Publishing" // the application ports
+            );
+    }
+
     private async Task<int> InvokeAsync(CliTestApplication application, string[] arguments)
     {
         var originalDirectory = Directory.GetCurrentDirectory();
