@@ -105,7 +105,7 @@ public sealed class CreateCommandTests : IDisposable
         _console
             .Errors.Should()
             .Equal(
-                "error: The selected squad conflicts with 'squad' in abox.yaml or abox.user.yaml. Use the folder's squad or update the folder configuration before creating or replacing its sandbox."
+                "error: The selected squad conflicts with 'squad' in abox.yaml. Use the folder's squad or update the folder configuration before creating or replacing its sandbox."
             );
         _lifecycle.ReceivedCalls().Should().BeEmpty();
     }
@@ -250,7 +250,65 @@ public sealed class CreateCommandTests : IDisposable
             );
         File.ReadAllText(Path.Combine(_root.Path, "abox.user.yaml"))
             .Should()
-            .Be("# my settings\nsquad: ac\nmemory: 8\ncpus: 4\n");
+            .Be("# my settings\nsquad: ac\nmemory: 8\nteam: sample\ncpus: 4\n");
+    }
+
+    [Fact]
+    public async Task TheTeamAndSquadOfACreateAreSavedSoTheNextCreateNeedsNeither()
+    {
+        // Arrange
+        var command = Command("");
+        await InvokeAsync(command, ["--team", "mti-ca", "--squad", "ac", "--tag", "release"]);
+        _lifecycle.ClearReceivedCalls();
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--tag", "release", "--yes"]);
+
+        // Assert
+        exitCode.Should().Be(0);
+        File.ReadAllText(Path.Combine(_root.Path, "abox.user.yaml"))
+            .Should()
+            .Be("team: mti-ca\nsquad: ac\n");
+        await _lifecycle
+            .Received(1)
+            .CreateAsync(
+                Arg.Is<SandboxDefinition>(request =>
+                    request.KitSource.Contains("agentic-box-rwest-mti-ca/ac")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AGivenSquadReplacesTheSavedOneInsteadOfConflictingWithIt()
+    {
+        // Arrange
+        var command = Command("");
+        _root.File("abox.user.yaml", "# mine\nteam: sample\nsquad: other\n");
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--squad", "ac", "--tag", "release"]);
+
+        // Assert
+        exitCode.Should().Be(0);
+        File.ReadAllText(Path.Combine(_root.Path, "abox.user.yaml"))
+            .Should()
+            .Be("# mine\nteam: sample\nsquad: ac\n");
+    }
+
+    [Fact]
+    public async Task ATeamAndSquadTheSharedFileAlreadyGivesAreNotCopiedIntoTheUserFile()
+    {
+        // Arrange
+        var command = Command("");
+        _root.File("abox.yaml", "team: sample\nsquad: ac\n");
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--tag", "release"]);
+
+        // Assert
+        exitCode.Should().Be(0);
+        File.Exists(Path.Combine(_root.Path, "abox.user.yaml")).Should().BeFalse();
     }
 
     [Fact]
@@ -272,11 +330,13 @@ public sealed class CreateCommandTests : IDisposable
                 Arg.Is<SandboxDefinition>(request => request.Memory == 16 && request.Cpus == 8),
                 Arg.Any<CancellationToken>()
             );
-        File.ReadAllText(Path.Combine(_root.Path, "abox.user.yaml")).Should().Be("cpus: 8\n");
+        File.ReadAllText(Path.Combine(_root.Path, "abox.user.yaml"))
+            .Should()
+            .Be("cpus: 8\nteam: sample\nsquad: ac\n");
     }
 
     [Fact]
-    public async Task WithoutAnySizeSbxKeepsItsDefaultsAndNoUserFileIsWritten()
+    public async Task WithoutAnySizeSbxKeepsItsDefaultsAndOnlyTheTeamAndSquadAreSaved()
     {
         // Arrange
         var command = Command("");
@@ -294,7 +354,9 @@ public sealed class CreateCommandTests : IDisposable
                 ),
                 Arg.Any<CancellationToken>()
             );
-        File.Exists(Path.Combine(_root.Path, "abox.user.yaml")).Should().BeFalse();
+        File.ReadAllText(Path.Combine(_root.Path, "abox.user.yaml"))
+            .Should()
+            .Be("team: sample\nsquad: ac\n");
     }
 
     [Theory]
@@ -339,6 +401,7 @@ public sealed class CreateCommandTests : IDisposable
                 "Checking", // the credentials
                 "Preparing", // the state directories
                 "Creating", // the sandbox
+                "Saving", // the team in the folder settings
                 "Copying", // the user secrets
                 "Publishing" // the application ports
             );

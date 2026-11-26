@@ -1,15 +1,23 @@
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Abox.Features.Shared.Common;
+using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Configuration;
+
+/// <summary>What a create remembers in abox.user.yaml; a null value is left as it is.</summary>
+internal sealed record FolderSelection(string? Team, string? Squad, int? Memory, int? Cpus);
 
 /// <summary>Runtime-only opt-in in the sandbox folder, never a build input.</summary>
 internal sealed class FolderConfig
 {
     private FolderConfig(
         string location,
+        string? team,
         string? squad,
+        string? sharedSquad,
         IReadOnlyList<UserSecretSelection> userSecrets,
         int? portOffset,
         bool? terminalTheme,
@@ -18,13 +26,21 @@ internal sealed class FolderConfig
     )
     {
         Location = Path.GetFullPath(location);
+        Team = team;
         Squad = squad;
+        _sharedSquad = sharedSquad;
         UserSecrets = userSecrets;
         PortOffset = portOffset;
         TerminalTheme = terminalTheme;
         Memory = memory;
         Cpus = cpus;
     }
+
+    /// <summary>The squad of the shared abox.yaml, which a given squad must match.</summary>
+    private readonly string? _sharedSquad;
+
+    /// <summary>The team of the folder's squad; null leaves --team, then <c>defaultTeam</c>.</summary>
+    public string? Team { get; }
 
     public string? Squad { get; }
     public IReadOnlyList<UserSecretSelection> UserSecrets { get; }
@@ -53,18 +69,24 @@ internal sealed class FolderConfig
         bool? explicitTerminalTheme = null
     ) => explicitTerminalTheme ?? folderConfig?.TerminalTheme ?? userDefault;
 
-    /// <summary>The folder selects the squad; an explicit matching selection is allowed.</summary>
+    /// <summary>
+    /// The given squad, otherwise the folder's. A given squad must match the squad of the
+    /// shared abox.yaml; it replaces one that only abox.user.yaml remembers.
+    /// </summary>
     public string? SelectSquad(string? explicitSquad)
     {
+        if (explicitSquad is null)
+            return Squad;
         if (
-            Squad is not null
-            && explicitSquad is not null
-            && !Squad.Equals(explicitSquad, StringComparison.OrdinalIgnoreCase)
+            _sharedSquad is not null
+            && !_sharedSquad.Equals(explicitSquad, StringComparison.OrdinalIgnoreCase)
         )
             throw new AboxException(
-                $"The selected squad conflicts with 'squad' in {FileNames}. Use the folder's squad or update the folder configuration before creating or replacing its sandbox."
+                $"The selected squad conflicts with 'squad' in {SharedFile}. Use the folder's squad or update the folder configuration before creating or replacing its sandbox."
             );
-        return Squad ?? explicitSquad;
+        return Squad is not null && Squad.Equals(explicitSquad, StringComparison.OrdinalIgnoreCase)
+            ? Squad
+            : explicitSquad;
     }
 
     /// <summary>Do not implicitly replace a sandbox whose recorded squad differs or is unknown.</summary>
@@ -74,7 +96,15 @@ internal sealed class FolderConfig
             throw new AboxException(
                 $"Cannot verify the sandbox's squad against the folder configuration ({FileNames}). Create it with abox create for this folder before replacing it."
             );
-        SelectSquad(recordedSquad);
+        // Nobody chose a squad here, so the folder's squad from either file must match.
+        if (
+            Squad is not null
+            && recordedSquad is not null
+            && !Squad.Equals(recordedSquad, StringComparison.OrdinalIgnoreCase)
+        )
+            throw new AboxException(
+                $"The sandbox's squad conflicts with 'squad' in {FileNames}. Use the folder's squad or update the folder configuration before creating or replacing its sandbox."
+            );
     }
 
     /// <summary>
@@ -95,24 +125,42 @@ internal sealed class FolderConfig
             shared is null ? user
             : user is null ? shared
             : YamlReader.Merge(shared, user);
-        return merged is null ? null : Decode(location, merged);
+        return merged is null ? null : Decode(location, merged, SharedSquad(shared));
     }
 
     /// <summary>
-    /// Saves the given memory (GB) and CPUs in the folder's abox.user.yaml, so later creates
-    /// use them. Only the top-level <c>memory</c> and <c>cpus</c> lines are replaced or
-    /// added; the rest of the file, comments included, stays as it is. Nothing is written
-    /// unless the result is a valid folder configuration file.
+    /// The squad of abox.yaml alone. The merged result is what gets validated, so an invalid
+    /// squad the user file replaces is no shared squad.
     /// </summary>
-    public static async Task SaveResourcesAsync(
+    private static string? SharedSquad(YamlReader? shared)
+    {
+        if (shared is null)
+            return null;
+        try
+        {
+            return ReadName(shared, SquadKey);
+        }
+        catch (AboxException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Saves what a create remembers in the folder's abox.user.yaml, so later creates use it:
+    /// each non-null value replaces or adds its top-level line; the rest of the file,
+    /// comments included, stays as it is. Nothing is written unless the result is a valid
+    /// folder configuration file that reads back the saved values.
+    /// </summary>
+    public static async Task SaveAsync(
         string location,
-        int? memory,
-        int? cpus,
+        FolderSelection selection,
         IYamlParser parser,
         CancellationToken cancellationToken
     )
     {
-        if (memory is null && cpus is null)
+        var (team, squad, memory, cpus) = selection;
+        if (team is null && squad is null && memory is null && cpus is null)
             return;
         var path = Path.Combine(location, UserFile);
         try
@@ -124,17 +172,31 @@ internal sealed class FolderConfig
                     cancellationToken
                 )
                 : string.Empty;
+            if (team is not null)
+                yaml = WithTopLevelValue(yaml, TeamKey, Scalar(team));
+            if (squad is not null)
+                yaml = WithTopLevelValue(yaml, SquadKey, Scalar(squad));
             if (memory is { } gigabytes)
-                yaml = WithTopLevelValue(yaml, MemoryKey, gigabytes);
+                yaml = WithTopLevelValue(
+                    yaml,
+                    MemoryKey,
+                    gigabytes.ToString(CultureInfo.InvariantCulture)
+                );
             if (cpus is { } count)
-                yaml = WithTopLevelValue(yaml, CpusKey, count);
+                yaml = WithTopLevelValue(
+                    yaml,
+                    CpusKey,
+                    count.ToString(CultureInfo.InvariantCulture)
+                );
             var saved = Decode(location, parser.Read(yaml, path));
             if (
-                (memory is not null && saved.Memory != memory)
+                (team is not null && saved.Team != team)
+                || (squad is not null && saved.Squad != squad)
+                || (memory is not null && saved.Memory != memory)
                 || (cpus is not null && saved.Cpus != cpus)
             )
                 throw new AboxException(
-                    $"Cannot save '{MemoryKey}' and '{CpusKey}' in '{path}'. Set them there by hand."
+                    $"Cannot save the folder settings in '{path}'. Set them there by hand."
                 );
             await File.WriteAllTextAsync(path, yaml, new UTF8Encoding(false), cancellationToken);
         }
@@ -150,7 +212,13 @@ internal sealed class FolderConfig
         }
     }
 
-    private static string WithTopLevelValue(string yaml, string key, int value)
+    /// <summary>A plain name stays readable; anything else is quoted.</summary>
+    private static string Scalar(string name) =>
+        PlainName.IsMatch(name) ? name : YamlScalar.Quote(name);
+
+    private static readonly Regex PlainName = new(@"\A[A-Za-z0-9][A-Za-z0-9._-]*\z");
+
+    private static string WithTopLevelValue(string yaml, string key, string value)
     {
         var newLine = yaml.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
         List<string> lines = yaml.Length == 0 ? [] : [.. yaml.Split(newLine)];
@@ -168,6 +236,8 @@ internal sealed class FolderConfig
         return string.Join(newLine, lines) + newLine;
     }
 
+    public const string TeamKey = "team";
+    public const string SquadKey = "squad";
     public const string MemoryKey = "memory";
     public const string CpusKey = "cpus";
 
@@ -222,10 +292,15 @@ internal sealed class FolderConfig
         return parser.Read(yaml, path);
     }
 
-    private static FolderConfig Decode(string location, YamlReader reader)
+    private static FolderConfig Decode(
+        string location,
+        YamlReader reader,
+        string? sharedSquad = null
+    )
     {
         reader.RejectUnknownKeys(
-            "squad",
+            TeamKey,
+            SquadKey,
             "userSecrets",
             "portOffset",
             "terminalTheme",
@@ -237,7 +312,9 @@ internal sealed class FolderConfig
             ValidatePortOffset(offset, reader.SourceOf("portOffset"));
         return new FolderConfig(
             location,
-            ReadSquad(reader),
+            ReadName(reader, TeamKey),
+            ReadName(reader, SquadKey),
+            sharedSquad,
             UserSecretSelection.Parse(reader),
             portOffset,
             reader.GetBoolean("terminalTheme"),
@@ -256,16 +333,16 @@ internal sealed class FolderConfig
         return value;
     }
 
-    private static string? ReadSquad(YamlReader reader)
+    private static string? ReadName(YamlReader reader, string key)
     {
-        if (!reader.Has("squad"))
+        if (!reader.Has(key))
             return null;
-        var squad = reader.GetString("squad");
-        if (reader.IsNull("squad") || string.IsNullOrWhiteSpace(squad))
+        var name = reader.GetString(key);
+        if (reader.IsNull(key) || string.IsNullOrWhiteSpace(name))
             throw new AboxException(
-                $"'{reader.SourceOf("squad")}': 'squad' must be a nonempty string."
+                $"'{reader.SourceOf(key)}': '{key}' must be a nonempty string."
             );
-        return squad;
+        return name;
     }
 
     private static void ValidatePortOffset(int offset, string? source)

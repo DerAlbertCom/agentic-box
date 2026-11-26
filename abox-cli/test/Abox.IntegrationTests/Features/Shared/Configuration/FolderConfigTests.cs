@@ -273,10 +273,9 @@ public sealed class FolderConfigTests
         var path = root.File("abox.user.yaml", "# mine\r\nmemory : 4\r\nportOffset: 20000");
 
         // Act
-        await FolderConfig.SaveResourcesAsync(
+        await FolderConfig.SaveAsync(
             root.Path,
-            16,
-            6,
+            new FolderSelection(null, null, 16, 6),
             new YamlDotNetParser(),
             CancellationToken.None
         );
@@ -303,10 +302,9 @@ public sealed class FolderConfigTests
 
         // Act
         var save = () =>
-            FolderConfig.SaveResourcesAsync(
+            FolderConfig.SaveAsync(
                 root.Path,
-                8,
-                null,
+                new FolderSelection(null, null, 8, null),
                 new YamlDotNetParser(),
                 CancellationToken.None
             );

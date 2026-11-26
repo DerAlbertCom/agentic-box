@@ -229,8 +229,8 @@ userSecrets: [shared-store]
 userSecrets: [shared-store, my-dev-store]
 ```
 
-- The keys are `squad`, `userSecrets`, `portOffset`, `terminalTheme`, `memory` and
-  `cpus`. Every key is allowed in both files.
+- The keys are `team`, `squad`, `userSecrets`, `portOffset`, `terminalTheme`,
+  `memory` and `cpus`. Every key is allowed in both files.
 - `abox.user.yaml` overrides `abox.yaml`: a value or list in the user file replaces
   the one in the shared file as a whole (the example selects both stores; it does
   not append), and keys it does not set keep their shared value. Dictionaries are
@@ -244,7 +244,20 @@ userSecrets: [shared-store, my-dev-store]
   fail and ask you to rename it to `abox.yaml` or `abox.user.yaml` (the content is
   now YAML). `.yml` files are not recognised.
 - abox never writes `abox.yaml` and never touches `.gitignore`. It writes
-  `abox.user.yaml` only to save the [sandbox size](#sandbox-size) given to `abox create`.
+  `abox.user.yaml` only after `abox create`, to save the [team and squad](#team-and-squad)
+  and the [sandbox size](#sandbox-size).
+
+## Team and squad
+
+`abox create` takes the team from **`--team`, then `team` in the folder configuration,
+then `defaultTeam`**, and the squad from **`--squad`, then `squad` in the folder
+configuration**. Once the sandbox is created, both are saved in the location's
+`abox.user.yaml` unless the folder configuration already gives them, so the next
+`abox create` in that folder needs neither option. A given `--squad` replaces the squad
+`abox.user.yaml` remembers, but must match a `squad` in `abox.yaml`. `abox run`, which
+replaces a sandbox without anyone choosing a squad, refuses a sandbox whose squad
+differs from the folder's squad in either file. Lines are replaced or added as for the
+[sandbox size](#sandbox-size).
 
 ## Sandbox size
 
@@ -637,8 +650,8 @@ across future sbx upgrades. `sbx settings unset kit.allowedSources` restores the
 current defaults and discards the entire list override, including the added
 repository trust; a later remote create may add its configured repository again.
 
-Give `--squad` explicitly or set `squad` in the folder's `abox.yaml` or `abox.user.yaml`: remote squad
-discovery is not currently supported.
+Give `--squad` explicitly or set `squad` in the folder's `abox.yaml` or `abox.user.yaml`
+(a create saves it there): remote squad discovery is not currently supported.
 Missing/invalid bundled metadata, identity/schema mismatches, unsafe state paths,
 missing host-mount declarations and unavailable MCP registrations fail before
 an existing sandbox is removed, even with `--yes`. Older artifacts without the

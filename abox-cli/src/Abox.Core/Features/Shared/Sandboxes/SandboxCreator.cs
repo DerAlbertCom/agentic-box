@@ -186,7 +186,15 @@ internal sealed class SandboxCreator(
             }
         );
 
-        await SaveResourcesAsync(request, location, cancellationToken);
+        // Like the record, the folder settings describe a sandbox that exists now: a cancel
+        // stops the steps after them, not this small local write.
+        await SaveFolderSelectionAsync(
+            request,
+            manifest.Squad,
+            folderConfig,
+            location,
+            CancellationToken.None
+        );
 
         if (folderConfig is not null)
         {
@@ -203,32 +211,35 @@ internal sealed class SandboxCreator(
     }
 
     /// <summary>
-    /// Saves the memory and CPUs given for this create in abox.user.yaml. The sandbox exists
-    /// already, so a failure is reported and the create goes on.
+    /// Saves in abox.user.yaml what the next create of the folder needs: the team and squad
+    /// unless the folder configuration gives them already, and the memory and CPUs given for
+    /// this create. The sandbox exists already, so a failure is reported and the create goes on.
     /// </summary>
-    private async Task SaveResourcesAsync(
+    private async Task SaveFolderSelectionAsync(
         SandboxCreationRequest request,
+        string squad,
+        FolderConfig? folderConfig,
         string location,
         CancellationToken cancellationToken
     )
     {
-        if (request.Memory is null && request.Cpus is null)
+        var selection = new FolderSelection(
+            folderConfig?.Team == request.Team.Name ? null : request.Team.Name,
+            folderConfig?.Squad == squad ? null : squad,
+            request.Memory,
+            request.Cpus
+        );
+        if (selection == new FolderSelection(null, null, null, null))
             return;
-        console.WriteLine($"Saving the sandbox size in {FolderConfig.UserFile}...");
+        console.WriteLine($"Saving the folder settings in {FolderConfig.UserFile}...");
         try
         {
-            await FolderConfig.SaveResourcesAsync(
-                location,
-                request.Memory,
-                request.Cpus,
-                parser,
-                cancellationToken
-            );
+            await FolderConfig.SaveAsync(location, selection, parser, cancellationToken);
         }
         catch (AboxException exception)
         {
             console.WriteError(
-                $"The sandbox was created, but its memory and CPUs were not saved: {exception.Message}"
+                $"The sandbox was created, but its folder settings were not saved: {exception.Message}"
             );
         }
     }

@@ -322,9 +322,12 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
 ### `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>]
 [--local] [--yes]`
 
-1. Takes the team from `--team` or `defaultTeam`. Reads runtime-only `abox.yaml` and
-   `abox.user.yaml` from the sandbox location: its optional `squad` fills an omitted `--squad`,
-   while a case-insensitive conflict fails before preparation/replacement. Create
+1. Reads runtime-only `abox.yaml` and `abox.user.yaml` from the sandbox location. Takes
+   the team from `--team`, the folder's `team`, then `defaultTeam`. The folder's optional
+   `squad` fills an omitted `--squad`; a given `--squad` replaces the one `abox.user.yaml`
+   remembers, while a case-insensitive conflict with `abox.yaml` fails before
+   preparation/replacement. After the sandbox is created, the team and squad are saved in
+   `abox.user.yaml` unless the folder configuration already gives them. Create
    requires a squad from one of those sources and never resolves team folders:
    remote create works without a source tree, local manifest or build, and
    `--local` needs only the local build of `abox build`. Team sources are read
