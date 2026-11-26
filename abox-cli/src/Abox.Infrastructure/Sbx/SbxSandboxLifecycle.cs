@@ -36,64 +36,9 @@ internal sealed class SbxSandboxLifecycle(SbxInvoker invoker) : ISandboxLifecycl
         CancellationToken cancellationToken
     )
     {
-        var arguments = new List<string>
+        var process = invoker.Call(CreateArguments(definition)) with
         {
-            "create",
-            definition.KitSource,
-            definition.Location,
-            "--name",
-            definition.Name,
-            "--pull",
-            PullPolicyArgument(definition.PullPolicy),
-            "--no-input",
-        };
-
-        foreach (var mixin in definition.Mixins)
-        {
-            arguments.Add("--kit");
-            arguments.Add(mixin);
-        }
-
-        foreach (var (name, value) in definition.KitArguments)
-        {
-            arguments.Add("--kit-arg");
-            arguments.Add($"{name}={value}");
-        }
-
-        foreach (var mount in definition.Mounts)
-        {
-            arguments.Add("--mount");
-            arguments.Add($"{mount.HostPath}:{mount.SandboxPath}");
-        }
-
-        if (definition.Memory is { } memory)
-        {
-            arguments.Add("--memory");
-            arguments.Add(memory.ToString(CultureInfo.InvariantCulture) + "g");
-        }
-
-        if (definition.Cpus is { } cpus)
-        {
-            arguments.Add("--cpus");
-            arguments.Add(cpus.ToString(CultureInfo.InvariantCulture));
-        }
-
-        if (definition.StaticMcpServers.Count > 0)
-        {
-            arguments.Add("--static-mcp");
-            arguments.Add(string.Join(",", definition.StaticMcpServers));
-        }
-
-        var process = invoker.Call(arguments) with
-        {
-            Environment = definition.HostImageStore is { } context
-                ? new Dictionary<string, string>
-                {
-                    ["SBX_KIT_BUILDER"] = "host",
-                    ["BUILDX_BUILDER"] = context,
-                    ["DOCKER_CONTEXT"] = context,
-                }
-                : null,
+            Environment = HostBuilderEnvironment(definition.HostImageStore),
         };
         var redactor = new SecretRedactor(process);
         if (definition.Progress is { } progress)
@@ -109,6 +54,60 @@ internal sealed class SbxSandboxLifecycle(SbxInvoker invoker) : ISandboxLifecycl
             outcome.Succeeded ? null : SbxInvoker.FailureHeadline(outcome)
         );
     }
+
+    private static List<string> CreateArguments(SandboxDefinition definition)
+    {
+        var arguments = new List<string>
+        {
+            "create",
+            definition.KitSource,
+            definition.Location,
+            "--name",
+            definition.Name,
+            "--pull",
+            PullPolicyArgument(definition.PullPolicy),
+            "--no-input",
+        };
+        AddRepeated(arguments, "--kit", definition.Mixins);
+        AddRepeated(
+            arguments,
+            "--kit-arg",
+            definition.KitArguments.Select(argument => $"{argument.Key}={argument.Value}")
+        );
+        AddRepeated(
+            arguments,
+            "--mount",
+            definition.Mounts.Select(mount => $"{mount.HostPath}:{mount.SandboxPath}")
+        );
+        if (definition.Memory is { } memory)
+            arguments.AddRange(["--memory", memory.ToString(CultureInfo.InvariantCulture) + "g"]);
+        if (definition.Cpus is { } cpus)
+            arguments.AddRange(["--cpus", cpus.ToString(CultureInfo.InvariantCulture)]);
+        if (definition.StaticMcpServers.Count > 0)
+            arguments.AddRange(["--static-mcp", string.Join(",", definition.StaticMcpServers)]);
+        return arguments;
+    }
+
+    private static void AddRepeated(
+        List<string> arguments,
+        string option,
+        IEnumerable<string> values
+    )
+    {
+        foreach (var value in values)
+            arguments.AddRange([option, value]);
+    }
+
+    /// <summary>Lets sbx build the thin kits with the host builder of a local build's image store.</summary>
+    private static Dictionary<string, string>? HostBuilderEnvironment(string? hostImageStore) =>
+        hostImageStore is { } context
+            ? new Dictionary<string, string>
+            {
+                ["SBX_KIT_BUILDER"] = "host",
+                ["BUILDX_BUILDER"] = context,
+                ["DOCKER_CONTEXT"] = context,
+            }
+            : null;
 
     public async Task<SandboxRemoval> RemoveAsync(string name, CancellationToken cancellationToken)
     {

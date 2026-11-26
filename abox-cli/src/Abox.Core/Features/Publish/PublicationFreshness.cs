@@ -70,9 +70,7 @@ internal sealed class PublicationFreshness(IRegistryDigests digests, ILocalImage
         if (build.Base is { } baseImage && !baseImage.Reference.Contains('@'))
         {
             await EnsureSameDigestAsync(
-                baseImage.Reference,
-                baseImage.Digest,
-                $"The base image '{baseImage.Reference}'",
+                new PinnedImage("base image", baseImage.Reference, baseImage.Digest),
                 rebuild,
                 cancellationToken
             );
@@ -81,9 +79,7 @@ internal sealed class PublicationFreshness(IRegistryDigests digests, ILocalImage
         foreach (var kit in build.Kits.Where(kit => !kit.IsLocal && !kit.Reference.Contains('@')))
         {
             await EnsureSameDigestAsync(
-                kit.Reference,
-                kit.Digest,
-                $"The registry kit '{kit.Reference}'",
+                new PinnedImage("registry kit", kit.Reference, kit.Digest),
                 rebuild,
                 cancellationToken
             );
@@ -93,19 +89,20 @@ internal sealed class PublicationFreshness(IRegistryDigests digests, ILocalImage
     private static string Rebuild(SquadBuildIdentity identity) =>
         $"Run 'abox build --team {identity.Team} --tag {identity.Tag}' before publishing.";
 
+    /// <summary>A registry image the build resolved by tag, with the digest it resolved to then.</summary>
+    private sealed record PinnedImage(string Kind, string Reference, string? Digest);
+
     private async Task EnsureSameDigestAsync(
-        string reference,
-        string? pinned,
-        string subject,
+        PinnedImage image,
         string rebuild,
         CancellationToken cancellationToken
     )
     {
-        var current = await digests.DigestAsync(reference, cancellationToken);
-        if (current != pinned)
+        var current = await digests.DigestAsync(image.Reference, cancellationToken);
+        if (current != image.Digest)
         {
             throw new AboxException(
-                $"{subject} now resolves to {current}, not to {pinned} as at build time. {rebuild}"
+                $"The {image.Kind} '{image.Reference}' now resolves to {current}, not to {image.Digest} as at build time. {rebuild}"
             );
         }
     }

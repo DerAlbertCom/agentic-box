@@ -86,10 +86,25 @@ internal sealed class PublishedSquadSource(IPublishedImageReader registry, ICons
         var metadata = PublishedRuntimeMetadata.ReadImage(
             archive,
             identity,
-            PublishedRuntimeMetadata.HostMounts(descriptor)
+            HostMounts(descriptor)
         );
         return new PublishedSquad(pinned, metadata);
     }
+
+    /// <summary>The host-mount paths a processed set descriptor declares.</summary>
+    // A processed descriptor mixes plain capabilities with {"group": {...}} wrappers that have no type of their own.
+    private static IReadOnlyCollection<string> HostMounts(JsonElement descriptor) =>
+        descriptor
+            .GetProperty("capabilities")
+            .EnumerateArray()
+            .Where(capability =>
+                capability.TryGetProperty("type", out var type)
+                && type.GetString() == PublishedRuntimeMetadata.HostMountCapability
+            )
+            .Select(capability =>
+                capability.GetProperty("config").GetProperty("path").GetString() ?? ""
+            )
+            .ToHashSet(StringComparer.Ordinal);
 
     private static string ConfigurationReference(
         JsonElement descriptor,
@@ -137,7 +152,7 @@ internal sealed class PublishedSquadSource(IPublishedImageReader registry, ICons
                 : await registry.ResolveDigestAsync(reference, cancellationToken)
         );
         var manifest = await registry.InspectAsync(
-            ImageReferences.Repository(reference) + "@" + digest,
+            ImageReferences.PinnedTo(reference, digest),
             cancellationToken
         );
         if (manifest.Platforms is not { } platforms)
@@ -150,7 +165,7 @@ internal sealed class PublishedSquadSource(IPublishedImageReader registry, ICons
             throw new JsonException("No unambiguous runnable platform manifest.");
         var childDigest = ImageReferences.Digest(selected[0].Digest);
         return await ResolveManifestAsync(
-            ImageReferences.Repository(reference) + "@" + childDigest,
+            ImageReferences.PinnedTo(reference, childDigest),
             architecture,
             cancellationToken,
             depth + 1

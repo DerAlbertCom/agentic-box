@@ -52,6 +52,19 @@ internal sealed class SandboxCreator(
     IYamlParser parser
 )
 {
+    /// <summary>What one create works with once the sandbox to create is known.</summary>
+    private sealed record CreationPlan(
+        SandboxCreationRequest Request,
+        string Location,
+        SquadSelection Selection,
+        PreparedSquad Prepared,
+        string Name,
+        bool Replace
+    )
+    {
+        public BuildManifest Manifest => Prepared.Metadata;
+    }
+
     /// <summary>Creates the sandbox and returns the exit code of the command.</summary>
     public async Task<int> CreateAsync(
         SandboxCreationRequest request,
@@ -59,13 +72,7 @@ internal sealed class SandboxCreator(
     )
     {
         RegistryImageName.ValidateTag(request.Tag);
-
-        var location = Path.GetFullPath(request.Location);
-        if (!Directory.Exists(location))
-        {
-            throw new AboxException($"The folder '{location}' does not exist.");
-        }
-
+        var location = ExistingFolder(request.Location);
         var folderConfig = request.FolderConfig;
         request = request with
         {
@@ -73,26 +80,100 @@ internal sealed class SandboxCreator(
         };
         ISquadSource source = request.Local ? local : remote;
         var selection = source.Resolve(request);
-        if (folderConfig is { UserSecrets.Count: > 0 })
-            console.WriteLine("Reading the selected user secrets...");
-        var preparedSecrets = await userSecrets.PrepareAsync(
+        var preparedSecrets = await PrepareUserSecretsAsync(folderConfig, cancellationToken);
+        var preparedPorts = await PrepareApplicationPortsAsync(
+            location,
             folderConfig,
-            force: false,
             cancellationToken
         );
+        var prepared = await LoadSquadAsync(source, selection, cancellationToken);
+        var state = StoredState(prepared.Metadata);
+        var mcpToRegister = await FindMcpServersToRegisterAsync(
+            prepared.Metadata,
+            cancellationToken
+        );
+        var existing = await FindExistingSandboxAsync(request, location, cancellationToken);
+        var plan = new CreationPlan(
+            request,
+            location,
+            selection,
+            prepared,
+            existing?.Name ?? SandboxName.For(location),
+            ConfirmReplacement(existing, location, request.AssumeYes)
+        );
+        cancellationToken.ThrowIfCancellationRequested();
+        var mounts = await PrepareHostAsync(plan, mcpToRegister, state, cancellationToken);
+        await CreateSandboxAsync(plan, mounts, cancellationToken);
+        SaveRecord(plan);
+
+        // Like the record, the folder settings describe a sandbox that exists now: a cancel
+        // stops the steps after them, not this small local write.
+        await SaveFolderSelectionAsync(plan, CancellationToken.None);
+
+        if (folderConfig is not null)
+            await CopyUserSecretsAsync(
+                preparedSecrets,
+                preparedPorts,
+                plan.Name,
+                cancellationToken
+            );
+
+        console.WriteLine("Publishing the application ports...");
+        await ConfigureApplicationPortsAsync(preparedPorts, plan.Name, cancellationToken);
+
+        console.WriteLine($"Created sandbox '{plan.Name}' for '{location}'.");
+        console.WriteLine($"Open it with: abox run --location {location}");
+        return 0;
+    }
+
+    private static string ExistingFolder(string folder)
+    {
+        var location = Path.GetFullPath(folder);
+        if (!Directory.Exists(location))
+            throw new AboxException($"The folder '{location}' does not exist.");
+        return location;
+    }
+
+    private async Task<PreparedUserSecrets> PrepareUserSecretsAsync(
+        FolderConfig? folderConfig,
+        CancellationToken cancellationToken
+    )
+    {
+        if (folderConfig is { UserSecrets.Count: > 0 })
+            console.WriteLine("Reading the selected user secrets...");
+        return await userSecrets.PrepareAsync(folderConfig, force: false, cancellationToken);
+    }
+
+    private async Task<PreparedAppPorts> PrepareApplicationPortsAsync(
+        string location,
+        FolderConfig? folderConfig,
+        CancellationToken cancellationToken
+    )
+    {
         console.WriteLine("Finding the application ports of the folder...");
-        var preparedPorts = await AppPorts.PrepareAsync(
+        return await AppPorts.PrepareAsync(
             location,
             FolderConfig.SelectPortOffset(folderConfig),
             cancellationToken
         );
+    }
+
+    private async Task<PreparedSquad> LoadSquadAsync(
+        ISquadSource source,
+        SquadSelection selection,
+        CancellationToken cancellationToken
+    )
+    {
         console.WriteLine(
             selection.Reference is { } reference
                 ? $"Reading the published squad set '{reference}'..."
                 : $"Loading the local build of '{selection.Identity.Squad}' with the tag '{selection.Identity.Tag}'..."
         );
-        var prepared = await source.LoadAsync(selection, cancellationToken);
-        var manifest = prepared.Metadata;
+        return await source.LoadAsync(selection, cancellationToken);
+    }
+
+    private static List<StateEntry> StoredState(BuildManifest manifest)
+    {
         var state =
             manifest
                 .State?.Select(entry =>
@@ -103,112 +184,115 @@ internal sealed class SandboxCreator(
                 "Missing stored state declarations. Rebuild or republish the squad."
             );
         StateEntry.EnsureDisjoint(state);
+        return state;
+    }
 
-        var mcpToRegister = await FindMcpServersToRegisterAsync(manifest, cancellationToken);
-        if (request.ExistingSandbox is null)
-            console.WriteLine("Looking for an existing sandbox of the folder...");
-        var existing =
-            request.ExistingSandbox ?? await sandboxes.FindAsync(location, cancellationToken);
-        var name = existing?.Name ?? SandboxName.For(location);
-        var replace = ConfirmReplacement(existing, location, request.AssumeYes);
-        cancellationToken.ThrowIfCancellationRequested();
+    private async Task<SandboxInfo?> FindExistingSandboxAsync(
+        SandboxCreationRequest request,
+        string location,
+        CancellationToken cancellationToken
+    )
+    {
+        if (request.ExistingSandbox is { } existing)
+            return existing;
+        console.WriteLine("Looking for an existing sandbox of the folder...");
+        return await sandboxes.FindAsync(location, cancellationToken);
+    }
+
+    /// <summary>Prepares what the sandbox needs on the host: credentials, MCP servers and state directories.</summary>
+    private async Task<IReadOnlyList<SandboxMount>> PrepareHostAsync(
+        CreationPlan plan,
+        IReadOnlyList<ManifestMcp> mcpToRegister,
+        IReadOnlyList<StateEntry> state,
+        CancellationToken cancellationToken
+    )
+    {
         console.WriteLine("Checking the credentials of the squad...");
         await credentials.PrepareAsync(
-            request.Team.RootDirectory,
-            request.Team.Name,
-            selection.Identity.Squad,
-            location,
+            plan.Request.Team.RootDirectory,
+            plan.Request.Team.Name,
+            plan.Selection.Identity.Squad,
+            plan.Location,
             cancellationToken
         );
         cancellationToken.ThrowIfCancellationRequested();
         await RegisterMcpServersAsync(mcpToRegister, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         console.WriteLine("Preparing the state directories...");
-        var mounts = CreateStateDirectories(name, state);
+        var mounts = CreateStateDirectories(plan.Name, state);
         cancellationToken.ThrowIfCancellationRequested();
-        if (replace)
-        {
-            await RemoveExistingSandboxAsync(name, cancellationToken);
-        }
+        return mounts;
+    }
+
+    private async Task CreateSandboxAsync(
+        CreationPlan plan,
+        IReadOnlyList<SandboxMount> mounts,
+        CancellationToken cancellationToken
+    )
+    {
+        if (plan.Replace)
+            await RemoveExistingSandboxAsync(plan.Name, cancellationToken);
 
         cancellationToken.ThrowIfCancellationRequested();
-        console.WriteLine($"Creating the sandbox '{name}'...");
+        console.WriteLine($"Creating the sandbox '{plan.Name}'...");
         var streamed = false;
         var outcome = await lifecycle.CreateAsync(
-            new SandboxDefinition(
-                prepared.KitSource,
-                location,
-                name,
-                prepared.Mixins,
-                prepared.Arguments,
+            Definition(
+                plan,
                 mounts,
-                manifest.Mcp.Select(server => server.Name).ToList(),
-                PullPolicy: prepared.PullPolicy,
-                HostImageStore: prepared.HostImageStore,
-                Progress: line =>
+                line =>
                 {
                     streamed = true;
                     console.WriteLine(line.Length > 0 ? "  " + line : line);
-                },
-                Memory: request.Memory ?? folderConfig?.Memory,
-                Cpus: request.Cpus ?? folderConfig?.Cpus
+                }
             ),
             cancellationToken
         );
 
         if (outcome.Failure is { } failure)
-        {
-            var retry = CreateRecoveryHints.Render(
-                request.Team.Name,
-                selection.Identity.Squad,
-                request.Tag,
-                request.Local ? manifest : null,
-                location
-            );
-            throw new AboxException(
-                CreateFailure(name, failure, outcome.Output, replace, retry, streamed)
-            );
-        }
+            throw new AboxException(CreateFailure(plan, failure, outcome.Output, streamed));
 
         WriteNotes(outcome);
+    }
 
+    private static SandboxDefinition Definition(
+        CreationPlan plan,
+        IReadOnlyList<SandboxMount> mounts,
+        Action<string> progress
+    )
+    {
+        var prepared = plan.Prepared;
+        var folderConfig = plan.Request.FolderConfig;
+        return new SandboxDefinition(
+            prepared.KitSource,
+            plan.Location,
+            plan.Name,
+            prepared.Mixins,
+            prepared.Arguments,
+            mounts,
+            plan.Manifest.Mcp.Select(server => server.Name).ToList(),
+            PullPolicy: prepared.PullPolicy,
+            HostImageStore: prepared.HostImageStore,
+            Progress: progress,
+            Memory: plan.Request.Memory ?? folderConfig?.Memory,
+            Cpus: plan.Request.Cpus ?? folderConfig?.Cpus
+        );
+    }
+
+    private void SaveRecord(CreationPlan plan) =>
         records.Save(
-            name,
+            plan.Name,
             new SandboxRecord
             {
-                Team = request.Team.Name,
+                Team = plan.Request.Team.Name,
                 // The build's spelling, whatever case --squad was given in.
-                Squad = manifest.Squad,
-                Tag = request.Tag,
-                BuildCreatedAt = manifest.CreatedAt,
+                Squad = plan.Manifest.Squad,
+                Tag = plan.Request.Tag,
+                BuildCreatedAt = plan.Manifest.CreatedAt,
                 CreatedAt = DateTimeOffset.Now,
-                KitReference = prepared.KitReference,
+                KitReference = plan.Prepared.KitReference,
             }
         );
-
-        // Like the record, the folder settings describe a sandbox that exists now: a cancel
-        // stops the steps after them, not this small local write.
-        await SaveFolderSelectionAsync(
-            request,
-            manifest.Squad,
-            folderConfig,
-            location,
-            CancellationToken.None
-        );
-
-        if (folderConfig is not null)
-        {
-            console.WriteLine("Copying the user secrets into the sandbox...");
-            await CopyUserSecretsAsync(preparedSecrets, preparedPorts, name, cancellationToken);
-        }
-
-        console.WriteLine("Publishing the application ports...");
-        await ConfigureApplicationPortsAsync(preparedPorts, name, cancellationToken);
-
-        console.WriteLine($"Created sandbox '{name}' for '{location}'.");
-        console.WriteLine($"Open it with: abox run --location {location}");
-        return 0;
-    }
 
     /// <summary>
     /// Saves in abox.user.yaml what the next create of the folder needs: the team and squad
@@ -216,25 +300,25 @@ internal sealed class SandboxCreator(
     /// this create. The sandbox exists already, so a failure is reported and the create goes on.
     /// </summary>
     private async Task SaveFolderSelectionAsync(
-        SandboxCreationRequest request,
-        string squad,
-        FolderConfig? folderConfig,
-        string location,
+        CreationPlan plan,
         CancellationToken cancellationToken
     )
     {
+        var request = plan.Request;
+        var folderConfig = request.FolderConfig;
+        var squad = plan.Manifest.Squad;
         var selection = new FolderSelection(
             folderConfig?.Team == request.Team.Name ? null : request.Team.Name,
             folderConfig?.Squad == squad ? null : squad,
             request.Memory,
             request.Cpus
         );
-        if (selection == new FolderSelection(null, null, null, null))
+        if (selection.IsEmpty)
             return;
         console.WriteLine($"Saving the folder settings in {FolderConfig.UserFile}...");
         try
         {
-            await FolderConfig.SaveAsync(location, selection, parser, cancellationToken);
+            await FolderConfig.SaveAsync(plan.Location, selection, parser, cancellationToken);
         }
         catch (AboxException exception)
         {
@@ -251,6 +335,7 @@ internal sealed class SandboxCreator(
         CancellationToken cancellationToken
     )
     {
+        console.WriteLine("Copying the user secrets into the sandbox...");
         var recovery =
             "The sandbox was created and its record retained, but required user-secret copying did not complete. "
             + "Completed files may remain replaced; no cross-store rollback is attempted. "
@@ -376,26 +461,18 @@ internal sealed class SandboxCreator(
         var registered = (await mcpServers.ListAsync(cancellationToken)).ToHashSet(
             StringComparer.Ordinal
         );
-        var pending = new List<ManifestMcp>();
-
-        foreach (var server in manifest.Mcp)
+        foreach (var server in manifest.Mcp.Where(server => server.Url is null))
         {
-            if (server.Url is null)
-            {
-                if (!registered.Contains(server.Name))
-                {
-                    throw new AboxException(
-                        $"The MCP server '{server.Name}' is not registered on this host. "
-                            + $"Register it with 'sbx mcp add {server.Name} --url <url>', or give it an url in the configuration."
-                    );
-                }
-            }
-            else if (!registered.Contains(server.Name))
-            {
-                pending.Add(server);
-            }
+            if (!registered.Contains(server.Name))
+                throw new AboxException(
+                    $"The MCP server '{server.Name}' is not registered on this host. "
+                        + $"Register it with 'sbx mcp add {server.Name} --url <url>', or give it an url in the configuration."
+                );
         }
 
+        var pending = manifest
+            .Mcp.Where(server => server.Url is not null && !registered.Contains(server.Name))
+            .ToList();
         return pending;
     }
 
@@ -423,19 +500,29 @@ internal sealed class SandboxCreator(
     }
 
     private static string CreateFailure(
-        string name,
+        CreationPlan plan,
         string failure,
         string output,
-        bool replaced,
-        string retry,
         bool streamed
     )
     {
-        var lines = new List<string> { $"sbx could not create the sandbox '{name}'.", failure };
-        if (replaced)
+        var request = plan.Request;
+        var retry = CreateRecoveryHints.Render(
+            request.Team.Name,
+            plan.Selection.Identity.Squad,
+            request.Tag,
+            request.Local ? plan.Manifest : null,
+            plan.Location
+        );
+        var lines = new List<string>
+        {
+            $"sbx could not create the sandbox '{plan.Name}'.",
+            failure,
+        };
+        if (plan.Replace)
         {
             lines.Add(
-                $"The old sandbox '{name}' was removed before the create; the state directories on the host are kept."
+                $"The old sandbox '{plan.Name}' was removed before the create; the state directories on the host are kept."
             );
             lines.Add($"Recreate it with: {retry}");
         }

@@ -23,17 +23,19 @@ internal sealed class DockerRegistryDigests(IProcessRunner runner) : IRegistryDi
             ),
             cancellationToken
         );
+        var invalid = $"Docker did not report a valid digest for '{reference}'.";
+        string? digest;
         try
         {
             using var manifest = JsonDocument.Parse(result.StandardOutput);
-            var digest = manifest.RootElement.GetProperty("digest").GetString();
-            if (ImageReferences.IsDigest(digest))
-                return digest!;
+            digest = manifest.RootElement.GetProperty("digest").GetString();
         }
         catch (Exception exception)
             when (exception is JsonException or KeyNotFoundException or InvalidOperationException)
-        { }
+        {
+            throw new AboxException(invalid, exception);
+        }
 
-        throw new AboxException($"Docker did not report a valid digest for '{reference}'.");
+        return ImageReferences.IsDigest(digest) ? digest! : throw new AboxException(invalid);
     }
 }
