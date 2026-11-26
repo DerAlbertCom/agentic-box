@@ -30,23 +30,24 @@ named in this guide, and an unknown key is an error.
 ## From files to a sandbox
 
 ```
-abox build --team sample                     # make the kits of the team, check them
+abox build --team sample                     # build the component images of the team
 abox create --team sample --local --location <folder>  # test the local build for a folder
 abox secrets set --location <folder>         # store the values the kits of the sandbox ask for
 abox run --location <folder>                 # open the sandbox of the folder
 ```
 
-- `build` makes the kits of the team: the workload and every squad of it that no other
-  squad of the team names as its `base`. A squad that others build on comes with the
-  squad that inherits from it. The kits go into the build directory
-  (`<state dir>/builds/<team>/<squad>/<tag>/`). Team and squad names are lowercased
-  in this layout, so teams sharing a squad name keep independent sources and images.
-  A normal build checks additional local kit declarations
-  with `sbx kit inspect`, passing their resolved arguments, unless `--no-verify` is
-  given. Inspection does not build images; sbx 0.51.0 cannot inspect recipe-based
-  local kits, which require `--no-verify` and are processed by sbx at creation.
-  A normal build always builds the workload image, even with `--no-verify`.
-  `--tag` stores the build under another name than `latest`. Older squad/tag-only
+- `build` builds every squad of the team that no other squad of the team names as
+  its `base`. A squad that others build on comes with the squad that inherits from
+  it. Every squad is checked before Docker is used. For each squad, build makes one
+  image per component in the host image store: the workload, each local kit, the
+  state mixin (when the squad declares state) and the config mixin. Each image
+  carries its final JFrog name and is tagged with the hash of its inputs. The
+  workload's base image and every registry kit are pinned by digest. A component
+  is built again only when its inputs changed, its image left the image store, or
+  `--rebuild` is given. The generated kits and the build record (`build.json`) go
+  into the build directory (`<state dir>/builds/<team>/<squad>/<tag>/`). Team and
+  squad names are lowercased in this layout, so teams sharing a squad name keep
+  independent sources and images. `--tag` stores the build under another name than `latest`. Older squad/tag-only
   manifests remain usable only when their explicit ownership matches the selected
   team; otherwise rebuild. Old artifacts are not automatically migrated or removed.
 - `create` names the sandbox after the folder it works on and asks before it replaces
@@ -54,8 +55,9 @@ abox run --location <folder>                 # open the sandbox of the folder
   `--tag` uses another tag than `latest`. By default it pulls the published set from
   the user's `pullRepository` (`mtiae-docker-release` by default), with state and MCP
   settings from its bundled `squad.json`; no local sources or build metadata are
-  needed. `--local` uses the prebuilt local workload and its runtime kits with
-  `--pull never`, and reads state and MCP settings from the local build manifest.
+  needed. `--local` uses the component images of the local build with
+  `--pull never`, and reads state and MCP settings from `squad.json` in its config
+  image.
   Neither needs team sources: only `build` and `publish` read them.
   `abox create --team sample --squad ac --local --location <folder>` again replaces the sandbox.
 - `secrets` works on the sandbox of the folder, like `run`: it reads the services the
@@ -63,7 +65,8 @@ abox run --location <folder>                 # open the sandbox of the folder
   sandbox, asks for the values and stores them on the host. It needs no team sources,
   so it works the same for a published and a local sandbox. See [Secrets](#secrets).
 - `run` starts a launcher (a shell, unless said otherwise) in the sandbox. When the
-  squad has a newer build than the sandbox was made of, it offers to replace first.
+  squad has a newer local build with component images than the sandbox was made
+  of, it offers to replace first.
 
 The user configuration (in the abox config directory) can fix the defaults:
 `defaultTeam` is the team the commands use when they are not asked for one.
@@ -73,9 +76,11 @@ an explicit team or a default, these commands report the same missing-team error
 
 ### Finding sources from nested folders
 
-`build` and `publish` search for the selected team starting in the current
-directory and continuing through its parents. `--root <dir>` overrides that start
-directory. `create` reads no team sources, so it has no `--root`. Relative roots are
+`build` and `publish` search for the selected team starting in a start directory
+and continuing through its parents. The start directory is `--root <dir>`, else the
+current directory when the team sources are found from there, else the user setting
+`sourceRoot`. Without any of these they ask for the directory on a terminal and save
+it as `sourceRoot`; without a terminal they fail. `create` reads no team sources, so it has no `--root`. Relative roots are
 resolved against the invocation directory before searching parents, just like their
 absolute equivalents; a root need not itself contain the teams folder.
 
@@ -84,8 +89,7 @@ local kits and shared workloads, not the nested invocation folder or sandbox
 location. `teamsDirectory` (default `teams`) and `kitsDirectory` (default `kits`)
 select the configured directories within that owning project, including nested
 paths such as `config/teams` and `shared/kits`. The workload beside the root
-configuration still wins over a shared workload. Personal configuration additions
-use the selected project's kits too.
+configuration still wins over a shared workload.
 
 For example, from `project/src/app`, with sources under `project/teams` and
 `project/kits`, `abox build --team sample` and `abox publish --team sample` use the
@@ -146,15 +150,13 @@ removes anything. Across the whole chain everything is declared once: two kits o
 repository (even with different tags), two MCP servers of one name, two parameters of
 one name, two state directories or two secrets of one service are errors.
 
-**The files of the user.** The user can add personal `.abox` files in the abox
-configuration directory. They add to a squad, they never replace it.
-
 ## Kits
 
 A kit gives every agent of the sandbox a capability: a configuration file for the
 agent, an accessible host, or a credential. The descriptor of a kit follows the
-[kit spec](https://github.com/docker/sandbox-kit-spec); abox passes a local kit to
-sbx as it is, unless the kit has a [build step](#kit-build-step).
+[kit spec](https://github.com/docker/sandbox-kit-spec); `abox build` builds a local
+kit into a component image as it is, or from its staged copy when the kit has a
+[build step](#kit-build-step).
 
 A kit of the `kits` folder is a directory with the descriptor of the same name in it:
 
@@ -175,15 +177,18 @@ capabilities:
         You work in a sandbox.
 ```
 
-- Abox's own descriptor lookup, used by the create-time credential check and `publish`, first tries
+- Abox's descriptor lookup, used by `abox build`, first tries
   `<directory-name>.yaml`, then `spec.yaml`, then the first `*.yaml` file sorted by
-  path, all directly inside the kit directory. Build verification and local create
-  pass the directory to sbx, whose descriptor lookup is independent; prefer the
-  conventional `<directory-name>.yaml` form.
+  path, all directly inside the kit directory. Prefer the conventional
+  `<directory-name>.yaml` form.
 - A name without a slash or a colon is a directory in the `kits` folder. A name with a
   slash or a colon, like `docker.io/acme/pi-config:1.0`, is a published kit that sbx
-  resolves and that abox does not build.
+  resolves and that abox does not build. `abox build` pins it to the digest its tag
+  resolves to; `create --local` and `publish` use that digest.
 - A kit entry with `args` hands the values to the kit in the way the kit spec says.
+  A local kit takes only create-phase arguments: its image is built without
+  arguments, so `abox build` rejects an argument the descriptor declares as
+  `buildArg` or `buildSecret`.
 - This repository keeps working kits to copy from: `kits/pi-config` writes an agent
   configuration, `kits/github-enterprise-auth` reaches a host through a credential the
   host holds.
@@ -194,7 +199,7 @@ capabilities:
 ### Kit build step
 
 A local kit whose folder contains an executable `build` file is built by `abox build`
-before sbx sees it. Use it for payload that is compiled, such as TypeScript, so that
+before its component image is built. Use it for payload that is compiled, such as TypeScript, so that
 no build output is committed:
 
 1. abox copies the kit folder into the build's staging folder,
@@ -203,8 +208,12 @@ no build output is committed:
 2. abox runs `build <stagedKitDir>` with the kit's folder in the repository as the
    working directory, so the script can reach sibling top-level packages. The script
    writes its output into the staged folder.
-3. The staged copy replaces the kit for `sbx kit inspect`, `create --local` and
-   `publish`. The kit's folder in the repository stays unchanged.
+3. abox builds the kit's component image from the staged copy; `create --local` and
+   `publish` use that image. The kit's folder in the repository stays unchanged.
+
+The step runs only when the kit's image is built again: when the kit's folder in the
+repository changed, the image left the image store, or `--rebuild` is given. Only that
+kit's staged copy is replaced.
 
 ```sh
 #!/bin/sh
@@ -229,12 +238,13 @@ package of the Bun workspace with `sbox-cli/bundle`, which runs Bun in a pinned
 - `sbox-cli/bundle` passes a host certificate file in `NODE_EXTRA_CA_CERTS` (such as the
   chain of a TLS-inspecting proxy) into its Bun container, so `bun install` trusts it.
 - The descriptor format is unchanged; sbx sees an ordinary kit.
-- `--metadata-only` builds run the step too, because publishing uses the staged copy.
-- Publication fingerprints the staged copy, not the sources the script reads: rebuild
-  with `--no-personal` after changing them, before publishing.
-- The staged output must not contain symbolic links, or publication rejects it.
+- The input hash covers the kit's folder in the repository, not other sources the
+  script reads (such as `sbox-cli/`): run `abox build --rebuild` after changing them.
+- The staged output must not contain symbolic links, or `abox build` rejects it.
 
-See [ADR 0001](adr/0001-kit-build-step.md) for why.
+See [ADR 0001](adr/0001-kit-build-step.md) for why, and
+[ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md) for the component
+images.
 
 ## MCP servers
 
@@ -251,7 +261,7 @@ mcp:
 A name-only entry must already be registered on the host. For a URL entry, abox
 registers the server if its name is missing; it does not replace an existing host
 registration. URLs support the same parameter references as kit arguments. MCP
-names must be unique across the squad's base chain and personal additions. Local
+names must be unique across the squad's base chain. Local
 build manifests and published squad metadata preserve these names and resolved URLs.
 Names must match `[A-Za-z0-9_][A-Za-z0-9_.-]*`; URLs, after parameter expansion, must
 be absolute `http` or `https` URLs without userinfo (a username or password).
@@ -476,12 +486,12 @@ scripts:                                     # run while the image is built
 - Pin the `template` by tag or digest, not by `latest`. The default template carries a
   Docker Engine inside the sandbox, so agents can build and run containers there.
 - `publishRepository` is the JFrog repository name, not a URL or image reference.
-  `abox publish` uses `rwest.jfrog.io/<publishRepository>` for the squad's set and
-  all locally built components. Use one lowercase registry path segment: letters
+  `abox build` names every component image `rwest.jfrog.io/<publishRepository>/...`,
+  and `abox publish` pushes them and the squad's set there. Use one lowercase registry path segment: letters
   and digits separated by `.`, `_`, `__` or one or more `-`; no host, slash, tag or
-  whitespace. It is optional for local builds, but required to publish; there is no
+  whitespace. It is required: a workload without it fails `abox build`; there is no
   fallback repository. Each squad inherits the workload selected by its root
-  `.abox`, including this setting. Rebuild with `--no-personal` after changing it.
+  `.abox`, including this setting. Rebuild after changing it.
 - The `apt` entries are package names; they are installed with one `apt-get install`
   step while the image is built, as root and before the tools, so the tools then land
   in the home of the agent user with the packages behind them.
@@ -495,14 +505,15 @@ scripts:                                     # run while the image is built
 - The scripts live next to the file, are copied into the build and run at the end of
   the image build.
 - `abox build` turns the file into a v3 kit: a descriptor and a Dockerfile in the build
-  directory.
+  directory, with the `template` pinned by digest (`FROM <repo>@<digest>`). It
+  builds the workload image from that kit.
 
 ## What abox checks
 
 Commands that use runtime preflight check that sbx is installed, new enough and
-healthy. `--help`, `--version`, `publish`, `build --metadata-only` and the hidden
+healthy. `--help`, `--version`, `publish` and the hidden
 `exec`/`pipe` commands skip that preflight. Publication uses Docker/Buildx checks
-instead; metadata-only builds need neither tool. `user-secrets` validates and
+instead. `build` also needs Docker with Buildx. `user-secrets` validates and
 prepares its host input before runtime preflight, so invalid input fails without
 accessing the runtime.
 
