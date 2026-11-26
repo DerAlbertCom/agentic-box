@@ -27,18 +27,15 @@ public sealed class BuildMcpValidationTests : IDisposable
         _paths = AboxPaths.For(_root.CreateDirectory("config"), Path.Combine(_root.Path, "state"));
         _store = new BuildStore(_paths);
         _root.File("teams/sample/ac.abox", "workload: sample\n");
-        _root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
+        _root.File(
+            "teams/sample/sample.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
+        );
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists("docker").Returns(true);
         var config = new AboxConfig();
         var resolver = new SquadResolver(config, new YamlDotNetParser());
-        var build = TestServiceGraphs.Build(
-            resolver,
-            new PersonalConfigurations(_paths),
-            _store,
-            LocalWorkloadFactory.Images(programs, _runner, _console),
-            _console
-        );
+        var build = TestServiceGraphs.Build(resolver, _store, _runner, _console);
         _application = new CliTestApplication(_console, _paths, new TrailingArguments());
         _application.Services.AddSingleton(config);
         _application.Services.AddSingleton(ReadyPreflight.Checks());
@@ -51,12 +48,11 @@ public sealed class BuildMcpValidationTests : IDisposable
     public async Task InvalidMcpDeclarationsFailBeforeChangingBuildsOrRuntime(
         string field,
         string value,
-        string origin,
-        bool metadataOnly
+        string origin
     )
     {
         // Arrange
-        (await BuildAsync(metadataOnly))
+        (await BuildAsync())
             .Should()
             .Be(0, _console.AllText);
         var buildDirectory = _store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest"));
@@ -71,7 +67,6 @@ public sealed class BuildMcpValidationTests : IDisposable
         };
         var source = origin switch
         {
-            "personal" => _root.File("config/personal.abox", declaration),
             "base" => _root.File("teams/sample/base.abox", "workload: sample\n" + declaration),
             _ => _root.File("teams/sample/ac.abox", "workload: sample\n" + declaration),
         };
@@ -80,7 +75,7 @@ public sealed class BuildMcpValidationTests : IDisposable
         _runner.ClearReceivedCalls();
 
         // Act
-        var exitCode = await BuildAsync(metadataOnly);
+        var exitCode = await BuildAsync();
 
         // Assert
         exitCode.Should().Be(1);
@@ -125,26 +120,20 @@ public sealed class BuildMcpValidationTests : IDisposable
                 ("url", "''"),
             }
         )
-        foreach (var origin in new[] { "squad", "base", "personal" })
-        foreach (var metadataOnly in new[] { false, true })
-            yield return [field, value, origin, metadataOnly];
+        foreach (var origin in new[] { "squad", "base" })
+            yield return [field, value, origin];
     }
 
     [Theory]
     [InlineData("squad")]
     [InlineData("base")]
-    [InlineData("personal")]
     public async Task DuplicateMcpNamesRemainAnActionableBuildError(string origin)
     {
         // Arrange
         var source = _root.File("teams/sample/ac.abox", "workload: sample\nmcp: [elastic]\n");
         var duplicate = "mcp:\n  - name: elastic\n    url: https://example.com/mcp\n";
         string other;
-        if (origin == "personal")
-        {
-            other = _root.File("config/personal.abox", duplicate);
-        }
-        else if (origin == "base")
+        if (origin == "base")
         {
             other = _root.File("teams/sample/base.abox", "workload: sample\n" + duplicate);
             _root.File("teams/sample/ac.abox", "base: base\nmcp: [elastic]\n");
@@ -159,7 +148,7 @@ public sealed class BuildMcpValidationTests : IDisposable
         }
 
         // Act
-        var exitCode = await BuildAsync(metadataOnly: true);
+        var exitCode = await BuildAsync();
 
         // Assert
         exitCode.Should().Be(1);
@@ -190,7 +179,7 @@ public sealed class BuildMcpValidationTests : IDisposable
         );
 
         // Act
-        var exitCode = await BuildAsync(metadataOnly: true);
+        var exitCode = await BuildAsync();
 
         // Assert
         exitCode.Should().Be(1);
@@ -203,15 +192,10 @@ public sealed class BuildMcpValidationTests : IDisposable
         _runner.ReceivedCalls().Should().BeEmpty();
     }
 
-    private Task<int> BuildAsync(bool metadataOnly)
-    {
-        var arguments = new List<string> { "build", "--team", "sample", "--root", _root.Path };
-        if (metadataOnly)
-            arguments.Add("--metadata-only");
-        return _application
+    private Task<int> BuildAsync() =>
+        _application
             .Provider.GetRequiredService<AboxRootCommand>()
-            .InvokeAsync(arguments.ToArray());
-    }
+            .InvokeAsync(["build", "--team", "sample", "--root", _root.Path]);
 
     private Dictionary<string, string> FilesInState() =>
         Directory

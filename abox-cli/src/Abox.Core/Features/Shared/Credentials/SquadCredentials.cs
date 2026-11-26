@@ -1,4 +1,3 @@
-using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
@@ -14,7 +13,6 @@ namespace Abox.Features.Shared.Credentials;
 /// </summary>
 internal sealed class SquadCredentials(
     SquadResolver resolver,
-    PersonalConfigurations personalConfigurations,
     IHostSecretStore secrets,
     ICredentialApprovals approvals,
     SecretValues values,
@@ -46,12 +44,7 @@ internal sealed class SquadCredentials(
 
         try
         {
-            var resolved = resolver.Resolve(
-                rootDirectory,
-                team,
-                squad,
-                personalConfigurations.Files
-            );
+            var resolved = resolver.Resolve(rootDirectory, team, squad);
             var requested = CredentialRequest.Of(resolved, parser);
             var requests = requested.Where(request => request.Domains.Count > 0).ToList();
             var custom = resolved

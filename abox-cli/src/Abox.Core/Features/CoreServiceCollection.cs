@@ -84,7 +84,6 @@ public static class CoreServiceCollection
         services.AddScoped<SandboxRecordStore>();
         services.AddScoped<CreateRecoveryHints>();
         services.AddScoped<FolderSandbox>();
-        services.AddScoped<PersonalConfigurations>();
         services.AddScoped<LocalWorkloadImages>();
         services.AddScoped<SandboxCreator>();
         services.AddScoped<LocalSquadSource>();

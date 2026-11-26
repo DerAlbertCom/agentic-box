@@ -20,23 +20,17 @@ public sealed class BuiltKitCreationTests
     {
         // Arrange
         Root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
-        Root.File("teams/sample/sample.workload", "template: example.com/sample:1\n");
+        Root.File(
+            "teams/sample/sample.workload",
+            "template: example.com/sample:1\npublishRepository: test-images-local\n"
+        );
         Root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
         KitBuildScripts.Write(Root, "built", "echo generated > \"$1/generated.txt\"\n");
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(Root.Path, "sample");
         await TestServiceGraphs
-            .Build(
-                resolver,
-                new PersonalConfigurations(_fixture.Paths),
-                _fixture.Store,
-                LocalWorkloadFactory.Images(),
-                _fixture.Console
-            )
-            .BuildAsync(
-                new BuildRequest([team], Root.Path, "latest", Verify: false),
-                CancellationToken.None
-            );
+            .Build(resolver, _fixture.Store, LocalWorkloadFactory.Runner(), _fixture.Console)
+            .BuildAsync(new BuildRequest([team], Root.Path, "latest"), CancellationToken.None);
         var mixins = new List<string>();
         _fixture
             .Lifecycle.CreateAsync(
@@ -73,21 +67,15 @@ public sealed class BuiltKitCreationTests
             "teams/sample/ac.abox",
             "workload: sample\nsecrets:\n  - service: elastic\n    prompt: The API key\n"
         );
-        Root.File("teams/sample/sample.workload", "template: example.com/sample:1\n");
+        Root.File(
+            "teams/sample/sample.workload",
+            "template: example.com/sample:1\npublishRepository: test-images-local\n"
+        );
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(Root.Path, "sample");
         await TestServiceGraphs
-            .Build(
-                resolver,
-                new PersonalConfigurations(_fixture.Paths),
-                _fixture.Store,
-                LocalWorkloadFactory.Images(),
-                _fixture.Console
-            )
-            .BuildAsync(
-                new BuildRequest([team], Root.Path, "latest", Verify: false),
-                CancellationToken.None
-            );
+            .Build(resolver, _fixture.Store, LocalWorkloadFactory.Runner(), _fixture.Console)
+            .BuildAsync(new BuildRequest([team], Root.Path, "latest"), CancellationToken.None);
         var mixins = new List<string>();
         _fixture
             .Lifecycle.CreateAsync(

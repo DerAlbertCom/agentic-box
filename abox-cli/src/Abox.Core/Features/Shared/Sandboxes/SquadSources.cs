@@ -60,7 +60,7 @@ internal sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages ima
         var image =
             manifest.LocalWorkload
             ?? throw new AboxException(
-                $"This manifest has no prebuilt local workload (metadata-only or legacy build). Run 'abox build --team {identity.Team} --tag {identity.Tag}' without --metadata-only before using --local. Create will not build the workload from sources."
+                $"This build has no prebuilt local workload (legacy build). Run 'abox build --team {identity.Team} --tag {identity.Tag}' before using --local. Create will not build the workload from sources."
             );
         await images.EnsureAvailableAsync(image, cancellationToken);
         var arguments = KitArguments(manifest.Kits);

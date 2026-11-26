@@ -4,7 +4,7 @@ using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Squads;
 
-/// <summary>Finds team-owned sources and loads base-first project and personal chains.</summary>
+/// <summary>Finds team-owned sources and loads base-first project chains.</summary>
 internal sealed class SquadSourceDiscovery(AboxConfig config, IYamlParser parser)
 {
     internal SquadResolver.ResolvedTeam ResolveTeam(string rootDirectory, string teamName)
@@ -79,26 +79,6 @@ internal sealed class SquadSourceDiscovery(AboxConfig config, IYamlParser parser
     internal IReadOnlyList<AboxFile> LoadProjectChain(string teamDirectory, string squadName) =>
         LoadChain(new ConfigRoot(teamDirectory, squadName), FindBaseConfigurationFile);
 
-    private IReadOnlyList<AboxFile> LoadPersonalChain(string file) =>
-        LoadChain(
-            new ConfigRoot(
-                Path.GetDirectoryName(file) ?? ".",
-                Path.GetFileNameWithoutExtension(file)
-            ),
-            FindPersonalBase
-        );
-
-    internal IReadOnlyList<IReadOnlyList<AboxFile>> LoadPersonalChains(IReadOnlyList<string> files)
-    {
-        // Validate every chain before filtering, including cycles with no leaf configuration.
-        var chains = files.Select(LoadPersonalChain).ToList();
-        var bases = chains
-            .SelectMany(chain => chain.SkipLast(1))
-            .Select(file => file.Path)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return chains.Where(chain => !bases.Contains(chain[^1].Path)).ToList();
-    }
-
     private IReadOnlyList<AboxFile> LoadChain(
         ConfigRoot root,
         Func<string, string, string> findBase
@@ -134,15 +114,6 @@ internal sealed class SquadSourceDiscovery(AboxConfig config, IYamlParser parser
 
         chain.Reverse();
         return chain;
-    }
-
-    private static string FindPersonalBase(string directory, string name)
-    {
-        // Personal base lookup deliberately uses the exact filename, without parent search.
-        var path = Path.GetFullPath(Path.Combine(directory, name + ".abox"));
-        return File.Exists(path)
-            ? path
-            : throw new AboxException($"There is no configuration '{name}.abox' in '{directory}'.");
     }
 
     private string FindBaseConfigurationFile(string directory, string name)

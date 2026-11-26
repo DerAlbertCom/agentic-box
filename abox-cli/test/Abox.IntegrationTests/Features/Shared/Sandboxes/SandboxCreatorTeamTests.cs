@@ -151,26 +151,22 @@ public sealed class SandboxCreatorTeamTests
         foreach (var team in new[] { "sample", "other" })
         {
             Root.File($"teams/{team}/ac.abox", $"workload: {team}\nstate: [~/.{team}]\n");
-            Root.File($"teams/{team}/{team}.workload", $"template: example.com/{team}:1\n");
+            Root.File(
+                $"teams/{team}/{team}.workload",
+                $"template: example.com/{team}:1\npublishRepository: test-images-local\n"
+            );
         }
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var names = reverse ? new[] { "other", "sample" } : new[] { "sample", "other" };
         var teams = names.Select(team => resolver.ResolveTeam(Root.Path, team)).ToList();
         var build = TestServiceGraphs.Build(
             resolver,
-            new PersonalConfigurations(Paths),
             Store,
-            LocalWorkloadFactory.Images(),
+            LocalWorkloadFactory.Runner(),
             Console
         );
         await build.BuildAsync(
-            new BuildRequest(
-                teams,
-                Root.Path,
-                "latest",
-                Verify: false,
-                IncludePersonalConfigurations: false
-            ),
+            new BuildRequest(teams, Root.Path, "latest"),
             CancellationToken.None
         );
         return teams;

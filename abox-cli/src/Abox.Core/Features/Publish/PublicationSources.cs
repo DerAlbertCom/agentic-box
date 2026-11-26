@@ -59,15 +59,11 @@ internal sealed class PublicationSources(BuildStore store, IYamlParser parser)
         var build =
             store.Load(identity)
             ?? throw new AboxException(
-                $"No local build of '{squad}:{tag}'. Run 'abox build --team {team} --tag {tag} --no-personal' first."
-            );
-        if (build.IncludesPersonalConfigurations != false)
-            throw new AboxException(
-                "This build includes personal configuration or has unknown configuration provenance. Run 'abox build --no-personal' for the team and tag before publishing."
+                $"No local build of '{squad}:{tag}'. Run 'abox build --team {team} --tag {tag}' first."
             );
         if (!WorkloadFile.IsValidPublishRepository(build.PublishRepository))
             throw new AboxException(
-                $"The local build '{squad}:{tag}' has no valid publishRepository. Set 'publishRepository' in its .workload file and run 'abox build --team {team} --tag {tag} --no-personal' again before publishing."
+                $"The local build '{squad}:{tag}' has no valid publishRepository. Set 'publishRepository' in its .workload file and run 'abox build --team {team} --tag {tag}' again before publishing."
             );
         foreach (var server in build.Mcp)
             new McpDeclaration(server.Name, server.Url).Validate($"local build {squad}:{tag}");
@@ -79,7 +75,7 @@ internal sealed class PublicationSources(BuildStore store, IYamlParser parser)
         Descriptor(
             build.ConfigurationMixinDirectory
                 ?? throw new AboxException(
-                    $"The local build '{squad}:{tag}' has no squad configuration mixin. Run 'abox build --team {team} --tag {tag} --no-personal' again before publishing."
+                    $"The local build '{squad}:{tag}' has no squad configuration mixin. Run 'abox build --team {team} --tag {tag}' again before publishing."
                 )
         );
         BuildSources.EnsureUnchanged(build);

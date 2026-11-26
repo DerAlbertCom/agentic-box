@@ -27,30 +27,21 @@ public sealed class AgentGuidanceBuildTests
         var kitDirectory = root.CreateDirectory("kits/" + kitName);
         File.Copy(source.DescriptorPath, Path.Combine(kitDirectory, kitName + ".yaml"));
         root.File("teams/sample/ac.abox", $"workload: sample\nkits: [{kitName}]\n");
-        root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
+        root.File(
+            "teams/sample/sample.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
+        );
         root.File("runtime workspace/project.txt", "the runtime-mounted project\n");
         root.File("image-workdir/project.txt", "the image default is not the project\n");
         var paths = AboxPaths.For(root.CreateDirectory("config"), root.CreateDirectory("state"));
         var store = new BuildStore(paths);
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
-        var runner = Substitute.For<IProcessRunner>();
-        var service = TestServiceGraphs.Build(
-            resolver,
-            new PersonalConfigurations(paths),
-            store,
-            LocalWorkloadFactory.Images(runner),
-            new TestConsole()
-        );
+        var runner = LocalWorkloadFactory.Runner();
+        var service = TestServiceGraphs.Build(resolver, store, runner, new TestConsole());
 
         // Act
         var exitCode = await service.BuildAsync(
-            new BuildRequest(
-                [resolver.ResolveTeam(root.Path, "sample")],
-                root.Path,
-                "latest",
-                IncludePersonalConfigurations: false,
-                MetadataOnly: true
-            ),
+            new BuildRequest([resolver.ResolveTeam(root.Path, "sample")], root.Path, "latest"),
             CancellationToken.None
         );
         var manifest = store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
@@ -97,7 +88,6 @@ public sealed class AgentGuidanceBuildTests
         // Assert
         result.ExitCode.Should().Be(0, result.StandardError);
         result.StandardOutput.Should().Be("the runtime-mounted project" + Environment.NewLine);
-        runner.ReceivedCalls().Should().BeEmpty();
     }
 
     private static string FixtureKit(string name)

@@ -2,7 +2,6 @@ using System.Text.Json;
 using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
-using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
@@ -16,7 +15,6 @@ public sealed class BuildServiceTests
 {
     private readonly BuildServiceFixture _fixture = new();
     private TempDirectory Root => _fixture.Root;
-    private IKitInspector Inspector => _fixture.Inspector;
     private IProcessRunner Runner => _fixture.Runner;
     private TestConsole Console => _fixture.Console;
     private BuildStore Store => _fixture.Store;
@@ -34,13 +32,7 @@ public sealed class BuildServiceTests
         Root.File("teams/sample/sample.workload", "publishRepository: sample-images-local\n");
 
         // Act
-        await Service.BuildAsync(
-            Request() with
-            {
-                IncludePersonalConfigurations = false,
-            },
-            CancellationToken.None
-        );
+        await Service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
         Store
@@ -58,13 +50,7 @@ public sealed class BuildServiceTests
     {
         // Arrange
         Root.File("teams/sample/sample.workload", "publishRepository: original-images-local\n");
-        await Service.BuildAsync(
-            Request() with
-            {
-                IncludePersonalConfigurations = false,
-            },
-            CancellationToken.None
-        );
+        await Service.BuildAsync(Request(), CancellationToken.None);
         Root.File("teams/sample/sample.workload", "publishRepository: other-images-local\n");
 
         // Act
@@ -74,29 +60,7 @@ public sealed class BuildServiceTests
             );
 
         // Assert
-        check.Should().Throw<AboxException>().WithMessage("*sources changed*--no-personal*");
-    }
-
-    [Fact]
-    public async Task PublicationBuildsExplicitlyExcludePersonalConfiguration()
-    {
-        // Arrange: the fixture supplies sources with personal configuration.
-        // Act
-        await Service.BuildAsync(
-            Request() with
-            {
-                IncludePersonalConfigurations = false,
-            },
-            CancellationToken.None
-        );
-
-        // Assert
-        var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        manifest.IncludesPersonalConfigurations.Should().BeFalse();
-        manifest.Kits.Should().BeEmpty();
-        manifest.ConfigFiles.Should().NotContain(file => file.Contains("personal.abox"));
-        manifest.SourceHashes.Should().NotBeEmpty();
-        BuildSources.EnsureUnchanged(manifest);
+        check.Should().Throw<AboxException>().WithMessage("*sources changed*");
     }
 
     [Fact]
@@ -104,13 +68,7 @@ public sealed class BuildServiceTests
     {
         // Arrange: the fixture supplies a publishable workload and bundled assets.
         // Act
-        await Service.BuildAsync(
-            Request() with
-            {
-                IncludePersonalConfigurations = false,
-            },
-            CancellationToken.None
-        );
+        await Service.BuildAsync(Request(), CancellationToken.None);
         // Assert
         var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         var snapshot = BuildSources.Snapshot(manifest, Root.CreateDirectory("snapshot"));
@@ -125,128 +83,6 @@ public sealed class BuildServiceTests
         var check = () => BuildSources.EnsureUnchanged(manifest);
         // Assert
         check.Should().Throw<AboxException>().WithMessage("*sources changed*");
-    }
-
-    [Fact]
-    public async Task LocalBuildsStillIncludePersonalConfigurationByDefaultAndRecordIt()
-    {
-        // Arrange: use the fixture's personal configuration and default build request.
-        // Act
-        await Service.BuildAsync(Request(), CancellationToken.None);
-
-        // Assert
-        var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        manifest.IncludesPersonalConfigurations.Should().BeTrue();
-        manifest.Kits.Should().ContainSingle().Which.Name.Should().Be("private");
-        manifest.SourceHashes.Should().BeEmpty();
-    }
-
-    [Theory(SkipExceptions = [typeof(LinkUnavailableException)])]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task OnlyPublicationBuildsEnforceLinkFreeInputs(bool includePersonalConfigurations)
-    {
-        // Arrange
-        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [private]\n");
-        File.Delete(Path.Combine(Root.Path, "config", "personal.abox"));
-        var target = Root.CreateDirectory("shared");
-        Root.File("shared/payload.txt", "linked kit payload");
-        var link = Path.Combine(Root.Path, "kits", "private", "linked");
-        try
-        {
-            var result = await DirectoryLinks.CreateAsync(link, target);
-            if (result is not null && !result.Succeeded)
-            {
-                throw new LinkUnavailableException(
-                    $"Directory junctions are not available: {result.StandardError}"
-                );
-            }
-        }
-        catch (Exception exception)
-            when (exception
-                    is UnauthorizedAccessException
-                        or PlatformNotSupportedException
-                        or IOException
-            )
-        {
-            throw new LinkUnavailableException(
-                $"Symbolic links are not available on this host: {exception.Message}"
-            );
-        }
-
-        var request = Request() with
-        {
-            IncludePersonalConfigurations = includePersonalConfigurations,
-        };
-        if (includePersonalConfigurations)
-        {
-            // Act
-            var exitCode = await Service.BuildAsync(request, CancellationToken.None);
-
-            // Assert
-            exitCode.Should().Be(0);
-            Store
-                .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
-                .SourceHashes.Should()
-                .BeEmpty();
-            await Inspector
-                .Received(1)
-                .InspectAsync(
-                    Path.Combine(Root.Path, "kits", "private"),
-                    Arg.Any<IReadOnlyDictionary<string, string>>(),
-                    Arg.Any<CancellationToken>()
-                );
-        }
-        else
-        {
-            // Act
-            var action = () => Service.BuildAsync(request, CancellationToken.None);
-
-            // Assert
-            (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-                "*symbolic link or reparse point*"
-            );
-            Store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
-        }
-    }
-
-    [Fact]
-    public async Task SourcesChangedDuringVerificationAreNotSavedAsAVerifiedBuild()
-    {
-        // Arrange
-        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [private]\n");
-        Inspector
-            .InspectAsync(
-                Arg.Any<string>(),
-                Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                File.AppendAllText(
-                    Path.Combine(
-                        Store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest")),
-                        "workload",
-                        "workload.yaml"
-                    ),
-                    "description: changed during verification\n"
-                );
-                return new KitInspectionOutcome(true, "");
-            });
-
-        // Act
-        var action = () =>
-            Service.BuildAsync(
-                Request() with
-                {
-                    IncludePersonalConfigurations = false,
-                },
-                CancellationToken.None
-            );
-
-        // Assert
-        (await action.Should().ThrowAsync<AboxException>()).WithMessage("*sources changed*");
-        Store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
     }
 
     private BuildRequest Request() =>
@@ -275,10 +111,9 @@ public sealed class BuildServiceTests
             """
         );
         Root.File("teams/sample/shared.abox", "workload: sample\nsecrets: [github]\n");
-        Root.File("config/personal.abox", "secrets:\n  - service: private\n    prompt: Mine\n");
 
         // Act
-        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
         var metadata = BundledSquadMetadata();
@@ -308,8 +143,7 @@ public sealed class BuildServiceTests
                 "Encoding": "base64",
                 "Placeholder": null,
                 "FromCommand": false
-              },
-              {"Service": "private", "Prompt": "Mine", "Hosts": [], "Env": null, "Inputs": [], "Separator": ":", "Encoding": "plain", "Placeholder": null, "FromCommand": false}
+              }
             ]
             """
         );
@@ -317,18 +151,11 @@ public sealed class BuildServiceTests
     }
 
     [Fact]
-    public async Task AMetadataOnlyBuildOfASquadWithoutSecretsBundlesAnEmptySecretsList()
+    public async Task ABuildOfASquadWithoutSecretsBundlesAnEmptySecretsList()
     {
         // Arrange: the fixture's squad declares no secrets.
         // Act
-        await Service.BuildAsync(
-            Request() with
-            {
-                IncludePersonalConfigurations = false,
-                MetadataOnly = true,
-            },
-            CancellationToken.None
-        );
+        await Service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
         var metadata = BundledSquadMetadata();
@@ -353,7 +180,7 @@ public sealed class BuildServiceTests
         );
 
         // Act
-        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
         var metadata = BundledSquadMetadata();
@@ -379,7 +206,7 @@ public sealed class BuildServiceTests
         );
 
         // Act
-        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
         AssertJson(
@@ -424,7 +251,7 @@ public sealed class BuildServiceTests
                 placeholder: gho_{rand}
             """
         );
-        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request(), CancellationToken.None);
         var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         var json = File.ReadAllText(Path.Combine(build.ConfigurationMixinDirectory!, "squad.json"));
 
@@ -482,77 +309,288 @@ public sealed class BuildServiceTests
             .BeTrue("expected {0}, but found {1}", expectedJson, actual.GetRawText());
     }
 
+    private const string Components =
+        "rwest.jfrog.io/source-images-local/agentic-box-rwest-sample/ac/components/";
+
+    private BuildManifest Record() => Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+
+    /// <summary>The names of the component images the synthetic Docker built, in order.</summary>
+    private List<string> BuiltComponents() =>
+        Runner
+            .ReceivedCalls()
+            .Select(call => (ProcessRequest)call.GetArguments()[0]!)
+            .Where(request => request.Arguments.Contains("--load"))
+            .Select(request => request.Arguments[request.Arguments.ToList().IndexOf("--tag") + 1])
+            .Select(reference => reference[Components.Length..reference.LastIndexOf(':')])
+            .ToList();
+
+    private void SquadWithEveryComponent() =>
+        Root.File(
+            "teams/sample/ac.abox",
+            "workload: sample\nkits: [private, ghcr.io/example/remote:1]\nstate: [~/.probe-state]\n"
+        );
+
+    private void ResolveTo(string reference, string digest) =>
+        Runner
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request =>
+                    request.Arguments.Contains("{{json .Manifest}}")
+                    && request.Arguments.Last() == reference
+                ),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new ProcessResult(0, JsonSerializer.Serialize(new { digest }), ""));
+
     [Fact]
-    public async Task NoVerifyStillPrebuildsTheWorkloadAndRecordsItsContentIdentity()
+    public async Task TheBuildRecordListsEveryComponentImageUnderItsRegistryNameWithItsDigest()
     {
-        // Arrange: use the fixture's local workload and fake image builder.
+        // Arrange
+        SquadWithEveryComponent();
+
         // Act
-        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
-        var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        manifest.LocalWorkload.Should().NotBeNull();
-        manifest.LocalWorkload!.ImageId.Should().Be(LocalWorkloadFactory.ImageId);
-        manifest.LocalWorkload.RuntimeKitDirectory.Should().NotBe(manifest.WorkloadKitDirectory);
-        await Runner
-            .Received(1)
-            .RunAsync(
-                Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--load")),
-                Arg.Any<CancellationToken>()
-            );
-        await Inspector
-            .DidNotReceive()
-            .InspectAsync(
-                Arg.Any<string>(),
-                Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<CancellationToken>()
-            );
+        var record = Record();
+        record
+            .Components.Select(component => component.Name)
+            .Should()
+            .Equal("workload", "kits/private", "state", "config");
+        foreach (var component in record.Components)
+        {
+            component.Reference.Should().Be($"{Components}{component.Name}:{component.InputHash}");
+            component.Digest.Should().Be(LocalWorkloadFactory.Digest(component.Reference));
+            component.ImageId.Should().Be(LocalWorkloadFactory.ImageId);
+            component.Descriptor.Should().Contain("kind:");
+        }
+        record.Components[0].Kind.Should().Be(ComponentKind.Workload);
+        record.Components.Skip(1).Should().OnlyContain(component => component.Kind == "mixin");
+        BuiltComponents().Should().Equal("workload", "kits/private", "state", "config");
+        record.ImageStore.Should().Be("test-context");
+        record.SourceHashes.Should().NotBeEmpty();
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task MetadataOnlyExplicitlyInvalidatesSelectionButKeepsPreviousLocalArtifacts(
-        bool changeInputs
-    )
+    [Fact]
+    public async Task TheBaseImageAndTheRegistryKitsArePinnedToTheDigestTheyResolveTo()
+    {
+        // Arrange
+        SquadWithEveryComponent();
+
+        // Act
+        await Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        var record = Record();
+        var baseDigest = LocalWorkloadFactory.Digest("example.com/base:1");
+        record.Base!.Reference.Should().Be("example.com/base:1");
+        record.Base.Digest.Should().Be(baseDigest);
+        File.ReadAllText(Path.Combine(record.WorkloadKitDirectory, "workload.dockerfile"))
+            .Should()
+            .Contain($"FROM example.com/base@{baseDigest}");
+        var remote = record.Kits.Single(kit => !kit.IsLocal);
+        remote.Digest.Should().Be(LocalWorkloadFactory.Digest("ghcr.io/example/remote:1"));
+        remote.Component.Should().BeNull();
+        record.Kits.Single(kit => kit.IsLocal).Component.Should().Be("kits/private");
+    }
+
+    [Fact]
+    public async Task ASecondBuildWithoutChangesBuildsNothingAndKeepsItsCreationTime()
+    {
+        // Arrange
+        SquadWithEveryComponent();
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        var first = Record();
+        Runner.ClearReceivedCalls();
+
+        // Act
+        await Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        BuiltComponents().Should().BeEmpty();
+        var second = Record();
+        second.CreatedAt.Should().Be(first.CreatedAt);
+        second
+            .Components.Select(component => component.Digest)
+            .Should()
+            .Equal(first.Components.Select(component => component.Digest));
+    }
+
+    [Fact]
+    public async Task ChangingOneLocalKitRebuildsOnlyThatKitAndTheConfigurationThatDatesTheBuild()
+    {
+        // Arrange
+        SquadWithEveryComponent();
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        var first = Record();
+        Runner.ClearReceivedCalls();
+        Root.File("kits/private/files/changed.txt", "changed\n");
+
+        // Act
+        await Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        BuiltComponents().Should().Equal("kits/private", "config");
+        Record().CreatedAt.Should().BeAfter(first.CreatedAt);
+    }
+
+    [Fact]
+    public async Task ChangingOnlyTheSquadMetadataRebuildsOnlyTheConfiguration()
     {
         // Arrange
         await Service.BuildAsync(Request(), CancellationToken.None);
-        var image = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.LocalWorkload!;
-        var recipePath = Path.Combine(image.RuntimeKitDirectory, "workload.dockerfile");
-        var previousRecipe = File.ReadAllText(recipePath);
-        if (changeInputs)
-        {
-            Root.File("teams/sample/sample.workload", "template: example.com/other:2\n");
-        }
         Runner.ClearReceivedCalls();
-        Inspector.ClearReceivedCalls();
+        Root.File("teams/sample/ac.abox", "workload: sample\nmcp: [elastic]\n");
 
         // Act
-        var exitCode = await Service.BuildAsync(
-            Request() with
-            {
-                MetadataOnly = true,
-            },
-            CancellationToken.None
-        );
+        await Service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
-        exitCode.Should().Be(0);
-        Store
-            .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
-            .LocalWorkload.Should()
-            .BeNull();
-        Store
-            .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
-            .Template.Should()
-            .Be(changeInputs ? "example.com/other:2" : "example.com/base:1");
-        File.ReadAllText(recipePath).Should().Be(previousRecipe);
-        File.Exists(Path.Combine(image.RuntimeKitDirectory, "workload.yaml")).Should().BeTrue();
-        Console.AllText.Should().Contain("invalidated").And.Contain("not deleted");
-        Runner.ReceivedCalls().Should().BeEmpty();
-        Inspector.ReceivedCalls().Should().BeEmpty();
+        BuiltComponents().Should().Equal("config");
     }
 
-    private sealed class LinkUnavailableException(string message) : Exception(message);
+    [Fact]
+    public async Task ARebuildBuildsEveryComponentAgain()
+    {
+        // Arrange
+        SquadWithEveryComponent();
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        Runner.ClearReceivedCalls();
+
+        // Act
+        await Service.BuildAsync(Request() with { Rebuild = true }, CancellationToken.None);
+
+        // Assert
+        BuiltComponents().Should().Equal("workload", "kits/private", "state", "config");
+    }
+
+    [Fact]
+    public async Task AComponentImageThatWasRemovedFromTheImageStoreIsBuiltAgain()
+    {
+        // Arrange
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        Runner.ClearReceivedCalls();
+        Runner
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request =>
+                    request.Arguments.Contains("{{.Id}}")
+                    && request.Arguments.Last().Contains("/components/workload:")
+                ),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new ProcessResult(1, "", "No such image"),
+                new ProcessResult(0, LocalWorkloadFactory.ImageId, "")
+            );
+
+        // Act
+        await Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        BuiltComponents().Should().Equal("workload", "config");
+    }
+
+    [Fact]
+    public async Task AMovedBaseImageDigestRebuildsTheWorkload()
+    {
+        // Arrange
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        Runner.ClearReceivedCalls();
+        var moved = "sha256:" + new string('b', 64);
+        ResolveTo("example.com/base:1", moved);
+
+        // Act
+        await Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        BuiltComponents().Should().Equal("workload", "config");
+        Record().Base!.Digest.Should().Be(moved);
+    }
+
+    [Fact]
+    public async Task AMovedRegistryKitDigestIsPinnedAgainAndDatesTheBuild()
+    {
+        // Arrange
+        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [ghcr.io/example/remote:1]\n");
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        var first = Record();
+        Runner.ClearReceivedCalls();
+        var moved = "sha256:" + new string('c', 64);
+        ResolveTo("ghcr.io/example/remote:1", moved);
+
+        // Act
+        await Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        BuiltComponents().Should().Equal("config");
+        var second = Record();
+        second.Kits.Single().Digest.Should().Be(moved);
+        second.CreatedAt.Should().BeAfter(first.CreatedAt);
+    }
+
+    [Fact]
+    public async Task ABuildPhaseArgumentOfALocalKitIsRejected()
+    {
+        // Arrange
+        Root.File(
+            "teams/sample/ac.abox",
+            "workload: sample\nkits:\n  - name: private\n    args: {version: \"1\"}\n"
+        );
+        Root.File(
+            "kits/private/private.yaml",
+            "schemaVersion: \"3\"\nkind: mixin\nargs:\n  version:\n    buildArg: VERSION\n"
+        );
+
+        // Act
+        var action = () => Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
+            "The argument 'version' of kit 'private' is undeclared or build-phase.*"
+        );
+    }
+
+    [Fact]
+    public async Task SourcesChangedDuringAnImageBuildAreNotSaved()
+    {
+        // Arrange
+        Runner
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--load")),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                File.AppendAllText(
+                    Path.Combine(
+                        Store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest")),
+                        "workload",
+                        "workload.yaml"
+                    ),
+                    "description: changed during the build\n"
+                );
+                return LocalWorkloadFactory.Result(call.Arg<ProcessRequest>());
+            });
+
+        // Act
+        var action = () => Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        (await action.Should().ThrowAsync<AboxException>()).WithMessage("*changed during*");
+        Store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AWorkloadWithoutPublishRepositoryCannotNameItsImages()
+    {
+        // Arrange
+        Root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
+
+        // Act
+        var action = () => Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
+            "The workload 'sample' has no valid publishRepository*"
+        );
+    }
 }

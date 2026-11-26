@@ -22,20 +22,24 @@ public sealed class SquadDiscoveryTests
         root.File($"{teams}/sample/ac.abox", "base: cape\nkits: [project-kit]\n");
         root.File($"{teams}/sample/cape.abox", "workload: shared\n");
         root.File($"{teams}/other/cape.abox", "workload: wrong\n");
-        var workload = root.File($"{kits}/shared.workload", "template: example.com/base:1\n");
+        var workload = root.File(
+            $"{kits}/shared.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
+        );
         var projectKit = root.CreateDirectory($"{kits}/project-kit");
-        var personalKit = root.CreateDirectory($"{kits}/personal-kit");
-        var personal = root.File("personal/extra.abox", "kits: [personal-kit]\n");
         var nested = root.CreateDirectory("projects/app/src");
-        root.File("projects/app/src/kits/shared.workload", "template: example.com/wrong:1\n");
+        root.File(
+            "projects/app/src/kits/shared.workload",
+            "template: example.com/wrong:1\npublishRepository: test-images-local\n"
+        );
         var resolver = new SquadResolver(
             new AboxConfig { TeamsDirectory = teams, KitsDirectory = kits },
             new YamlDotNetParser()
         );
 
         // Act
-        var fromRoot = resolver.Resolve(root.Path, "sample", "ac", [personal]);
-        var fromNested = resolver.Resolve(nested, "sample", "ac", [personal]);
+        var fromRoot = resolver.Resolve(root.Path, "sample", "ac");
+        var fromNested = resolver.Resolve(nested, "sample", "ac");
 
         // Assert
         Path.GetFullPath(fromNested.Workload.Path).Should().Be(Path.GetFullPath(workload));
@@ -43,7 +47,7 @@ public sealed class SquadDiscoveryTests
         fromNested
             .Kits.Select(kit => Path.GetFullPath(kit.Directory!))
             .Should()
-            .Equal(Path.GetFullPath(projectKit), Path.GetFullPath(personalKit));
+            .Equal(Path.GetFullPath(projectKit));
         fromNested.Kits.Should().BeEquivalentTo(fromRoot.Kits);
         fromNested.RootDirectory.Should().Be(root.Path);
     }
@@ -56,7 +60,10 @@ public sealed class SquadDiscoveryTests
         // Arrange
         using var root = new TempDirectory();
         root.File("teams/sample/ac.abox", "workload: shared\nkits: [project-kit]\n");
-        root.File("kits/shared.workload", "template: example.com/base:1\n");
+        root.File(
+            "kits/shared.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
+        );
         root.CreateDirectory("kits/project-kit");
         var workingDirectory = root.CreateDirectory("projects/app");
         root.CreateDirectory("projects/app/src");
@@ -67,8 +74,8 @@ public sealed class SquadDiscoveryTests
             Directory.SetCurrentDirectory(workingDirectory);
 
             // Act
-            var relative = resolver.Resolve(sourceRoot, "sample", "ac", []);
-            var absolute = resolver.Resolve(Path.GetFullPath(sourceRoot), "sample", "ac", []);
+            var relative = resolver.Resolve(sourceRoot, "sample", "ac");
+            var absolute = resolver.Resolve(Path.GetFullPath(sourceRoot), "sample", "ac");
             var team = resolver.ResolveTeam(sourceRoot, "sample");
 
             // Assert
@@ -92,16 +99,22 @@ public sealed class SquadDiscoveryTests
         using var root = new TempDirectory();
         root.File("teams/sample/ac.abox", "workload: shared\nkits: [project-kit]\n");
         if (missing == "kit")
-            root.File("kits/shared.workload", "template: example.com/base:1\n");
+            root.File(
+                "kits/shared.workload",
+                "template: example.com/base:1\npublishRepository: test-images-local\n"
+            );
         else
             root.CreateDirectory("kits/project-kit");
         var nested = root.CreateDirectory("projects/app/src");
-        root.File("projects/app/src/kits/shared.workload", "template: example.com/wrong:1\n");
+        root.File(
+            "projects/app/src/kits/shared.workload",
+            "template: example.com/wrong:1\npublishRepository: test-images-local\n"
+        );
         root.CreateDirectory("projects/app/src/kits/project-kit");
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
 
         // Act
-        var resolve = () => resolver.Resolve(nested, "sample", "ac", []);
+        var resolve = () => resolver.Resolve(nested, "sample", "ac");
 
         // Assert
         resolve
@@ -125,7 +138,7 @@ public sealed class SquadDiscoveryTests
         );
 
         // Act
-        var resolve = () => resolver.Resolve(nested, "sample", "ac", []);
+        var resolve = () => resolver.Resolve(nested, "sample", "ac");
 
         // Assert
         resolve

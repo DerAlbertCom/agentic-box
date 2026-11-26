@@ -4,8 +4,8 @@ using Abox.Features.Shared.CommandLine;
 namespace Abox.Features.Build;
 
 /// <summary>
-/// <c>abox build</c>: builds the kit set of a team, every squad of it that no other
-/// squad names as its base.
+/// <c>abox build</c>: builds the component images of a team's squads, every squad of it
+/// that no other squad names as its base, into the host image store.
 /// </summary>
 internal sealed class BuildCommand : AboxCommand<BuildParameters>
 {
@@ -25,34 +25,23 @@ internal sealed class BuildCommand : AboxCommand<BuildParameters>
         Description =
             "The tag the build is stored under. Defaults to the tag of the user configuration, latest.",
     };
-    private readonly Option<bool> _noVerify = new("--no-verify")
+    private readonly Option<bool> _rebuild = new("--rebuild")
     {
         Description =
-            "Skip additional local kit inspection with sbx. Normal builds still build the workload image.",
-    };
-    private readonly Option<bool> _noPersonal = new("--no-personal")
-    {
-        Description = "Exclude personal .abox files to make a build safe to publish.",
-    };
-    private readonly Option<bool> _metadataOnly = new("--metadata-only")
-    {
-        Description =
-            "Prepare source metadata without Docker or sbx (maintainers). Replaces the manifest and clears its local image selection; remote create does not need this.",
+            "Build every component image again, also the ones whose inputs did not change.",
     };
 
     public BuildCommand(CommandRunner runner)
         : base(
             "build",
-            "Build the kit set of a team: its workload and the kits of its squads.",
+            "Build the component images of a team's squads: workload, local kits, state and configuration.",
             runner
         )
     {
         Options.Add(_teams);
         Options.Add(_root);
         Options.Add(_tag);
-        Options.Add(_noVerify);
-        Options.Add(_noPersonal);
-        Options.Add(_metadataOnly);
+        Options.Add(_rebuild);
     }
 
     internal override Task<BuildParameters> BindAsync(
@@ -65,14 +54,7 @@ internal sealed class BuildCommand : AboxCommand<BuildParameters>
         var teams = defaults.Teams(parseResult.GetValue(_teams));
         var root = Path.GetFullPath(defaults.SourceRoot(parseResult.GetValue(_root), teams));
         return Task.FromResult(
-            new BuildParameters(
-                teams,
-                root,
-                tag,
-                !parseResult.GetValue(_noVerify),
-                !parseResult.GetValue(_noPersonal),
-                parseResult.GetValue(_metadataOnly)
-            )
+            new BuildParameters(teams, root, tag, parseResult.GetValue(_rebuild))
         );
     }
 }

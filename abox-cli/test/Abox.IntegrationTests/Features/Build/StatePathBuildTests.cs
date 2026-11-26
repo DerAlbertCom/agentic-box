@@ -24,14 +24,11 @@ public sealed class StatePathBuildTests : IDisposable
             Path.Combine(_root.Path, "state")
         );
         _store = new BuildStore(paths);
-        _root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
-        _build = TestServiceGraphs.Build(
-            _resolver,
-            new PersonalConfigurations(paths),
-            _store,
-            LocalWorkloadFactory.Images(_runner),
-            new TestConsole()
+        _root.File(
+            "teams/sample/sample.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
         );
+        _build = TestServiceGraphs.Build(_resolver, _store, _runner, new TestConsole());
     }
 
     [Theory]
@@ -87,12 +84,7 @@ public sealed class StatePathBuildTests : IDisposable
 
     private Task<int> BuildAsync() =>
         _build.BuildAsync(
-            new BuildRequest(
-                [_resolver.ResolveTeam(_root.Path, "sample")],
-                _root.Path,
-                "latest",
-                MetadataOnly: true
-            ),
+            new BuildRequest([_resolver.ResolveTeam(_root.Path, "sample")], _root.Path, "latest"),
             CancellationToken.None
         );
 

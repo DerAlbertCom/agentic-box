@@ -13,10 +13,8 @@ namespace Abox.Tests;
 
 public sealed class BuildTagServiceTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task DirectBuildRejectsAnInvalidTagEvenWhenNoSquadsAreSelected(bool metadataOnly)
+    [Fact]
+    public async Task DirectBuildRejectsAnInvalidTagEvenWhenNoSquadsAreSelected()
     {
         // Arrange
         using var root = new TempDirectory();
@@ -29,12 +27,12 @@ public sealed class BuildTagServiceTests
         var console = new TestConsole();
         var service = TestServiceGraphs.Build(
             new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
-            new PersonalConfigurations(paths),
             new BuildStore(paths),
-            LocalWorkloadFactory.Images(programs, runner, console),
-            console
+            runner,
+            console,
+            programs: programs
         );
-        var request = new BuildRequest([], root.Path, "../outside", MetadataOnly: metadataOnly);
+        var request = new BuildRequest([], root.Path, "../outside");
 
         // Act
         var build = () => service.BuildAsync(request, CancellationToken.None);

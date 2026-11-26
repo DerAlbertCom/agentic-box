@@ -39,7 +39,6 @@ internal static class PublicationBuilds
                 SquadConfigurationMixin.MixinName
             )
         );
-        manifest.IncludesPersonalConfigurations = false;
         manifest.SourceHashes = BuildSources.Capture(manifest);
         store.Save(manifest);
     }

@@ -55,6 +55,27 @@ internal sealed class DockerCommand(IProcessRunner runner)
             ? []
             : ["--secret", $"id={WorkloadBuildSecrets.GitHubToken},env=GITHUB_TOKEN"];
 
+    /// <summary>The image digest a Buildx metadata file records, or null when it cannot be read.</summary>
+    public static string? BuiltDigest(string metadata)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(metadata));
+            var digest = document.RootElement.GetProperty("containerimage.digest").GetString();
+            return ImageReferences.IsDigest(digest) ? digest : null;
+        }
+        catch (Exception exception)
+            when (exception
+                    is JsonException
+                        or KeyNotFoundException
+                        or InvalidOperationException
+                        or IOException
+            )
+        {
+            return null;
+        }
+    }
+
     public static RegistryManifest ParseManifest(string json)
     {
         using var document = JsonDocument.Parse(json);

@@ -28,41 +28,6 @@ public sealed class PublishServiceTests
     private void SaveRegistryKitBuild() => _fixture.SaveRegistryKitBuild();
 
     [Fact]
-    public async Task PersonalConfigurationKitsCannotBePublished()
-    {
-        // Arrange
-        Root.File("teams/sample/ac.abox", "workload: sample\n");
-        Root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
-        Root.File("kits/private/private.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
-        var configDirectory = Path.Combine(Root.Path, "config");
-        Root.File("config/personal.abox", "kits:\n  - private\n");
-        var build = TestServiceGraphs.Build(
-            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
-            new PersonalConfigurations(AboxPaths.For(configDirectory, Root.Path)),
-            Store,
-            LocalWorkloadFactory.Images(),
-            Console
-        );
-        await build.BuildAsync(
-            new Features.Build.BuildRequest(
-                Request("ac").Teams,
-                Root.Path,
-                "latest",
-                Verify: false
-            ),
-            CancellationToken.None
-        );
-        File.Delete(Path.Combine(configDirectory, "personal.abox"));
-
-        // Act
-        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
-
-        // Assert
-        (await action.Should().ThrowAsync<AboxException>()).WithMessage("*personal configuration*");
-        Calls.Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task LocalAndRegistryKitsKeepTheirArgumentsAndStateIsIncluded()
     {
         // Arrange
@@ -254,7 +219,7 @@ public sealed class PublishServiceTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*publishRepository*.workload*abox build --team sample --tag latest --no-personal*"
+            "*publishRepository*.workload*abox build --team sample --tag latest*"
         );
         Calls.Should().BeEmpty();
     }
@@ -638,26 +603,7 @@ public sealed class PublishServiceTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*no squad configuration mixin*abox build --team sample --tag latest --no-personal*"
-        );
-        Calls.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task LegacyBuildsWithoutProvenanceAreRejected()
-    {
-        // Arrange
-        SaveBuild("ac");
-        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        build.IncludesPersonalConfigurations = null;
-        Store.Save(build);
-
-        // Act
-        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
-
-        // Assert
-        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*unknown configuration provenance*"
+            "*no squad configuration mixin*abox build --team sample --tag latest*"
         );
         Calls.Should().BeEmpty();
     }

@@ -97,18 +97,15 @@ public sealed class PublishCommandTests
         var resolver = new SquadResolver(config, new YamlDotNetParser());
         var build = TestServiceGraphs.Build(
             resolver,
-            new PersonalConfigurations(AboxPaths.For(_root.Path, _root.Path)),
             _store,
-            LocalWorkloadFactory.Images(),
+            LocalWorkloadFactory.Runner(),
             _console
         );
         await build.BuildAsync(
             new Features.Build.BuildRequest(
                 [resolver.ResolveTeam(_root.Path, "sample")],
                 _root.Path,
-                "latest",
-                Verify: false,
-                IncludePersonalConfigurations: false
+                "latest"
             ),
             CancellationToken.None
         );
@@ -249,7 +246,6 @@ public sealed class PublishCommandTests
             Reference = $"agentic-box-rwest-{team}:{tag}",
             PublishRepository = "mtiae-developer-container-images-local",
             WorkloadKitDirectory = workload,
-            IncludesPersonalConfigurations = false,
         };
         PublicationBuilds.SaveWorkload(
             _store,

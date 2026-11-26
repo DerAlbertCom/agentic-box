@@ -573,7 +573,7 @@ public sealed class SandboxCreatorTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*no prebuilt local workload*abox build*without --metadata-only*"
+            "*no prebuilt local workload*abox build*"
         );
         await Lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
         await Lifecycle
@@ -642,91 +642,6 @@ public sealed class SandboxCreatorTests
                 ),
                 Arg.Any<CancellationToken>()
             );
-    }
-
-    [Fact]
-    public async Task MetadataOnlyPreparationDoesNotEnableLocalCreateOrSupplyRemoteMetadata()
-    {
-        // Arrange
-        Root.File(
-            "teams/sample/ac.abox",
-            "workload: sample\nkits:\n  - name: probe\n    args:\n      mode: team\nstate: [~/.probe-state]\nmcp: [elastic]\n"
-        );
-        Root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
-        Root.File(
-            "kits/probe/probe.yaml",
-            "schemaVersion: \"3\"\nkind: mixin\nargs:\n  mode:\n    required: true\n    env: MODE\n"
-        );
-        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
-        var team = resolver.ResolveTeam(Root.Path, "sample");
-        var runner = Substitute.For<IProcessRunner>();
-        var programs = Substitute.For<IHostPrograms>();
-        var images = LocalWorkloadFactory.Images(programs, runner, Console);
-        var build = TestServiceGraphs.Build(
-            resolver,
-            new PersonalConfigurations(Paths),
-            Store,
-            images,
-            Console
-        );
-        await build.BuildAsync(
-            new BuildRequest([team], Root.Path, "latest", MetadataOnly: true),
-            CancellationToken.None
-        );
-        Store.Load(Identity)!.LocalWorkload.Should().BeNull();
-        Mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)["elastic"]);
-        var service = Creator(
-            new RemoteSquadSource(
-                new AboxConfig(),
-                KitSources,
-                PublishedSquadFactory.Source([new ManifestMcp { Name = "elastic" }])
-            ),
-            images
-        );
-
-        // Act
-        var exitCode = await service.CreateAsync(
-            Request() with
-            {
-                Team = team,
-                Local = false,
-            },
-            CancellationToken.None
-        );
-
-        // Assert
-        exitCode.Should().Be(0);
-        await Lifecycle
-            .Received(1)
-            .CreateAsync(
-                Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource
-                        == $"rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
-                    && request.Mixins.Count == 0
-                    && request.KitArguments.Count == 0
-                    && request.HostImageStore == null
-                    && request.Mounts.Count == 1
-                    && request.StaticMcpServers.SequenceEqual(new[] { "elastic" })
-                ),
-                Arg.Any<CancellationToken>()
-            );
-        runner.ReceivedCalls().Should().BeEmpty();
-        programs.ReceivedCalls().Should().BeEmpty();
-
-        // Arrange
-        Lifecycle.ClearReceivedCalls();
-        Mcp.ClearReceivedCalls();
-
-        // Act
-        var local = () =>
-            service.CreateAsync(Request() with { Team = team }, CancellationToken.None);
-
-        // Assert
-        (await local.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*no prebuilt local workload*abox build --team sample --tag latest*without --metadata-only*"
-        );
-        Lifecycle.ReceivedCalls().Should().BeEmpty();
-        Mcp.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

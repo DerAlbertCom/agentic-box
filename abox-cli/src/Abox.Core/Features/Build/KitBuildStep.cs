@@ -6,9 +6,10 @@ namespace Abox.Features.Build;
 
 /// <summary>
 /// The kit build step: a local kit with a <c>build</c> file is copied into the build's
-/// staging folder and built there, and the staged copy replaces the kit's folder. Kits
-/// without a <c>build</c> file pass through unchanged; a <c>build</c> file that is not
-/// executable fails the build. On Windows the build file runs with sh, so it needs no mode.
+/// staging folder and built there, and the staged copy is what its component image is
+/// built from. Kits without a <c>build</c> file need no step; a <c>build</c> file that is
+/// not executable fails the build. On Windows the build file runs with sh, so it needs no
+/// mode. Only the staged copy of the kit that is built again is replaced.
 /// </summary>
 internal sealed class KitBuildStep(IKitBuildScript script, IConsole console)
 {
@@ -18,45 +19,39 @@ internal sealed class KitBuildStep(IKitBuildScript script, IConsole console)
     /// <summary>The folder of the build directory that holds the staged kits.</summary>
     public const string StagingFolderName = "kits";
 
-    /// <summary>Builds the kits that have a build step and returns the kits sbx is given.</summary>
-    public async Task<IReadOnlyList<KitSource>> BuildAsync(
-        IReadOnlyList<KitSource> kits,
+    /// <summary>Whether the local kit has a build step.</summary>
+    public static bool HasBuildStep(KitSource kit) =>
+        kit.Directory is { } source && File.Exists(Path.Combine(source, BuildFileName));
+
+    /// <summary>
+    /// The directory the kit's image is built from: the staged copy, built again, for a kit
+    /// with a build step, otherwise the kit's own folder.
+    /// </summary>
+    public async Task<string> BuildAsync(
+        KitSource kit,
         string buildDirectory,
         CancellationToken cancellationToken
     )
     {
-        var staging = Path.Combine(buildDirectory, StagingFolderName);
-        if (Directory.Exists(staging))
+        var source =
+            kit.Directory
+            ?? throw new InvalidOperationException($"The kit '{kit.Name}' is not local.");
+        if (!HasBuildStep(kit))
         {
-            Directory.Delete(staging, recursive: true);
-        }
-
-        var result = new List<KitSource>();
-        foreach (var kit in kits)
-        {
-            result.Add(await BuildAsync(kit, staging, cancellationToken));
-        }
-
-        return result;
-    }
-
-    private async Task<KitSource> BuildAsync(
-        KitSource kit,
-        string staging,
-        CancellationToken cancellationToken
-    )
-    {
-        if (kit.Directory is not { } source || !File.Exists(Path.Combine(source, BuildFileName)))
-        {
-            return kit;
+            return source;
         }
 
         EnsureRunnable(kit.Name, Path.Combine(source, BuildFileName));
 
         var staged = Path.Combine(
-            staging,
+            buildDirectory,
+            StagingFolderName,
             Path.GetFileName(Path.TrimEndingDirectorySeparator(source))
         );
+        if (Directory.Exists(staged))
+        {
+            Directory.Delete(staged, recursive: true);
+        }
         CopyDirectory(source, staged);
 
         console.WriteLine($"Building kit '{kit.Name}'...");
@@ -65,10 +60,7 @@ internal sealed class KitBuildStep(IKitBuildScript script, IConsole console)
             cancellationToken
         );
 
-        return kit with
-        {
-            Directory = staged,
-        };
+        return staged;
     }
 
     private static void EnsureRunnable(string kit, string build)

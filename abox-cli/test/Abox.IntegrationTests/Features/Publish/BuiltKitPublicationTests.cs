@@ -28,23 +28,8 @@ public sealed class BuiltKitPublicationTests
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(Root.Path, "sample");
         await TestServiceGraphs
-            .Build(
-                resolver,
-                new PersonalConfigurations(AboxPaths.For(Root.Path, Root.Path)),
-                _fixture.Store,
-                LocalWorkloadFactory.Images(),
-                _fixture.Console
-            )
-            .BuildAsync(
-                new BuildRequest(
-                    [team],
-                    Root.Path,
-                    "latest",
-                    Verify: false,
-                    IncludePersonalConfigurations: false
-                ),
-                CancellationToken.None
-            );
+            .Build(resolver, _fixture.Store, LocalWorkloadFactory.Runner(), _fixture.Console)
+            .BuildAsync(new BuildRequest([team], Root.Path, "latest"), CancellationToken.None);
         var pushedKits = new List<string>();
         _fixture
             .Runner.When(runner =>

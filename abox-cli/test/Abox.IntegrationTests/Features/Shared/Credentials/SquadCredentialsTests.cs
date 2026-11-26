@@ -20,7 +20,7 @@ public sealed class SquadCredentialsTests
     {
         _root.File(
             "teams/sample/mti-ca-dotnet.workload",
-            "template: docker.io/sbx/shell-docker-image\n"
+            "template: docker.io/sbx/shell-docker-image\npublishRepository: test-images-local\n"
         );
         _root.File(
             "kits/github-auth/github-auth.yaml",
@@ -354,9 +354,6 @@ public sealed class SquadCredentialsTests
     private SquadCredentials Credentials(TestConsole console) =>
         new(
             new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
-            new PersonalConfigurations(
-                AboxPaths.For(Path.Combine(_root.Path, "config"), _root.Path)
-            ),
             _secrets,
             _approvals,
             new SecretValues(_secrets, console),

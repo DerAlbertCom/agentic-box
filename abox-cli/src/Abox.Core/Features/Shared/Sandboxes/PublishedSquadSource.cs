@@ -54,7 +54,7 @@ internal sealed class PublishedSquadSource(IPublishedImageReader registry, ICons
             )
         {
             throw new AboxException(
-                $"The published set '{reference}' has missing, incompatible or invalid bundled squad metadata. Ask a maintainer to rebuild with 'abox build --team {identity.Team} --tag {identity.Tag} --no-personal' and republish this tag with the current abox. No local metadata fallback is used; the existing sandbox was not replaced.",
+                $"The published set '{reference}' has missing, incompatible or invalid bundled squad metadata. Ask a maintainer to rebuild with 'abox build --team {identity.Team} --tag {identity.Tag}' and republish this tag with the current abox. No local metadata fallback is used; the existing sandbox was not replaced.",
                 exception
             );
         }

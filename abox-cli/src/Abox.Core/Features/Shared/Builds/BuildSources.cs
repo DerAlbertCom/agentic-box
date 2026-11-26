@@ -43,7 +43,7 @@ internal static class BuildSources
         if (manifest.SourceHashes is not { Count: > 0 })
         {
             throw new AboxException(
-                "This build has no source fingerprints. Run 'abox build --no-personal' again before publishing."
+                "This build has no source fingerprints. Run 'abox build' again before publishing."
             );
         }
 
@@ -56,7 +56,7 @@ internal static class BuildSources
         )
         {
             throw new AboxException(
-                "The local build sources changed. Run 'abox build --no-personal' again before publishing."
+                "The local build sources changed. Run 'abox build' again before publishing."
             );
         }
     }
@@ -91,7 +91,7 @@ internal static class BuildSources
         if (DirectoryHash(destination) != expectedHash)
         {
             throw new AboxException(
-                "The local build sources changed while snapshotting. Run 'abox build --no-personal' again."
+                "The local build sources changed while snapshotting. Run 'abox build' again."
             );
         }
     }
@@ -154,6 +154,26 @@ internal static class BuildSources
         {
             yield return configuration;
         }
+    }
+
+    /// <summary>
+    /// The input hash of a component image: its kind, the directory it is built from and the
+    /// arguments it is given, as lowercase hex usable as an image tag.
+    /// </summary>
+    internal static string InputHash(
+        string kind,
+        string directory,
+        IReadOnlyDictionary<string, string> arguments
+    )
+    {
+        var text = new StringBuilder()
+            .Append(kind)
+            .Append('\0')
+            .Append(DirectoryHash(directory))
+            .Append('\0');
+        foreach (var (name, value) in arguments.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            text.Append(name).Append('=').Append(value).Append('\0');
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
     }
 
     internal static string DirectoryHash(string directory)

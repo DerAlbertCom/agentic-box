@@ -36,12 +36,7 @@ public sealed class CreateDiscoveryTests
                     && request
                         .Mixins.Select(Path.GetFullPath)
                         .SequenceEqual(
-                            new[]
-                            {
-                                project.ProjectKit,
-                                project.PersonalKit,
-                                build.ConfigurationMixinDirectory,
-                            }
+                            new[] { project.ProjectKit, build.ConfigurationMixinDirectory }
                         )
                     && request.PullPolicy == PullPolicy.Never
                 ),

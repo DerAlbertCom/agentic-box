@@ -21,7 +21,7 @@ public sealed class SandboxCreatorCredentialsTests
         );
         _fixture.Root.File(
             "teams/sample/mti-ca-dotnet.workload",
-            "template: docker.io/sbx/shell-docker-image\n"
+            "template: docker.io/sbx/shell-docker-image\npublishRepository: test-images-local\n"
         );
         _fixture.Root.File(
             "kits/github-auth/github-auth.yaml",

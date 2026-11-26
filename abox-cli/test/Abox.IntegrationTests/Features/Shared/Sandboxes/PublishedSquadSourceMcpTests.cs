@@ -56,21 +56,19 @@ public sealed class PublishedSquadSourceMcpTests
             mcp:
               - name: elastic
                 url: ${{ parameters.endpoint }}/mcp
-            """
-        );
-        root.File("teams/mti-ca/sample.workload", "template: example.com/base:1\n");
-        root.File(
-            "config/personal.abox",
-            """
-            mcp:
               - name: database
             """
+        );
+        root.File(
+            "teams/mti-ca/sample.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
         );
         var config = new AboxConfig();
         var resolver = new SquadResolver(config, new YamlDotNetParser());
         var team = resolver.ResolveTeam(root.Path, "mti-ca");
         var store = new BuildStore(paths);
-        var images = LocalWorkloadFactory.Images();
+        var runner = LocalWorkloadFactory.Runner();
+        var images = LocalWorkloadFactory.Images(runner);
         var lifecycle = Substitute.For<ISandboxLifecycle>();
         var mcp = Substitute.For<IMcpServerRegistry>();
         mcp.ListAsync(Arg.Any<CancellationToken>())
@@ -83,15 +81,9 @@ public sealed class PublishedSquadSourceMcpTests
         lifecycle
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(new SandboxCreation(""));
-        var build = TestServiceGraphs.Build(
-            resolver,
-            new PersonalConfigurations(paths),
-            store,
-            images,
-            Console
-        );
+        var build = TestServiceGraphs.Build(resolver, store, runner, Console);
         await build.BuildAsync(
-            new BuildRequest([team], root.Path, "latest", Verify: false, MetadataOnly: !local),
+            new BuildRequest([team], root.Path, "latest"),
             CancellationToken.None
         );
         var manifest = store.Load(new SquadBuildIdentity("mti-ca", "ac", "latest"))!;
