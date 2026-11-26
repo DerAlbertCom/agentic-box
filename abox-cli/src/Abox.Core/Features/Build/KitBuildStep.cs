@@ -7,8 +7,8 @@ namespace Abox.Features.Build;
 /// <summary>
 /// The kit build step: a local kit with a <c>build</c> file is copied into the build's
 /// staging folder and built there, and the staged copy replaces the kit's folder. Kits
-/// without a <c>build</c> file pass through unchanged; a <c>build</c> file that cannot run
-/// (not executable, or on Windows) fails the build.
+/// without a <c>build</c> file pass through unchanged; a <c>build</c> file that is not
+/// executable fails the build. On Windows the build file runs with sh, so it needs no mode.
 /// </summary>
 internal sealed class KitBuildStep(IKitBuildScript script, IConsole console)
 {
@@ -73,11 +73,10 @@ internal sealed class KitBuildStep(IKitBuildScript script, IConsole console)
 
     private static void EnsureRunnable(string kit, string build)
     {
+        // Windows has no executable bit; the build file runs with sh there.
         if (OperatingSystem.IsWindows())
         {
-            throw new AboxException(
-                $"The kit '{kit}' has a build step ({build}), and kit build steps run only on Linux or macOS. Build this kit there."
-            );
+            return;
         }
 
         if (!File.GetUnixFileMode(build).HasFlag(UnixFileMode.UserExecute))

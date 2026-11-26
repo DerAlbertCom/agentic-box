@@ -225,17 +225,19 @@ package of the Bun workspace with `sbox-cli/bundle`, which runs Bun in a pinned
 `oven/bun` container, so the host needs only Docker.
 
 - A non-zero exit fails `abox build` and shows the script's output.
-- The `build` file must be executable (`chmod +x`, and committed with that mode). A
-  `build` file that is not executable fails `abox build` instead of letting the kit
-  pass through unbuilt.
-- Kit build steps run on Linux and macOS hosts. On Windows `abox build` fails for a
-  kit with a `build` file; build such squads on Linux, macOS or in WSL.
+- The `build` file must be executable (`chmod +x`, and committed with that mode). On
+  Linux and macOS a `build` file that is not executable fails `abox build` instead of
+  letting the kit pass through unbuilt.
+- On Windows abox runs the `build` file with the `sh` of Git for Windows, so write it
+  for POSIX `sh`. Paths handed to Docker must be Windows paths there: take them with
+  `pwd -W 2>/dev/null || pwd`, as `sbox-cli/bundle` does.
+- `sbox-cli/bundle` passes a host certificate file in `NODE_EXTRA_CA_CERTS` (such as the
+  chain of a TLS-inspecting proxy) into its Bun container, so `bun install` trusts it.
 - The descriptor format is unchanged; sbx sees an ordinary kit.
 - `--metadata-only` builds run the step too, because publishing uses the staged copy.
 - Publication fingerprints the staged copy, not the sources the script reads: rebuild
   with `--no-personal` after changing them, before publishing.
 - The staged output must not contain symbolic links, or publication rejects it.
-- The step needs an executable file, so it is not recognized on Windows hosts.
 
 See [ADR 0001](adr/0001-kit-build-step.md) for why.
 

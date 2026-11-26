@@ -2,19 +2,32 @@
 # Usage: bundle <entry> <outFile>
 # Bundles <entry>, a module of the Bun workspace given relative to this folder (sbox-cli),
 # into one file for Bun. Runs the pinned Bun in a container, so the host needs only
-# Docker. The Bun version matches bun in the mise tools of the workload.
+# Docker. The Bun version matches bun in the mise tools of the workload. A certificate
+# file in NODE_EXTRA_CA_CERTS on the host, such as the chain of a TLS-inspecting proxy,
+# is trusted by bun install too.
 set -eu
 
+# The current folder as Docker on the host names it: pwd -W gives the Windows path under
+# the sh of Git for Windows, which Docker Desktop needs for folders such as /tmp.
+host_pwd() { pwd -W 2>/dev/null || pwd; }
+
 bun_image="oven/bun:1.4.4"
-workspace="$(cd "$(dirname "$0")" && pwd)"
+workspace="$(cd "$(dirname "$0")" && host_pwd)"
 entry="$1"
-out_dir="$(mkdir -p "$(dirname "$2")" && cd "$(dirname "$2")" && pwd)"
+out_dir="$(mkdir -p "$(dirname "$2")" && cd "$(dirname "$2")" && host_pwd)"
 out_name="$(basename "$2")"
+
+set --
+if [ -n "${NODE_EXTRA_CA_CERTS:-}" ] && [ -f "$NODE_EXTRA_CA_CERTS" ]; then
+  set -- --volume "$NODE_EXTRA_CA_CERTS:/etc/abox-extra-ca-certs.pem:ro" \
+    --env NODE_EXTRA_CA_CERTS=/etc/abox-extra-ca-certs.pem
+fi
 
 docker run --rm \
   --volume "$workspace:/src:ro" \
   --volume "$out_dir:/out" \
   --volume agentic-box-bun-cache:/root/.bun/install/cache \
+  "$@" \
   --env OWNER="$(id -u):$(id -g)" \
   --env ENTRY="$entry" \
   --env OUT_NAME="$out_name" \

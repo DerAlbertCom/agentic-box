@@ -105,9 +105,16 @@ public sealed class KitBuildStepTests
     }
 
     [Fact]
-    public async Task ABuildFileThatCannotRunFailsTheBuild()
+    public async Task ABuildFileThatIsNotExecutableFailsTheBuild()
     {
         // Arrange
+        if (OperatingSystem.IsWindows())
+        {
+            throw new InvalidOperationException(
+                Xunit.v3.DynamicSkipToken.Value + "Windows runs the build file with sh."
+            );
+        }
+
         Root.File("teams/sample/ac.abox", "workload: sample\nkits: [plain]\n");
         Root.File("kits/plain/plain.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
         Root.File("kits/plain/build", "#!/bin/sh\nexit 0\n");
@@ -117,11 +124,7 @@ public sealed class KitBuildStepTests
 
         // Assert
         var failure = await build.Should().ThrowAsync<AboxException>();
-        failure.WithMessage(
-            OperatingSystem.IsWindows()
-                ? "*kit 'plain'*build step*Linux or macOS*"
-                : "*build file of kit 'plain'*not executable*chmod +x*"
-        );
+        failure.WithMessage("*build file of kit 'plain'*not executable*chmod +x*");
         Store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
         await Script.DidNotReceiveWithAnyArgs().RunAsync(default!, default);
         await Inspector.DidNotReceiveWithAnyArgs().InspectAsync(default!, default!, default);
