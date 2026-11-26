@@ -12,9 +12,9 @@ Missing glossary or ADR files do not block work. Proceed silently;
 create domain documents lazily through domain-modeling when terminology
 or decisions are resolved.
 
-Existing project terminology and design decisions are documented in
-[docs/concept.md](../concept.md). Read [docs/implementation.md](../implementation.md) for current implementation
-status and [docs/authoring.md](../authoring.md) when working on squads, kits or workloads.
+Read [docs/implementation.md](../implementation.md) for how abox is built,
+[docs/authoring.md](../authoring.md) when working on squads, kits or workloads, and
+[docs/concept.md](../concept.md) for proposals and open questions.
 
 ## Vocabulary and decisions
 

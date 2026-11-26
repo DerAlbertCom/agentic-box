@@ -1,300 +1,64 @@
-# Agentic Box (`abox`)
+# Concept: proposals and open questions
 
-This document records the original concept, including proposals that have not
-shipped. Where it differs from current behavior, [implementation.md](implementation.md)
-and the command's `--help` output supersede it. See [authoring.md](authoring.md)
-for the supported configuration contract.
+abox gives each folder its own AI agent sandbox on Docker Sandboxes (`sbx`). Users run
+only `abox`; it calls `sbx` for them. Inside a sandbox, four agents (GitHub Copilot,
+OpenCode, pi, Claude Code) are meant to work against GitHub Copilot on GitHub Enterprise
+Cloud with data residency.
 
-In this repository we develop `abox`, an AI agent sandbox built on Docker Sandboxes (the product; its CLI is `sbx`, https://docs.docker.com/ai/sandboxes/). Each folder gets its own sandbox. Inside it, four agents (GitHub Copilot, OpenCode, pi, Claude Code) are configured against GitHub Copilot on GitHub Enterprise Cloud with data residency.
+What is built is described in [implementation.md](implementation.md) and the
+[CLI reference](cli-reference.md). This file keeps only what is **not built**: the
+proposals and the questions nobody has answered yet.
 
-Users run only `abox`, which calls `sbx` for them. The one exception is the one-time install of `sbx` (see Preflight).
+## Proposals
 
-Items marked *(proposed)* fill gaps that the decisions so far do not cover. "Verify" marks a fact the implementation must check first; all of them are listed under Verify before building.
+### `orca` launcher
 
-## Glossary
-
-The domain terms (team, squad, squad configuration, workload, base image, kit, kit build step, kit set, sandbox, sandbox location, workspace, state, launcher, user configuration, folder configuration, secrets and user-secrets) are defined in the root [GLOSSARY.md](../GLOSSARY.md). This list keeps only the terms of `sbox`, the command line inside a sandbox, and of the organisation of the code.
-
-- **sbox**: the command line inside a sandbox for user-facing actions, such as switching the theme. Its core (`sbox-cli/sbox`, installed by the `sbox` kit) routes `sbox <command>` to an installed command kit; `sbox --help` lists them. Not to be confused with `sbx`, the Docker Sandboxes CLI on the host.
-- **Command kit**: a kit that installs one `sbox` command as a bundled module into the commands folder, `~/.local/share/sbox/commands/<command>/`. A squad chooses the commands of its sandboxes by choosing command kits.
-- **Broken command**: an installed command whose module throws while loading or does not export a command (a string `summary` and a `run` function). `sbox --help` lists it, marked as broken with a one-line reason; running it prints `sbox <command>:` with the reason and fails. Every other command keeps working.
-- **Data folder**: a folder of a command's package that is installed next to its module, such as the palettes and app templates of `sbox themes`. The package declares its data folders once in its `package.json` (`"sbox": { "data": [...] }`); the command kit's build step and the command home both install from that declaration.
-- **Command home**: the temporary home that the tests of `sbox` and its commands run against, from the core's testing entry `sbox/testing`. It installs a command into its commands folder (from source, with its declared data folders or given data files), runs `sbox` with captured output, and reads and writes files in the home. Tests only; a command never imports it from its source.
-- **Theme**: a named, app-agnostic palette: one `colors.toml` in the flat format of Omarchy (`mode`, `accent`, the background and foreground variants, the 8 colors and their `bright_*` variants). `sbox themes <name>` renders every app template with it. Installed by the `themes` kit.
-- **Palette**: what reading a theme gives the app templates: a closed set of colors after upstream's fallbacks, each `#rrggbb`, and `mode` (`dark` or `light`). Other keys of `colors.toml` are dropped. A theme that lacks a color or has a value that is not one is refused, naming the theme and the key, so no palette value can become anything but a color, for example code in the terminal color script.
-- **App template**: the definition of how one app is themed, a folder with an `app.yaml` and Liquid templates. `app.yaml` names the files to render, the JSON settings to merge, and the commands to run afterwards. Every app gets one fixed theme named `sbox`, so switching only rewrites its content.
-- **Theme application**: applying a theme to the sandbox's apps, all or nothing: the palette and every app template are read, and every file and settings merge rendered in memory, before anything is written. Any error leaves every app, every settings file and the saved choice unchanged. Then the files are written, each atomically, the apps' commands run and, for a switch, the choice saved; a failing command is reported but does not undo the switch. `sbox themes <name>` and the picker switch to a theme; `--apply` applies the current theme (the saved choice, then `SBOX_THEME`, then `tokyo-night`) without saving it.
-- **Terminal color script**: `~/.config/sbox/terminal-colors.sh`, rendered by the `terminal` app template. It prints the OSC sequences that set the current terminal's 16 ANSI colors, foreground, background and cursor to the theme. A login script and `sbox themes` run it when `SBOX_TERMINAL_THEME=1` is set and the output is a terminal. See [ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
-- **Command slice**: the code of one `abox` command and its subcommands, together in `Features/<Command>` of `abox-cli`, including everything only that command uses.
-- **Shared feature**: a use case shared by commands, in `Features/Shared/<UseCase>` of `abox-cli`, named by what it does (such as `Sandboxes` or `Https`), never by the tool it calls. It owns the use-case interfaces for the external tools it needs. See [ADR 0003](adr/0003-external-tools-behind-use-case-interfaces.md).
-- **External tool**: a program abox runs (`sbx` and the scripts it runs in a sandbox, `docker`, `dotnet dev-certs`, `herdr`, `bash`, a kit's `build` script) or a file another tool owns (sbx's `credentials.yaml`, the .NET user-secrets store). abox's own files are not external.
-- **Use-case interface**: a small interface in a shared feature through which features use an external tool, with its own parameter and result models in domain terms; no flags, exit codes, JSON shapes or process results cross it.
-- **Infrastructure adapter**: a class in `Infrastructure/<Tool>` of `abox-cli` that implements one (preferably) or a few use-case interfaces with one external tool. The sbx adapters share one **sbx invoker**, which owns the `sbx` executable, the minimum version check, JSON handling and the failure headline.
-
-## Roles and commands
-
-Maintainers (team members who build base images) use `build` and `publish`. Everyone else uses `create`, `run`, `prune`, `secrets`, `user-secrets`, and `ports`. `sbx` runs behind the sandbox commands; users never need to call it.
-
-Exit codes: 0 on success, 1 on an `abox` error, 130 on cancellation. `run` passes through the exit code of the shell or command it starts.
-
-- **`abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--yes]`**
-  - `create`, `run`, `secrets`, `user-secrets` and `ports` resolve `--location`, then the user configuration's `defaultLocation`, then the current folder. The team name defaults to `defaultTeam`. Create reads no team sources: the published set or, with `--local`, the local build carries everything it needs. It requires `--squad` or `squad` in the folder configuration. `--tag` can be combined with `--local` to select a local build tag.
-  - Creates the sandbox from the squad's kit set in JFrog, under `rwest.jfrog.io/<pullRepository>`. The user setting `pullRepository` defaults to `mtiae-docker-release` and is independent of the workload's publish repository. The default tag is `latest`, pulled with `--pull always`, because sbx's default for kit sets is `missing`, which never refreshes a tag. `--tag` selects another tag. `--local` uses the component images of the local build, wrapped in thin directory kits, with `--pull never`. Remote create needs no source repository or local build metadata: state and MCP settings come from the published set's bundled `squad.json`.
-  - A sandbox that already exists for the location is replaced after confirmation. The confirmation lists what will be lost. State directories are kept: the sandbox name does not change, so their host paths do not change either.
-  - Before it replaces a sandbox, local create checks the credentials the squad's local kits ask for: a stored value and sbx's approval for every domain. On a terminal it asks for what is missing; without one it warns and goes on. sbx never asks itself (`--no-input`), and its `Note:` lines are shown after creation. See [the authoring guide](authoring.md#secrets).
-  - An existing sandbox keeps the image it was created from. A newer `latest` reaches only sandboxes created after it (inferred; verify).
-- **`abox run [<launcher>] [--location <path>] [--terminal-theme <true|false>] [-- <argv>...]`** starts a launcher for the folder's sandbox. The default launcher is `shell`. See Launchers.
-  - Passes `SBOX_TERMINAL_THEME=1` to the sandbox exec unless terminal colors are off: `--terminal-theme`, then `terminalTheme` in `abox.user.yaml`, then `abox.yaml`, then the user `config.yaml`, then on. See Terminal colors under Launchers.
-  - Starts the sandbox if it is stopped. Never creates a sandbox: if none exists, prints the `abox create` command to run.
-  - `shell` works offline. Other launchers list their needs under Launchers.
-  - If JFrog has a newer `latest`, asks whether to replace the sandbox now. Skipped offline. *(proposed placement)*
-- **`abox build --team <names> [--root <dir>] [--tag <tag>] [--rebuild]`** resolves each team's folder under `teams` (from now on) and builds every squad of it that no other squad of the team names as its `base`: one image per component (the workload, each local kit, the state mixin, the config mixin) in the host image store, under its final JFrog name. It pins the base image and registry kits by digest and rebuilds only the components whose inputs changed; `--rebuild` builds all again. Rejects duplicate kit repositories; checking file collisions between kits is not built yet. Layers are shared, not repacked, so squads with common kits share blobs. Outside the repository, `build` and `publish` find the team sources through the user setting `sourceRoot`.
-- **`abox publish --team <name> [--root <dir>]`** pushes the kit set to `rwest.jfrog.io/<publishRepository>` (selected by the squad's resolved `.workload`) under `agentic-box-rwest-<team>/<squad>:<tag>`, `latest` by default, with the resolved squad configuration. Every squad keeps the same name when others are added. Publish refuses stale builds, pushes the component images of the build unchanged and builds only the set with the v3 BuildKit frontend through Docker Buildx; see [ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md). Its registry credentials stay in Docker's host credential store.
-- **`abox prune [--full] [--sbx]`** removes the template images of sbx that stopped being used: it keeps the newest assembled kit set and the kit sources it is built from, and removes the older sets and the kit sources nothing uses. `--full` reaches for everything sbx holds: what a sandbox uses, sbx refuses and keeps. `--sbx` stops the running sandboxes first. Never touches secrets, or images of other repositories, nor anything an image of unknown age or id holds. *(proposed: also keep anything a stopped sandbox uses; also prune the local builds of the build store)*
-- **`abox secrets list|set|remove [--location <path>]`** manages the host-side secrets the kits of a folder's existing sandbox ask for, through `sbx secret` behind the scenes. It reads which services the kits ask for from the kit descriptors staged in the sandbox, and how to ask for each value from the `Secrets` of its bundled `squad.json`, so it works for published squads without team sources. It never creates or replaces a sandbox. Values are stored globally on the host. `set` and `remove` accept repeatable `--service <name>`.
-- **`abox user-secrets [--location <path>] [--force]`** copies explicitly selected local .NET user-secret stores into an existing sandbox. See [the safety contract](cli-reference.md#copying-net-user-secrets).
-- **`abox ports [--location <path>] [--offset <n>] [--refresh-https-bootstrap]`** configures discovered application forwarding and development HTTPS, or explicitly refreshes only the protected HTTPS bootstrap reader. See [implementation.md](implementation.md#shared-development-https-setup-46).
-
-## Preflight
-
-Every command except `--help`, `--version`, `publish` and the
-hidden `exec` and `pipe` entry points runs these checks before sandbox work.
-`user-secrets` validates host input before runtime preflight. `publish` uses
-Docker/Buildx instead and does not require sbx. `abox` never installs anything itself.
-
-1. **Installed:** `sbx` must be on `PATH` (`sbx.exe` on Windows). If not, print the install steps for the current OS (below) and exit with an error.
-2. **Version:** `sbx version --json` must be 0.54.0 or later. An older version gets an upgrade hint.
-3. **Health and sign-in:** abox runs `sbx diagnose --json` (about 0.5 s here). A failing check stops the command and prints its `hint`. If the `Authentication` check fails, abox starts the browser sign-in and checks again.
-
-Install steps, from https://docs.docker.com/ai/sandboxes/install/. sbx needs neither Docker Desktop nor Docker Engine.
-
-- **macOS** (Sonoma 14 or later, Apple silicon only): `brew trust docker/tap`, then `brew install docker/tap/sbx`.
-- **Windows 11** (64-bit Intel or AMD): `winget install -h Docker.sbx`. For all users, from an elevated prompt: `msiexec.exe /i DockerSandboxesMachine.msi /quiet`. Local sandboxes also need the Windows Hypervisor Platform: `Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All` (elevated PowerShell). Open a new terminal after installing so `PATH` updates.
-- **Linux, Ubuntu 24.04 or later:** `curl -fsSL https://get.docker.com | sudo SBX=1 sh` installs Docker Engine and sbx. For sbx only: `curl -fsSL https://get.docker.com | sudo REPO_ONLY=1 sh`, then `sudo apt install docker-sbx`. Local sandboxes need KVM: `sudo usermod -aG kvm $USER`, then sign out and back in.
-- **Other Linux distributions:** install from release artifacts. Docker does not test them.
-- **All systems:** sign-in happens on first use. abox starts the browser sign-in. *(proposed)*
-
-## Launchers
-
-`abox run` starts a launcher. A launcher is the only way `abox` opens something for the user in a sandbox.
-
-| Launcher | Opens | Needs on the host | Needs in the sandbox | Reaches the sandbox through |
-|---|---|---|---|---|
-| `shell` (default) | a shell in the workspace | nothing extra | the image's shell | internal exec |
-| `herdr-app` | a space in the Herdr desktop app (herdr.dev) | `herdr-app` and `hc` on `PATH` | `hc` | `hc` machine transport through `abox pipe`; no SSH |
-| `orca` *(proposed; not built)* | a workspace in the Orca desktop app (orca.dev) | the Orca app and its CLI | `sshd` | SSH to a loopback port |
-
-Platforms: the Herdr app runs on macOS (Apple silicon), Linux (x86_64 and arm64), and Windows (x86_64). Orca runs on macOS, Windows, and Linux. sbx itself needs Apple silicon on macOS.
-
-Herdr's terminal program `herdr` is a separate product that does not share agents with the app. It is not a launcher.
-
-**Common steps.** Every launcher:
-
-1. Checks its host needs. A missing program prints its install step and stops.
-2. Checks that the folder has a sandbox. If not, prints the `abox create` command and stops.
-3. Starts the sandbox if it is stopped.
-4. Checks its sandbox needs with `command -v` through the internal exec. A missing program means the image predates the launcher: print "run `abox create` again for this folder" and stop.
-5. Runs its own steps.
-
-**Launcher contract.** A launcher:
-- has a unique lowercase id, a one-line summary for `abox run --help`, and its host and sandbox needs;
-- receives the folder, the sandbox name, the runtime workspace path (`WORKSPACE_DIR`), and the argv after `--`;
-- uses argv as the command for its first terminal, if it has one. `shell` runs argv instead of a shell;
-- returns 0 when its work is done, or the command's exit code for `shell`;
-- reaches the sandbox only through the internal exec and `abox pipe`, as described in this section. *(proposed)*
-
-**Terminal colors.** Inside the sandbox, the `themes` kit recolors a terminal to the current theme when `SBOX_TERMINAL_THEME=1` is set: a login shell runs the terminal color script and resets the colors when it exits, and `sbox themes` recolors the terminal it runs in. `abox` knows nothing about themes or colors and emits no sequences; it only steers the variable. Whether a launcher's terminals see the variable is the launcher's business: `shell` runs `bash -l` in the exec that gets it; Herdr's panes are started by `hc` inside the sandbox and do not see it. See [ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
-
-### `shell`
-
-Runs `bash -l` in the workspace with a TTY, through the internal exec. The shell's working directory is the runtime-provided workspace, which can differ from the image's `WORKDIR`.
-
-### `herdr-app`
-
-Herdr runs agents in terminals that stay alive in `hc` (herdr-core), so they keep running when the window closes. `hc machine add --via` reaches a machine with a command instead of SSH. The command gets the shell line as its last argument and must pass bytes both ways untouched.
-
-1. Register the sandbox as a machine, unless `hc machine ls --json` already lists the sandbox name: `hc machine add --via "abox pipe <sandbox> -- sh -c" --name <sandbox>`. `abox pipe` is a hidden entry point that runs a command in the sandbox with stdin and stdout attached. It is not in `--help`. `abox` must be on `PATH` for `hc` to call it. (verify: quoting, and whether TARGET can be omitted with `--via`)
-2. Start `herdr-app` detached if no window is open. `herdr-app` with no arguments opens the window. (verify: readiness; `herdr-app status` returns JSON with an `errors` list)
-3. Open a space on the machine: `herdr-app do space.new --name <folder> --folder <runtime-workspace> --machine <sandbox>`, using the discovered `WORKSPACE_DIR` for `<runtime-workspace>` and adding `--argv '<JSON array>'` when argv is given. Argument names come from `herdr-app commands`.
-4. Exit 0. The terminals keep running in `hc` inside the sandbox.
-
-Notes: the machine name is the sandbox name, so a replaced sandbox keeps its entry. Terminals on the machine end when the sandbox stops (verify). The host's `hc` and the one in the image must be the same protocol generation (verify).
-
-### `orca` *(proposed; not built)*
-
-Orca is a desktop agent IDE: each task gets a git worktree and agent terminals. It works on remote machines over SSH, and its CLI (`orca`) talks to the running app. The CLI is registered under Settings → General → Orca CLI.
+Orca (orca.dev) is a desktop agent IDE: each task gets a git worktree and agent
+terminals. It reaches remote machines over SSH, and its CLI (`orca`) talks to the
+running app. The launcher would:
 
 1. Start `sshd` in the sandbox as root, through the internal exec. Idempotent.
-2. Keep abox's SSH key pair in `ssh/` under the abox config directory, created on first use. Add its public key to the sandbox user's `authorized_keys` with the internal exec and stdin, idempotently.
-3. Publish sandbox port 22 on loopback with sbx, and read the host port back.
-4. Write an OpenSSH host entry `abox-<sandbox>` (127.0.0.1, that port, user `agent`, the key) to `ssh/config` in the abox config directory. Open question 10 decides how Orca reads it.
-5. Open the workspace on that target through the Orca CLI. `--host ssh:<target-id>` exists; the exact command is unverified. Open question 11 covers worktrees.
+2. Keep abox's SSH key pair in `ssh/` under the abox config directory and add its public
+   key to the sandbox user's `authorized_keys`.
+3. Publish sandbox port 22 on loopback (`sbx ports <sandbox> --publish 127.0.0.1::22`)
+   and read the host port back.
+4. Write an OpenSSH host entry `abox-<sandbox>` (127.0.0.1, that port, user `agent`, the
+   key) to `ssh/config` in the abox config directory.
+5. Open the workspace on that target through the Orca CLI (`--host ssh:<target-id>`
+   exists; the exact command is not verified).
 
-Open question 8 decides whether it ships in v1.
+It needs `openssh-server` in the base image, and answers to open questions 6 to 8.
 
-### Adding a launcher *(proposed)*
+### Other proposals
 
-Implement the contract above, register the launcher under its id, and add a row to the table and a section here. Use only the internal exec, `abox pipe`, the sandbox's workspace path, and the common steps.
-
-## Configuration files
-
-References never include a file extension. The teams of a project live in a folder per team under `teams/`: `abox build` resolves `--team` to such a folder (case-insensitive), and `abox create` resolves `--team` and `--squad` to an `.abox` file in the team folder: `AC` → `teams/<team>/ac.abox` (case-insensitive). `base` names are the file of the squad's own team folder first, then the team folders of the project; one that several other teams hold is an error. The `workload` named by the root squad configuration lives in the team folder, or, when it is shared, in the `kits` folder of the project.
-
-**`.workload`** (YAML)
-- `template`: container image to build on, as in `sbx run --template`. Default `docker.io/sbx/shell-docker-image`, a shell image with Docker Engine inside (`docker.io/sbx/shell-image` is the variant without it). Pin a tag or digest rather than `latest`. *(proposed)* Named `template` so `base` only means the parent `.abox`. *(name proposed)*
-- `publishRepository`: JFrog repository name on `rwest.jfrog.io`, required to build. One lowercase registry path segment, without a host, slash or tag. Inherited with the root squad configuration's workload, recorded in the build manifest, and revalidated before publishing; changing it requires a rebuild. The included workloads use `mtiae-developer-container-images-local`.
-- `apt`: package names, installed with one `apt-get install` before the tools.
-- `mise`: tools, installed in the order of the list, so runtimes come before the tools that need them. Of several versions of a tool, the last one is active; the generator passes a tool's versions to mise reversed, because mise activates the first entry.
-- `scripts`: run as the last steps of the generated Dockerfile, during the image build.
-
-**`.abox`** (YAML)
-- `base`: name of the parent squad configuration. Chains are allowed. Cycles are errors.
-- `workload`: name of a `.workload`. Only in the root squad configuration, the one without `base`.
-- `kits`: kit names.
-- `parameters`: named values. Kits receive them in the form the Docker Sandbox kit spec expects. MCP declarations can use them too. Fixed when the set is published (inferred from the kit-set docs; verify).
-- `mcp`: neutral MCP configuration. Each server is provided to every agent in the sandbox, in that agent's config format.
-- `state`: sandbox directories to persist. See State.
-- `secrets`: declarations for host-side kit/proxy credentials. See [the authoring guide](authoring.md#secrets).
-
-A `base` chain combines declarations and never overrides them. Across the whole chain, every kit, every MCP declaration, every parameter name, and every state entry must be unique. Kits are compared by repository name, so two tags of one repository are duplicates, as sbx also rejects them. A parameter is declared once but can be used by any number of kits and MCP declarations. Duplicates are validation errors, checked whenever a chain is resolved (build, create). The error names the duplicate and the files that declare it *(proposed)*. A kit or MCP declaration that uses an undeclared parameter is also an error *(proposed)*. A child can add, but cannot replace or remove what its base declares.
-
-Examples:
-
-```yaml
-# teams/<team>/cape.abox (root)
-workload: sample
-```
-
-```yaml
-# teams/<team>/sample.workload
-template: docker.io/sbx/shell-docker-image     # default, can be omitted
-publishRepository: mtiae-developer-container-images-local
-mise:
-  - nodejs@24.4.3
-  - dotnet@9.0.303
-  - dotnet@10.0.403        # active: last version
-scripts:
-  - enable-fzf.sh
-```
-
-```yaml
-# ac.abox (squad)
-base: cape
-kits:
-  - elastic-auth
-  - pi-config
-  - azure-devops-auth
-  - github-enterprise-auth
-  - opencode-config
-parameters:
-  elastic-url: https://foobar.com/mcp
-mcp:                           # assumed: names of servers defined in kits
-  - azuredevops
-  - elastic
-  - database
-state:                         # directories; ~ is /home/agent
-  - ~/.config/opencode/state   # verify path
-  - ~/.local/state/shell       # shell history lives here, HISTFILE set by a kit *(proposed)*
-```
-
-## Tools and the base image
-
-- The base image contains mise, the workload's tools, the scripts, and two launcher helpers: `hc` (herdr-core) and `openssh-server` *(proposed)*. Nothing else.
-- Each build generates the Dockerfile from the workload. It has one install step per tool, so anonymous GitHub rate limits don't stall the build. The build passes a GitHub token as a BuildKit secret *(proposed)*, so the token never lands in an image layer.
-- The generated Dockerfile sets `WORKDIR /home/agent/workspace` *(proposed; see Sandbox layout)*.
-- Inside a sandbox, `mise upgrade` updates tools without a new sandbox. Exact pins (`nodejs@24.4.3`) don't move with plain `mise upgrade`, so they need `mise upgrade --bump`, which also rewrites the mise config in the sandbox. Upgrades last until the sandbox is replaced.
-- A kit may also install tools via mise and run scripts. Install hooks run during sandbox creation. Startup hooks run alongside the agent, which may start before they finish (sbx docs). Workload scripts run at image build.
-
-## Sandbox layout
-
-- The workspace is the folder at the path selected by the runtime. The generated image's default `WORKDIR` is not a guarantee of where the runtime mounts a folder.
-- The runtime sets `WORKSPACE_DIR` to the actual workspace path, plus `SANDBOX_NAME` and `SANDBOX_ID` (sbx@1). Agents and launchers read `WORKSPACE_DIR` rather than assuming a fixed path.
-- Agents and tools use `~/worktrees` by default. It is not mounted from the host, so its contents are lost when a sandbox is replaced (open question 9).
-- Proxy credentials stay on the host. Kits configure the Docker Sandbox credentials proxy; the values come from `abox secrets`, and `abox create` approves them for the kits' domains in sbx's `credentials.yaml`. Separately, the opt-in .NET `user-secrets` flow copies explicitly selected values into runtime files inside the sandbox. These are sensitive application files, not proxy credentials or image contents.
-
-## Naming
-
-- Sandbox name: `<folder>-abox-<hash>`, for example `rwe-abox-3AF9D`. The name is also the Herdr machine name and the key for the sandbox's state directories.
-- `<folder>`: last segment of the path, normalized to pass the sandbox name rules (verified with `sbx create --name`: at least two characters, starting with a letter or digit, only letters, digits, hyphens, and periods). *(proposed normalization: lowercase, anything outside `a-z0-9` becomes `-`, leading hyphens trimmed; if empty, use `folder`)*
-- `<hash>`: first five hex characters, uppercase, of SHA-256 over the normalized absolute path. *(proposed normalization: forward slashes, case-folded on Windows)*
-- Collisions are accepted as a risk.
-- Moving a folder gives it a new sandbox. The old one is orphaned.
-
-## Base directories
-
-Same rule for every XDG directory: use the variable if it is set, otherwise the spec default. Empty or relative values count as unset, as the XDG spec says.
-
-- Linux and macOS: config `~/.config/abox/`, state `~/.local/state/abox/`.
-- Windows: the XDG spec doesn't cover Windows. XDG variables are honored if set. Otherwise `%HOME%\.abox\config\` and `%HOME%\.abox\state\`, using `%USERPROFILE%` when `HOME` is not set.
-
-## State
-
-- Declared with `state` in `.abox`: directories in the sandbox, where `~` means `/home/agent`. Examples: agent sessions, a shell history directory.
-- Scope: per user and per sandbox.
-- Host location: `<abox state dir>/<sandbox>/<path relative to ~>`. For example, `~/.config/opencode/state` is kept at `<abox state dir>/<sandbox>/.config/opencode/state`. *(proposed)*
-- Mounting: sbx mounts host directories only at paths that a kit declares with `host-mount@1`, and `--mount HOST:SANDBOX_PATH` works only when a sandbox is created. So `abox create` writes a local mixin that declares one `host-mount@1` per entry, passes it with `--kit`, and passes one `--mount` per entry. *(proposed; verify on a test sandbox)*
-- Survives re-create: the sandbox name, and so the host path, does not change.
-- Entries are directories, because `host-mount@1` mounts one host directory. Overlapping entries across the chain are errors, as sbx rejects overlapping host mounts. *(proposed validation)*
-- Not sbx volumes: `sbx volume` is cloud-only.
-
-## User configuration
-
-- Location: the `abox` config directory (see Base directories).
-- Contents: default team, default location, `sourceRoot` (the repository folder `build` and `publish` read team sources from), GitHub Enterprise tenant (default `rwe`, giving `rwe.ghe.com`) and build settings *(proposed)*. Also the SSH key pair for `orca`, in `ssh/`.
-
-## Agents
-
-- All four agents use GitHub Copilot on GitHub Enterprise with data residency. The tenant comes from the user configuration.
-- Claude Code: the documented way to change its backend is `ANTHROPIC_BASE_URL` (route requests through a proxy or gateway), with `ANTHROPIC_AUTH_TOKEN`. The Claude Code docs have no GitHub Copilot option (checked: env vars, model config, LLM gateway). Copilot access therefore needs a gateway, which must also respect data residency. *(proposed)*
-
-## Implementation notes *(proposed)*
-
-- `abox-cli/` is a .NET 10 console app using System.CommandLine. It builds one executable, `abox`, for Windows, Linux, and macOS. Tests go in `abox-cli/test`.
-- One wrapper class makes every `sbx` call, so flags and version checks live in one place. Arguments come from the table below and are passed as argument lists, never as shell strings.
-- Each launcher is one class implementing one launcher interface, behind `ILauncher` in `abox-cli/src/Abox.Core/Features/Shared/Launchers/`; launchers that drive an external tool live in `abox-cli/src/Abox.Infrastructure/<Tool>/`.
-- Two hidden internal helpers are not user commands: `exec` (run a command in a sandbox, starting it if stopped) and `pipe` (used by `hc`).
-
-### `sbx` mapping (internal)
-
-| abox | sbx |
-|---|---|
-| `create` | `sbx create <squad kit ref> <location> --name <sandbox> --pull always\|never [--kit <mixin>]... [--mount <host>:<path>]...` |
-| existence check | `sbx ls --json`, matched by name |
-| `exec`, `pipe`, `run` | `sbx exec [-i] [-t] [-u <user>] [-w <dir>] <sandbox> <command>`; starts a stopped sandbox |
-| `orca` port | `sbx ports <sandbox> --publish 127.0.0.1::22` |
-| `secrets` | `sbx secret` (set, ls, rm) |
-| preflight | `sbx version --json`; `sbx diagnose --json`; `sbx login` when Authentication fails |
-
-Never call `sbx prune` (it removes every stopped sandbox on the machine) or `sbx reset`.
-
-## What is not built yet
-
-- Detecting file collisions between different kits. Resolution rejects duplicate
-  kit repositories, not overlapping files within otherwise distinct kits.
-- See [the current implementation's list](implementation.md#what-is-not-built-yet)
-  for the other remaining work.
-
-## Verify before building
-
-1. `abox pipe` passes bytes both ways with no TTY and prints nothing extra. `herdr-app` depends on it.
-2. `hc machine add --via`: quoting, and whether TARGET can be omitted.
-3. The `hc` install method for the image, that `hc` starts its server on first use, and that its version matches the host's protocol generation.
-4. Runtime workspace placement and `WORKSPACE_DIR`, independently of the image's default `WORKDIR`, on a test sandbox with sbx 0.51.0.
-5. State mounts: a generated `host-mount@1` mixin passed with `--kit`, and `--mount` per entry.
-6. Orca: CLI command names on each OS, and whether its CLI can add an SSH target.
-7. Windows locations and executable names of `herdr-app`, `hc`, and Orca.
+- **`run` offers a newer published tag.** Today `abox run` offers a replacement only
+  when a newer local build exists. A sandbox created from JFrog keeps its image until it
+  is created again.
+- **`prune` reaches further.** Also keep what a stopped sandbox uses, and prune the local
+  builds of the build store.
+- **File collisions between kits.** Resolving a squad rejects duplicate kit repositories,
+  but not two different kits that write the same file.
+- **Claude Code on Copilot.** Claude Code changes its backend only through
+  `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`; it has no GitHub Copilot option. It
+  therefore needs a gateway that also respects data residency.
+- **GitHub Enterprise tenant in the user configuration**, default `rwe` (`rwe.ghe.com`).
+- **Local overlays on published squads.** A user cannot add own kits to a published kit
+  set.
 
 ## Open questions
 
-1. Do any team members use Intel Macs? sbx's prerequisites list Apple silicon only.
-2. **Resolved:** `state` stays unique across the chain; duplicate and overlapping state directories are rejected.
-3. Which gateway gives Claude Code access to Copilot?
-4. `abox secrets` runs `sbx secret` behind the scenes. Service secrets reach the sandbox through the proxy, and registry credentials (JFrog pulls and pushes) stay on the host. Confirm?
-5. Does the credentials proxy cover `api.github.com`? If not, `mise` inside a sandbox hits anonymous rate limits.
-6. Should `publish` move `latest`, or require additional approval? The current implementation moves the chosen tag after candidate verification, so test publication must use a dedicated `--tag`. This is not an agreed product policy; future remote `create` must account for moving tags and sbx compatibility.
-7. `create` while offline: fail, or use a cached image?
-8. Which launchers ship in v1? Proposed: `shell` and `herdr-app`. `orca` waits for open questions 10 and 11.
-9. Worktrees are lost when a sandbox is replaced. Show that in the confirmation, declare `~/worktrees` as state, or use `abox create --clone`, which keeps commits on the host through a `sandbox-<name>` git remote?
-10. Orca takes SSH hosts through its own form, with a picker over `~/.ssh` config files. Should abox write the `abox-<sandbox>` entry into `~/.ssh/config` (with your consent), or should you add the Orca target once by hand?
-11. Orca creates git worktrees inside the repository, which is bind-mounted from the host. Accept that, or use `--clone` for Orca sandboxes?
-12. Should every squad image include `hc` and `openssh-server`, or only squads whose users run `herdr-app` or `orca`? Proposed: every image.
+1. Do any team members use Intel Macs? sbx supports Apple silicon only.
+2. Which gateway gives Claude Code access to Copilot?
+3. Does the credentials proxy cover `api.github.com`? If not, `mise` inside a sandbox
+   hits anonymous rate limits.
+4. Should `publish` move `latest`, or require an approval? Today it moves the chosen tag
+   after it verified the pushed set, so a test publication must use its own `--tag`.
+5. Worktrees under `~/worktrees` are lost when a sandbox is replaced. Declare them as
+   state, or use a clone whose commits stay on the host through a git remote?
+6. Orca takes SSH hosts through its own form, with a picker over `~/.ssh` config files.
+   Should abox write the `abox-<sandbox>` entry into `~/.ssh/config` (with consent), or
+   does the user add the Orca target once by hand?
+7. Orca creates git worktrees inside the repository, which is mounted from the host.
+   Accept that, or use a clone for Orca sandboxes?
+8. Should every base image include `openssh-server`, or only squads whose users run
+   `orca`?

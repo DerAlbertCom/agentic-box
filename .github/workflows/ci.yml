@@ -53,7 +53,7 @@ jobs:
       - run: dotnet csharpier check abox-cli
       - id: build
         run: dotnet build abox-cli/agentic-box.slnx
-      # The xUnit v3 executables run the suites; see docs/verification/synthetic-cli-tests.md.
+      # The xUnit v3 executables run the suites; see docs/development.md.
       # Each suite runs even when an earlier one fails, so every result gets published.
       - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: dotnet abox-cli/test/Abox.Core.Tests/bin/Debug/net10.0/Abox.Core.Tests.dll -noColor -result-trx test-results/Abox.Core.Tests.trx

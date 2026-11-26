@@ -1,21 +1,20 @@
 # MTI-CA
 
-Ports the nine v2 compositions from `cape-agent-sandbox` into native v3 mixins.
-Source snapshot: `f8c2ac4801f29a73da086d42212fd41fca67cdbc`.
+The squads of the MTI-CA team. They replace the compositions of the earlier
+`cape-agent-sandbox`.
 
-| Squad | Base | Additions |
+| Squad | Base | Adds |
 | --- | --- | --- |
-| base | — | Workload, agents, Git defaults, RWE GHEC, Azure DevOps auth, sbox with the themes (Tokyo Night by default) |
+| base | — | Workload, agents, Git defaults, RWE GHEC, Azure DevOps auth, sbox with themes |
 | cape | base | CS defaults, database MCP, Elastic, JFrog, clean-code, host ports |
-| ac / bc / cc | cape | Aliases |
+| ac, bc, cc | cape | Nothing; aliases of cape |
 | cape-subagents | cape | OpenCode model tiers |
 | mod | base | MOD defaults, Context7, dual Elastic, MongoDB, tfswitch, AWS gateway |
 | predictopus | base | AssetOpt Renewables defaults, metsca NuGet, Predictopus Elastic |
-| bau | base | CS defaults, database/Elastic, Bedrock, BAU app/skill/command |
+| bau | base | CS defaults, database/Elastic, Bedrock, BAU app, skill and command |
 
-`abox build` prepares/publishes leaf squads only: ac, bc, cc, cape-subagents,
-mod, predictopus and bau. base/cape remain inheritance inputs, not separately
-published sets. All additions are unique across each inheritance chain.
+`base` and `cape` are only inherited from. `abox build` builds and `abox publish`
+publishes the other seven.
 
 ## Build
 
@@ -23,39 +22,41 @@ published sets. All additions are unique across each inheritance chain.
 abox build --team mti-ca
 ```
 
-This builds the component images of every leaf squad: the workload, each local
-kit (running its recipe), the state mixin and the config mixin. Later builds
-rebuild only what changed; `--rebuild` builds everything again.
-Do not publish without a successful build and an authorized smoke test.
+See [development](../../docs/development.md) for local sandboxes and publishing, and
+[authoring](../../docs/authoring.md) for the file formats.
 
-The workload retains all **41 mise tools and exact versions**, including npm
-build permissions, Linux architecture mappings/checksums, Azure CLI's pip pin,
-and tig's source build. Advanced entries use mise's `--tool-option`/`--postinstall`
-flags. abox installs the list in its order. .NET remains dotnetup-managed:
-manager `0.3.0-preview.1.26554.3`, SDKs `10.0.404` and `11.0.100`, checked after
-channel installation. A newer channel release requires reviewing these pins.
-MOD's tfswitch seed follows Terraform `1.17.2`, replacing the stale v2 `1.16.6` label.
-APT dependencies, Git's PPA, Azure DevOps extension, shell completion and pinned
-PowerShell modules are included. The old shell-docker image is digest-pinned.
-It supplies agent UID 1000 with passwordless sudo for the workload's system setup.
+Notes on the workload (`mti-ca.workload`):
+
+- The template image is pinned by digest. It provides the `agent` user (UID 1000) with
+  passwordless sudo, which the setup scripts need.
+- All mise tools are pinned to exact versions. Some entries use mise's
+  `--tool-option` and `--postinstall` flags.
+- .NET is not installed by mise but by `install-dotnet.sh` through dotnetup, with a
+  pinned manager version and pinned SDK versions. Review these pins when a new .NET
+  release should be picked up.
 
 ## Host credentials
 
-Real credentials never belong in kit arguments, payloads or workspace `abox.yaml` or `abox.user.yaml`.
-`abox secrets` stores each credential under the service ID named by its kit.
-The proxy injects headers for that capability's exact hosts. Azure DevOps stores
-`base64("pat:<PAT>")` (enter `pat` as its Basic username); JFrog stores
-`base64("<username>:<token>")`. Supply the original raw/encoded Elastic API key,
-not an extra base64 wrapper. MOD/Predictopus keys need `feature_agentBuilder.read`.
-Context7 remains optional. Registry login remains separate from service auth.
+Real credentials never belong in kit arguments, kit files or the folder configuration
+(`abox.yaml`, `abox.user.yaml`). Store them on the host with `abox secrets set`; the
+proxy injects them for the hosts each kit names. Registry sign-in (`docker login`) is
+separate.
 
-The single azure-devops service covers dev.azure.com, pkgs.dev.azure.com and
-vssps.dev.azure.com. Its AZURE_DEVOPS_EXT_PAT value inside the sandbox is a
-sentinel, not the stored credential. Service IDs and encodings match v2.
-These service secrets are separate from placeholder-replacement custom bindings.
+| Service | What to enter |
+| --- | --- |
+| `azure-devops` | Username `pat`, then the PAT. Stored as `base64("pat:<PAT>")`. Covers `dev.azure.com`, `pkgs.dev.azure.com` and `vssps.dev.azure.com`. |
+| JFrog | Username and token. Stored as `base64("<username>:<token>")`. |
+| Elastic | The API key as issued; do not base64-encode it again. MOD and Predictopus keys need `feature_agentBuilder.read`. |
+| Context7 | Optional. |
+| `rwe-ghec` | Nothing; it comes from a host command, see below. |
 
-The base squad declares the RWE GHEC binding as the command-backed custom secret
-`rwe-ghec` in `base.abox`:
+`AZURE_DEVOPS_EXT_PAT` inside the sandbox is a placeholder, not the stored
+credential.
+
+### The RWE_GHE_TOKEN binding
+
+Access to GitHub Enterprise Cloud (`rwe.ghe.com`), including Copilot, uses a custom
+secret that takes its value from the host's `gh`. The base squad declares it:
 
 ```yaml
 secrets:
@@ -66,87 +67,65 @@ secrets:
     placeholder: gho_{rand}
 ```
 
-`abox create --local` asks to set it when it is missing and runs the equivalent
-of the command below. `abox secrets list` in the project folder shows whether it is
-stored. `abox secrets set --service rwe-ghec` never runs a command it reads from
-the sandbox: when the binding is missing it prints the `sbx secret set-custom`
-command with `--command '<host command>'`; run it with the command from
-`base.abox`:
+The sandbox sees a placeholder in `RWE_GHE_TOKEN`. The proxy replaces it with the real
+token in requests to these four hosts. The `rwe-ghec` kit fails its setup if the
+placeholder is missing.
 
-```sh
-sbx secret set-custom \
-  --host copilot-api.rwe.ghe.com --host api.rwe.ghe.com \
-  --host rwe.ghe.com --host uploads.rwe.ghe.com \
-  --env RWE_GHE_TOKEN --command 'gh auth token -h rwe.ghe.com' \
-  --placeholder 'gho_{rand}'
-```
+To set it up:
 
-abox treats the binding as present when a custom secret is sent to all four hosts
-under `RWE_GHE_TOKEN` (or under no variable). A custom secret that uses one of the hosts or
-`RWE_GHE_TOKEN` otherwise is an incompatible binding: abox reports it and does not
-replace it. Review it manually; do not delete/rebind another sandbox's
-credentials blindly. sbx checks the command when it stores the secret, so a host
-`gh` that is not logged in shows up as an error right away. Host `gh` must already be logged in with the required scopes (including `workflow`
-for workflow changes). There is no automatic login/scope refresh or legacy-binding
-cleanup. Public GH_TOKEN/GITHUB_TOKEN stay empty. The kit fails setup without a
-token-shaped tenant placeholder. It never writes the host token into the image.
-Standalone Copilot still needs its separate `/login` inside the sandbox.
+1. Sign in on the host: `gh auth login -h rwe.ghe.com`, with the scopes you need
+   (`workflow` to change workflows).
+2. `abox create --local` offers to store the binding when it is missing. For a
+   published squad, or to do it by hand, run:
 
-## Squad kit parity
+   ```sh
+   sbx secret set-custom \
+     --host copilot-api.rwe.ghe.com --host api.rwe.ghe.com \
+     --host rwe.ghe.com --host uploads.rwe.ghe.com \
+     --env RWE_GHE_TOKEN --command 'gh auth token -h rwe.ghe.com' \
+     --placeholder 'gho_{rand}'
+   ```
 
-| v2 kit(s) | v3 owner |
-| --- | --- |
-| cao-docker-ai-sandbox | workload + sandbox-agents |
-| git-user / rwe-ghec / azure-devops | same-named mixins |
-| cape-azure-devops / mod-squad-azure-devops / predictopus-azure-devops | azure-devops-project, parameterized per squad |
-| rwe-jfrog / predictopus-jfrog | jfrog, parameterized per squad |
-| cape-opencode / mod-squad-opencode / predictopus-opencode | squad-mcp profiles |
-| cape-database-mcp / cape-elastic / clean-code-mcp | same-named mixins |
-| cape-localhost-ports | host-access-cape (keeps v3 port 8005, restores Rider ports) |
-| context7 / mod-squad-elastic / mod-squad-terraform / mod-squad-tools / mod-squad-aws-mcp | same-named mixins |
-| predictopus-elastic / opencode-subagents / aws-bedrock / bau-support-agent | same-named mixins |
+3. Check with `abox secrets list --location <folder>`.
 
-All 41 old payload files are represented. The three squad OpenCode files become
-complete MCP profiles. The base Claude settings are already included in the RWE
-settings; rwe-ghec owns that path alone. The base `.claude.json` and OpenCode
-defaults are incorporated into the profiles instead of colliding with them.
-BAU's Python application, bilingual PII redaction, skill and slash command are
-copied rather than rewritten. Its dependency/model downloads remain create-time
-operations, as in v2.
+sbx runs the command when it stores the secret, so a host `gh` that is not signed in
+fails right away.
 
-`squad-mcp` installs complete agent-native configs for local ADO/clean-code and
-remote MCP servers. This preserves commands, PAT environment references, URLs,
-Elastic filters, OpenCode code-mode choices, and Claude/Copilot disabled defaults
-without unsupported `.abox mcp.command/args/headers` fields. Profile endpoint and
-organization values come from squad parameters. A small install hook substitutes
-only those nonsecret values; credential and gateway references remain runtime
-references. Service hosts must stay aligned with their credential bindings.
-Claude/Copilot still cannot enforce Elastic's wildcard tool
-allow-list; this is the same v2 limitation, not an authorization boundary.
+abox treats the binding as present when one custom secret covers all four hosts with
+`RWE_GHE_TOKEN`. A custom secret that uses one of the hosts or the variable in another
+way is reported as a conflicting binding and not replaced. Review it yourself before
+removing it; another sandbox may use it.
 
-MOD's AWS gateway is optional; creating the squad needs no host MCP registration.
-The agent-native profile retains the runtime MCP_GATEWAY_URL reference. After
-host registration, use `sbx mcp load aws-gateway --sandbox <sandbox>` when needed.
-Host SSO/proxy provisioning is not performed here. Both AWS profile/account
-instructions and `codemode: false` for this gateway are retained.
+The standalone Copilot CLI still needs its own `/login` inside the sandbox.
+`GH_TOKEN` and `GITHUB_TOKEN` stay empty.
 
-## Remaining host-orchestration differences
+## MCP servers
 
-- Git identity uses optional `git-identity@1`; unsupported runtimes skip it.
-  Host alias synchronization is not automatic. The old `sbx-sync-git-user` helper
-  is retained for explicit use with its GIT_USER_NAME/GIT_USER_EMAIL/GIT_ALIASES_BASE64
-  inputs; it is not an implicit host-environment tunnel.
-- The eight v2 state directories persist under abox's own state root. Existing
-  `~/.cabox/state` contents are not moved automatically.
-- Host skill/font synchronization, Copilot credit-budget reapplication and the old
-  Herdr TUI attach orchestration are not abox configuration features. Their host
-  automation is not ported. TUI helpers/config remain available; use abox's
-  `herdr-app` launcher for its supported App/Core flow.
-- Open egress is retained from v2 for install/runtime. Credential injection remains
-  restricted to each service's exact hosts. Host/organization denies still win.
+The `squad-mcp` kit installs complete agent-native MCP configurations per squad,
+because the servers need commands, headers or filters that the `mcp` key of `.abox`
+does not support. Endpoints and organization names come from squad parameters;
+credentials stay runtime references. Keep the service hosts in line with the
+credential kits.
 
-Descriptor validation uses the upstream v3 spec at
-`docker/sandbox-kit-spec@cc033f80d58bb9516db1c26b71a3ce8184100fd0`.
-Metadata/schema/syntax checks do not prove image builds, host secret bindings,
-gateway availability or end-to-end agent authentication; those need a separately
-authorized runtime smoke test.
+- Claude Code and Copilot cannot enforce Elastic's wildcard tool allow-list. Do not
+  rely on it as an authorization boundary.
+- MOD's AWS gateway is optional. After registering it on the host, load it with
+  `sbx mcp load aws-gateway --sandbox <sandbox>`. Host SSO and proxy setup are not
+  part of the squad.
+
+## Differences from cape-agent-sandbox
+
+- **State.** The state directories now persist under abox's state directory. Existing
+  content of `~/.cabox/state` is not moved.
+- **Git identity.** The `git-user` kit uses the optional `git-identity@1` capability.
+  Host aliases are not synchronized automatically; the `sbx-sync-git-user` helper is
+  still there to run by hand.
+- **Host automation.** Skill and font synchronization, Copilot credit-budget
+  reapplication and the Herdr TUI attach flow are not ported. Use
+  `abox run herdr-app` for Herdr.
+- **Network.** Egress is open, as before. Credentials are injected only for the hosts
+  each kit names, and host or organization denies still win.
+- **host-access-cape** replaces `cape-localhost-ports`; see its
+  [README](../../kits/host-access-cape/README.md).
+- **BAU.** The app's dependencies and models are downloaded when the sandbox is
+  created.

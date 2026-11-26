@@ -1,221 +1,58 @@
-# The kits of the team
+# Kits
 
-This folder holds the kits and the workloads that the squads of the project name.
+This folder holds the local kits that the squads under `teams/` name. Each kit is a
+directory with a descriptor of the same name, for example
+`pi-config/pi-config.yaml`. The descriptor follows Docker's
+[kit spec](https://github.com/docker/sandbox-kit-spec).
 
-```
-kits/
-  pi-config/               a kit: a directory named and shaped like its descriptor
-    pi-config.yaml
-  opencode-config/
-    opencode-config.yaml
-  github-enterprise-auth/
-    github-enterprise-auth.yaml
-  elastic-auth/
-    elastic-auth.yaml
-  host-access-cape/
-    host-access-cape.yaml
-```
+How to write a kit is in [docs/authoring-kits.md](../docs/authoring-kits.md). The kits
+here are working examples to copy from:
 
-How to write a workload, a kit or a squad is [docs/authoring.md](../docs/authoring.md):
-the squads and the workloads of the teams of this project live in `teams/<team>/`, the
-shared kits are here. The descriptor of a kit follows the
-[kit spec](https://github.com/docker/sandbox-kit-spec); the kits of this folder are
-working examples to copy from.
+| Kit | Shows |
+|---|---|
+| `pi-config`, `opencode-config` | Writing an agent configuration. |
+| `github-enterprise-auth` | Reaching a host with a credential the host holds. |
+| `sample-secrets` | Dummy credentials, to try `abox secrets`. |
+| [`host-access-cape`](host-access-cape/README.md) | Reaching services on the host. |
+| `sbox`, [`themes`](themes/README.md) | A kit build step that bundles TypeScript. |
 
 ## sbox
 
 The `sbox` kit installs `sbox`, the command line inside the sandbox for user-facing
-actions. It runs on Bun, which the workload must install through mise (`bun@1.4.4` in
-`teams/mti-ca/mti-ca.workload`); without Bun, `sbox` says so.
+actions such as switching the theme. Do not confuse it with `sbx`, the Docker
+Sandboxes CLI on the host.
+
+`sbox` runs on Bun, which the workload must install through mise (`bun@1.4.4` in
+`teams/mti-ca/mti-ca.workload`). Without Bun, `sbox` says so.
 
 | File in the sandbox | What it is |
 |---|---|
-| `~/.local/bin/sbox` | the launcher, on PATH |
-| `~/.local/share/sbox/sbox.js` | the bundled core from `sbox-cli/sbox/` |
-| `~/.local/share/sbox/commands/<command>/command.js` | a command, installed by its command kit |
-| `~/.local/state/sbox/<command>/` | the state folder of a command |
+| `~/.local/bin/sbox` | The launcher, on `PATH`. |
+| `~/.local/share/sbox/sbox.js` | The bundled core from `sbox-cli/sbox/`. |
+| `~/.local/share/sbox/commands/<command>/command.js` | A command, installed by its command kit. |
+| `~/.local/state/sbox/<command>/` | The state folder of a command. |
 
-`sbox --help` lists the installed commands; with no command kit it lists none. A
-command whose module fails to load or does not export a command is listed as broken
-with the reason, and running it fails with that reason; the other commands keep
-working.
+`sbox --help` lists the installed commands. A command whose module fails to load is
+listed as broken with the reason; the other commands keep working.
 
-The bundle is produced by the kit's [build step](../docs/authoring.md#kit-build-step)
-(`kits/sbox/build`) when `abox build` runs, so it is not committed. The build runs
-Bun in Docker through `sbox-cli/bundle` and keeps Bun's package cache in the volume
-`agentic-box-bun-cache`.
+The bundle is not committed. The kit's
+[build step](../docs/authoring-kits.md#kit-build-step) (`kits/sbox/build`) produces it
+during `abox build`, running Bun in Docker through `sbox-cli/bundle`. Bun's package
+cache is kept in the Docker volume `agentic-box-bun-cache`.
 
 ### Command kits
 
-A command kit adds one `sbox` command. Its build step bundles the command's package
-into `command.js` and stages it with the data folders that the package declares in its
-`package.json` (`"sbox": { "data": ["themes", "apps"] }`), read with
-`sbox-cli/data-folders`; a declared folder that is missing fails the build. Its recipe
-copies them into `~/.local/share/sbox/commands/<command>/`. The module default-exports a `Command`
-(`summary` and `run(args, ctx)`) from the command API in `sbox-cli/sbox/src/api.ts`; see
-the [TypeScript coding standards](../CODING_STANDARDS.md#typescript).
+A command kit adds one `sbox` command; [`themes`](themes/README.md) is one. To write
+another:
 
-## themes
+- The package's module default-exports a `Command` (`summary` and `run(args, ctx)`)
+  from the command API in `sbox-cli/sbox/src/api.ts`. See the
+  [TypeScript coding standards](../CODING_STANDARDS.md).
+- The package declares the data folders to install next to the module in its
+  `package.json`: `"sbox": { "data": ["themes", "apps"] }`.
+- The kit's build step bundles the module into `command.js` with `sbox-cli/bundle` and
+  copies the declared data folders (`sbox-cli/data-folders` lists them). A declared
+  folder that is missing fails the build.
+- The kit's recipe copies the result to `~/.local/share/sbox/commands/<command>/`.
 
-The `themes` kit installs the `sbox themes` command (from `sbox-cli/sbox-themes/`) with every
-theme and app template. It needs the `sbox` kit. The apps are switched together and
-at once, without recreating the sandbox:
-
-| Command | What it does |
-|---|---|
-| `sbox themes <name>` | renders every app with the theme, saves the choice, recolors the terminal (see [Terminal colors](#terminal-colors)), notes that some apps show it only after a restart |
-| `sbox themes` | in a terminal, opens an `fzf` picker with a color preview of each theme, the current one selected, and switches like `<name>`; Esc changes nothing; otherwise like `--list` |
-| `sbox themes --list` | lists the themes, the current one marked with `*` |
-| `sbox themes --current` | prints the current theme |
-| `sbox themes --apply` | renders the current theme again; the install and startup hooks run it |
-
-The current theme is the saved choice, then the kit arg `THEME` (`SBOX_THEME`,
-`tokyo-night` by default), then `tokyo-night`. A saved theme that no longer exists
-gets a warning and the fallback, and stays saved; a `THEME` that is not installed
-gets a warning and `tokyo-night`.
-
-A theme whose palette is invalid (see [Adding a theme](#adding-a-theme)) is refused by
-`<name>`, the picker, `--apply` and `--preview` with an error naming the theme and the
-key, exit code 1 and nothing changed; `--apply` does not fall back for it. `--list` and
-`--current` do not read palettes, so they still show it.
-
-A switch or `--apply` is all or nothing: it reads the palette and every app template,
-renders every file and merges every settings file in memory first. A template that
-fails, a malformed `app.yaml` or a settings file that is not a JSON object stops it
-with an error naming the cause, exit code 1, and no app's files, no settings and not
-the saved choice changed. Only then are the files written, each atomically, the apps'
-commands run and, for a switch, the choice saved. A write that fails then is not
-rolled back.
-
-```yaml
-kits:
-  - sbox
-  - name: themes
-    args:
-      THEME: nord          # the team's default; the user's choice wins
-```
-
-The choice is saved in `~/.local/state/sbox/themes/current`. It survives a restart; to
-keep it when the sandbox is recreated, the squad needs the sbox state folder as state:
-
-```yaml
-state:
-  - ~/.local/state/sbox
-```
-
-The apps it themes today:
-
-| App | File in the sandbox | Selected by |
-|---|---|---|
-| OpenCode | `~/.config/opencode/themes/sbox.json` | `theme` in `~/.config/opencode/cli.json` (merged) |
-| Claude Code | `~/.claude/themes/sbox.json` | `theme: custom:sbox` in `~/.claude/settings.json` (merged) |
-| pi | `~/.pi/agent/themes/sbox.json` | `theme: sbox` in `~/.pi/agent/settings.json` (merged) |
-| bat | `~/.config/bat/themes/sbox.tmTheme` | `BAT_THEME=sbox`, set by the kit; the switch rebuilds bat's cache |
-| delta | `~/.config/git/sbox.gitconfig` (only `[delta]`) | an `[include]` of it in `~/.config/git/config` (added once); `syntax-theme = sbox`, bat's theme, and `light` or `dark` by the theme's mode |
-| fzf | `~/.config/fzf/sbox` | `FZF_DEFAULT_OPTS_FILE`, set by the kit |
-| lazygit | `~/.config/lazygit/sbox.yml` | `LG_CONFIG_FILE`, set by the kit: `config.yml`, then `sbox.yml` (an empty `config.yml` is created when there is none) |
-| yazi | `~/.config/yazi/theme.toml` | the file itself |
-| terminal | `~/.config/sbox/terminal-colors.sh`, the terminal color script | the login script and `sbox themes`, see [Terminal colors](#terminal-colors) |
-
-The terminal tools pick up a switch on their next run; some apps, such as the agents,
-may show it only after a restart. A switch overwrites only the theme files it renders
-(the `sbox` files and yazi's `theme.toml`) and merges its keys into the settings
-files. The apps' other
-config files, such as `~/.config/git/config`, `~/.config/bat/config` and lazygit's
-`config.yml`, stay the user's: the first switch only adds the `[include]` to the git
-config and an empty `config.yml` when there is none. The theme comes after the user's
-settings in those files, so it wins for the keys it sets; `~/.gitconfig` is read last
-and wins over both.
-
-### Terminal colors
-
-The `terminal` app renders the **terminal color script**, a small `sh` script that
-prints OSC 4 (the colors 0–15), OSC 10 (foreground), OSC 11 (background) and OSC 12
-(cursor) with the theme's colors. They change only the live terminal session, never
-the host terminal's configuration. The script prints whenever it runs, so you can run
-it by hand, for example after a program reset the colors:
-`sh ~/.config/sbox/terminal-colors.sh`.
-
-The terminal is recolored only when `SBOX_TERMINAL_THEME=1` is set, which `abox run`
-does unless the user turned it off, and only in a terminal:
-
-- **Login.** The kit installs `/etc/profile.d/sbox-terminal-theme.sh` for login shells
-  (`bash -l`). With the variable, a terminal on stdout and a rendered terminal color
-  script, it runs the script, errors suppressed, and prints the resets (OSC 104, 110,
-  111, 112) when the shell exits (`exit`, Ctrl+D, `logout`). Otherwise it does nothing.
-  Login does not start `sbox`; a login before the first render, while the startup hook
-  still runs on a fresh sandbox, gets no colors.
-- **Switch.** `sbox themes <name>` and a picker selection run the freshly rendered
-  script after rendering. Esc, `--apply`, `--list`, `--current` and `--preview` never
-  recolor.
-
-Only the terminal that runs `sbox themes` is recolored; other terminals of the sandbox
-get the new colors at their next login. Try it without `abox run` with
-`sbx exec -it -e SBOX_TERMINAL_THEME=1 <sandbox> bash -l`. Terminals that ignore the
-reset sequences keep the theme's colors after exit. The reset is an `EXIT` trap set at
-login, so a later login file or `~/.bashrc` that sets its own `EXIT` trap replaces it
-and the colors stay after exit. See
-[ADR 0002](../docs/adr/0002-terminal-colors-from-the-sandbox.md).
-
-### Adding a theme
-
-A theme is a folder `sbox-cli/sbox-themes/themes/<name>/` with a `colors.toml`, and its
-`LICENSE` if it has its own; `sbox-cli/sbox-themes/themes/LICENSE` is the license of the
-upstream collection. The palettes come unchanged from
-[Omarchy](https://github.com/basecamp/omarchy) (`themes/*/colors.toml`), plus
-`osaka-jade` from its own repository. Refresh them with:
-
-```sh
-cd sbox-cli/sbox-themes && bun run sync-themes
-```
-
-It adds new themes and updates changed ones, never deletes, and reports the themes
-upstream removed. It checks every downloaded palette first and writes nothing if
-one is invalid, naming the source, the theme and the key. Review the diff before
-committing. A theme of your own is a new folder with a `colors.toml` of the same
-format. Keys it leaves out get upstream's fallbacks: `orange` falls back to
-`yellow`, the `bright_*` colors are their base color mixed 20% with white,
-`dark_background`/`darker_background` are the background mixed 25%/50% with black,
-`color0`–`color15` and the short names (`bg`, `fg`, …) are aliases, and `mode` is
-derived from the background.
-
-A palette is valid when, after the fallbacks, it has every color: the 16 ANSI colors
-`color0`–`color15`; `foreground`, `background` and `cursor`; `red`, `green`, `yellow`,
-`blue`, `magenta`, `cyan` and their `bright_*` variants; `purple` and `bright_purple`;
-`accent`, `muted`, `orange`, `brown`; `selection`, `selection_background` and
-`selection_foreground`; and the background and foreground variants with their short
-names. So a theme needs at least `background`, `foreground` and the six colors, or the
-ANSI colors they fall back to. Every color is `#rrggbb`, in upper or lower case, and
-`mode` (or its alias `theme_type`) is `dark` or `light`. Other keys, such as window
-border colors, are ignored and not available to the app templates.
-
-### Adding an app
-
-An app is a folder `sbox-cli/sbox-themes/apps/<app>/` with an `app.yaml` and Liquid templates;
-no TypeScript changes. Every app uses one fixed theme named `sbox`, so a switch only
-rewrites its content.
-
-```yaml
-files:                          # templates rendered to files, relative to the app folder
-  - template: sbox.json.liquid
-    target: ~/.config/opencode/themes/sbox.json
-settings:                       # merged into JSON files on every apply; strings are Liquid
-  - file: ~/.config/opencode/cli.json
-    merge:
-      theme: { name: sbox, mode: "{{ mode }}" }
-run:                            # shell commands run from the home folder afterwards
-  - bat cache --build
-```
-
-Every key is optional and an unknown key is an error. Targets start with `~/`. A
-template sees every color of the palette, each a `#rrggbb`, and `mode` (`dark` or `light`):
-
-| Filter | Example | Result |
-|---|---|---|
-| `mix` | `{{ background \| mix: foreground, 30 }}` | the color 30% of the way to `foreground`; also `"30%"` |
-| `strip` | `{{ accent \| strip }}` | `7aa2f7` |
-| `rgb` | `{{ accent \| rgb }}` | `122,162,247` |
-
-A template that names a key outside the palette fails the switch before anything is written, naming the
-template. A `run` command that fails is reported and fails the command after everything is written; the
-other commands still run and the switch is kept.
+`kits/themes/build` is the example to copy.

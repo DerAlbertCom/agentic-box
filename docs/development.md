@@ -1,9 +1,8 @@
 # Development and local builds
 
-To use a published squad, start with the [README](../README.md); no checkout or
-local build is required. This guide is for contributors and maintainers. See
-[authoring.md](authoring.md) for squads, kits and workloads, and
-[implementation.md](implementation.md) for current behavior and the code map.
+This guide is for contributors and maintainers. To use a published squad, the
+[README](../README.md) is enough. See [authoring.md](authoring.md) for squads, kits and
+workloads, and [implementation.md](implementation.md) for how abox is built.
 
 ## The layout of a project
 
@@ -48,10 +47,33 @@ dotnet test
 dotnet run --project src/Abox -- --help
 ```
 
-`dotnet test` runs every test project of the solution; each is also an xUnit v3
-executable that can be run directly. See [synthetic CLI tests](verification/synthetic-cli-tests.md)
-for separate discovery/execution commands, isolated output, prerequisites and
-platform gaps. Help needs no sbx daemon.
+Help needs no sbx daemon.
+
+### Running the tests
+
+`dotnet test` in `abox-cli` runs the four test projects: `Abox.Core.Tests`,
+`Abox.Infrastructure.Tests`, `Abox.IntegrationTests` and `Abox.Tests`. Each is an
+xUnit v3 executable, so after `dotnet build` you can also run one directly, as CI does:
+
+```sh
+dotnet abox-cli/test/Abox.Core.Tests/bin/Debug/net10.0/Abox.Core.Tests.dll -noColor
+```
+
+Add `-class Abox.Tests.<ClassName>` for one class (every test project uses the
+`Abox.Tests` namespace), `-list tests/json` to list the tests without running them, or
+`-result-xml <file>` for a report.
+
+- The tests use synthetic certificates, temporary folders and fake `sbx`, Docker and
+  shell tools. They do not touch host certificates, real secrets, registries or
+  sandboxes.
+- Unix shell tests need `sh` and `bash` on `PATH`; Windows cases use PowerShell and the
+  `sh` of Git for Windows. Tests for another platform are skipped.
+- Keep the `Fixtures/` folder next to a test executable when you move build output; the
+  tests read their inputs only from there.
+- Certificate tests write below the executable's folder, which must not sit under a
+  symbolic link or junction.
+- Leave `ABOX_DISPOSABLE_RECEIVER_CHECKS` unset. It enables a test that needs a
+  dedicated disposable Linux environment.
 
 ### Checking the tool package locally
 
@@ -65,10 +87,8 @@ dotnet tool install RwestAgenticBox.Cli --source ./abox-cli/src/Abox/bin/package
 dotnet tool uninstall RwestAgenticBox.Cli --tool-path ./abox-cli/src/Abox/bin/tool-test
 ```
 
-`--source` restricts installation to the local package directory. The package and
-test installation are under ignored `bin/` output. To check installation-directory
-independence, also run the installed command by its absolute path with `--help`
-from outside the repository. No sbx daemon is needed for help.
+`--source` restricts installation to the local package directory. Both folders are
+ignored `bin/` output.
 
 ### The tool packages
 
@@ -105,11 +125,9 @@ no flat container, so the script lists versions through the registration resourc
 
 ## Local sandbox builds
 
-Sandbox commands need `sbx` 0.54.0 or later on `PATH`, healthy and signed in.
-Builds and all creation need host Docker with Buildx and a running
-engine. Local builds use the current Docker context's **docker-driver** builder,
-regardless of a separately selected `docker-container` or remote publishing builder.
-abox does not install dependencies itself.
+Sandbox commands need `sbx` 0.54.0 or later on `PATH`, healthy and signed in. Builds
+and creation need host Docker with Buildx and a running engine. A build always uses the
+docker-driver builder of the current Docker context, whatever other builder is selected.
 
 From the repository root:
 
@@ -119,22 +137,20 @@ abox create --team sample --squad ac --local --location "/path/to/project"
 abox run --location "/path/to/project"
 ```
 
-If running from source instead of an installed tool, replace `abox` with
-`dotnet run --project abox-cli/src/Abox --`. Only `build` and `publish` read the
-team/kit sources; `create --local` uses the local build. Installing abox does not
-install these team/kit sources. Outside the repository, `build` and `publish` find
-them through the user setting `sourceRoot`; see
-[user settings](cli-reference.md#user-settings).
+When running from source, replace `abox` with
+`dotnet run --project abox-cli/src/Abox --`. Only `build` and `publish` read the team
+and kit sources; `create --local` uses the local build. Outside the repository, `build`
+and `publish` find the sources through the user setting `sourceRoot`; see
+[user settings](configuration.md#user-settings).
 
 `abox build` builds one image per component (workload, local kits, state and config
 mixins) and rebuilds only the components whose inputs changed. Use
 `abox build --rebuild` to build every component again, for example after changing
 files outside a kit's folder that its build step reads (such as `sbox-cli/`).
 
-Local creation consumes the component images of the build through thin directory
-kits, not a fresh installation. It still runs the thin sbx wrapper build and may
-fetch registry kits; it is not an offline guarantee. Keep the recorded Docker
-context and images available. See
+`create --local` uses the component images of the build, so keep them and the Docker
+context they were built in. It can still fetch registry kits, so it does not work
+offline. See
 [local and published creation](cli-reference.md#creating-local-and-published-sandboxes).
 
 ## Publishing squads
@@ -149,23 +165,20 @@ abox build --team sample
 abox publish --team sample --tag latest
 ```
 
-**Publishing updates the chosen tag**, `latest` by default, after remote descriptor
-verification. Use a dedicated test tag to avoid replacing a shared publication;
-build and publish must select the same tag. Each squad has a stable reference,
-for example `rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac:latest`.
-This example is not evidence that an artifact is available.
+**Publishing moves the chosen tag**, `latest` by default. Use a test tag to avoid
+replacing a shared publication; build and publish must use the same tag. Each squad has
+a stable reference, for example
+`rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac:latest`.
 
-Publish pushes the component images `abox build` made, unchanged, and builds only
-the set. It refuses a stale build: changed sources (including a kit's folder in the
-repository), a component image that left the image store or was replaced, a base
-image or registry kit tag that now resolves to another digest, or an older build
-without component images. Run `abox build --team <team> --tag <tag>` again before
-publishing. Changing the resolved workload's repository also requires a rebuild.
-Build inputs must be ordinary files and directories, not symbolic links.
+Publish pushes the component images `abox build` made, unchanged, and builds only the
+set. It refuses a stale build: changed sources, a component image that is gone or was
+replaced, or a base image or registry kit tag that now resolves to another digest. Run
+`abox build --team <team> --tag <tag>` again before publishing. Build inputs must be
+ordinary files and directories, not symbolic links.
 
 `publish` needs Docker/Buildx but not sbx running or signed in. Registry credentials
 stay in Docker's host credential store; `abox secrets` does not configure them.
-See [publishing details and builder selection](implementation.md#abox-publish---team-name---root-dir---tag-tag---builder-name).
+See [how build and publish work](implementation/build-and-publish.md).
 
 ## Building and testing sbox
 
