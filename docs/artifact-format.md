@@ -120,4 +120,4 @@ Remote consumers need neither sources nor any local build/metadata preparation.
 `abox build --metadata-only --no-personal` remains an optional maintainer mode,
 not a remote prerequisite. It clears local image selection without deleting prior
 artifacts. Normal builds and `--no-verify` still build the workload image. See the
-[remote-only workflow](../README.md#remote-only-workflow).
+[remote-only workflow](cli-reference.md#remote-only-workflow).

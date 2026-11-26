@@ -1,6 +1,6 @@
 # User secrets during create and replacement
 
-The [folder configuration](../README.md#folder-configuration) (`abox.yaml`, overridden
+The [folder configuration](cli-reference.md#folder-configuration) (`abox.yaml`, overridden
 by an optional git-ignored `abox.user.yaml`) is runtime-only configuration in the
 **resolved sandbox folder** (`--location`, then `defaultLocation`, then the current
 directory), not the local team source selected with `--root`:
