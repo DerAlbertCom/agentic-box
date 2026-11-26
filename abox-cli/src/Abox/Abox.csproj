@@ -15,6 +15,26 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
+  <!-- Framework-dependent, RID-specific tool packages compiled ReadyToRun, plus a
+       portable "any" package for every other platform. Packs one pointer package and
+       one package per RID; installing needs the .NET 10 SDK or newer. -->
+  <PropertyGroup>
+    <ToolPackageRuntimeIdentifiers>
+      win-x64;win-x86;win-arm64;
+      linux-x64;linux-arm64;linux-arm;
+      linux-musl-x64;linux-musl-arm64;linux-musl-arm;
+      osx-x64;osx-arm64;
+      any
+    </ToolPackageRuntimeIdentifiers>
+    <RuntimeIdentifiers>$(ToolPackageRuntimeIdentifiers)</RuntimeIdentifiers>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <SelfContained>false</SelfContained>
+    <!-- Run on .NET 10, or on the lowest newer major runtime when 10 is missing. -->
+    <RollForward>Major</RollForward>
+    <!-- abox runs with invariant globalization; ship no translated library resources. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Abox.IntegrationTests" />
     <InternalsVisibleTo Include="Abox.Tests" />

@@ -70,6 +70,34 @@ test installation are under ignored `bin/` output. To check installation-directo
 independence, also run the installed command by its absolute path with `--help`
 from outside the repository. No sbx daemon is needed for help.
 
+### The tool packages
+
+`dotnet pack` writes one pointer package, `rwest-agentic-box`, and one package per
+runtime identifier, `rwest-agentic-box.<rid>`, for every Windows, Linux (glibc and musl)
+and macOS RID listed in `ToolPackageRuntimeIdentifiers` in `Abox.csproj`. Each is
+framework-dependent and compiled ReadyToRun. A portable `rwest-agentic-box.any`
+package without ReadyToRun serves every other platform. `dotnet tool install` picks the
+package that matches the host; this needs the .NET 10 SDK or newer. The tool runs on
+.NET 10, or rolls forward to the lowest newer major runtime when 10 is not installed
+(`RollForward=Major`).
+
+### Publishing the tool package
+
+Publishing is manual for now. From the repository root, with a JFrog identity token:
+
+```powershell
+$env:ABOX_JFROG_USER = '<user>'
+$env:ABOX_JFROG_TOKEN = '<identity token>'
+./publish-abox.ps1            # add -DryRun to pack without pushing
+```
+
+The script shows the latest stable version on the push feed
+`mtiae-agentic-box-local` on `rwest.jfrog.io` and asks whether to bump the patch or the
+minor version. It warns about uncommitted changes in `abox-cli` and asks before
+continuing, runs the test suites (`-SkipTests` skips them), packs into the ignored
+`artifacts/abox/<version>/` and pushes the RID packages before the pointer package. The
+push feed is not the feed users install from; that pull feed is not defined yet.
+
 ## Local sandbox builds
 
 Sandbox commands need `sbx` 0.51.0 or later on `PATH`, healthy and signed in.
