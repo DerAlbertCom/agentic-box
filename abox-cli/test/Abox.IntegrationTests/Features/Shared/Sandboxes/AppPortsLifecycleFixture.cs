@@ -158,13 +158,7 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
     public Task<int> Invoke(params string[] args) => _cli.Invoke(args);
 
     public Task<int> Create(bool local, params string[] args) =>
-        Invoke([
-            "create",
-            "--squad",
-            "ac",
-            .. local ? new[] { "--local", "--root", Root.Path } : [],
-            .. args,
-        ]);
+        Invoke(["create", "--squad", "ac", .. local ? new[] { "--local" } : [], .. args]);
 
     public void Dispose() => _cli.Dispose();
 }

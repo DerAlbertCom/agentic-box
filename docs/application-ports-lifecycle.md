@@ -10,8 +10,7 @@ global setting or app-source edit is required. Apps themselves are not started.
 1. The command loads and validates the resolved folder's `abox.yaml` and `abox.user.yaml`
    once. The
    immutable snapshot, including absence, selects squad, user secrets and
-   `portOffset`; an absent offset is **10000**. `--root` selects local team sources,
-   not the folder to scan. Lifecycle commands add no `--offset` option.
+   `portOffset`; an absent offset is **10000**. Lifecycle commands add no `--offset` option.
 2. Before runtime mutations, prepare all selected host user secrets and statically
    discover/validate the complete .NET/Angular port plan with its explicit offset.
    Malformed inputs and out-of-range mapped ports cannot remove an existing sandbox,

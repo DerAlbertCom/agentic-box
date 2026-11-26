@@ -296,12 +296,12 @@ public sealed class SandboxCreatorTests
     }
 
     [Fact]
-    public async Task TheOnlySquadOfTheTeamIsUsedWithoutAsking()
+    public async Task LocalCreateWithoutASquadAsksForNoneAndUsesNoTeamSources()
     {
         // Arrange
         SaveBuild();
         var request = new SandboxCreationRequest(
-            new SquadResolver.ResolvedTeam("sample", "teams/sample", ["ac"]),
+            new SquadResolver.ResolvedTeam("sample", string.Empty, []),
             null,
             Root.Path,
             "latest",
@@ -310,36 +310,13 @@ public sealed class SandboxCreatorTests
         );
 
         // Act
-        var exitCode = await Service.CreateAsync(request, CancellationToken.None);
+        var action = () => Service.CreateAsync(request, CancellationToken.None);
 
         // Assert
-        exitCode.Should().Be(0);
+        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
+            "Local create requires --squad*"
+        );
         Console.AllText.Should().NotContain("Which squad");
-        Records.Load(SandboxName.For(Root.Path))!.Squad.Should().Be("ac");
-    }
-
-    [Fact]
-    public async Task TheSquadIsAskedForWhenTheTeamHasMoreThanOne()
-    {
-        // Arrange
-        SaveBuild();
-        Console.Picks.Add(0);
-        var request = new SandboxCreationRequest(
-            new SquadResolver.ResolvedTeam("sample", "teams/sample", ["ac", "bd"]),
-            null,
-            Root.Path,
-            "latest",
-            FolderConfig: null,
-            Local: true
-        );
-
-        // Act
-        var exitCode = await Service.CreateAsync(request, CancellationToken.None);
-
-        // Assert
-        exitCode.Should().Be(0);
-        Console.AllText.Should().Contain("Which squad of the team 'sample'");
-        Records.Load(SandboxName.For(Root.Path))!.Squad.Should().Be("ac");
     }
 
     [Fact]

@@ -30,7 +30,6 @@ internal sealed record RunRequest(
 internal sealed class RunFlow(
     AboxConfig config,
     LauncherRegistry launchers,
-    SquadResolver resolver,
     BuildStore store,
     SandboxRecordStore records,
     SandboxCreator create,
@@ -190,14 +189,9 @@ internal sealed class RunFlow(
         }
 
         folderConfig?.EnsureSandboxSquad(record.Squad);
-        var team = resolver.ResolveTeam(
-            string.IsNullOrWhiteSpace(manifest.RootDirectory) ? location : manifest.RootDirectory,
-            record.Team
-        );
-
         return await create.CreateAsync(
                 new SandboxCreationRequest(
-                    team,
+                    new SquadResolver.ResolvedTeam(record.Team, string.Empty, []),
                     record.Squad,
                     location,
                     record.Tag,

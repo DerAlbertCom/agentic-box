@@ -108,7 +108,7 @@ public sealed class PublishedSquadSourceMcpTests
             lifecycle,
             mcp,
             Console,
-            new LocalSquadSource(store, images, Console),
+            new LocalSquadSource(store, images),
             Remote(config, Substitute.For<IKitSourceTrust>()),
             new UserSecretsCopy(
                 config,

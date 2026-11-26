@@ -170,7 +170,7 @@ public sealed class RunFlowTeamTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task CreateHintsNeverBorrowAnotherTeamsBuildOrSourceRoot(bool hasOwnedBuild)
+    public async Task CreateHintsNeverBorrowAnotherTeamsBuild(bool hasOwnedBuild)
     {
         // Arrange
         using var other = new TempDirectory();
@@ -216,8 +216,8 @@ public sealed class RunFlowTeamTests
             .Contain("--team sample --squad ac --tag latest")
             .And.NotContain(other.Path);
         if (hasOwnedBuild)
-            Console.AllText.Should().Contain($"--local --root \"{Root.Path}\"");
+            Console.AllText.Should().Contain("--tag latest --local --location");
         else
-            Console.AllText.Should().NotContain("--local").And.NotContain("--root");
+            Console.AllText.Should().NotContain("--local");
     }
 }

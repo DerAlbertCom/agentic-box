@@ -50,16 +50,14 @@ abox run --location <folder>                 # open the sandbox of the folder
   manifests remain usable only when their explicit ownership matches the selected
   team; otherwise rebuild. Old artifacts are not automatically migrated or removed.
 - `create` names the sandbox after the folder it works on and asks before it replaces
-  an existing one. Remote create requires `--squad`; only `--local` asks which squad
-  of the team to use when it is omitted, and uses the only one without asking.
+  an existing one. It requires `--squad` (or `squad` in the folder configuration).
   `--tag` uses another tag than `latest`. By default it pulls the published set from
   the user's `pullRepository` (`mtiae-docker-release` by default), with state and MCP
   settings from its bundled `squad.json`; no local sources or build metadata are
   needed. `--local` uses the prebuilt local workload and its runtime kits with
   `--pull never`, and reads state and MCP settings from the local build manifest.
-  Local team discovery starts at the sandbox location and searches its parents;
-  `--root <dir>` selects a separate source project.
-  `abox create --team sample --local --location <folder>` again replaces the sandbox.
+  Neither needs team sources: only `build` and `publish` read them.
+  `abox create --team sample --squad ac --local --location <folder>` again replaces the sandbox.
 - `secrets` works on the sandbox of the folder, like `run`: it reads the services the
   kits of the sandbox ask for and the squad's `secrets` declarations from inside the
   sandbox, asks for the values and stores them on the host. It needs no team sources,
@@ -76,9 +74,8 @@ an explicit team or a default, these commands report the same missing-team error
 ### Finding sources from nested folders
 
 `build` and `publish` search for the selected team starting in the current
-directory and continuing through its parents. Local `create` starts at its resolved
-`--location`/`defaultLocation` instead. For each command, `--root <dir>` overrides
-that start directory (`create` requires `--local` with it). Relative roots are
+directory and continuing through its parents. `--root <dir>` overrides that start
+directory. `create` reads no team sources, so it has no `--root`. Relative roots are
 resolved against the invocation directory before searching parents, just like their
 absolute equivalents; a root need not itself contain the teams folder.
 
@@ -88,14 +85,12 @@ location. `teamsDirectory` (default `teams`) and `kitsDirectory` (default `kits`
 select the configured directories within that owning project, including nested
 paths such as `config/teams` and `shared/kits`. The workload beside the root
 configuration still wins over a shared workload. Personal configuration additions
-use the selected project's kits too. Builds record the owning project root so a
-later local replacement can find the same sources.
+use the selected project's kits too.
 
 For example, from `project/src/app`, with sources under `project/teams` and
 `project/kits`, `abox build --team sample` and `abox publish --team sample` use the
-same project sources as when run from `project`. `abox create --local --team sample --squad ac --location .`
-selects the same team's local build. A separate workspace can use
-`abox create --local --team sample --squad ac --location <workspace> --root <project>`.
+same project sources as when run from `project`. `abox create --local --team sample --squad ac --location <workspace>`
+then uses that local build from any workspace.
 
 ## The squad: `.abox`
 

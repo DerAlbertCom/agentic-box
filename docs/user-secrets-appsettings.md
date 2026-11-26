@@ -32,8 +32,7 @@ modified. Settings need not be under `ConnectionStrings`.
 ## Bounded discovery, not application startup
 
 - Search recursively only beneath the resolved folder containing the selected
-  folder configuration (`--location`, `defaultLocation`, then the current folder). The team
-  sources selected with `--root` are not the workspace for this search.
+  folder configuration (`--location`, `defaultLocation`, then the current folder).
 - Exclude directories named `.git`, `bin`, `obj` or `node_modules`
   (case-insensitive) anywhere **beneath** the selected workspace root, plus
   `nCrunchTemp_*.csproj` artifacts. Projects beneath `node_modules` are not

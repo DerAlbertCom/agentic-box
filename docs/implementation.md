@@ -323,20 +323,18 @@ not use location fallback. Location-based ports (#43) also uses this resolver an
 retains the actual selected identity. Public stop/delete commands are not included.
 See [verification and red evidence](verification/legacy-sandbox-compatibility.md).
 
-### `abox create --team <name> [--squad <name>] [--location <path>] [--root <dir>] [--tag <tag>]
+### `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>]
 [--local] [--yes]`
 
 1. Takes the team from `--team` or `defaultTeam`. Reads runtime-only `abox.yaml` and
    `abox.user.yaml` from the sandbox location: its optional `squad` fills an omitted `--squad`,
-   while a case-insensitive conflict fails before preparation/replacement. Remote
-   create requires a squad from one of those sources and never resolves local
-   team folders; it works without a source tree, local manifest or build. Only
-   `--local` resolves the team like `build` and asks for an otherwise omitted squad
-   (or uses its only squad).
+   while a case-insensitive conflict fails before preparation/replacement. Create
+   requires a squad from one of those sources and never resolves team folders:
+   remote create works without a source tree, local manifest or build, and
+   `--local` needs only the local build of `abox build`. Team sources are read
+   only by `build` and `publish`.
    The sandbox location is `--location`, then `defaultLocation`, then the current
-   folder. Local team discovery starts there and searches parent folders; `--root`
-    overrides that starting directory when the sources live in another project.
-    `--root` requires `--local`; remote create rejects it rather than ignoring it.
+   folder.
 2. Prepares all selected host user secrets and checks original selected values
    against the global deny list before any destructive replacement, without
    sandbox destination/policy access. Missing folder configuration skips this
@@ -441,10 +439,10 @@ The same user configuration also accepts:
 - `teamsDirectory`: the project's teams directory, `teams` by default.
 - `kitsDirectory`: the kits directory relative to the project root, `kits` by default.
 
-Source discovery searches the start directory and its parents. `build`, `publish`
-and `secrets` start at the current directory; local `create` starts at its resolved
-location. An explicit `--root` overrides that start (local create only), with
-relative paths made absolute before parent search. The discovered team carries
+Source discovery searches the start directory and its parents. `build` and
+`publish` start at the current directory. An explicit `--root` overrides that
+start, with relative paths made absolute before parent search. `create` and `run`
+read no team sources. The discovered team carries
 its owning project root into local kit/shared-workload lookup and build metadata;
 nested invocation directories never become accidental kit roots. Configured nested
 teams/kits directories, own-team-first base lookup, cross-team ambiguity checks
@@ -509,7 +507,7 @@ published tag.
 2. Checks that the folder has a sandbox. Without one, the command prints the
    `abox create` command to run, including `--team`, `--squad` and `--tag` from its
    sandbox record, build metadata or configured default team when available. Local
-   records retain `--local` and their build's `--root`; unknown team/squad names are marked `<name>` placeholders
+   records retain `--local`; unknown team/squad names are marked `<name>` placeholders
    to replace. The same complete hint is used when launcher programs are missing.
 3. Ordinary run can open the existing sandbox even with a different or unknown
    recorded squad; it copies no secrets and changes no squad. When replacement is
@@ -518,9 +516,8 @@ published tag.
 4. For a locally created sandbox, offers to replace it when the build of its recorded
    team/squad/tag is newer than the one the
    sandbox was made of. abox knows the squad of a sandbox because it keeps a record of
-   the sandboxes it created, in `<state dir>/sandboxes/`. Replacement stays local,
-   resolving team sources from the newer build's recorded root (or the sandbox
-   location for legacy metadata), so a separate `create --root` project stays usable.
+   the sandboxes it created, in `<state dir>/sandboxes/`. Replacement stays local
+   and uses only the newer build, without reading team sources.
    Accepted replacement uses `SandboxCreator`, including shared user-secret
     preparation/copying and app-port/HTTPS setup. Failed required setup prevents launch. Ordinary run or
     declining the newer build never reads selected host stores or resyncs secrets.

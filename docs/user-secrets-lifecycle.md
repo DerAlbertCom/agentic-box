@@ -3,7 +3,7 @@
 The [folder configuration](cli-reference.md#folder-configuration) (`abox.yaml`, overridden
 by an optional git-ignored `abox.user.yaml`) is runtime-only configuration in the
 **resolved sandbox folder** (`--location`, then `defaultLocation`, then the current
-directory), not the local team source selected with `--root`:
+directory), not the team sources:
 
 ```yaml
 squad: ac

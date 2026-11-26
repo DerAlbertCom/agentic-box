@@ -73,7 +73,7 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
     public string Store(string id, string json) => _cli.Store(id, json);
 
     public Task<int> Create(bool local = false, params string[] args) =>
-        _cli.Invoke(["create", .. local ? new[] { "--local", "--root", Root.Path } : [], .. args]);
+        _cli.Invoke(["create", .. local ? new[] { "--local" } : [], .. args]);
 
     public void Existing()
     {

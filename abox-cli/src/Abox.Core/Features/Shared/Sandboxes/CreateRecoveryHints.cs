@@ -9,7 +9,6 @@ namespace Abox.Features.Shared.Sandboxes;
 /// <summary>Resolves recovery provenance without writing diagnostics while rendering a command.</summary>
 internal sealed class CreateRecoveryHints(
     AboxConfig config,
-    SquadResolver resolver,
     BuildStore store,
     SandboxRecordStore records
 )
@@ -25,12 +24,6 @@ internal sealed class CreateRecoveryHints(
         ImageName.TryParseTeam(build.Manifest?.Reference, tag, out var buildTeam);
         team ??= buildTeam;
         team ??= config.DefaultTeam;
-        if (squad is null && team is not null)
-        {
-            var discovered = DiscoverTeam(location, team);
-            team = discovered?.Name ?? team;
-            squad = discovered?.Squads.Count == 1 ? discovered.Squads[0] : null;
-        }
 
         var local =
             buildTeam is not null && buildTeam.Equals(team, StringComparison.OrdinalIgnoreCase);
@@ -61,19 +54,6 @@ internal sealed class CreateRecoveryHints(
         }
     }
 
-    private SquadResolver.ResolvedTeam? DiscoverTeam(string location, string team)
-    {
-        try
-        {
-            return resolver.ResolveTeam(location, team);
-        }
-        catch (AboxException)
-        {
-            // Discovery is optional: remote creation does not require local team sources.
-            return null;
-        }
-    }
-
     internal static string Render(
         string? team,
         string? squad,
@@ -85,10 +65,7 @@ internal sealed class CreateRecoveryHints(
         var placeholders =
             team is null || squad is null ? " (replace <name> placeholders)" : string.Empty;
         var local = localBuild is not null ? " --local" : string.Empty;
-        var root = !string.IsNullOrWhiteSpace(localBuild?.RootDirectory)
-            ? $" --root \"{localBuild.RootDirectory}\""
-            : string.Empty;
-        return $"abox create --team {team ?? "<name>"} --squad {squad ?? "<name>"} --tag {tag}{local}{root} --location \"{location}\"{placeholders}";
+        return $"abox create --team {team ?? "<name>"} --squad {squad ?? "<name>"} --tag {tag}{local} --location \"{location}\"{placeholders}";
     }
 
     private sealed record LocalHintBuild(BuildManifest? Manifest, string? Diagnostic);

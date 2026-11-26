@@ -23,7 +23,7 @@ internal static class SandboxFactory
         AboxConfig config,
         BuildStore store,
         SandboxRecordStore records
-    ) => new(config, new SquadResolver(config, new YamlDotNetParser()), store, records);
+    ) => new(config, store, records);
 
     public static AppPorts Ports(IApplicationPortPublisher publisher, IConsole console) =>
         new(publisher, console, Https(Exec(), console));

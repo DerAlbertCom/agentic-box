@@ -174,7 +174,8 @@ public sealed class RunRecoveryHintTests
         if (storage == "owned-legacy")
             fixture
                 .Cli.Console.AllText.Should()
-                .Contain("--team owned --squad ac --tag release --local --root \"legacy sources\"");
+                .Contain("--team owned --squad ac --tag release --local --location")
+                .And.NotContain("legacy sources");
         else
             fixture
                 .Cli.Console.AllText.Should()
@@ -186,21 +187,12 @@ public sealed class RunRecoveryHintTests
     [Theory]
     [InlineData("absent")]
     [InlineData("single")]
-    [InlineData("multiple")]
-    [InlineData("invalid")]
-    public async Task OptionalLocalDiscoveryUsesOnlyAnUnambiguousSquadWithoutChangingDefaults(
-        string sources
-    )
+    public async Task TheCreateHintNeverReadsTeamSourcesForTheSquad(string sources)
     {
         // Arrange
         using var fixture = new HintFixture();
-        if (sources != "absent")
-            fixture.Cli.Root.File(
-                "teams/default-team/ac.abox",
-                sources == "invalid" ? "unknown: value" : "workload: sample"
-            );
-        if (sources == "multiple")
-            fixture.Cli.Root.File("teams/default-team/other.abox", "workload: sample");
+        if (sources == "single")
+            fixture.Cli.Root.File("teams/default-team/ac.abox", "workload: sample");
 
         // Act
         var exitCode = await fixture.Run(false);
@@ -209,11 +201,7 @@ public sealed class RunRecoveryHintTests
         exitCode.Should().Be(1);
         fixture
             .Cli.Console.AllText.Should()
-            .Contain(
-                sources == "single"
-                    ? "--team default-team --squad ac --tag default-tag"
-                    : "--team default-team --squad <name> --tag default-tag"
-            );
+            .Contain("--team default-team --squad <name> --tag default-tag");
         fixture.Cli.Console.AllText.Should().NotContain("--local").And.NotContain("--root");
     }
 
@@ -258,9 +246,7 @@ public sealed class RunRecoveryHintTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task FolderSquadWinsWhileTheRecordKeepsItsTeamTagAndOwnedSourceRoot(
-        bool missingProgram
-    )
+    public async Task FolderSquadWinsWhileTheRecordKeepsItsTeamAndTag(bool missingProgram)
     {
         // Arrange
         using var fixture = new HintFixture();
@@ -293,8 +279,9 @@ public sealed class RunRecoveryHintTests
         fixture
             .Cli.Console.AllText.Should()
             .Contain(
-                $"abox create --team recorded --squad selected --tag release --local --root \"{sourceRoot}\" --location \"{fixture.Cli.Location}\""
-            );
+                $"abox create --team recorded --squad selected --tag release --local --location \"{fixture.Cli.Location}\""
+            )
+            .And.NotContain(sourceRoot);
         await fixture
             .Cli.Lifecycle.DidNotReceive()
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
