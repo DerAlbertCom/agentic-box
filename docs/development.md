@@ -105,7 +105,7 @@ no flat container, so the script lists versions through the registration resourc
 
 ## Local sandbox builds
 
-Sandbox commands need `sbx` 0.51.0 or later on `PATH`, healthy and signed in.
+Sandbox commands need `sbx` 0.54.0 or later on `PATH`, healthy and signed in.
 Builds and all creation need host Docker with Buildx and a running
 engine. Local builds use the current Docker context's **docker-driver** builder,
 regardless of a separately selected `docker-container` or remote publishing builder.

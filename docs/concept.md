@@ -63,7 +63,7 @@ hidden `exec` and `pipe` entry points runs these checks before sandbox work.
 Docker/Buildx instead and does not require sbx. `abox` never installs anything itself.
 
 1. **Installed:** `sbx` must be on `PATH` (`sbx.exe` on Windows). If not, print the install steps for the current OS (below) and exit with an error.
-2. **Version:** `sbx version --json` must be 0.51.0 or later. An older version gets an upgrade hint.
+2. **Version:** `sbx version --json` must be 0.54.0 or later. An older version gets an upgrade hint.
 3. **Health and sign-in:** abox runs `sbx diagnose --json` (about 0.5 s here). A failing check stops the command and prints its `hint`. If the `Authentication` check fails, abox starts the browser sign-in and checks again.
 
 Install steps, from https://docs.docker.com/ai/sandboxes/install/. sbx needs neither Docker Desktop nor Docker Engine.

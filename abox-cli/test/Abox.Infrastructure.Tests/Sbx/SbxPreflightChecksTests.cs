@@ -33,9 +33,9 @@ public sealed class SbxPreflightChecksTests
     }
 
     [Theory]
-    [InlineData("v0.51.0", true)]
-    [InlineData("0.52.1", true)]
-    [InlineData("v0.50.9", false)]
+    [InlineData("v0.54.0", true)]
+    [InlineData("0.55.1", true)]
+    [InlineData("v0.53.9", false)]
     public async Task TheVersionIsReadFromTheJsonOutputAndComparedWithTheMinimum(
         string version,
         bool supported
@@ -55,7 +55,7 @@ public sealed class SbxPreflightChecksTests
                       },
                       "server": {
                         "state": "running",
-                        "version": "v0.51.0",
+                        "version": "v0.54.0",
                         "revision": "7d55286de0c775148b985ed349f760f1eba06203",
                         "api_version": "0.49.0"
                       }
@@ -70,7 +70,7 @@ public sealed class SbxPreflightChecksTests
 
         // Assert
         result.Installed.Should().Be(Version.Parse(version.TrimStart('v')));
-        result.Minimum.Should().Be(new Version(0, 51, 0));
+        result.Minimum.Should().Be(new Version(0, 54, 0));
         result.Supported.Should().Be(supported);
         await _runner
             .Received(1)

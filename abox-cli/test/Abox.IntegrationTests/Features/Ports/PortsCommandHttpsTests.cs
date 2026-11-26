@@ -157,7 +157,7 @@ public sealed class PortsCommandHttpsTests
                     var arguments = call.Arg<ProcessRequest>().Arguments;
                     return arguments[0] switch
                     {
-                        "version" => Result(0, """{"client":{"version":"0.51.0"}}"""),
+                        "version" => Result(0, """{"client":{"version":"0.54.0"}}"""),
                         "diagnose" => Result(0, """{"checks":[]}"""),
                         "ls" => Result(0, $$"""[{"name":"{{Fixture.Name}}","status":"running"}]"""),
                         "ports" when arguments.Contains("--publish") => Publish(arguments),

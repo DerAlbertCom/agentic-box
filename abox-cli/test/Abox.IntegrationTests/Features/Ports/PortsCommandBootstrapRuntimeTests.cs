@@ -32,7 +32,7 @@ public sealed class PortsCommandBootstrapRuntimeTests
                         0,
                         request.Arguments[0] switch
                         {
-                            "version" => """{"client":{"version":"0.51.0"}}""",
+                            "version" => """{"client":{"version":"0.54.0"}}""",
                             "diagnose" => """{"checks":[]}""",
                             "ls" => $$"""[{"name":"{{fixture.Name}}","status":"running"}]""",
                             _ => throw new InvalidOperationException(

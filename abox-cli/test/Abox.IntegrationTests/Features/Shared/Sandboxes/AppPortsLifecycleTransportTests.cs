@@ -78,7 +78,7 @@ public sealed class AppPortsLifecycleTransportTests
             var args = request.Arguments;
             var output = args[0] switch
             {
-                "version" => """{"client":{"version":"0.51.0"}}""",
+                "version" => """{"client":{"version":"0.54.0"}}""",
                 "diagnose" => """{"checks":[]}""",
                 "create" => Created(),
                 "ls" => _created ? $$"""[{"name":"{{_fixture.Name}}","status":"stopped"}]""" : "[]",

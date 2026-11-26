@@ -215,7 +215,7 @@ public sealed class PruneCommandTests
                 requests.Add(request);
                 return request.Arguments[0] switch
                 {
-                    "version" => new ProcessResult(0, """{"client":{"version":"0.51.0"}}""", ""),
+                    "version" => new ProcessResult(0, """{"client":{"version":"0.54.0"}}""", ""),
                     "diagnose" => new ProcessResult(0, """{"checks":[]}""", ""),
                     "ls" => new ProcessResult(
                         0,

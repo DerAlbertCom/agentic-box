@@ -25,7 +25,7 @@ internal static class LegacySandboxInventoryFixture
                     return new ProcessResult(1, "", ""); // Missing physical fixture path: historical fallback.
                 return request.Arguments[0] switch
                 {
-                    "version" => new ProcessResult(0, """{"client":{"version":"0.51.0"}}""", ""),
+                    "version" => new ProcessResult(0, """{"client":{"version":"0.54.0"}}""", ""),
                     "diagnose" => new ProcessResult(0, """{"checks":[]}""", ""),
                     "ls" => inventory(request),
                     _ => new ProcessResult(0, "/legacy/workspace", ""),
