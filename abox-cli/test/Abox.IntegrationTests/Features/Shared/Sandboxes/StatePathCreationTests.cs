@@ -38,7 +38,7 @@ public sealed class StatePathCreationTests : IDisposable
             _lifecycle,
             _mcp,
             _console,
-            new LocalSquadSource(_store, LocalWorkloadFactory.Images(), _console),
+            new LocalSquadSource(_store, LocalWorkloadFactory.Images()),
             new RemoteSquadSource(new AboxConfig(), Substitute.For<IKitSourceTrust>(), _published),
             new UserSecretsCopy(
                 new AboxConfig(),

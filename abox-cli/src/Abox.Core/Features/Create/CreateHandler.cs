@@ -8,15 +8,11 @@ using Abox.Features.Shared.Squads;
 namespace Abox.Features.Create;
 
 /// <summary>
-/// Runs <c>abox create</c>: selects the squad, resolves the team for a local build, runs
-/// preflight, then creates the sandbox.
+/// Runs <c>abox create</c>: selects the squad, runs preflight, then creates the sandbox. A
+/// published set and a local build both carry everything needed, so no team sources are read.
 /// </summary>
-internal sealed class CreateHandler(
-    Preflight preflight,
-    SquadResolver resolver,
-    SandboxCreator create,
-    IConsole console
-) : ICommandHandler<CreateParameters>
+internal sealed class CreateHandler(Preflight preflight, SandboxCreator create, IConsole console)
+    : ICommandHandler<CreateParameters>
 {
     public async Task<int> HandleAsync(
         CreateParameters parameters,
@@ -26,16 +22,14 @@ internal sealed class CreateHandler(
         var location = parameters.Location;
         var folderConfig = await location.FolderConfigurationAsync(cancellationToken);
         var selectedSquad = folderConfig?.SelectSquad(parameters.Squad) ?? parameters.Squad;
-        if (!parameters.Local && string.IsNullOrWhiteSpace(selectedSquad))
+        if (string.IsNullOrWhiteSpace(selectedSquad))
         {
             throw new AboxException(
-                $"Remote create requires --squad <name> or 'squad' in {FolderConfig.FileNames}; published squad discovery is not supported. No local team files are used."
+                $"Create requires --squad <name> or 'squad' in {FolderConfig.FileNames}; squad discovery is not supported. No team sources are used."
             );
         }
 
-        var resolved = parameters.Local
-            ? resolver.ResolveTeam(parameters.SourceRoot, parameters.Team)
-            : new SquadResolver.ResolvedTeam(parameters.Team, string.Empty, []);
+        var resolved = new SquadResolver.ResolvedTeam(parameters.Team, string.Empty, []);
 
         var request = new SandboxCreationRequest(
             resolved,

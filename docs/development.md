@@ -115,16 +115,15 @@ From the repository root:
 
 ```sh
 abox build --team sample --no-verify
-abox create --team sample --squad ac --local --location "/path/to/project" --root .
+abox create --team sample --squad ac --local --location "/path/to/project"
 abox run --location "/path/to/project"
 ```
 
 If running from source instead of an installed tool, replace `abox` with
 `dotnet run --project abox-cli/src/Abox --`. `--no-verify` skips additional kit
 inspection, **not** the image build; recipe-based local kits require it on sbx
-0.51.0. `--root` locates team sources separately from the sandbox location and is
-accepted by create **only with `--local`**. Installing abox does not install these
-team/kit sources.
+0.51.0. Only `build` and `publish` read the team/kit sources; `create --local` uses
+the local build. Installing abox does not install these team/kit sources.
 
 Local creation consumes a prebuilt workload image and thin runtime kit, not a
 fresh workload installation. It still runs the thin sbx wrapper build and may

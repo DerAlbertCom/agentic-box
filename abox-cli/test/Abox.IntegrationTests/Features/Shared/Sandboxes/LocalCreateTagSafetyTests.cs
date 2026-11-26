@@ -41,8 +41,7 @@ public sealed class LocalCreateTagSafetyTests
         var published = Substitute.For<IPublishedSquadSource>();
         var source = new LocalSquadSource(
             new BuildStore(paths),
-            LocalWorkloadFactory.Images(programs, runner, console),
-            console
+            LocalWorkloadFactory.Images(programs, runner, console)
         );
         var creator = TestServiceGraphs.Creator(
             new SandboxRecordStore(paths),

@@ -65,7 +65,7 @@ public sealed class CreateTagCommandTests
             "--yes",
         };
         if (local)
-            arguments.AddRange(["--local", "--root", root.Path]);
+            arguments.Add("--local");
         if (!configuredTag)
             arguments.AddRange(["--tag", tag]);
 

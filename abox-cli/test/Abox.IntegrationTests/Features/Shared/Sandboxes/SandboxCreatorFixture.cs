@@ -51,7 +51,7 @@ internal sealed class SandboxCreatorFixture
             Lifecycle,
             Mcp,
             Console,
-            new LocalSquadSource(Store, images ?? LocalWorkloadFactory.Images(), Console),
+            new LocalSquadSource(Store, images ?? LocalWorkloadFactory.Images()),
             remote ?? new RemoteSquadSource(new AboxConfig(), KitSources, Published),
             new UserSecretsCopy(
                 new AboxConfig(),

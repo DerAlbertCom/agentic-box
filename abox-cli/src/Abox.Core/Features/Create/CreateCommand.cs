@@ -18,7 +18,7 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
     private readonly Option<string> _squad = new("--squad")
     {
         Description =
-            $"The squad the sandbox is created from. Defaults to the folder configuration ({FolderConfig.FileNames}); a conflicting --squad is rejected. Without either, --local can ask which squad to use.",
+            $"The squad the sandbox is created from. Defaults to the folder configuration ({FolderConfig.FileNames}); a conflicting --squad is rejected. One of them is required.",
     };
     private readonly LocationOption _location = new();
     private readonly Option<string> _tag = new("--tag")
@@ -26,15 +26,10 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
         Description =
             "The tag of the published set or local build. Defaults to the tag of the user configuration.",
     };
-    private readonly Option<string> _root = new("--root")
-    {
-        Description =
-            "The directory to start searching for team sources with --local. Defaults to the resolved location.",
-    };
     private readonly Option<bool> _local = new("--local")
     {
         Description =
-            "Use the prebuilt local workload and v3 kits, without pulling a published squad set.",
+            "Use the local build of 'abox build' instead of pulling a published squad set. No team sources are needed.",
     };
     private readonly Option<int?> _memory = new("--memory")
     {
@@ -62,7 +57,6 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
         Options.Add(_squad);
         Options.Add(_location);
         Options.Add(_tag);
-        Options.Add(_root);
         Options.Add(_local);
         Options.Add(_memory);
         Options.Add(_cpus);
@@ -75,15 +69,6 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
         CancellationToken cancellationToken
     )
     {
-        var local = parseResult.GetValue(_local);
-        var sourceRoot = parseResult.GetValue(_root);
-        if (!local && sourceRoot is not null)
-        {
-            throw new AboxException(
-                "--root requires --local; remote create does not use local team sources."
-            );
-        }
-
         var memory = AtLeastOne(parseResult.GetValue(_memory), "--memory");
         var cpus = AtLeastOne(parseResult.GetValue(_cpus), "--cpus");
         var tag = defaults.Tag(parseResult.GetValue(_tag));
@@ -98,8 +83,7 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
             team,
             parseResult.GetValue(_squad),
             tag,
-            Path.GetFullPath(sourceRoot ?? location.FullPath),
-            local,
+            parseResult.GetValue(_local),
             parseResult.GetValue(_assumeYes),
             memory,
             cpus

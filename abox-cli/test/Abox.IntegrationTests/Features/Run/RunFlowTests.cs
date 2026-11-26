@@ -176,7 +176,6 @@ public sealed class RunFlowTests
         var service = new RunFlow(
             config,
             new LauncherRegistry([new ShellLauncher()]),
-            new SquadResolver(config, new YamlDotNetParser()),
             Store,
             Records,
             Create,
@@ -206,7 +205,7 @@ public sealed class RunFlowTests
     }
 
     [Fact]
-    public async Task TheCreateHintCanUseTheDefaultTeamsOnlySquad()
+    public async Task TheCreateHintDoesNotGuessTheSquadFromTeamSources()
     {
         // Arrange
         Root.File("teams/sample/ac.abox", "workload: sample\n");
@@ -221,8 +220,8 @@ public sealed class RunFlowTests
         exitCode.Should().Be(1);
         Console
             .AllText.Should()
-            .Contain("--team sample --squad ac --tag latest")
-            .And.NotContain("<name>");
+            .Contain("--team sample --squad <name> --tag latest")
+            .And.Contain("replace <name> placeholders");
     }
 
     [Fact]
@@ -254,8 +253,10 @@ public sealed class RunFlowTests
 
         // Assert
         exitCode.Should().Be(1);
-        Console.AllText.Should().Contain("--team other-team --squad ac --tag release --local");
-        Console.AllText.Should().Contain($"--root \"{Root.Path}\"");
+        Console
+            .AllText.Should()
+            .Contain("--team other-team --squad ac --tag release --local --location")
+            .And.NotContain("--root");
     }
 
     [Fact]
@@ -308,7 +309,6 @@ public sealed class RunFlowTests
         var service = new RunFlow(
             new AboxConfig(),
             new LauncherRegistry([new ShellLauncher()]),
-            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             Store,
             Records,
             Create,

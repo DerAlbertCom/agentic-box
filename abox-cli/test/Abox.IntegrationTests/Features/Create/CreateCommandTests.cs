@@ -72,7 +72,7 @@ public sealed class CreateCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RemoteCreateRejectsRootBeforeAnySbxCalls()
+    public async Task CreateHasNoRootOptionBecauseItReadsNoTeamSources()
     {
         // Arrange
         var command = Command("");
@@ -80,12 +80,11 @@ public sealed class CreateCommandTests : IDisposable
         // Act
         var exitCode = await InvokeAsync(
             command,
-            ["--team", "sample", "--squad", "ac", "--root", _root.Path]
+            ["--local", "--squad", "ac", "--tag", "release", "--root", _root.Path]
         );
 
         // Assert
-        exitCode.Should().Be(1);
-        _console.AllText.Should().Contain("--root requires --local");
+        exitCode.Should().NotBe(0);
         _lifecycle.ReceivedCalls().Should().BeEmpty();
         _kitSources.ReceivedCalls().Should().BeEmpty();
     }
@@ -111,50 +110,43 @@ public sealed class CreateCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task LocalCreateStillRequiresTheLocalTeamSources()
+    public async Task LocalCreateFromAnArbitraryDirectoryDoesNotNeedTeams()
     {
         // Arrange
         var command = Command("");
         Directory.Delete(Path.Combine(_root.Path, "teams"), recursive: true);
 
         // Act
-        var exitCode = await InvokeAsync(command, ["--team", "mti-ca", "--squad", "ac", "--local"]);
+        var exitCode = await InvokeAsync(command, ["--local", "--squad", "ac", "--tag", "release"]);
 
         // Assert
-        exitCode.Should().Be(1);
-        _console.AllText.Should().Contain("There is no team 'mti-ca'");
-        await _lifecycle
-            .DidNotReceive()
-            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
-    }
-
-    [Theory]
-    [InlineData("", "mtiae-docker-release")]
-    [InlineData("pullRepository: team-docker-release", "team-docker-release")]
-    public async Task CreationPullsTheConfiguredRepositoryAndSelectedTag(
-        string yaml,
-        string repository
-    )
-    {
-        // Arrange
-        var command = Command(yaml);
-
-        // Act
-        var exitCode = await InvokeAsync(command, ["--squad", "ac", "--tag", "release"]);
-
-        // Assert
+        _console.AllText.Should().NotContain("There is no team");
         exitCode.Should().Be(0);
         await _lifecycle
             .Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource
-                        == $"rwest.jfrog.io/{repository}/agentic-box-rwest-sample/ac@{PublishedSquadFactory.Digest}"
-                    && request.PullPolicy == PullPolicy.Always
+                    request.KitSource == Path.Combine(_root.Path, "runtime", "workload")
                 ),
                 Arg.Any<CancellationToken>()
             );
-        _console.AllText.Should().NotContain("this version of abox uses");
+    }
+
+    [Fact]
+    public async Task LocalCreateWithoutSquadRequiresItRatherThanLookingForLocalTeams()
+    {
+        // Arrange
+        var command = Command("");
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--local", "--tag", "release"]);
+
+        // Assert
+        exitCode.Should().Be(1);
+        _console.AllText.Should().Contain("requires --squad").And.NotContain("Which squad");
+        await _lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -164,7 +156,7 @@ public sealed class CreateCommandTests : IDisposable
         var command = Command("pullRepository: team-docker-release");
 
         // Act
-        var exitCode = await InvokeAsync(command, ["--local", "--tag", "release"]);
+        var exitCode = await InvokeAsync(command, ["--local", "--squad", "ac", "--tag", "release"]);
 
         // Assert
         exitCode.Should().Be(0);
@@ -187,58 +179,6 @@ public sealed class CreateCommandTests : IDisposable
 
         // Act
         var exitCode = await InvokeAsync(command, ["--local", "--squad", "AC", "--tag", "release"]);
-
-        // Assert
-        exitCode.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task LocalCreateFindsTeamsNextToItsLocation()
-    {
-        // Arrange
-        var command = Command("");
-        using var project = new TempDirectory();
-        project.File("teams/sample/ac.abox", "workload: sample\n");
-        Directory.Delete(Path.Combine(_root.Path, "teams"), recursive: true);
-
-        // Act
-        var exitCode = await InvokeAsync(
-            command,
-            ["--local", "--location", project.Path, "--tag", "release"]
-        );
-
-        // Assert
-        exitCode.Should().Be(0);
-        await _lifecycle
-            .Received(1)
-            .CreateAsync(
-                Arg.Is<SandboxDefinition>(request => request.Location == project.Path),
-                Arg.Any<CancellationToken>()
-            );
-    }
-
-    [Fact]
-    public async Task LocalCreateCanResolveTeamsFromAnExplicitRootOutsideTheLocation()
-    {
-        // Arrange
-        var command = Command("");
-        using var workspace = new TempDirectory();
-
-        // Act
-        var exitCode = await InvokeAsync(
-            command,
-            [
-                "--local",
-                "--squad",
-                "ac",
-                "--tag",
-                "release",
-                "--location",
-                workspace.Path,
-                "--root",
-                _root.Path,
-            ]
-        );
 
         // Assert
         exitCode.Should().Be(0);

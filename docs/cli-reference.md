@@ -12,7 +12,7 @@ and the [authoring guide](authoring.md).
 | `abox build --team <name> [--root <dir>] [--tag <tag>] [--no-verify] [--no-personal]` | Prebuilds reusable local workload images with Docker Buildx and prepares the v3 kits of every squad. No registry writes. |
 | `abox build --team <name> --metadata-only` | Maintainer-only source preparation without image builds. Clears local image selection for this tag; not required for remote create. |
 | `abox publish --team <name> [--root <dir>] [--tag <tag>] [--builder <name>]` | Builds and pushes the local kit sets to `rwest.jfrog.io/<publishRepository>`, configured in each workload. Requires Docker Buildx and host registry sign-in. |
-| `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--root <dir>] [--memory <GB>] [--cpus <n>] [--yes]` | Pulls a self-contained published squad set, or uses a local prebuild with `--local`. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying. Only local create can ask for an otherwise omitted squad; `--root` locates its team sources separately from the sandbox location. `--memory` (whole GB) and `--cpus` size the sandbox; see [sandbox size](#sandbox-size). `--yes` confirms replacement. |
+| `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--memory <GB>] [--cpus <n>] [--yes]` | Pulls a self-contained published squad set, or uses a local prebuild with `--local`; neither reads team sources. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying; it or `--squad` must name the squad. `--memory` (whole GB) and `--cpus` size the sandbox; see [sandbox size](#sandbox-size). `--yes` confirms replacement. |
 | `abox run [<launcher>] [--location <path>] [--terminal-theme <true\|false>] [-- <argv>...]` | Starts a launcher for the sandbox of a folder. The default launcher is a shell. `--terminal-theme` decides for this run whether the sandbox sets the terminal colors from its theme (see [Terminal colors](#terminal-colors)). |
 | `abox prune [--full] [--sbx]` | Removes the template images of sbx that stopped being used. `--full` reaches for everything sbx holds, `--sbx` stops the running sandboxes first. |
 | `abox secrets list\|set\|remove [--location <path>]` | The host secrets the kits of the folder's existing sandbox ask for, read from inside the sandbox; no team sources needed. `set` and `remove` also accept repeatable `--service <name>`; `list` does not. Values are stored globally on the host. |
@@ -23,11 +23,8 @@ Two more entry points exist, and stay out of the help: `abox pipe <sandbox> -- <
 and `abox exec <sandbox> -- <command>`.
 
 `create`, `run`, `secrets`, `user-secrets` and `ports` use `--location`, then the user setting `defaultLocation`,
-then the current folder. For `create --local`, team discovery starts at that location
-and searches its parents, unless `--root <dir>` selects a separate source project.
-For `create`, `--root` requires `--local`; remote create rejects it because no local
-team sources are used.
-`build` and `publish` also accept `--root <dir>` to override where their search for
+then the current folder. `create` reads no team sources, with or without `--local`.
+`build` and `publish` accept `--root <dir>` to override where their search for
 team sources starts.
 
 ## Reaching sandbox apps over HTTP
@@ -319,7 +316,7 @@ this is not a general alias search across all spellings of a folder.
 
 Declare only the intended stores/keys and optionally the creation squad in **the
 sandbox folder's [`abox.yaml` or `abox.user.yaml`](#folder-configuration)** (not a
-squad `.abox` file or the source project selected by `--root`). A `userSecrets` list
+squad `.abox` file or the team sources). A `userSecrets` list
 in `abox.user.yaml` replaces the whole list from `abox.yaml`:
 
 ```yaml

@@ -177,7 +177,8 @@ internal sealed class SandboxCreator(
             new SandboxRecord
             {
                 Team = request.Team.Name,
-                Squad = selection.Identity.Squad,
+                // The build's spelling, whatever case --squad was given in.
+                Squad = manifest.Squad,
                 Tag = request.Tag,
                 BuildCreatedAt = manifest.CreatedAt,
                 CreatedAt = DateTimeOffset.Now,

@@ -27,24 +27,20 @@ internal interface ISquadSource
     Task<PreparedSquad> LoadAsync(SquadSelection selection, CancellationToken cancellationToken);
 }
 
-/// <summary>Uses only validated local build metadata and prebuilt workload images.</summary>
-internal sealed class LocalSquadSource(
-    BuildStore store,
-    LocalWorkloadImages images,
-    IConsole console
-) : ISquadSource
+/// <summary>
+/// Uses only validated local build metadata and prebuilt workload images. Like a published
+/// set, it needs no team sources: only <c>abox build</c> reads them.
+/// </summary>
+internal sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages images) : ISquadSource
 {
     public SquadSelection Resolve(SandboxCreationRequest request)
     {
         RegistryImageName.ValidateTag(request.Tag);
 
-        var squad = request.Squad ?? PickSquad(request.Team);
-        squad =
-            request.Team.Squads.FirstOrDefault(name =>
-                name.Equals(squad, StringComparison.OrdinalIgnoreCase)
-            )
+        var squad =
+            request.Squad
             ?? throw new AboxException(
-                $"There is no squad '{squad}' in team '{request.Team.Name}'."
+                "Local create requires --squad <name>; local squad discovery is not supported."
             );
         return new SquadSelection(new SquadBuildIdentity(request.Team.Name, squad, request.Tag));
     }
@@ -81,19 +77,6 @@ internal sealed class LocalSquadSource(
             PullPolicy: PullPolicy.Never,
             HostImageStore: image.ImageStore
         );
-    }
-
-    private string PickSquad(SquadResolver.ResolvedTeam team)
-    {
-        if (team.Squads.Count == 1)
-            return team.Squads[0];
-        var pick = console.Choose(
-            $"Which squad of the team '{team.Name}' shall the sandbox be made of?",
-            team.Squads
-        );
-        return pick is { } index
-            ? team.Squads[index]
-            : throw new AboxException("No squad is given and none was picked.");
     }
 
     private static Dictionary<string, string> KitArguments(IReadOnlyList<ManifestKit> kits)
