@@ -1,4 +1,5 @@
 # Build output
+artifacts/
 bin/
 !kits/**/files/home/.local/bin/
 !kits/**/files/home/.local/bin/**

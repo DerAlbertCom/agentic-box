@@ -1191,7 +1191,7 @@ After updating the approved repository bundle, rebuild the CLI/tool and workload
 
 ```
 abox-cli/src/       three projects; ADR 0004 records the split and the reference rules
-  Abox/             the host (assembly abox, the rwest-agentic-box tool); references
+  Abox/             the host (assembly abox, the RwestAgenticBox.Cli tool); references
                     Abox.Core and Abox.Infrastructure
     Program.cs      runs the command line: builds the provider with scope validation,
                     opens one scope per process run and invokes the root command from it

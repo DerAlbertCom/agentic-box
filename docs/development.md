@@ -60,15 +60,48 @@ changing your global tools or publishing anything:
 
 ```sh
 dotnet pack abox-cli/src/Abox/Abox.csproj --configuration Release --output abox-cli/src/Abox/bin/packages
-dotnet tool install rwest-agentic-box --source ./abox-cli/src/Abox/bin/packages --tool-path ./abox-cli/src/Abox/bin/tool-test
+dotnet tool install RwestAgenticBox.Cli --source ./abox-cli/src/Abox/bin/packages --tool-path ./abox-cli/src/Abox/bin/tool-test
 ./abox-cli/src/Abox/bin/tool-test/abox --help
-dotnet tool uninstall rwest-agentic-box --tool-path ./abox-cli/src/Abox/bin/tool-test
+dotnet tool uninstall RwestAgenticBox.Cli --tool-path ./abox-cli/src/Abox/bin/tool-test
 ```
 
 `--source` restricts installation to the local package directory. The package and
 test installation are under ignored `bin/` output. To check installation-directory
 independence, also run the installed command by its absolute path with `--help`
 from outside the repository. No sbx daemon is needed for help.
+
+### The tool packages
+
+`dotnet pack` writes one pointer package, `RwestAgenticBox.Cli`, and one package per
+runtime identifier, `RwestAgenticBox.Cli.<rid>`, for every Windows, Linux (glibc and musl)
+and macOS RID listed in `ToolPackageRuntimeIdentifiers` in `Abox.csproj`. Each is
+framework-dependent and compiled ReadyToRun. A portable `RwestAgenticBox.Cli.any`
+package without ReadyToRun serves every other platform. `dotnet tool install` picks the
+package that matches the host; this needs the .NET 10 SDK or newer. The tool runs on
+.NET 10, or rolls forward to the lowest newer major runtime when 10 is not installed
+(`RollForward=Major`).
+
+### Publishing the tool package
+
+Publishing is manual for now. From the repository root, with a JFrog identity token:
+
+```powershell
+$env:JFROG_USER = '<user>'
+$env:JFROG_TOKEN = '<identity token>'
+./publish-abox.ps1            # add -DryRun to pack without pushing
+```
+
+The script shows the latest stable version on the push feed
+`mtiae-agentic-box-local` on `rwest.jfrog.io` and asks whether to bump the patch or the
+minor version. It warns about uncommitted changes in `abox-cli` and asks before
+continuing, runs the test suites (`-SkipTests` skips them), packs into the ignored
+`artifacts/abox/<version>/` and pushes the RID packages before the pointer package.
+
+Users install from the virtual repository `mtiae-cs-nuget-prod`, which lists
+`mtiae-agentic-box-local` first, ahead of the nuget.org remote. It caches metadata for
+up to 10 minutes, so a new version can take that long to appear there. Readers need
+read access to `mtiae-agentic-box-local` as well. Artifactory's v3 service index offers
+no flat container, so the script lists versions through the registration resource.
 
 ## Local sandbox builds
 
