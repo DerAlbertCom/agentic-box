@@ -15,7 +15,7 @@ internal sealed class PublishCommand : AboxCommand<PublishParameters>
     private readonly Option<string> _root = new("--root")
     {
         Description =
-            "The directory to start searching for team sources. Defaults to the current directory.",
+            "The directory to start searching for team sources. Defaults to the current directory when team sources are found from there, otherwise to the sourceRoot of the user configuration.",
     };
     private readonly Option<string> _tag = new("--tag")
     {
@@ -47,7 +47,7 @@ internal sealed class PublishCommand : AboxCommand<PublishParameters>
         return Task.FromResult(
             new PublishParameters(
                 teams,
-                parseResult.GetValue(_root) ?? Directory.GetCurrentDirectory(),
+                defaults.SourceRoot(parseResult.GetValue(_root), teams),
                 defaults.TagWithoutValidation(parseResult.GetValue(_tag)),
                 parseResult.GetValue(_builder)
             )

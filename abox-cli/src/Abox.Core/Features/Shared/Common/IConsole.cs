@@ -22,6 +22,11 @@ public interface IConsole
     int? Choose(string question, IReadOnlyList<string> choices);
 
     /// <summary>
+    /// Asks for one line of text. Returns null when there is nothing to read.
+    /// </summary>
+    string? ReadLine(string prompt);
+
+    /// <summary>
     /// Reads a value the user should not see, for example a secret. Returns null when
     /// there is nothing to read.
     /// </summary>

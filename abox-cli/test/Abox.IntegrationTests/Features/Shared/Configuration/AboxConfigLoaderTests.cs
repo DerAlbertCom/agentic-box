@@ -57,6 +57,28 @@ public sealed class AboxConfigLoaderTests
     }
 
     [Fact]
+    public void ASavedSourceRootIsReadBackWithTheOtherSettings()
+    {
+        // Arrange
+        var paths = AboxPaths.For(
+            Path.Combine(_root.Path, "config"),
+            Path.Combine(_root.Path, "state")
+        );
+        Directory.CreateDirectory(paths.ConfigDirectory);
+        File.WriteAllText(paths.ConfigFile, "defaultTeam: ac\ndefaultTag: dev");
+        var folder = Path.Combine(_root.Path, "it's the repo");
+
+        // Act
+        AboxConfigLoader.SaveSourceRoot(paths, folder);
+        var loaded = AboxConfigLoader.Load(paths, new YamlDotNetParser());
+
+        // Assert
+        loaded.SourceRoot.Should().Be(folder);
+        loaded.DefaultTeam.Should().Be("ac");
+        loaded.DefaultTag.Should().Be("dev");
+    }
+
+    [Fact]
     public void AKeyThatIsNotKnownIsAnError()
     {
         // Arrange

@@ -18,7 +18,7 @@ internal sealed class BuildCommand : AboxCommand<BuildParameters>
     private readonly Option<string> _root = new("--root")
     {
         Description =
-            "The directory to start searching for team sources. Defaults to the current directory.",
+            "The directory to start searching for team sources. Defaults to the current directory when team sources are found from there, otherwise to the sourceRoot of the user configuration.",
     };
     private readonly Option<string> _tag = new("--tag")
     {
@@ -63,7 +63,7 @@ internal sealed class BuildCommand : AboxCommand<BuildParameters>
     {
         var tag = defaults.Tag(parseResult.GetValue(_tag));
         var teams = defaults.Teams(parseResult.GetValue(_teams));
-        var root = Path.GetFullPath(parseResult.GetValue(_root) ?? Directory.GetCurrentDirectory());
+        var root = Path.GetFullPath(defaults.SourceRoot(parseResult.GetValue(_root), teams));
         return Task.FromResult(
             new BuildParameters(
                 teams,

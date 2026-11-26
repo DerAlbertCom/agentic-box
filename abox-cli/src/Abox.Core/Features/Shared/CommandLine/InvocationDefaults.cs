@@ -1,6 +1,7 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.CommandLine;
@@ -13,7 +14,8 @@ namespace Abox.Features.Shared.CommandLine;
 internal sealed class InvocationDefaults(
     Lazy<AboxConfig> configuration,
     IYamlParser parser,
-    TrailingArguments trailing
+    TrailingArguments trailing,
+    Lazy<SourceRootResolver> sourceRoots
 )
 {
     /// <summary>The arguments after the "--".</summary>
@@ -53,6 +55,14 @@ internal sealed class InvocationDefaults(
     /// <summary>Every given team, otherwise the required <c>defaultTeam</c>.</summary>
     public IReadOnlyList<string> Teams(IReadOnlyList<string>? teams) =>
         teams is { Count: > 0 } ? teams : [Team(null)];
+
+    /// <summary>
+    /// The directory to search the sources of the <paramref name="teams"/> from: the given
+    /// root, the current directory when the team sources are found from there, otherwise
+    /// <c>sourceRoot</c>, which an interactive run asks for and saves when it is missing.
+    /// </summary>
+    public string SourceRoot(string? root, IReadOnlyList<string> teams) =>
+        sourceRoots.Value.Resolve(root, Directory.GetCurrentDirectory(), teams);
 
     /// <summary>The given tag, otherwise <c>defaultTag</c>, validated as a registry tag.</summary>
     public string Tag(string? tag)

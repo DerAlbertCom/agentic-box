@@ -18,7 +18,11 @@ internal sealed class SourceProjectFixture : IDisposable
 {
     private readonly CliTestApplication _application;
 
-    public SourceProjectFixture(string teams = "teams", string kits = "kits")
+    public SourceProjectFixture(
+        string teams = "teams",
+        string kits = "kits",
+        bool sourceRootSetting = false
+    )
     {
         ProjectDirectory = Root.CreateDirectory("project");
         NestedDirectory = Path.GetFullPath(Root.CreateDirectory("project/src/app/deep"));
@@ -80,6 +84,7 @@ internal sealed class SourceProjectFixture : IDisposable
             {
                 DefaultTeam = "sample",
                 DefaultTag = "release",
+                SourceRoot = sourceRootSetting ? ProjectDirectory : null,
                 TeamsDirectory = teams,
                 KitsDirectory = kits,
             }
@@ -93,6 +98,7 @@ internal sealed class SourceProjectFixture : IDisposable
     }
 
     public TempDirectory Root { get; } = new();
+    public string ConfigFile => Path.Combine(Root.Path, "user-config", AboxPaths.ConfigFileName);
     public TestConsole Console { get; } = new();
     public IHostPrograms Programs { get; } = Substitute.For<IHostPrograms>();
     public IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
