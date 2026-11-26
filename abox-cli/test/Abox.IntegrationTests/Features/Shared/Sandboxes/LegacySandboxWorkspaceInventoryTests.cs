@@ -76,7 +76,7 @@ public sealed class LegacySandboxWorkspaceInventoryTests
 
         // Assert
         exit.Should().Be(0, cli.Console.AllText);
-        calls.Count(call => call.Arguments[0] == "ls").Should().Be(preferred == "current" ? 1 : 2);
+        calls.Count(call => call.Arguments[0] == "ls").Should().Be(1);
         AssertOnlyLookupOrLaunch(calls, name);
     }
 
@@ -143,23 +143,20 @@ public sealed class LegacySandboxWorkspaceInventoryTests
         // Arrange
         RequireWindowsWorkspaceLookup();
         using var cli = new UserSecretsCliHarness(existingSandbox: false);
-        var listings = 0;
         var calls = UseRealSbx(
             cli,
             _ =>
-                ++listings < 3
-                    ? new ProcessResult(0, "[]", "")
-                    : failure switch
-                    {
-                        "failure" => new ProcessResult(7, "", "inventory unavailable"),
-                        "malformed" => new ProcessResult(0, "{broken", ""),
-                        "invalid-workspaces" => new ProcessResult(
-                            0,
-                            """[{"name":"legacy","workspaces":{}}]""",
-                            ""
-                        ),
-                        _ => throw new OperationCanceledException(),
-                    }
+                failure switch
+                {
+                    "failure" => new ProcessResult(7, "", "inventory unavailable"),
+                    "malformed" => new ProcessResult(0, "{broken", ""),
+                    "invalid-workspaces" => new ProcessResult(
+                        0,
+                        """[{"name":"legacy","workspaces":{}}]""",
+                        ""
+                    ),
+                    _ => throw new OperationCanceledException(),
+                }
         );
 
         // Act
@@ -167,7 +164,7 @@ public sealed class LegacySandboxWorkspaceInventoryTests
 
         // Assert
         exit.Should().Be(expected, cli.Console.AllText);
-        listings.Should().Be(3);
+        calls.Count(call => call.Arguments[0] == "ls").Should().Be(1);
         cli.Console.AllText.Should().NotContain("abox create");
         calls.Should().NotContain(call => call.Arguments[0] == "exec");
     }

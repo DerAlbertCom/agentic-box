@@ -1,11 +1,12 @@
 // The testing entry of sbox: the command home. Import it in tests only, never in a command's
 // source, so nothing of the core is bundled into a command.
-import { afterEach, beforeEach } from "bun:test";
+import { afterEach, beforeEach, setDefaultTimeout } from "bun:test";
 import { existsSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, delimiter, dirname, join } from "node:path";
 import { sbox } from "./sbox";
+import { writeTestTool } from "./testing-tools";
 
 /** Where a command comes from when it is installed into the command home. */
 export type CommandSource =
@@ -60,6 +61,8 @@ class Capture {
 
 /** A temporary home for each test of the calling file, removed after the test. */
 export function useCommandHome(): CommandHome {
+  // Cold native fixture startup can exceed the five-second default on Windows.
+  if (process.platform === "win32") setDefaultTimeout(60_000);
   let home = "";
 
   beforeEach(async () => {
@@ -67,8 +70,8 @@ export function useCommandHome(): CommandHome {
   });
 
   afterEach(async () => {
-    await rm(home, { recursive: true, force: true });
-  });
+    await rm(home, { recursive: true, force: true, maxRetries: 3 });
+  }, process.platform === "win32" ? 60_000 : undefined);
 
   const commandFolder = (name: string) => join(home, ".local/share/sbox/commands", name);
   const stateFolder = (name: string) => join(home, ".local/state/sbox", name);
@@ -109,7 +112,7 @@ export function useCommandHome(): CommandHome {
       const stdout = new Capture(options.tty);
       const stderr = new Capture();
       const code = await sbox(argv, {
-        env: { HOME: home, PATH: `${tools()}:${process.env.PATH ?? ""}`, ...options.env },
+        env: { HOME: home, PATH: [tools(), process.env.PATH ?? ""].join(delimiter), ...options.env },
         stdout,
         stderr,
         stdin: { isTTY: options.tty },
@@ -117,7 +120,7 @@ export function useCommandHome(): CommandHome {
       return { code, stdout: stdout.text, stderr: stderr.text };
     },
 
-    tool: (name, script) => writeIn(tools(), name, script, 0o755),
+    tool: (name, script) => writeTestTool(tools(), name, script),
     write: (path, text) => writeIn(home, path, text),
     writeState: (name, path, text) => writeIn(stateFolder(name), path, text),
     file,

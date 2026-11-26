@@ -153,7 +153,8 @@ public sealed class KitBuildStepTests
 
         Root.File("teams/sample/ac.abox", "workload: sample\nkits: [plain]\n");
         Root.File("kits/plain/plain.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
-        Root.File("kits/plain/build", "#!/bin/sh\nexit 0\n");
+        var script = Root.File("kits/plain/build", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite);
 
         // Act
         var build = () => Service.BuildAsync(Request(), CancellationToken.None);
@@ -163,7 +164,15 @@ public sealed class KitBuildStepTests
         failure.WithMessage("*build file of kit 'plain'*not executable*chmod +x*");
         Store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
         await Script.DidNotReceiveWithAnyArgs().RunAsync(default!, default);
-        BuiltFrom().Should().BeEmpty();
+        // The earlier workload component is valid; the failing kit and later components never build.
+        BuiltFrom()
+            .Should()
+            .Equal(
+                Path.Combine(
+                    Store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest")),
+                    "workload"
+                )
+            );
     }
 
     [Fact]

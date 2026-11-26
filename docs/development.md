@@ -67,7 +67,9 @@ Add `-class Abox.Tests.<ClassName>` for one class (every test project uses the
   shell tools. They do not touch host certificates, real secrets, registries or
   sandboxes.
 - Unix shell tests need `sh` and `bash` on `PATH`; Windows cases use PowerShell and the
-  `sh` of Git for Windows. Tests for another platform are skipped.
+  `sh` of Git for Windows. Directory-link tests use junctions on Windows where that
+  exercises the same behavior without elevated symlink privileges. Tests for another
+  platform or unavailable native symlink capabilities report explicit skips.
 - Keep the `Fixtures/` folder next to a test executable when you move build output; the
   tests read their inputs only from there.
 - Certificate tests write below the executable's folder, which must not sit under a
@@ -190,6 +192,22 @@ bun install --frozen-lockfile
 bun test
 bun run typecheck
 ```
+
+Run the install step before testing: the workspace links (including `sbox/testing`)
+and the TypeScript compiler are dependencies, not optional test capabilities.
+
+Shell integration tests need `sh` and `bash`. On native Windows, install Git for
+Windows; the test preload prepends its shell to the test process's `PATH` only,
+without changing persistent host settings or using the System32 WSL launcher.
+The command home builds a temporary native fixture
+launcher with the installed Bun so fake tools can receive arguments and piped input
+on Windows too. It is shared for the test run and removed on exit; cold startup and
+filesystem cleanup are given longer deadlines there.
+
+Only the four tests that assert a raw Unix PTY byte stream are skipped on Windows:
+ConPTY adds its own terminal-control sequences. Run `bun test` in Linux or WSL to
+exercise those as well. The non-terminal login, launcher, pipe, picker, rendering
+and shell-command tests also run on Windows.
 
 `abox build` bundles them through the kits' build steps in a Bun container, so
 bundling does not require host Bun; see [the sbox kit](../kits/README.md#sbox).

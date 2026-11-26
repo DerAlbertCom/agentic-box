@@ -252,5 +252,5 @@ describe("a palette", () => {
     // Assert
     expect(names).toContain("tokyo-night");
     expect(failed).toEqual([]);
-  });
+  }, process.platform === "win32" ? 30_000 : undefined);
 });

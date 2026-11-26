@@ -16,7 +16,8 @@ public sealed class ShellFolderRealPathTests : IDisposable
         // Arrange
         var target = _root.CreateDirectory("target");
         var link = Path.Combine(_root.Path, "link");
-        DirectoryLinks.CreateSymbolic(link, target);
+        using var links = new DirectoryLinks();
+        await links.Add(link, target);
 
         // Act
         var realPath = await _realPaths.ResolveAsync(link, CancellationToken.None);

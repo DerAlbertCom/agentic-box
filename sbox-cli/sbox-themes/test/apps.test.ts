@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
+import { shellPath, workingDirectory } from "../../test/shell";
 import { themesPackage, useThemeHome } from "./theme-home";
 
 const home = useThemeHome();
@@ -179,7 +181,7 @@ describe("sbox themes <name> for the terminal tools", () => {
     expect(theme).toContain("<key>lineHighlight</key>\n\t\t\t\t<string>#383e4a</string>");
     expect(theme).toContain("<key>gutterForeground</key>\n\t\t\t\t<string>#616773</string>");
     expect(await home.file(".config/bat/config")).toBe("--style=plain\n");
-    expect(await home.file("bat.log")).toBe(`${home.path}: bat cache --build\n`);
+    expect(await home.file("bat.log")).toBe(`${shellPath(home.path)}: bat cache --build\n`);
     expect(await home.file("bat.cache")).toBe(theme);
   });
 
@@ -324,14 +326,14 @@ describe("app templates", () => {
       package: themesPackage,
       files: { ...probeApp("run:\n  - fake-bat cache --build\n"), "themes/dusk/colors.toml": dusk },
     });
-    await home.tool("fake-bat", `#!/bin/sh\necho "$PWD $@ $(cat probe.txt | head -1)" > ran.txt\n`);
+    await home.tool("fake-bat", `#!/bin/sh\necho "${workingDirectory} $@ $(cat probe.txt | head -1)" > ran.txt\n`);
 
     // Act
     const result = await home.run(["themes", "dusk"]);
 
     // Assert
     expect(result.code).toBe(0);
-    expect(await home.file("ran.txt")).toBe(`${home.path} cache --build mode=dark\n`);
+    expect(await home.file("ran.txt")).toBe(`${shellPath(home.path)} cache --build mode=dark\n`);
   });
 
   test("report a failing command and fail after rendering", async () => {
@@ -364,7 +366,7 @@ describe("app templates", () => {
 
     // Assert
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain("probe/app.yaml: unknown key 'colours'");
+    expect(result.stderr).toContain(`${join("probe", "app.yaml")}: unknown key 'colours'`);
   });
 
   test("reject an app template that still names an app to restart", async () => {
@@ -379,7 +381,7 @@ describe("app templates", () => {
 
     // Assert
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain("probe/app.yaml: unknown key 'restart'");
+    expect(result.stderr).toContain(`${join("probe", "app.yaml")}: unknown key 'restart'`);
   });
 
   test("name the template that uses a key outside the palette", async () => {
@@ -478,7 +480,7 @@ describe.each(ways)("$way", ({ from, to, env }) => {
     // Assert
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toBe(`sbox themes: ${home.path}/beta.json does not hold a JSON object\n`);
+    expect(result.stderr).toBe(`sbox themes: ${join(home.path, "beta.json")} does not hold a JSON object\n`);
     expect(await snapshot()).toEqual(before);
   });
 
@@ -498,7 +500,7 @@ describe.each(ways)("$way", ({ from, to, env }) => {
     // Assert
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("beta/app.yaml: unknown key 'colours'");
+    expect(result.stderr).toContain(`${join("beta", "app.yaml")}: unknown key 'colours'`);
     expect(await snapshot()).toEqual(before);
   });
 });

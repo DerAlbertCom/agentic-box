@@ -16,6 +16,8 @@ internal sealed class DirectoryLinks : IDisposable
         bool symbolic = false
     )
     {
+        link = Path.GetFullPath(link);
+        target = Path.GetFullPath(target);
         if (OperatingSystem.IsWindows() && !symbolic)
             return await new ProcessRunner().RunAsync(
                 new ProcessRequest("cmd", ["/c", "mklink", "/J", link, target]),
@@ -27,14 +29,12 @@ internal sealed class DirectoryLinks : IDisposable
 
     internal async Task Add(string link, string target, bool symbolic = false)
     {
-        link = Path.GetFullPath(link);
-        target = Path.GetFullPath(target);
         try
         {
             var result = await CreateAsync(link, target, symbolic);
             if (result is not null)
                 result.ExitCode.Should().Be(0, result.StandardError);
-            _links.Add(link);
+            _links.Add(Path.GetFullPath(link));
         }
         catch (Exception exception)
             when (exception is UnauthorizedAccessException or PlatformNotSupportedException

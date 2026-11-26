@@ -20,12 +20,19 @@ describe("sbox on a pipe", () => {
     });
 
     // Act
-    const result = Bun.spawnSync(["sh", "-c", `"$BUN" "$ENTRY" many | head -n 1`], {
-      env: { HOME: home.path, PATH: process.env.PATH, BUN: process.execPath, ENTRY: entry },
+    const child = Bun.spawn([process.execPath, entry, "many"], {
+      env: { HOME: home.path, PATH: process.env.PATH },
+      stdout: "pipe",
+      stderr: "pipe",
     });
+    const reader = child.stdout.getReader();
+    const first = await reader.read();
+    await reader.cancel();
+    const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
 
     // Assert
-    expect(result.stdout.toString()).toBe("line 0\n");
-    expect(result.stderr.toString()).toBe("");
+    expect(new TextDecoder().decode(first.value)).toStartWith("line 0\n");
+    expect(code).toBe(0);
+    expect(stderr).toBe("");
   });
 });
