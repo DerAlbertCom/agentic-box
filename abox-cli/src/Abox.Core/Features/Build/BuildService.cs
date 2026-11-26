@@ -58,9 +58,10 @@ internal sealed class BuildService(
                 )
             )
             .ToList();
+        // A workload without a publishRepository fails here, before Docker is used.
         foreach (var (team, squad) in squads)
         {
-            Repository(squad, new SquadBuildIdentity(team.Name, squad.Name, request.Tag));
+            _ = Repository(squad, new SquadBuildIdentity(team.Name, squad.Name, request.Tag));
         }
 
         var imageStore = await images.ImageStoreAsync(cancellationToken);
@@ -317,7 +318,7 @@ internal sealed class BuildService(
     }
 
     private static string PinnedReference(PinnedImage image) =>
-        ImageReferences.Repository(image.Reference) + "@" + image.Digest;
+        ImageReferences.PinnedTo(image.Reference, image.Digest);
 
     private static bool SameRegistryKits(
         IReadOnlyList<ManifestKit> previous,

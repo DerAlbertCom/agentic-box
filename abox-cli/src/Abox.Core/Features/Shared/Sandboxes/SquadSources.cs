@@ -39,6 +39,7 @@ internal interface ISquadSource
 internal sealed class LocalSquadSource(
     BuildStore store,
     ILocalImageStore images,
+    ILocalImageArchives archives,
     IYamlParser parser,
     IConsole console
 ) : ISquadSource
@@ -143,7 +144,7 @@ internal sealed class LocalSquadSource(
         var config = Component(record, ComponentNames.Configuration);
         using var temporary = new TemporaryDirectory("abox-local-", "metadata", console);
         var archive = Path.Combine(temporary.Path, "config.tar");
-        await images.SaveAsync(imageStore, config.Reference, archive, cancellationToken);
+        await archives.SaveAsync(imageStore, config.Reference, archive, cancellationToken);
         try
         {
             var metadata = PublishedRuntimeMetadata.ReadImage(
@@ -175,9 +176,7 @@ internal sealed class LocalSquadSource(
     /// <summary>The host-mount paths the state mixin of the build declares.</summary>
     private HashSet<string> HostMounts(BuildManifest record)
     {
-        var state = record.Components.FirstOrDefault(component =>
-            component.Name == ComponentNames.State
-        );
+        var state = record.Component(ComponentNames.State);
         if (state is null)
             return [];
         return parser
@@ -206,7 +205,7 @@ internal sealed class LocalSquadSource(
             var kit = Path.Combine(directory, component.Name.Replace('/', '-'));
             Directory.CreateDirectory(kit);
             File.WriteAllText(Path.Combine(kit, component.DescriptorFile), component.Descriptor);
-            var image = ImageReferences.Repository(component.Reference) + "@" + component.Digest;
+            var image = component.Pinned;
             File.WriteAllText(
                 Path.Combine(kit, Path.ChangeExtension(component.DescriptorFile, ".dockerfile")),
                 component.Kind == ComponentKind.Workload
@@ -227,10 +226,7 @@ internal sealed class LocalSquadSource(
     {
         var mixins = record
             .Kits.Select(kit =>
-                kit.IsLocal ? kits[kit.Component ?? throw Unusable(kit.Name)]
-                : kit.Digest is { } digest
-                    ? ImageReferences.Repository(kit.Reference) + "@" + digest
-                : kit.Reference
+                kit.IsLocal ? kits[kit.Component ?? throw Unusable(kit.Name)] : kit.PinnedReference
             )
             .ToList();
         if (kits.TryGetValue(ComponentNames.State, out var state))
@@ -240,8 +236,7 @@ internal sealed class LocalSquadSource(
     }
 
     private static BuildComponent Component(BuildManifest record, string name) =>
-        record.Components.FirstOrDefault(component => component.Name == name)
-        ?? throw Unusable(name);
+        record.Component(name) ?? throw Unusable(name);
 
     private static AboxException Unusable(string name) =>
         new(

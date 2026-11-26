@@ -16,6 +16,10 @@ public static class ImageReferences
     public static string Pin(string reference, string digest) =>
         reference[..reference.LastIndexOf(':')] + "@" + digest;
 
+    /// <summary>The repository of <paramref name="reference"/>, pinned to <paramref name="digest"/>.</summary>
+    public static string PinnedTo(string reference, string digest) =>
+        Repository(reference) + "@" + digest;
+
     public static string Repository(string reference)
     {
         var repository = reference.Split('@')[0];

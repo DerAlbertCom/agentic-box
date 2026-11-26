@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Abox.Features.Shared.Registry;
 
 namespace Abox.Features.Shared.Builds;
 
@@ -62,6 +63,10 @@ internal sealed class BuildManifest
     /// <summary>The component images, in set order: workload, local kits, state, config.</summary>
     public List<BuildComponent> Components { get; set; } = [];
 
+    /// <summary>The component image of the given name, or null when the build has none.</summary>
+    public BuildComponent? Component(string name) =>
+        Components.FirstOrDefault(component => component.Name == name);
+
     /// <summary>SHA-256 fingerprints of the local source directories and configuration files.</summary>
     public Dictionary<string, string> SourceHashes { get; set; } = [];
 }
@@ -120,6 +125,10 @@ internal sealed class BuildComponent
 
     /// <summary>The kit directory the image was built from.</summary>
     public string Directory { get; set; } = string.Empty;
+
+    /// <summary>The image pinned by its digest, as a set or a thin kit references it.</summary>
+    [JsonIgnore]
+    public string Pinned => ImageReferences.PinnedTo(Reference, Digest);
 }
 
 /// <summary>A kit of a local build.</summary>
@@ -142,6 +151,11 @@ internal sealed class ManifestKit
 
     /// <summary>A local kit's folder in the repository, which its input hash covers; null for a registry kit.</summary>
     public string? Source { get; set; }
+
+    /// <summary>A registry kit pinned to the digest it resolved to at build time; as written when it has none.</summary>
+    [JsonIgnore]
+    public string PinnedReference =>
+        Digest is { } digest ? ImageReferences.PinnedTo(Reference, digest) : Reference;
 
     /// <summary>The values for the kit's arguments.</summary>
     public Dictionary<string, string> Arguments { get; set; } = [];

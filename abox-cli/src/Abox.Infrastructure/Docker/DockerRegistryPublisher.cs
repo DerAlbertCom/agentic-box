@@ -36,8 +36,6 @@ internal sealed class DockerRegistryPublisher(IHostPrograms programs, IProcessRu
             "--provenance=mode=min",
             "--push",
         ]);
-        if (push.WithGitHubToken)
-            arguments.AddRange(DockerCommand.GitHubBuildSecret());
         arguments.Add(push.Directory);
         await _docker.RunAsync(arguments, true, OperationFailure, cancellationToken);
         return DockerCommand.BuiltDigest(metadata);

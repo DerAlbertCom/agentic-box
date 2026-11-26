@@ -91,6 +91,7 @@ internal sealed class PublishService(
         {
             pinned[component.Name] = await PushComponentAsync(
                 component,
+                selected.Identity,
                 build.ImageStore!,
                 publisher,
                 cancellationToken
@@ -117,6 +118,7 @@ internal sealed class PublishService(
     /// <summary>Pushes a component image unchanged and returns it pinned by its build digest.</summary>
     private async Task<string> PushComponentAsync(
         BuildComponent component,
+        SquadBuildIdentity identity,
         string imageStore,
         VerifiedPublicationRegistry publisher,
         CancellationToken cancellationToken
@@ -128,11 +130,11 @@ internal sealed class PublishService(
         if (pushed != component.Digest)
         {
             throw new AboxException(
-                $"The registry holds '{component.Reference}' as {pushed}, not as the built {component.Digest}. The requested set tag was not promoted; run 'abox build --rebuild' and publish again."
+                $"The registry holds '{component.Reference}' as {pushed}, not as the built {component.Digest}. The requested set tag was not promoted; run 'abox build --team {identity.Team} --tag {identity.Tag} --rebuild' and publish again."
             );
         }
 
-        var image = ImageReferences.Repository(component.Reference) + "@" + component.Digest;
+        var image = component.Pinned;
         await publisher.VerifyAsync(
             image,
             component.Kind == ComponentKind.Workload
@@ -158,11 +160,7 @@ internal sealed class PublishService(
         var kits = new List<PublicationComponent> { new(pinned[ComponentNames.Workload]) };
         foreach (var kit in build.Kits)
         {
-            var source =
-                kit.IsLocal ? pinned[kit.Component!]
-                : kit.Digest is { } digest
-                    ? ImageReferences.Repository(kit.Reference) + "@" + digest
-                : kit.Reference;
+            var source = kit.IsLocal ? pinned[kit.Component!] : kit.PinnedReference;
             kits.Add(new PublicationComponent(source, kit.Arguments));
         }
         if (pinned.TryGetValue(ComponentNames.State, out var state))

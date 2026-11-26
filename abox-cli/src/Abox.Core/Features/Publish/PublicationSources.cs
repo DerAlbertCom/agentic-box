@@ -45,9 +45,8 @@ internal sealed class PublicationSources(BuildStore store)
             new McpDeclaration(server.Name, server.Url).Validate($"local build {squad}:{tag}");
         if (
             build.ImageStore is null
-            || !new[] { ComponentNames.Workload, ComponentNames.Configuration }.All(name =>
-                build.Components.Any(component => component.Name == name)
-            )
+            || build.Component(ComponentNames.Workload) is null
+            || build.Component(ComponentNames.Configuration) is null
         )
             throw new AboxException(
                 $"The local build '{squad}:{tag}' has no component images (an older build). Run 'abox build --team {team} --tag {tag}' before publishing."

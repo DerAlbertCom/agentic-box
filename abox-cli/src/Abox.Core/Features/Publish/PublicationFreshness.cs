@@ -29,9 +29,7 @@ internal sealed class PublicationFreshness(IRegistryDigests digests, ILocalImage
 
         foreach (var kit in build.Kits.Where(kit => kit.IsLocal))
         {
-            var component = build.Components.FirstOrDefault(component =>
-                component.Name == kit.Component
-            );
+            var component = kit.Component is { } name ? build.Component(name) : null;
             if (
                 component is null
                 || kit.Source is not { } source

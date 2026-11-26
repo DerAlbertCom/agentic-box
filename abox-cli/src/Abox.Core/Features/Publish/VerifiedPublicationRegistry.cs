@@ -58,8 +58,7 @@ internal sealed class VerifiedPublicationRegistry(
                 request.Descriptor,
                 request.Reference,
                 request.PublicationDirectory,
-                builder,
-                request.Kind == PublicationImageKind.Workload
+                builder
             ),
             cancellationToken
         );

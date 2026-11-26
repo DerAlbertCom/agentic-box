@@ -89,7 +89,11 @@ internal static class LocalWorkloadFactory
         IProcessRunner? runner = null,
         IHostPrograms? programs = null,
         IConsole? console = null
-    ) => new(store, Images(programs, runner), new YamlDotNetParser(), console ?? new TestConsole());
+    )
+    {
+        var images = Images(programs, runner);
+        return new(store, images, images, new YamlDotNetParser(), console ?? new TestConsole());
+    }
 
     /// <summary>
     /// Gives a hand-made build record the component images a build would have made: one per

@@ -9,7 +9,8 @@ namespace Abox.Infrastructure.Docker;
 /// <summary>Builds and inspects component images with host Docker and Buildx.</summary>
 internal sealed class DockerComponentImages(IHostPrograms programs, IProcessRunner runner)
     : IComponentImageBuilder,
-        ILocalImageStore
+        ILocalImageStore,
+        ILocalImageArchives
 {
     private static readonly DockerFailure OperationFailure = new(exitCode =>
         $"Local component image operation failed (Docker, exit {exitCode}). Check the Docker context and run 'abox build' again. No source-build fallback is performed."
