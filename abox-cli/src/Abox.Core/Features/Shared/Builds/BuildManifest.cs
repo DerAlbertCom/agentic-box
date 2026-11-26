@@ -2,7 +2,10 @@ using System.Text.Json.Serialization;
 
 namespace Abox.Features.Shared.Builds;
 
-/// <summary>What a local build holds.</summary>
+/// <summary>
+/// The build record of a local build: the component images <c>abox build</c> made, with
+/// their digests and input hashes, and the registry kits and base image pinned by digest.
+/// </summary>
 internal sealed class BuildManifest
 {
     /// <summary>The squad the build belongs to.</summary>
@@ -26,7 +29,7 @@ internal sealed class BuildManifest
     /// <summary>The directory of the generated workload kit.</summary>
     public string WorkloadKitDirectory { get; set; } = string.Empty;
 
-    /// <summary>The prebuilt local content and its thin v3 runtime kit; null on metadata-only or older manifests.</summary>
+    /// <summary>The prebuilt workload image and its thin v3 runtime kit; null on older manifests.</summary>
     public LocalWorkloadImage? LocalWorkload { get; set; }
 
     /// <summary>The directory of the generated mixin that declares the state directories.</summary>
@@ -53,11 +56,59 @@ internal sealed class BuildManifest
     /// <summary>The unqualified team ownership marker; remote publication adds a squad path segment.</summary>
     public string? Reference { get; set; }
 
-    /// <summary>Whether personal configuration was merged; null means an older, unproven build.</summary>
-    public bool? IncludesPersonalConfigurations { get; set; }
+    /// <summary>The host image store the component images are in; null on older builds.</summary>
+    public string? ImageStore { get; set; }
+
+    /// <summary>The base image (the workload's template) pinned by digest at build time; null on older builds.</summary>
+    public PinnedImage? Base { get; set; }
+
+    /// <summary>The component images, in set order: workload, local kits, state, config.</summary>
+    public List<BuildComponent> Components { get; set; } = [];
 
     /// <summary>SHA-256 fingerprints of the local source directories and configuration files.</summary>
     public Dictionary<string, string> SourceHashes { get; set; } = [];
+}
+
+/// <summary>A registry reference as written, and the digest it resolved to at build time.</summary>
+internal sealed class PinnedImage
+{
+    public string Reference { get; set; } = string.Empty;
+    public string Digest { get; set; } = string.Empty;
+}
+
+/// <summary>The kind of a component image, as its kit descriptor declares it.</summary>
+internal static class ComponentKind
+{
+    public const string Workload = "workload";
+    public const string Mixin = "mixin";
+}
+
+/// <summary>A component image of a local build, named with its final registry name.</summary>
+internal sealed class BuildComponent
+{
+    /// <summary>The component's name under the squad's <c>components</c> repository, such as <c>workload</c> or <c>kits/sbox</c>.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary><see cref="ComponentKind.Workload"/> or <see cref="ComponentKind.Mixin"/>.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>The image's registry name and tag; the tag is derived from the input hash.</summary>
+    public string Reference { get; set; } = string.Empty;
+
+    /// <summary>The manifest digest, which a push keeps.</summary>
+    public string Digest { get; set; } = string.Empty;
+
+    /// <summary>The content ID the host image store reports, which changes when the image is replaced.</summary>
+    public string ImageId { get; set; } = string.Empty;
+
+    /// <summary>The hash of everything the image is built from.</summary>
+    public string InputHash { get; set; } = string.Empty;
+
+    /// <summary>The text of the component's kit descriptor.</summary>
+    public string Descriptor { get; set; } = string.Empty;
+
+    /// <summary>The kit directory the image was built from.</summary>
+    public string Directory { get; set; } = string.Empty;
 }
 
 /// <summary>A unique local tag guarded by its immutable content ID.</summary>
@@ -84,6 +135,12 @@ internal sealed class ManifestKit
 
     /// <summary>Whether the kit is built from a local directory.</summary>
     public bool IsLocal { get; set; }
+
+    /// <summary>The digest a registry kit resolved to at build time; null for a local kit.</summary>
+    public string? Digest { get; set; }
+
+    /// <summary>The name of a local kit's component image; null for a registry kit.</summary>
+    public string? Component { get; set; }
 
     /// <summary>The values for the kit's arguments.</summary>
     public Dictionary<string, string> Arguments { get; set; } = [];

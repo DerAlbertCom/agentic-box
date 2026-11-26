@@ -4,7 +4,6 @@ using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.KitBuildScripts;
-using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Registry;
@@ -32,14 +31,15 @@ public static class InfrastructureServiceCollection
         services.AddScoped<IYamlParser, YamlDotNetParser>();
         services.AddScoped<ProcessOutput>();
         services.AddScoped<IProcessRunner, ProcessRunner>();
-        services.AddScoped<DockerWorkloadImages>();
-        services.AddScoped<IWorkloadImageBuilder>(provider =>
-            provider.GetRequiredService<DockerWorkloadImages>()
+        services.AddScoped<DockerComponentImages>();
+        services.AddScoped<IComponentImageBuilder>(provider =>
+            provider.GetRequiredService<DockerComponentImages>()
         );
-        services.AddScoped<ILocalWorkloadImageStore>(provider =>
-            provider.GetRequiredService<DockerWorkloadImages>()
+        services.AddScoped<ILocalImageStore>(provider =>
+            provider.GetRequiredService<DockerComponentImages>()
         );
         services.AddScoped<IRegistryPublisher, DockerRegistryPublisher>();
+        services.AddScoped<IRegistryDigests, DockerRegistryDigests>();
         services.AddScoped<IPublishedImageReader, DockerPublishedImageReader>();
         services.AddScoped<IHostPrograms, ShellHostPrograms>();
         services.AddScoped<SbxInvoker>();
@@ -59,7 +59,6 @@ public static class InfrastructureServiceCollection
         services.AddScoped<ISandboxDevelopmentCertificates, SbxDevelopmentCertificates>();
         services.AddScoped<IPreflightChecks, SbxPreflightChecks>();
         services.AddScoped<ICredentialApprovals>(_ => SbxCredentialBindings.Create());
-        services.AddScoped<IKitInspector, SbxKitInspector>();
         services.AddScoped<IKitBuildScript, ShellKitBuildScript>();
         // The launchers that open apps through an external tool, after the run slice's own.
         services.AddScoped<ILauncher, HerdrAppLauncher>();

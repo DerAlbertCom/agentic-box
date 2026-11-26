@@ -5,12 +5,13 @@ using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.KitBuildScripts;
-using Abox.Features.Shared.KitInspection;
+using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Docker;
 using Abox.Infrastructure.Shell;
 using NSubstitute;
 
@@ -19,39 +20,29 @@ namespace Abox.Tests;
 /// <summary>Shared wiring only; callers supply their runtime, configuration and source policies.</summary>
 internal static class TestServiceGraphs
 {
+    /// <summary>The build service on the Docker adapters, which run <c>docker</c> through <paramref name="runner"/>.</summary>
     internal static BuildService Build(
         SquadResolver resolver,
-        PersonalConfigurations personal,
         BuildStore store,
-        LocalWorkloadImages images,
+        IProcessRunner runner,
         IConsole console,
-        IKitInspector? inspector = null,
-        IKitBuildScript? buildScript = null
-    ) =>
-        new(
+        IKitBuildScript? buildScript = null,
+        IHostPrograms? programs = null
+    )
+    {
+        programs ??= LocalWorkloadFactory.Programs();
+        var docker = new DockerComponentImages(programs, runner);
+        return new(
             resolver,
             new WorkloadKitGenerator(),
             new StateMixinGenerator(),
-            personal,
             store,
-            images,
+            new ComponentImages(docker, docker, console),
+            new DockerRegistryDigests(runner),
             new KitBuildStep(buildScript ?? new ShellKitBuildScript(new ProcessRunner()), console),
-            inspector ?? AcceptingKitInspector(),
+            new YamlDotNetParser(),
             console
         );
-
-    /// <summary>A kit inspector that accepts every kit.</summary>
-    internal static IKitInspector AcceptingKitInspector()
-    {
-        var inspector = Substitute.For<IKitInspector>();
-        inspector
-            .InspectAsync(
-                Arg.Any<string>(),
-                Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(new KitInspectionOutcome(true, string.Empty));
-        return inspector;
     }
 
     internal static SandboxCreator Creator(
@@ -98,7 +89,6 @@ internal static class TestServiceGraphs
     ) =>
         new(
             new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
-            new PersonalConfigurations(paths),
             secrets,
             approvals,
             new SecretValues(secrets, console),

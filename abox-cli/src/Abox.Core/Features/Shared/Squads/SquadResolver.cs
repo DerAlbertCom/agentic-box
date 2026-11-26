@@ -37,31 +37,17 @@ internal sealed class SquadResolver(AboxConfig config, IYamlParser parser)
         public string? RootDirectory { get; init; }
     }
 
-    /// <summary>
-    /// Resolves a squad from the configurations in a project and the personal
-    /// configurations of the user.
-    /// </summary>
+    /// <summary>Resolves a squad from the configurations in a project.</summary>
     /// <param name="rootDirectory">The directory to start searching for the team's project.</param>
+    /// <param name="teamName">The name of the team.</param>
     /// <param name="squadName">The name of the squad.</param>
-    /// <param name="personalConfigurations">The personal <c>.abox</c> files of the user.</param>
-    public ResolvedSquad Resolve(
-        string rootDirectory,
-        string teamName,
-        string squadName,
-        IReadOnlyList<string> personalConfigurations
-    )
+    public ResolvedSquad Resolve(string rootDirectory, string teamName, string squadName)
     {
         var team = _sources.TeamDirectory(rootDirectory, teamName);
 
-        var projectChain = _sources.LoadProjectChain(team.Folder, squadName);
-        var personalChains = _sources.LoadPersonalChains(personalConfigurations);
+        var files = _sources.LoadProjectChain(team.Folder, squadName);
 
-        var personalFiles = personalChains
-            .SelectMany(chain => chain)
-            .DistinctBy(file => file.Path, StringComparer.OrdinalIgnoreCase);
-        var files = projectChain.Concat(personalFiles).ToList();
-
-        var workload = ResolveWorkload(projectChain, personalChains, team.RootDirectory);
+        var workload = ResolveWorkload(files, team.RootDirectory);
         var parameters = MergeParameters(files);
         var kits = MergeKits(files, parameters, team.RootDirectory);
         var mcp = MergeMcp(files, parameters);
@@ -69,7 +55,7 @@ internal sealed class SquadResolver(AboxConfig config, IYamlParser parser)
         var secrets = MergeSecrets(files);
 
         // The name of the configuration file is the name of the squad, however it was spelled.
-        var name = Path.GetFileNameWithoutExtension(projectChain[^1].Path);
+        var name = Path.GetFileNameWithoutExtension(files[^1].Path);
 
         return new ResolvedSquad(
             name,
@@ -83,15 +69,9 @@ internal sealed class SquadResolver(AboxConfig config, IYamlParser parser)
         );
     }
 
-    private WorkloadFile ResolveWorkload(
-        IReadOnlyList<AboxFile> projectChain,
-        IReadOnlyList<IReadOnlyList<AboxFile>> personalChains,
-        string rootDirectory
-    )
+    private WorkloadFile ResolveWorkload(IReadOnlyList<AboxFile> projectChain, string rootDirectory)
     {
-        // Personal chains are checked first, then project children, preserving error precedence.
-        var additions = personalChains.SelectMany(chain => chain).Concat(projectChain.Skip(1));
-        foreach (var file in additions)
+        foreach (var file in projectChain.Skip(1))
         {
             if (file.Workload is not null)
             {

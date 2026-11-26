@@ -232,14 +232,16 @@ public sealed class StatePathCreationTests : IDisposable
         // Arrange
         var quoted = JsonSerializer.Serialize(declaration);
         _root.File("teams/sample/ac.abox", $"workload: sample\nstate:\n  - {quoted}\n");
-        _root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
+        _root.File(
+            "teams/sample/sample.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
+        );
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var team = resolver.ResolveTeam(_root.Path, "sample");
         var build = TestServiceGraphs.Build(
             resolver,
-            new PersonalConfigurations(_paths),
             _store,
-            LocalWorkloadFactory.Images(),
+            LocalWorkloadFactory.Runner(),
             _console
         );
         var name = SandboxName.For(_root.Path);
@@ -247,7 +249,7 @@ public sealed class StatePathCreationTests : IDisposable
 
         // Act
         await build.BuildAsync(
-            new BuildRequest([team], _root.Path, "latest", Verify: false),
+            new BuildRequest([team], _root.Path, "latest"),
             CancellationToken.None
         );
         var first = await _create.CreateAsync(Request(), CancellationToken.None);

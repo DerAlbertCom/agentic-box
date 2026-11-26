@@ -2,7 +2,6 @@ using Abox.Cli;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
-using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
@@ -28,7 +27,6 @@ internal sealed class SourceProjectFixture : IDisposable
         NestedDirectory = Path.GetFullPath(Root.CreateDirectory("project/src/app/deep"));
         Workspace = Root.CreateDirectory("workspace");
         ProjectKit = Path.GetFullPath(Root.CreateDirectory($"project/{kits}/project-kit"));
-        PersonalKit = Path.GetFullPath(Root.CreateDirectory($"project/{kits}/personal-kit"));
         Root.File($"project/{teams}/sample/ac.abox", "base: cape\nkits: [project-kit]\n");
         Root.File(
             $"project/{teams}/sample/cape.abox",
@@ -51,11 +49,6 @@ internal sealed class SourceProjectFixture : IDisposable
                   phase: runtime
             """
         );
-        Root.File(
-            $"project/{kits}/personal-kit/personal-kit.yaml",
-            "schemaVersion: \"3\"\nkind: mixin\n"
-        );
-        Root.File("user-config/extra.abox", "kits: [personal-kit]\n");
         var paths = AboxPaths.For(
             Path.Combine(Root.Path, "user-config"),
             Path.Combine(Root.Path, "user-state")
@@ -93,7 +86,6 @@ internal sealed class SourceProjectFixture : IDisposable
         services.AddSingleton(Runner);
         services.AddSingleton(Exec);
         services.AddSingleton(ReadyPreflight.Checks());
-        services.AddSingleton(Inspector);
         _ = _application.Provider;
     }
 
@@ -104,12 +96,10 @@ internal sealed class SourceProjectFixture : IDisposable
     public IProcessRunner Runner { get; } = Substitute.For<IProcessRunner>();
     public ISandboxLifecycle Lifecycle => _application.Lifecycle;
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
-    public IKitInspector Inspector { get; } = TestServiceGraphs.AcceptingKitInspector();
     public string ProjectDirectory { get; }
     public string NestedDirectory { get; }
     public string Workspace { get; }
     public string ProjectKit { get; }
-    public string PersonalKit { get; }
 
     public BuildManifest LoadBuild(string squad = "ac", string team = "sample") =>
         _application

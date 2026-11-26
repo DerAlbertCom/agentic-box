@@ -54,22 +54,14 @@ public sealed class PublishServiceTeamTests
         var teams = names.Select(team => resolver.ResolveTeam(Root.Path, team)).ToList();
         var build = TestServiceGraphs.Build(
             resolver,
-            new PersonalConfigurations(AboxPaths.For(Root.Path, Root.Path)),
             Store,
-            LocalWorkloadFactory.Images(),
+            LocalWorkloadFactory.Runner(),
             Console
         );
         foreach (var team in teams)
         {
             await build.BuildAsync(
-                new BuildRequest(
-                    [team],
-                    Root.Path,
-                    "latest",
-                    Verify: false,
-                    IncludePersonalConfigurations: false,
-                    MetadataOnly: metadataOnly
-                ),
+                new BuildRequest([team], Root.Path, "latest"),
                 CancellationToken.None
             );
         }

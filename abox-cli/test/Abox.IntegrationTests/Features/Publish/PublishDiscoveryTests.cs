@@ -21,10 +21,7 @@ public sealed class PublishDiscoveryTests
             "absolute" => ["--root", project.NestedDirectory],
             _ => [],
         };
-        var buildExit = await project.InvokeAsync(
-            workingDirectory,
-            ["build", "--metadata-only", "--no-personal", .. rootOptions]
-        );
+        var buildExit = await project.InvokeAsync(workingDirectory, ["build", .. rootOptions]);
         project.Runner.ClearReceivedCalls();
 
         // Act
@@ -38,7 +35,6 @@ public sealed class PublishDiscoveryTests
         Path.GetFullPath(manifest.Kits.Should().ContainSingle().Which.Reference)
             .Should()
             .Be(project.ProjectKit);
-        manifest.IncludesPersonalConfigurations.Should().BeFalse();
         project
             .Console.AllText.Should()
             .Contain("rwest.jfrog.io/source-images-local/agentic-box-rwest-sample/ac:release");
@@ -55,12 +51,7 @@ public sealed class PublishDiscoveryTests
     {
         // Arrange
         using var project = new SourceProjectFixture();
-        var buildExit = await project.InvokeAsync(
-            project.ProjectDirectory,
-            "build",
-            "--metadata-only",
-            "--no-personal"
-        );
+        var buildExit = await project.InvokeAsync(project.ProjectDirectory, "build");
         File.AppendAllText(Path.Combine(project.ProjectKit, "project-kit.yaml"), "\n# edited\n");
         project.Runner.ClearReceivedCalls();
 

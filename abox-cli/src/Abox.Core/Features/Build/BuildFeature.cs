@@ -12,6 +12,7 @@ internal static class BuildFeature
     public static IServiceCollection AddBuildFeature(this IServiceCollection services)
     {
         services.AddScoped<BuildService>();
+        services.AddScoped<ComponentImages>();
         services.AddScoped<KitBuildStep>();
         services.AddScoped<WorkloadKitGenerator>();
         services.AddScoped<StateMixinGenerator>();

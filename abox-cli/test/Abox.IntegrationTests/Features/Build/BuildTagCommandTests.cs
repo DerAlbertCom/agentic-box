@@ -19,7 +19,6 @@ public sealed class BuildTagCommandTests
     [Theory]
     [MemberData(nameof(ValidTags))]
     public async Task ValidTagsBuildAndRemainSelectableWithoutChangingTheirSpelling(
-        bool metadataOnly,
         bool configuredTag,
         string tag
     )
@@ -27,7 +26,10 @@ public sealed class BuildTagCommandTests
         // Arrange
         using var root = new TempDirectory();
         root.File("teams/sample/ac.abox", "workload: sample\n");
-        root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
+        root.File(
+            "teams/sample/sample.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
+        );
         root.File(
             "config/config.yaml",
             "defaultTag: "
@@ -44,13 +46,7 @@ public sealed class BuildTagCommandTests
         var runner = LocalWorkloadFactory.Runner();
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var store = new BuildStore(paths);
-        var service = TestServiceGraphs.Build(
-            resolver,
-            new PersonalConfigurations(paths),
-            store,
-            LocalWorkloadFactory.Images(programs, runner, console),
-            console
-        );
+        var service = TestServiceGraphs.Build(resolver, store, runner, console);
         using var application = new CliTestApplication(console, paths, new TrailingArguments());
         application.Services.AddSingleton(ReadyPreflight.Checks());
         application.Services.AddSingleton(resolver);
@@ -58,8 +54,6 @@ public sealed class BuildTagCommandTests
         var arguments = new List<string> { "build", "--team", "sample", "--root", root.Path };
         if (!configuredTag)
             arguments.AddRange(["--tag", tag]);
-        if (metadataOnly)
-            arguments.Add("--metadata-only");
 
         // Act
         var exitCode = await application
@@ -73,13 +67,12 @@ public sealed class BuildTagCommandTests
         File.ReadAllText(Path.Combine(manifest.WorkloadKitDirectory, "workload.yaml"))
             .Should()
             .Contain("schemaVersion");
-        (manifest.LocalWorkload is null).Should().Be(metadataOnly);
+        manifest.LocalWorkload.Should().NotBeNull();
     }
 
     [Theory]
     [MemberData(nameof(InvalidTags))]
     public async Task UnsafeTagsFailBeforePreflightAndGeneratedAssetCleanup(
-        bool metadataOnly,
         bool configuredTag,
         string input
     )
@@ -88,7 +81,10 @@ public sealed class BuildTagCommandTests
         using var root = new TempDirectory();
         using var outside = new TempDirectory();
         root.File("teams/sample/ac.abox", "workload: sample\n");
-        root.File("teams/sample/sample.workload", "template: example.com/base:1\n");
+        root.File(
+            "teams/sample/sample.workload",
+            "template: example.com/base:1\npublishRepository: test-images-local\n"
+        );
         var script = outside.File("workload/scripts/keep.sh", "external script");
         var certificate = outside.File("workload/certificates/keep.pem", "external certificate");
         var paths = AboxPaths.For(
@@ -119,13 +115,7 @@ public sealed class BuildTagCommandTests
         var console = new TestConsole();
         var config = new AboxConfig();
         var resolver = new SquadResolver(config, new YamlDotNetParser());
-        var build = TestServiceGraphs.Build(
-            resolver,
-            new PersonalConfigurations(paths),
-            new BuildStore(paths),
-            LocalWorkloadFactory.Images(programs, runner, console),
-            console
-        );
+        var build = TestServiceGraphs.Build(resolver, new BuildStore(paths), runner, console);
         using var application = new CliTestApplication(console, paths, new TrailingArguments());
         application.Services.AddSingleton(preflight);
         application.Services.AddSingleton(resolver);
@@ -134,10 +124,6 @@ public sealed class BuildTagCommandTests
         if (!configuredTag)
         {
             arguments.AddRange(["--tag", tag]);
-        }
-        if (metadataOnly)
-        {
-            arguments.Add("--metadata-only");
         }
 
         // Act
@@ -187,20 +173,18 @@ public sealed class BuildTagCommandTests
             "overlong",
         ];
         foreach (var tag in tags)
-        foreach (var metadataOnly in new[] { false, true })
         foreach (var configuredTag in new[] { false, true })
         {
-            yield return [metadataOnly, configuredTag, tag];
+            yield return [configuredTag, tag];
         }
     }
 
     public static IEnumerable<object[]> ValidTags()
     {
         foreach (var tag in new[] { "A", "0", "_", "_Release.1-rc_2", new string('a', 128) })
-        foreach (var metadataOnly in new[] { false, true })
         foreach (var configuredTag in new[] { false, true })
         {
-            yield return [metadataOnly, configuredTag, tag];
+            yield return [configuredTag, tag];
         }
     }
 }

@@ -52,7 +52,10 @@ public sealed class SandboxSquadMetadataTests : IDisposable
                           - domain: a.elastic.example.invalid
                 """,
         };
-        _root.File("teams/sample/base.workload", "template: docker.io/sbx/shell-docker-image\n");
+        _root.File(
+            "teams/sample/base.workload",
+            "template: docker.io/sbx/shell-docker-image\npublishRepository: test-images-local\n"
+        );
         _root.File("teams/sample/ac.abox", "workload: base\nkits:\n  - elastic-a\n  - elastic-b\n");
         foreach (var (kit, yaml) in descriptors)
         {
@@ -63,8 +66,7 @@ public sealed class SandboxSquadMetadataTests : IDisposable
             new SquadResolver(new AboxConfig(), new YamlDotNetParser()).Resolve(
                 _root.Path,
                 "sample",
-                "ac",
-                []
+                "ac"
             ),
             new YamlDotNetParser()
         );

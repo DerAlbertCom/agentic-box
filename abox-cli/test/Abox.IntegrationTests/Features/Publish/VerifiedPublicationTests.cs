@@ -328,7 +328,6 @@ public sealed class VerifiedPublicationTests
                 Reference = "agentic-box-rwest-sample:latest",
                 PublishRepository = "test-images-local",
                 WorkloadKitDirectory = Path.GetDirectoryName(workload)!,
-                IncludesPersonalConfigurations = false,
             };
             return PublicationBuilds.SaveWorkload(
                 _store,

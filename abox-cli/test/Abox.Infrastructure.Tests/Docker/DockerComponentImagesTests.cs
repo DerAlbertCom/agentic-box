@@ -7,11 +7,11 @@ using NSubstitute;
 
 namespace Abox.Tests;
 
-public sealed class DockerWorkloadImagesTests
+public sealed class DockerComponentImagesTests
 {
     private readonly IProcessRunner _runner = LocalWorkloadFactory.Runner();
 
-    private DockerWorkloadImages Images() => new(Substitute.For<IHostPrograms>(), _runner);
+    private DockerComponentImages Images() => new(Substitute.For<IHostPrograms>(), _runner);
 
     private void Builders(string output) =>
         _runner
@@ -73,16 +73,28 @@ public sealed class DockerWorkloadImagesTests
     }
 
     [Fact]
-    public async Task BuildingLoadsTheImageIntoTheContextsOwnStore()
+    public async Task BuildingLoadsTheAmd64ImageIntoTheContextsOwnStoreAndReturnsItsDigest()
     {
+        // Arrange
+        using var work = new TempDirectory();
+        const string reference = "rwest.jfrog.io/repo/team/squad/components/workload:1";
+
         // Act
-        await Images()
+        var digest = await Images()
             .BuildAsync(
-                new WorkloadImageBuild("source", "source/workload.yaml", "abox-workload:1", "ctx"),
+                new ComponentImageBuild(
+                    "source",
+                    "source/workload.yaml",
+                    reference,
+                    "ctx",
+                    work.Path,
+                    WithGitHubToken: false
+                ),
                 CancellationToken.None
             );
 
         // Assert
+        digest.Should().Be(LocalWorkloadFactory.Digest(reference));
         await _runner
             .Received()
             .RunAsync(
@@ -98,18 +110,38 @@ public sealed class DockerWorkloadImagesTests
                                 "build",
                                 "--builder",
                                 "ctx",
+                                "--platform",
+                                "linux/amd64",
                                 "--file",
                                 "source/workload.yaml",
                                 "--tag",
-                                "abox-workload:1",
-                                "--provenance=false",
-                                "--load",
+                                reference,
                             }
                         )
+                    && request.Arguments.Contains("--provenance=false")
+                    && request.Arguments.Contains("--load")
                     && request.Arguments.Last() == "source"
                 ),
                 CancellationToken.None
             );
+    }
+
+    [Fact]
+    public async Task AnImageTheStoreDoesNotHoldHasNoImageId()
+    {
+        // Arrange
+        _runner
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request => request.Arguments.Contains("{{.Id}}")),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new ProcessResult(1, "", "No such image"));
+
+        // Act
+        var imageId = await Images().FindImageIdAsync("ctx", "missing:1", CancellationToken.None);
+
+        // Assert
+        imageId.Should().BeNull();
     }
 
     private static ProcessRequest Docker(params string[] arguments) =>

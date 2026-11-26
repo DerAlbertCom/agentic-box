@@ -8,16 +8,13 @@ public sealed class LocalWorkloadImageSeamTests : IDisposable
 {
     private static readonly string ImageId = "sha256:" + new string('d', 64);
     private readonly TempDirectory _root = new();
-    private readonly IWorkloadImageBuilder _builder = Substitute.For<IWorkloadImageBuilder>();
-    private readonly ILocalWorkloadImageStore _store = Substitute.For<ILocalWorkloadImageStore>();
+    private readonly ILocalImageStore _store = Substitute.For<ILocalImageStore>();
     private readonly LocalWorkloadImages _images;
 
     public LocalWorkloadImageSeamTests()
     {
-        _images = new LocalWorkloadImages(_builder, _store, new TestConsole());
+        _images = new LocalWorkloadImages(_store);
         _store.IsInstalled.Returns(true);
-        _builder.HostImageStoreAsync(Arg.Any<CancellationToken>()).Returns("host");
-        _builder.NewImageReference().Returns("workload:new");
         _store
             .ImageIdAsync("host", Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(ImageId);
@@ -26,33 +23,24 @@ public sealed class LocalWorkloadImageSeamTests : IDisposable
 
     public void Dispose() => _root.Dispose();
 
-    private Task<LocalWorkloadImage> BuildAsync() =>
-        _images.BuildAsync(
-            Path.Combine(_root.Path, "source"),
-            Path.Combine(_root.Path, "runtime"),
-            CancellationToken.None
-        );
-
-    [Fact]
-    public async Task BuildRecordsTheHostImageStoreAndTheImageIdOfTheBuiltImage()
+    private Task<LocalWorkloadImage> BuildAsync()
     {
-        // Act
-        var image = await BuildAsync();
-
-        // Assert
-        image.ImageStore.Should().Be("host");
-        image.Reference.Should().Be("workload:new");
-        image.ImageId.Should().Be(ImageId);
-        await _builder
-            .Received(1)
-            .BuildAsync(
-                Arg.Is<WorkloadImageBuild>(build =>
-                    build.ImageStore == "host"
-                    && build.Reference == "workload:new"
-                    && build.Descriptor == Path.Combine(_root.Path, "source", "workload.yaml")
-                ),
-                Arg.Any<CancellationToken>()
-            );
+        var runtime = Path.Combine(_root.Path, "runtime");
+        LocalWorkloadImages.WriteRuntimeKit(
+            Path.Combine(_root.Path, "source"),
+            runtime,
+            "workload:1"
+        );
+        return Task.FromResult(
+            new LocalWorkloadImage
+            {
+                Reference = "workload:1",
+                ImageId = ImageId,
+                ImageStore = "host",
+                RuntimeKitDirectory = runtime,
+                RuntimeKitHash = BuildSources.DirectoryHash(runtime),
+            }
+        );
     }
 
     [Fact]

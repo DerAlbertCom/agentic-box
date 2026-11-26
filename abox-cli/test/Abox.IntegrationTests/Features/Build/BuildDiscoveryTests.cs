@@ -6,17 +6,16 @@ namespace Abox.Tests;
 public sealed class BuildDiscoveryTests
 {
     [Theory]
-    [InlineData("teams", "kits", false)]
-    [InlineData("config/teams", "shared/kits", true)]
-    public async Task NestedBuildUsesTheSameProjectKitsWorkloadAndPersonalAdditionsAsTheRoot(
+    [InlineData("teams", "kits")]
+    [InlineData("config/teams", "shared/kits")]
+    public async Task NestedBuildUsesTheSameProjectKitsAndWorkloadAsTheRoot(
         string teams,
-        string kits,
-        bool metadataOnly
+        string kits
     )
     {
         // Arrange
         using var project = new SourceProjectFixture(teams, kits);
-        var arguments = metadataOnly ? new[] { "build", "--metadata-only" } : ["build"];
+        string[] arguments = ["build"];
 
         // Act
         var rootExit = await project.InvokeAsync(project.ProjectDirectory, arguments);
@@ -33,26 +32,14 @@ public sealed class BuildDiscoveryTests
         fromNested
             .Kits.Select(kit => Path.GetFullPath(kit.Reference))
             .Should()
-            .Equal(project.ProjectKit, project.PersonalKit);
-        fromNested.IncludesPersonalConfigurations.Should().BeTrue();
+            .Equal(project.ProjectKit);
+        fromNested
+            .Components.Select(component => component.Digest)
+            .Should()
+            .Equal(fromRoot.Components.Select(component => component.Digest));
         File.ReadAllText(Path.Combine(fromNested.WorkloadKitDirectory, "scripts", "setup.sh"))
             .Should()
             .Contain("owning-project-workload");
-        if (metadataOnly)
-        {
-            project.Inspector.ReceivedCalls().Should().BeEmpty();
-            project.Runner.ReceivedCalls().Should().BeEmpty();
-        }
-        else
-        {
-            await project
-                .Inspector.Received(2)
-                .InspectAsync(
-                    project.ProjectKit,
-                    Arg.Any<IReadOnlyDictionary<string, string>>(),
-                    Arg.Any<CancellationToken>()
-                );
-        }
     }
 
     [Fact]
@@ -76,9 +63,7 @@ public sealed class BuildDiscoveryTests
             "--team",
             "one",
             "--team",
-            "two",
-            "--metadata-only",
-            "--no-personal"
+            "two"
         );
 
         // Assert
@@ -86,6 +71,5 @@ public sealed class BuildDiscoveryTests
         project.LoadBuild("first", "one").Reference.Should().Be("agentic-box-rwest-one:release");
         project.LoadBuild("second", "two").Reference.Should().Be("agentic-box-rwest-two:release");
         project.LoadBuild().Should().BeNull("explicit selections replace defaultTeam 'sample'");
-        project.Runner.ReceivedCalls().Should().BeEmpty();
     }
 }

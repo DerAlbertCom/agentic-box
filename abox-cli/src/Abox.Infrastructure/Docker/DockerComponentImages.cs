@@ -6,13 +6,13 @@ using Abox.Features.Shared.Registry;
 
 namespace Abox.Infrastructure.Docker;
 
-/// <summary>Builds and inspects workload images with host Docker and Buildx.</summary>
-internal sealed class DockerWorkloadImages(IHostPrograms programs, IProcessRunner runner)
-    : IWorkloadImageBuilder,
-        ILocalWorkloadImageStore
+/// <summary>Builds and inspects component images with host Docker and Buildx.</summary>
+internal sealed class DockerComponentImages(IHostPrograms programs, IProcessRunner runner)
+    : IComponentImageBuilder,
+        ILocalImageStore
 {
     private static readonly DockerFailure OperationFailure = new(exitCode =>
-        $"Local workload image operation failed (Docker, exit {exitCode}). Check the Docker context and run 'abox build' again. No source-build fallback is performed."
+        $"Local component image operation failed (Docker, exit {exitCode}). Check the Docker context and run 'abox build' again. No source-build fallback is performed."
     );
 
     private readonly DockerCommand _docker = new(runner);
@@ -36,11 +36,13 @@ internal sealed class DockerWorkloadImages(IHostPrograms programs, IProcessRunne
         return context;
     }
 
-    public string NewImageReference() =>
-        "docker.io/library/abox-workload:" + Guid.NewGuid().ToString("N");
-
-    public async Task BuildAsync(WorkloadImageBuild build, CancellationToken cancellationToken)
+    public async Task<string> BuildAsync(
+        ComponentImageBuild build,
+        CancellationToken cancellationToken
+    )
     {
+        Directory.CreateDirectory(build.WorkDirectory);
+        var metadata = Path.Combine(build.WorkDirectory, Guid.NewGuid().ToString("N") + ".json");
         var arguments = new List<string>
         {
             "--context",
@@ -49,16 +51,32 @@ internal sealed class DockerWorkloadImages(IHostPrograms programs, IProcessRunne
             "build",
             "--builder",
             build.ImageStore,
+            "--platform",
+            "linux/amd64",
             "--file",
             build.Descriptor,
             "--tag",
             build.Reference,
+            "--metadata-file",
+            metadata,
             "--provenance=false",
             "--load",
         };
-        arguments.AddRange(DockerCommand.GitHubBuildSecret());
+        if (build.WithGitHubToken)
+            arguments.AddRange(DockerCommand.GitHubBuildSecret());
         arguments.Add(build.Directory);
-        await _docker.RunAsync(arguments, false, OperationFailure, cancellationToken);
+        try
+        {
+            await _docker.RunAsync(arguments, false, OperationFailure, cancellationToken);
+            return DockerCommand.BuiltDigest(metadata)
+                ?? throw new AboxException(
+                    $"Docker did not report the digest of '{build.Reference}'. Run 'abox build' again."
+                );
+        }
+        finally
+        {
+            File.Delete(metadata);
+        }
     }
 
     public async Task RequireHostBuilderAsync(string context, CancellationToken cancellationToken)
@@ -98,6 +116,23 @@ internal sealed class DockerWorkloadImages(IHostPrograms programs, IProcessRunne
                 $"Local workload images require the docker-driver builder for context '{context}', not '{string.Join(", ", drivers)}'. Select a Docker Engine context and run 'abox build' again."
             );
         }
+    }
+
+    public async Task<string?> FindImageIdAsync(
+        string context,
+        string reference,
+        CancellationToken cancellationToken
+    )
+    {
+        var result = await runner.RunAsync(
+            new ProcessRequest(
+                DockerCommand.Program,
+                ["--context", context, "image", "inspect", "--format", "{{.Id}}", reference]
+            ),
+            cancellationToken
+        );
+        var id = result.StandardOutput.Trim();
+        return result.Succeeded && ImageReferences.IsDigest(id) ? id : null;
     }
 
     public async Task<string> ImageIdAsync(

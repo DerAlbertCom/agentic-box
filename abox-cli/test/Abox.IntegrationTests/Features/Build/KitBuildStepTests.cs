@@ -2,9 +2,9 @@ using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.KitBuildScripts;
-using Abox.Features.Shared.KitInspection;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
+using Abox.Infrastructure;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
@@ -14,14 +14,13 @@ public sealed class KitBuildStepTests
 {
     private readonly BuildServiceFixture _fixture = new();
     private TempDirectory Root => _fixture.Root;
-    private IKitInspector Inspector => _fixture.Inspector;
     private IKitBuildScript Script => _fixture.BuildScript;
     private BuildStore Store => _fixture.Store;
     private SquadResolver Resolver => _fixture.Resolver;
     private BuildService Service => _fixture.Service;
 
     [Fact]
-    public async Task SbxReceivesTheStagedBuiltKit()
+    public async Task TheKitImageIsBuiltFromTheStagedBuiltKit()
     {
         // Arrange
         Root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
@@ -37,14 +36,6 @@ public sealed class KitBuildStepTests
                     "generated\n"
                 )
             );
-        var inspected = new List<string>();
-        Inspector
-            .InspectAsync(
-                Arg.Do<string>(inspected.Add),
-                Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(new KitInspectionOutcome(true, ""));
 
         // Act
         await Service.BuildAsync(Request(), CancellationToken.None);
@@ -56,7 +47,50 @@ public sealed class KitBuildStepTests
         File.ReadAllText(Path.Combine(kit.Reference, "generated.txt")).Should().Be("generated\n");
         File.Exists(Path.Combine(kit.Reference, "built.yaml")).Should().BeTrue();
         File.Exists(Path.Combine(Root.Path, "kits", "built", "generated.txt")).Should().BeFalse();
-        inspected.Should().Contain(kit.Reference);
+        BuiltFrom().Should().Contain(kit.Reference);
+    }
+
+    [Fact]
+    public async Task AnUnchangedKitDoesNotRunItsBuildStepAgain()
+    {
+        // Arrange
+        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
+        Root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
+        KitBuildScripts.Write(Root, "built", "exit 0\n");
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        var staged = Manifest().Kits.Single().Reference;
+
+        // Act
+        await Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        await Script
+            .Received(1)
+            .RunAsync(Arg.Any<KitBuildScriptRun>(), Arg.Any<CancellationToken>());
+        Manifest().Kits.Single().Reference.Should().Be(staged);
+        Directory.Exists(staged).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AChangeInTheKitFolderRunsItsBuildStepAgain()
+    {
+        // Arrange
+        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [built]\n");
+        Root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
+        KitBuildScripts.Write(Root, "built", "exit 0\n");
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        Root.File("kits/built/src/main.ts", "changed\n");
+
+        // Act
+        await Service.BuildAsync(Request(), CancellationToken.None);
+
+        // Assert
+        await Script
+            .Received(2)
+            .RunAsync(Arg.Any<KitBuildScriptRun>(), Arg.Any<CancellationToken>());
+        File.Exists(Path.Combine(Manifest().Kits.Single().Reference, "src", "main.ts"))
+            .Should()
+            .BeTrue();
     }
 
     [Fact]
@@ -127,7 +161,7 @@ public sealed class KitBuildStepTests
         failure.WithMessage("*build file of kit 'plain'*not executable*chmod +x*");
         Store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
         await Script.DidNotReceiveWithAnyArgs().RunAsync(default!, default);
-        await Inspector.DidNotReceiveWithAnyArgs().InspectAsync(default!, default!, default);
+        BuiltFrom().Should().BeEmpty();
     }
 
     [Fact]
@@ -148,14 +182,17 @@ public sealed class KitBuildStepTests
             .Which.Reference.Should()
             .Be(source);
         await Script.DidNotReceiveWithAnyArgs().RunAsync(default!, default);
-        await Inspector
-            .Received(1)
-            .InspectAsync(
-                source,
-                Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<CancellationToken>()
-            );
+        BuiltFrom().Should().Contain(source);
     }
+
+    /// <summary>The directories the synthetic Docker built component images from.</summary>
+    private List<string> BuiltFrom() =>
+        _fixture
+            .Runner.ReceivedCalls()
+            .Select(call => (ProcessRequest)call.GetArguments()[0]!)
+            .Where(request => request.Arguments.Contains("--load"))
+            .Select(request => request.Arguments[^1])
+            .ToList();
 
     private BuildRequest Request() =>
         new([Resolver.ResolveTeam(Root.Path, "sample")], Root.Path, "latest");
