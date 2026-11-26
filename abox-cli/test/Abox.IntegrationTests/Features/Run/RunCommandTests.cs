@@ -119,14 +119,16 @@ public sealed class RunCommandTests
         fixture
             .Provider.GetRequiredService<BuildStore>()
             .Save(
-                new BuildManifest
-                {
-                    Squad = "ac",
-                    Tag = "latest",
-                    CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
-                    Reference = ImageName.OfTeam("sample", "latest"),
-                    LocalWorkload = LocalWorkloadFactory.Artifact(fixture.Root),
-                }
+                LocalWorkloadFactory.WithImages(
+                    fixture.Root,
+                    new BuildManifest
+                    {
+                        Squad = "ac",
+                        Tag = "latest",
+                        CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
+                        Reference = ImageName.OfTeam("sample", "latest"),
+                    }
+                )
             );
 
         // Act

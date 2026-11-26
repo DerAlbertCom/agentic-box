@@ -84,7 +84,7 @@ public sealed class BuildStoreTests
     }
 
     [Fact]
-    public void TheLocalWorkloadOfAnEarlierBuildIsStillRead()
+    public void AnEarlierBuildWithAPrebuiltWorkloadIsReadWithoutComponentImages()
     {
         // Arrange
         using var root = new TempDirectory();
@@ -113,7 +113,9 @@ public sealed class BuildStoreTests
         var manifest = store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
 
         // Assert
-        manifest.LocalWorkload!.ImageStore.Should().Be("desktop-linux");
+        manifest.Squad.Should().Be("ac");
+        manifest.Components.Should().BeEmpty();
+        manifest.ImageStore.Should().BeNull();
     }
 
     private static BuildStore Store(TempDirectory root) =>

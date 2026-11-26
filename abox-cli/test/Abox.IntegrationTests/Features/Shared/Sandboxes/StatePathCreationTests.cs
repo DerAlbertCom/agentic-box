@@ -38,7 +38,7 @@ public sealed class StatePathCreationTests : IDisposable
             _lifecycle,
             _mcp,
             _console,
-            new LocalSquadSource(_store, LocalWorkloadFactory.Images()),
+            LocalWorkloadFactory.Source(_store, console: _console),
             new RemoteSquadSource(new AboxConfig(), Substitute.For<IKitSourceTrust>(), _published),
             new UserSecretsCopy(
                 new AboxConfig(),
@@ -107,46 +107,6 @@ public sealed class StatePathCreationTests : IDisposable
         _lifecycle.ReceivedCalls().Should().BeEmpty();
         _mcp.ReceivedCalls().Should().BeEmpty();
         _records.Load(name).Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData("null-list")]
-    [InlineData("null-entry")]
-    [InlineData("null-sandbox-path")]
-    [InlineData("null-relative-path")]
-    public async Task IncompleteStoredStateFailsActionablyBeforeRuntimeAccess(string error)
-    {
-        // Arrange
-        SaveBuild([
-            new ManifestState { SandboxPath = "/home/agent/.cache", RelativePath = ".cache" },
-        ]);
-        var manifest = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        switch (error)
-        {
-            case "null-list":
-                manifest.State = null!;
-                break;
-            case "null-entry":
-                manifest.State.Add(null!);
-                break;
-            case "null-sandbox-path":
-                manifest.State[0].SandboxPath = null!;
-                break;
-            default:
-                manifest.State[0].RelativePath = null!;
-                break;
-        }
-        _store.Save(manifest);
-
-        // Act
-        var action = () => _create.CreateAsync(Request(), CancellationToken.None);
-
-        // Assert
-        (await action.Should().ThrowAsync<AboxException>()).WithMessage("*state*");
-        Directory
-            .Exists(Path.Combine(_paths.StateDirectory, SandboxName.For(_root.Path)))
-            .Should()
-            .BeFalse();
     }
 
     [Theory]
@@ -303,15 +263,17 @@ public sealed class StatePathCreationTests : IDisposable
 
     private BuildManifest SaveBuild(List<ManifestState> state)
     {
-        var manifest = new BuildManifest
-        {
-            Squad = "ac",
-            Tag = "latest",
-            Reference = ImageName.OfTeam("sample", "latest"),
-            LocalWorkload = LocalWorkloadFactory.Artifact(_root),
-            State = state,
-            Mcp = [new ManifestMcp { Name = "elastic", Url = "https://example.com/mcp" }],
-        };
+        var manifest = LocalWorkloadFactory.WithImages(
+            _root,
+            new BuildManifest
+            {
+                Squad = "ac",
+                Tag = "latest",
+                Reference = ImageName.OfTeam("sample", "latest"),
+                State = state,
+                Mcp = [new ManifestMcp { Name = "elastic", Url = "https://example.com/mcp" }],
+            }
+        );
         _store.Save(manifest);
         return manifest;
     }

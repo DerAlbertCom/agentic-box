@@ -16,6 +16,14 @@ public interface ILocalImageStore
         CancellationToken cancellationToken
     );
 
+    /// <summary>Saves a local image as an image archive, without pulling it.</summary>
+    Task SaveAsync(
+        string imageStore,
+        string reference,
+        string archive,
+        CancellationToken cancellationToken
+    );
+
     /// <summary>The content ID of a local image, or null when the store does not hold it.</summary>
     Task<string?> FindImageIdAsync(
         string imageStore,

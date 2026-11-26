@@ -14,7 +14,10 @@ public sealed class CreateDiscoveryTests
         // Arrange
         using var project = new SourceProjectFixture("config/teams", "shared/kits");
         var buildExit = await project.InvokeAsync(project.ProjectDirectory, "build");
-        var build = project.LoadBuild();
+        var kits = Path.Combine(
+            Path.GetDirectoryName(project.LoadBuild().WorkloadKitDirectory)!,
+            LocalSquadSource.ThinKitsFolderName
+        );
         project.Root.File("workspace/config/teams/sample/wrong.abox", "workload: wrong\n");
         var location = mode == "inside-the-project" ? project.NestedDirectory : project.Workspace;
 
@@ -31,13 +34,15 @@ public sealed class CreateDiscoveryTests
             .Lifecycle.Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource == build.LocalWorkload!.RuntimeKitDirectory
+                    request.KitSource == Path.Combine(kits, "workload")
                     && request.Location == location
-                    && request
-                        .Mixins.Select(Path.GetFullPath)
-                        .SequenceEqual(
-                            new[] { project.ProjectKit, build.ConfigurationMixinDirectory }
-                        )
+                    && request.Mixins.SequenceEqual(
+                        new[]
+                        {
+                            Path.Combine(kits, "kits-project-kit"),
+                            Path.Combine(kits, "config"),
+                        }
+                    )
                     && request.PullPolicy == PullPolicy.Never
                 ),
                 Arg.Any<CancellationToken>()

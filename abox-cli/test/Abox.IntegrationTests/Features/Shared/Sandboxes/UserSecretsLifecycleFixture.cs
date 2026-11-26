@@ -36,15 +36,17 @@ internal sealed class UserSecretsLifecycleFixture : IDisposable
         Records = new SandboxRecordStore(paths);
         Builds = new BuildStore(paths);
         Builds.Save(
-            new BuildManifest
-            {
-                Squad = "ac",
-                Tag = "latest",
-                RootDirectory = Root.Path,
-                Reference = ImageName.OfTeam("sample", "latest"),
-                CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
-                LocalWorkload = LocalWorkloadFactory.Artifact(Root),
-            }
+            LocalWorkloadFactory.WithImages(
+                Root,
+                new BuildManifest
+                {
+                    Squad = "ac",
+                    Tag = "latest",
+                    RootDirectory = Root.Path,
+                    Reference = ImageName.OfTeam("sample", "latest"),
+                    CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
+                }
+            )
         );
         Lifecycle
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())

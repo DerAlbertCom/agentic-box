@@ -44,14 +44,16 @@ public sealed class RunFlowTeamTests
                 BuildCreatedAt = DateTimeOffset.MinValue,
             }
         );
-        var build = new BuildManifest
-        {
-            Squad = "ac",
-            Tag = "latest",
-            Reference = "agentic-box-rwest-other:latest",
-            CreatedAt = DateTimeOffset.Now,
-            LocalWorkload = LocalWorkloadFactory.Artifact(Root),
-        };
+        var build = LocalWorkloadFactory.WithImages(
+            Root,
+            new BuildManifest
+            {
+                Squad = "ac",
+                Tag = "latest",
+                Reference = "agentic-box-rwest-other:latest",
+                CreatedAt = DateTimeOffset.Now,
+            }
+        );
         if (storage == "qualified")
             Store.Save(build);
         else
@@ -96,7 +98,6 @@ public sealed class RunFlowTeamTests
     {
         // Arrange
         using var otherSources = new TempDirectory();
-        var otherImage = LocalWorkloadFactory.Artifact(otherSources);
         var name = SandboxName.For(Root.Path);
         Root.File("teams/sample/ac.abox", "workload: sample\n");
         Lifecycle
@@ -119,29 +120,33 @@ public sealed class RunFlowTeamTests
                 BuildCreatedAt = DateTimeOffset.MinValue,
             }
         );
-        var selected = new BuildManifest
-        {
-            Squad = "ac",
-            Tag = "latest",
-            Reference = "agentic-box-rwest-sample:latest",
-            RootDirectory = Root.Path,
-            CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
-            LocalWorkload = LocalWorkloadFactory.Artifact(Root),
-        };
+        var selected = LocalWorkloadFactory.WithImages(
+            Root,
+            new BuildManifest
+            {
+                Squad = "ac",
+                Tag = "latest",
+                Reference = "agentic-box-rwest-sample:latest",
+                RootDirectory = Root.Path,
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            }
+        );
         if (legacy)
             Root.File("state/builds/ac/latest/build.json", JsonSerializer.Serialize(selected));
         else
             Store.Save(selected);
         Store.Save(
-            new BuildManifest
-            {
-                Squad = "ac",
-                Tag = "latest",
-                Reference = "agentic-box-rwest-other:latest",
-                RootDirectory = otherSources.Path,
-                CreatedAt = DateTimeOffset.UtcNow,
-                LocalWorkload = otherImage,
-            }
+            LocalWorkloadFactory.WithImages(
+                otherSources,
+                new BuildManifest
+                {
+                    Squad = "ac",
+                    Tag = "latest",
+                    Reference = "agentic-box-rwest-other:latest",
+                    RootDirectory = otherSources.Path,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                }
+            )
         );
 
         // Act
@@ -157,7 +162,12 @@ public sealed class RunFlowTeamTests
             .Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource == selected.LocalWorkload.RuntimeKitDirectory
+                    request.KitSource
+                    == Path.Combine(
+                        Store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest")),
+                        LocalSquadSource.ThinKitsFolderName,
+                        "workload"
+                    )
                 ),
                 Arg.Any<CancellationToken>()
             );

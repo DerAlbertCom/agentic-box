@@ -1039,44 +1039,5 @@ public sealed class PublishServiceTests
         string repository = "mtiae-developer-container-images-local"
     ) => _fixture.SaveBuild(squad, repository);
 
-    [Fact]
-    public async Task PublishingUsesTheOriginalVerifiedWorkloadNotTheLocalThinRecipe()
-    {
-        // Arrange
-        SaveBuild("ac");
-        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        const string recipe = "FROM example.com/base:1\nRUN install-workload-tools\n";
-        File.WriteAllText(Path.Combine(build.WorkloadKitDirectory, "workload.dockerfile"), recipe);
-        build.LocalWorkload = LocalWorkloadFactory.Artifact(Root);
-        SaveVerifiedBuild(build);
-        string? publishedRecipe = null;
-        Runner
-            .RunAsync(
-                Arg.Is<ProcessRequest>(request =>
-                    request.Arguments.Contains("--push")
-                    && request.Arguments.Any(argument => argument.Contains("/components/workload:"))
-                ),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                var request = call.Arg<ProcessRequest>();
-                publishedRecipe = File.ReadAllText(
-                    Path.Combine(request.Arguments.Last(), "workload.dockerfile")
-                );
-                return PublishTestProcess.Run(request);
-            });
-
-        // Act
-        await Service.PublishAsync(Request("ac"), CancellationToken.None);
-
-        // Assert
-        publishedRecipe.Should().Be(recipe);
-        Configurations.Should().NotBeEmpty();
-        Configurations
-            .Should()
-            .OnlyContain(configuration => !configuration.Contains(build.LocalWorkload.Reference));
-    }
-
     private void SaveVerifiedBuild(BuildManifest build) => _fixture.SaveVerifiedBuild(build);
 }

@@ -20,8 +20,8 @@ public sealed class SandboxCreatorTests
 
     private SandboxCreator Creator(
         RemoteSquadSource? remote = null,
-        LocalWorkloadImages? images = null
-    ) => _fixture.Creator(remote, images);
+        IProcessRunner? runner = null
+    ) => _fixture.Creator(remote, runner);
 
     private readonly SandboxCreatorFixture _fixture = new();
     private TempDirectory Root => _fixture.Root;
@@ -36,10 +36,11 @@ public sealed class SandboxCreatorTests
     private SandboxCreator Service => _fixture.Service;
 
     [Fact]
-    public async Task ASandboxIsCreatedFromTheLocalBuild()
+    public async Task ASandboxIsCreatedFromTheLocalBuildThroughThinKitsOverItsImages()
     {
         // Arrange
         SaveBuild();
+        var kits = Path.Combine(Store.DirectoryFor(Identity), LocalSquadSource.ThinKitsFolderName);
 
         // Act
         var exitCode = await Service.CreateAsync(Request(), CancellationToken.None);
@@ -54,19 +55,112 @@ public sealed class SandboxCreatorTests
             .Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource
-                        == Store
-                            .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
-                            .LocalWorkload!.RuntimeKitDirectory
+                    request.KitSource == Path.Combine(kits, "workload")
                     && request.HostImageStore == "test-context"
                     && request.PullPolicy == PullPolicy.Never
                     && request.Name == SandboxName.For(Root.Path)
-                    && request.Mixins.Contains("/kits/pi-config")
-                    && request.Mixins.Contains("/kits/state")
+                    && request.Mixins.SequenceEqual(
+                        new[]
+                        {
+                            Path.Combine(kits, "kits-pi-config"),
+                            Path.Combine(kits, "state"),
+                            Path.Combine(kits, "config"),
+                        }
+                    )
                     && request.KitArguments["mode"] == "team"
                 ),
                 Arg.Any<CancellationToken>()
             );
+        var images = Store
+            .Load(Identity)!
+            .Components.ToDictionary(
+                component => component.Name,
+                component =>
+                    component.Reference[..component.Reference.LastIndexOf(':')]
+                    + "@"
+                    + component.Digest
+            );
+        File.ReadAllText(Path.Combine(kits, "workload", "workload.dockerfile"))
+            .Should()
+            .Be($"FROM {images["workload"]}\n");
+        File.ReadAllText(Path.Combine(kits, "workload", "workload.yaml"))
+            .Should()
+            .Be("kind: workload\n");
+        File.ReadAllText(Path.Combine(kits, "kits-pi-config", "pi-config.dockerfile"))
+            .Should()
+            .Be($"FROM scratch\nCOPY --from={images["kits/pi-config"]} / /\n");
+    }
+
+    [Fact]
+    public async Task TheRuntimeMetadataOfALocalSandboxComesFromItsConfigurationImage()
+    {
+        // Arrange
+        SaveBuild([new ManifestMcp { Name = "elastic", Url = "https://example.com/mcp" }]);
+        var record = Store.Load(Identity)!;
+        record.Mcp.Clear();
+        record.State.Clear();
+        record.CreatedAt = DateTimeOffset.UnixEpoch;
+        Store.Save(record);
+
+        // Act
+        var exitCode = await Service.CreateAsync(Request(), CancellationToken.None);
+
+        // Assert
+        exitCode.Should().Be(0, Console.AllText);
+        await Mcp.Received(1)
+            .AddAsync("elastic", "https://example.com/mcp", Arg.Any<CancellationToken>());
+        var sandbox = Records.Load(SandboxName.For(Root.Path))!;
+        sandbox
+            .BuildCreatedAt.Should()
+            .Be(new DateTimeOffset(2026, 11, 26, 9, 0, 0, TimeSpan.Zero));
+        await Lifecycle
+            .Received(1)
+            .CreateAsync(
+                Arg.Is<SandboxDefinition>(request => request.Mounts.Count == 1),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")]
+    public async Task AMissingOrReplacedComponentImageFailsBeforeTheExistingSandboxIsTouched(
+        string? imageId
+    )
+    {
+        // Arrange
+        SaveBuild();
+        var runner = LocalWorkloadFactory.Runner();
+        runner
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request =>
+                    request.Arguments.Contains("{{.Id}}")
+                    && request.Arguments.Last().Contains("/components/state:")
+                ),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                imageId is null
+                    ? new ProcessResult(1, "", "No such image")
+                    : new ProcessResult(0, imageId, "")
+            );
+
+        // Act
+        var action = () =>
+            Creator(runner: runner)
+                .CreateAsync(Request() with { AssumeYes = true }, CancellationToken.None);
+
+        // Assert
+        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
+            "The component image '*/components/state:*' is missing or was replaced. Run 'abox build --team sample --tag latest' again*"
+        );
+        await Lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await Lifecycle
+            .DidNotReceive()
+            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await Lifecycle
+            .DidNotReceive()
+            .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -565,7 +659,7 @@ public sealed class SandboxCreatorTests
         // Arrange
         SaveBuild();
         var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        build.LocalWorkload = null;
+        build.Components.Clear();
         Store.Save(build);
 
         // Act
@@ -573,7 +667,7 @@ public sealed class SandboxCreatorTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*no prebuilt local workload*abox build*"
+            "*has no component images (an older build)*abox build --team sample --tag latest*"
         );
         await Lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
         await Lifecycle
@@ -582,39 +676,15 @@ public sealed class SandboxCreatorTests
     }
 
     [Fact]
-    public async Task ChangedThinKitFailsBeforeReplacementRatherThanBuildingSources()
-    {
-        // Arrange
-        SaveBuild();
-        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        File.AppendAllText(
-            Path.Combine(build.LocalWorkload!.RuntimeKitDirectory, "workload.dockerfile"),
-            "RUN install-again\n"
-        );
-
-        // Act
-        var action = () =>
-            Service.CreateAsync(Request() with { AssumeYes = true }, CancellationToken.None);
-
-        // Assert
-        (await action.Should().ThrowAsync<AboxException>()).WithMessage("*runtime kit changed*");
-        await Lifecycle.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
-        await Lifecycle
-            .DidNotReceive()
-            .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public async Task RemoteCreationConsumesOnlyThePublishedSetEvenWithoutALocalImage()
     {
         // Arrange
         SaveBuild();
         var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        Directory.Delete(build.LocalWorkload!.RuntimeKitDirectory, recursive: true);
-        build.LocalWorkload = null;
+        build.Components.Clear();
         Store.Save(build);
         var runner = LocalWorkloadFactory.Runner();
-        var service = Creator(images: LocalWorkloadFactory.Images(runner));
+        var service = Creator(runner: runner);
 
         // Act
         var exitCode = await service.CreateAsync(

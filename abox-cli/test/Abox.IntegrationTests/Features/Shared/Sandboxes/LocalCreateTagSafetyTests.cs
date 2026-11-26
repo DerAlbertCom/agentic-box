@@ -39,10 +39,7 @@ public sealed class LocalCreateTagSafetyTests
         var mcp = Substitute.For<IMcpServerRegistry>();
         var kitSources = Substitute.For<IKitSourceTrust>();
         var published = Substitute.For<IPublishedSquadSource>();
-        var source = new LocalSquadSource(
-            new BuildStore(paths),
-            LocalWorkloadFactory.Images(programs, runner)
-        );
+        var source = LocalWorkloadFactory.Source(new BuildStore(paths), runner, programs);
         var creator = TestServiceGraphs.Creator(
             new SandboxRecordStore(paths),
             paths,

@@ -139,6 +139,7 @@ internal sealed class ComponentImages(
             ImageId = imageId,
             InputHash = source.InputHash,
             Descriptor = descriptor,
+            DescriptorFile = Path.GetFileName(source.Descriptor),
             Directory = source.Directory,
         };
     }

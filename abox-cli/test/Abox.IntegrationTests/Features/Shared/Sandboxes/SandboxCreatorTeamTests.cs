@@ -58,14 +58,18 @@ public sealed class SandboxCreatorTeamTests
         foreach (var team in teams)
         {
             var build = Store.Load(new SquadBuildIdentity(team.Name, "ac", "latest"))!;
+            var kits = Path.Combine(
+                Store.DirectoryFor(new SquadBuildIdentity(team.Name, "ac", "latest")),
+                LocalSquadSource.ThinKitsFolderName
+            );
             var location = Path.Combine(Root.Path, "locations", team.Name);
             await Lifecycle
                 .Received(1)
                 .CreateAsync(
                     Arg.Is<SandboxDefinition>(request =>
                         request.Name == SandboxName.For(location)
-                        && request.KitSource == build.LocalWorkload!.RuntimeKitDirectory
-                        && request.Mixins.Contains(build.StateMixinDirectory!)
+                        && request.KitSource == Path.Combine(kits, "workload")
+                        && request.Mixins.Contains(Path.Combine(kits, "state"))
                         && request.Mounts.Single().SandboxPath == "/home/agent/." + team.Name
                         && request.PullPolicy == PullPolicy.Never
                     ),
@@ -77,39 +81,6 @@ public sealed class SandboxCreatorTeamTests
             BuildSources.EnsureUnchanged(build);
         }
         Published.ReceivedCalls().Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task OwnedLegacyLocalCreationDoesNotMigrateOrRelabelItsBuild()
-    {
-        // Arrange
-        var image = LocalWorkloadFactory.Artifact(Root);
-        var original = JsonSerializer.Serialize(
-            new BuildManifest
-            {
-                Squad = "ac",
-                Tag = "latest",
-                Reference = "agentic-box-rwest-sample:latest",
-                LocalWorkload = image,
-            }
-        );
-        var legacy = Root.File("state/builds/ac/latest/build.json", original);
-
-        // Act
-        var exitCode = await Service.CreateAsync(Request(), CancellationToken.None);
-
-        // Assert
-        exitCode.Should().Be(0);
-        await Lifecycle
-            .Received(1)
-            .CreateAsync(
-                Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource == image.RuntimeKitDirectory
-                ),
-                Arg.Any<CancellationToken>()
-            );
-        File.ReadAllText(legacy).Should().Be(original);
-        Directory.Exists(Path.Combine(Paths.BuildsDirectory, "sample")).Should().BeFalse();
     }
 
     [Theory]
@@ -126,7 +97,6 @@ public sealed class SandboxCreatorTeamTests
                     Squad = "ac",
                     Tag = "latest",
                     Reference = reference,
-                    LocalWorkload = LocalWorkloadFactory.Artifact(Root),
                 }
             )
         );

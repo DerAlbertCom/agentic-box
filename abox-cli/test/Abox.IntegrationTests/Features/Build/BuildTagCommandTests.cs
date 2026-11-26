@@ -67,7 +67,7 @@ public sealed class BuildTagCommandTests
         File.ReadAllText(Path.Combine(manifest.WorkloadKitDirectory, "workload.yaml"))
             .Should()
             .Contain("schemaVersion");
-        manifest.LocalWorkload.Should().NotBeNull();
+        manifest.Components.Should().NotBeEmpty();
     }
 
     [Theory]

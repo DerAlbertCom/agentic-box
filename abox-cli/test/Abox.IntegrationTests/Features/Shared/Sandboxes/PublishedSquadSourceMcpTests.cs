@@ -68,7 +68,6 @@ public sealed class PublishedSquadSourceMcpTests
         var team = resolver.ResolveTeam(root.Path, "mti-ca");
         var store = new BuildStore(paths);
         var runner = LocalWorkloadFactory.Runner();
-        var images = LocalWorkloadFactory.Images(runner);
         var lifecycle = Substitute.For<ISandboxLifecycle>();
         var mcp = Substitute.For<IMcpServerRegistry>();
         mcp.ListAsync(Arg.Any<CancellationToken>())
@@ -100,7 +99,7 @@ public sealed class PublishedSquadSourceMcpTests
             lifecycle,
             mcp,
             Console,
-            new LocalSquadSource(store, images),
+            LocalWorkloadFactory.Source(store, runner),
             Remote(config, Substitute.For<IKitSourceTrust>()),
             new UserSecretsCopy(
                 config,
