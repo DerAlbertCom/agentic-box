@@ -1,5 +1,6 @@
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
 using NSubstitute;
@@ -21,7 +22,10 @@ public sealed class InvocationDefaultsFolderConfigurationTests : IDisposable
         _defaults = new InvocationDefaults(
             new Lazy<AboxConfig>(() => new AboxConfig()),
             _parser,
-            new TrailingArguments()
+            new TrailingArguments(),
+            new Lazy<SourceRootResolver>(() =>
+                throw new InvalidOperationException("No source root is used.")
+            )
         );
     }
 

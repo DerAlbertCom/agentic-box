@@ -11,6 +11,13 @@ internal sealed class AboxConfig
     /// <summary>The folder used when the command line does not name one. Null means the current folder.</summary>
     public string? DefaultLocation { get; init; }
 
+    /// <summary>
+    /// The repository folder with the team sources, used by <c>abox build</c> and
+    /// <c>abox publish</c> when no team sources are found from the current directory. Null
+    /// means none.
+    /// </summary>
+    public string? SourceRoot { get; init; }
+
     /// <summary>The directory of a project that holds a folder per team.</summary>
     public string TeamsDirectory { get; init; } = "teams";
 

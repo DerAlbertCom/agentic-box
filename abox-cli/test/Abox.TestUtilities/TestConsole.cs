@@ -52,6 +52,17 @@ public sealed class TestConsole : IConsole
         return _picked < Picks.Count ? Picks[_picked++] : null;
     }
 
+    /// <summary>The lines the test hands out, in the order they are asked for.</summary>
+    public List<string> Lines { get; } = [];
+
+    private int _line;
+
+    public string? ReadLine(string prompt)
+    {
+        _output.Add(prompt);
+        return _line < Lines.Count ? Lines[_line++] : null;
+    }
+
     public string? ReadSecret(string prompt)
     {
         _output.Add(prompt);

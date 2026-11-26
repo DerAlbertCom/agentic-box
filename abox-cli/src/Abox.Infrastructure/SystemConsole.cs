@@ -43,6 +43,12 @@ internal sealed class SystemConsole : IConsole
         return pick - 1;
     }
 
+    public string? ReadLine(string prompt)
+    {
+        Console.Out.Write(prompt);
+        return Console.In.ReadLine();
+    }
+
     public string? ReadSecret(string prompt)
     {
         Console.Out.Write(prompt);

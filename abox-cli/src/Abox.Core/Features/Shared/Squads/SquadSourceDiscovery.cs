@@ -57,6 +57,10 @@ internal sealed class SquadSourceDiscovery(AboxConfig config, IYamlParser parser
         );
     }
 
+    /// <summary>Whether the team folder is found from <paramref name="rootDirectory"/> or a parent.</summary>
+    internal bool HasTeam(string rootDirectory, string teamName) =>
+        WalkUp(rootDirectory).Any(current => TeamFolder(current, teamName) is not null);
+
     private string? TeamFolder(string directory, string teamName)
     {
         var teams = Path.Combine(directory, config.TeamsDirectory);

@@ -69,8 +69,10 @@ public static class CoreServiceCollection
         services.AddScoped(provider => new InvocationDefaults(
             new Lazy<AboxConfig>(provider.GetRequiredService<AboxConfig>),
             provider.GetRequiredService<IYamlParser>(),
-            provider.GetRequiredService<TrailingArguments>()
+            provider.GetRequiredService<TrailingArguments>(),
+            new Lazy<SourceRootResolver>(provider.GetRequiredService<SourceRootResolver>)
         ));
+        services.AddScoped<SourceRootResolver>();
         services.AddScoped<UserSecretsCopy>();
         services.AddScoped<AppPorts>();
         services.AddScoped<SandboxHttps>();

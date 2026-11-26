@@ -1,6 +1,7 @@
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 using NSubstitute;
 
@@ -11,7 +12,14 @@ public sealed class InvocationDefaultsTests
     private readonly IYamlParser _parser = Substitute.For<IYamlParser>();
 
     private InvocationDefaults Defaults(AboxConfig configuration) =>
-        new(new Lazy<AboxConfig>(() => configuration), _parser, new TrailingArguments());
+        new(
+            new Lazy<AboxConfig>(() => configuration),
+            _parser,
+            new TrailingArguments(),
+            new Lazy<SourceRootResolver>(() =>
+                throw new InvalidOperationException("No source root is used.")
+            )
+        );
 
     [Fact]
     public async Task TheSandboxLocationPrefersTheOptionOverTheDefaultLocation()

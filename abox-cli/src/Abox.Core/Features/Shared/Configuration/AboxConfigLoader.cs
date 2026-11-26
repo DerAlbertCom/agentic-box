@@ -19,6 +19,7 @@ internal static class AboxConfigLoader
         "pullRepository",
         "userSecretsDenyList",
         "terminalTheme",
+        "sourceRoot",
     ];
 
     public static AboxConfig Load(AboxPaths paths, IYamlParser parser)
@@ -44,6 +45,7 @@ internal static class AboxConfigLoader
         {
             DefaultTeam = reader.GetString("defaultTeam"),
             DefaultLocation = reader.GetString("defaultLocation"),
+            SourceRoot = reader.GetString("sourceRoot"),
             TeamsDirectory = Or(reader.GetString("teamsDirectory"), defaults.TeamsDirectory),
             KitsDirectory = Or(reader.GetString("kitsDirectory"), defaults.KitsDirectory),
             DefaultTag = reader.Has("defaultTag")
@@ -53,6 +55,21 @@ internal static class AboxConfigLoader
             UserSecretsDenyList = reader.GetStringList("userSecretsDenyList"),
             TerminalTheme = reader.GetBoolean("terminalTheme") ?? defaults.TerminalTheme,
         };
+    }
+
+    /// <summary>
+    /// Adds <c>sourceRoot</c> to the user configuration file, creating the file when it does
+    /// not exist and keeping every other setting as written.
+    /// </summary>
+    public static void SaveSourceRoot(AboxPaths paths, string folder)
+    {
+        Directory.CreateDirectory(paths.ConfigDirectory);
+        var existing = File.Exists(paths.ConfigFile) ? File.ReadAllText(paths.ConfigFile) : "";
+        var separator = existing.Length == 0 || existing.EndsWith('\n') ? "" : "\n";
+        File.WriteAllText(
+            paths.ConfigFile,
+            $"{existing}{separator}sourceRoot: '{folder.Replace("'", "''")}'\n"
+        );
     }
 
     private static string Or(string? value, string fallback) =>
