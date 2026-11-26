@@ -38,8 +38,7 @@ capabilities:
             esac
             test -z "${GH_TOKEN:-}" && test -z "${GITHUB_TOKEN:-}"
             gh config set --host rwe.ghe.com oauth_token "$RWE_GHE_TOKEN"
-            gh auth setup-git
-            git config --global credential.https://rwe.ghe.com.helper '!gh auth git-credential'
+            gh auth setup-git --hostname rwe.ghe.com
           user: "1000"
           env: [RWE_GHE_TOKEN, GH_TOKEN, GITHUB_TOKEN, GH_HOST]
   - type: com.docker.sandbox/agent-context@2

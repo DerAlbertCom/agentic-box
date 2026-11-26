@@ -85,7 +85,48 @@ public sealed class PublishedSquadSourceStateTests
             );
     }
 
-    private void SetPublishedState(params (string SandboxPath, string RelativePath)[] state)
+    [Fact]
+    public async Task PublishedStateIsFoundAmongGroupedCapabilitiesOfTheProcessedDescriptor()
+    {
+        // Arrange
+        SetPublishedState(
+            [
+                new
+                {
+                    group = new
+                    {
+                        capabilities = new[]
+                        {
+                            new
+                            {
+                                type = "com.docker.sandbox/network-policy@1",
+                                config = new { runtime = new { allow = new[] { "**" } } },
+                            },
+                        },
+                    },
+                },
+            ],
+            ("/home/agent/.published", ".published")
+        );
+
+        // Act
+        var result = await LoadAsync();
+
+        // Assert
+        result
+            .Metadata.State.Should()
+            .ContainSingle()
+            .Which.SandboxPath.Should()
+            .Be("/home/agent/.published");
+    }
+
+    private void SetPublishedState(params (string SandboxPath, string RelativePath)[] state) =>
+        SetPublishedState([], state);
+
+    private void SetPublishedState(
+        object[] otherCapabilities,
+        params (string SandboxPath, string RelativePath)[] state
+    )
     {
         Metadata["State"] = JsonSerializer.SerializeToNode(
             state.Select(entry => new { entry.SandboxPath, entry.RelativePath })
@@ -95,11 +136,16 @@ public sealed class PublishedSquadSourceStateTests
             schemaVersion = "3",
             kind = "workload",
             kits = new[] { new { @ref = Config } },
-            capabilities = state.Select(entry => new
-            {
-                type = "com.docker.sandbox/host-mount@1",
-                config = new { path = entry.SandboxPath },
-            }),
+            capabilities = otherCapabilities.Concat(
+                state.Select(entry =>
+                    (object)
+                        new
+                        {
+                            type = "com.docker.sandbox/host-mount@1",
+                            config = new { path = entry.SandboxPath },
+                        }
+                )
+            ),
         };
         RawManifests[PinnedSet] = JsonSerializer.Serialize(
             new
