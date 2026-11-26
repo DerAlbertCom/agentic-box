@@ -4,7 +4,7 @@
 
 1. `--offset` for this invocation.
 2. `portOffset` in the selected sandbox folder's optional `abox.user.yaml`, then
-   `abox.yaml` (see [folder configuration](../README.md#folder-configuration)).
+   `abox.yaml` (see [folder configuration](cli-reference.md#folder-configuration)).
 3. **10000**, including when there is no folder file.
 
 There is no global setting. No invocation writes configuration. The shared

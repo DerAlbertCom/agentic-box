@@ -13,7 +13,7 @@ including successful calls, to abox's stderr. It labels the streams and exit cod
 without changing captured results, JSON parsing, or exit status. It never prints
 raw arguments, environment settings or stdin, and redacts known credential values
 echoed in captured diagnostics. Attached-console processes keep their existing
-interactive output without duplicate diagnostics. See [the usage example](../README.md#seeing-tool-output).
+interactive output without duplicate diagnostics. See [the usage example](cli-reference.md#seeing-tool-output).
 
 An opt-in `ProcessOutputPolicy.Sensitive` instead discards child output (including
 raw errors and scalar fragments), prohibits attached streams and writes explicit
@@ -432,7 +432,7 @@ on-demand override/recovery.
 The user setting `pullRepository` defaults to **`mtiae-docker-release`**. It accepts
 one lowercase JFrog repository path segment; an omitted or blank setting uses the
 default. It is independent of the workload's `publishRepository`. See
-[the settings file location and example](../README.md#user-settings).
+[the settings file location and example](cli-reference.md#user-settings).
 
 The same user configuration also accepts:
 
@@ -629,7 +629,7 @@ services; it does not need to. Older
 The on-demand path copies explicitly selected .NET stores/selected keys into an
 existing local or published sandbox, with no kit-source or build dependency. It
 never creates or replaces a sandbox. See the
-[configuration, safety and recovery contract](../README.md#copying-net-user-secrets).
+[configuration, safety and recovery contract](cli-reference.md#copying-net-user-secrets).
 The global YAML `userSecretsDenyList` matches case-insensitive literal substrings
 in selected original scalar values; it defaults to empty. It is a policy safeguard,
 not an arbitrary staging/production-secret detector. Mixed plain IDs and objects
