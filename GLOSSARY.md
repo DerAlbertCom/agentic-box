@@ -25,10 +25,18 @@ The image built from a workload. Maintainers build it; users get it through thei
 A v3 kit of the Docker Sandboxes kit spec: a workload (a full root filesystem) or a mixin (layers added on top).
 
 **Kit build step**:
-An executable `build` file in a local kit; `abox build` runs it on a staged copy of the kit, and that copy is what the sandbox gets.
+An executable `build` file in a local kit; `abox build` runs it on a staged copy of the kit, and the kit's component image is built from that copy.
+
+**Component image**:
+The image of one kit of a squad that `abox build` makes: its workload, a local kit, its state mixin or its configuration mixin. Publishing pushes it unchanged.
+_Avoid_: component (alone), local kit image
+
+**Build record**:
+What `abox build` keeps about the build of one squad and tag: its component images with their digests and inputs, and the base image and registry kits pinned by digest.
+_Avoid_: manifest, build.json
 
 **Kit set**:
-The published or locally built result of one squad: one workload kit plus its mixins.
+The result of one squad: one workload kit plus its mixins. Published, it is a set image in JFrog that composes the pushed component images; locally, the same component images in the host image store.
 
 ## Sandboxes
 
@@ -54,6 +62,9 @@ What `abox run` starts for a sandbox: a shell, or a desktop app on the host that
 **User configuration**:
 The personal settings of one user in the abox config directory (`config.yaml`), such as the default team, location and tag.
 _Avoid_: global config, settings
+
+**Source root**:
+The repository folder with the team sources that `abox build` and `abox publish` search from when the current folder has none; the `sourceRoot` user setting.
 
 **Folder configuration**:
 The runtime opt-ins of one sandbox location, in `abox.yaml` and `abox.user.yaml` there, such as its squad, port offset and user-secret selection; never a build input.

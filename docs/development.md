@@ -105,8 +105,8 @@ no flat container, so the script lists versions through the registration resourc
 
 ## Local sandbox builds
 
-Sandbox commands need `sbx` 0.51.0 or later on `PATH`, healthy and signed in.
-Normal image builds and all creation need host Docker with Buildx and a running
+Sandbox commands need `sbx` 0.54.0 or later on `PATH`, healthy and signed in.
+Builds and all creation need host Docker with Buildx and a running
 engine. Local builds use the current Docker context's **docker-driver** builder,
 regardless of a separately selected `docker-container` or remote publishing builder.
 abox does not install dependencies itself.
@@ -114,36 +114,28 @@ abox does not install dependencies itself.
 From the repository root:
 
 ```sh
-abox build --team sample --no-verify
+abox build --team sample
 abox create --team sample --squad ac --local --location "/path/to/project"
 abox run --location "/path/to/project"
 ```
 
 If running from source instead of an installed tool, replace `abox` with
-`dotnet run --project abox-cli/src/Abox --`. `--no-verify` skips additional kit
-inspection, **not** the image build; recipe-based local kits require it on sbx
-0.51.0. Only `build` and `publish` read the team/kit sources; `create --local` uses
-the local build. Installing abox does not install these team/kit sources.
+`dotnet run --project abox-cli/src/Abox --`. Only `build` and `publish` read the
+team/kit sources; `create --local` uses the local build. Installing abox does not
+install these team/kit sources. Outside the repository, `build` and `publish` find
+them through the user setting `sourceRoot`; see
+[user settings](cli-reference.md#user-settings).
 
-Local creation consumes a prebuilt workload image and thin runtime kit, not a
-fresh workload installation. It still runs the thin sbx wrapper build and may
-need frontend/registry dependencies or custom mixin recipe builds; it is not an
-offline guarantee. Keep the recorded Docker context/image available. See
+`abox build` builds one image per component (workload, local kits, state and config
+mixins) and rebuilds only the components whose inputs changed. Use
+`abox build --rebuild` to build every component again, for example after changing
+files outside a kit's folder that its build step reads (such as `sbox-cli/`).
+
+Local creation consumes the component images of the build through thin directory
+kits, not a fresh installation. It still runs the thin sbx wrapper build and may
+fetch registry kits; it is not an offline guarantee. Keep the recorded Docker
+context and images available. See
 [local and published creation](cli-reference.md#creating-local-and-published-sandboxes).
-
-### Metadata-only preparation
-
-`abox build --team <team> --metadata-only --no-personal` prepares sources without
-abox's Docker/Buildx or sbx calls. Kit build steps still run and can require tools
-of their own. This is not needed to consume a published squad.
-
-`--metadata-only` **replaces the manifest for the selected team/squad/tag** and clears
-its previous local image selection, even if inputs are unchanged. Existing
-Docker images, thin runtime kits and sandboxes are not deleted. Use a separate
-tag if you need to keep a local build selected; otherwise a normal `abox build`
-without `--metadata-only` is required before the next `create --local`.
-`abox run` continues using existing sandboxes rather than offering metadata-only
-preparation as a newer local image build.
 
 ## Publishing squads
 
@@ -153,7 +145,7 @@ identity with read/write access to the selected repository, then build and publi
 
 ```sh
 docker login rwest.jfrog.io
-abox build --team sample --no-personal --no-verify
+abox build --team sample
 abox publish --team sample --tag latest
 ```
 
@@ -163,12 +155,13 @@ build and publish must select the same tag. Each squad has a stable reference,
 for example `rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac:latest`.
 This example is not evidence that an artifact is available.
 
-Builds containing personal `.abox` configuration, default local builds without
-fingerprints, older builds without provenance, and builds whose local sources
-have changed must be rebuilt with `--no-personal` before publication. Changing the
-resolved workload's repository also requires a rebuild. Link-free source enforcement
-and fingerprinting apply only to `--no-personal` builds; ordinary local builds retain
-their linked-input support.
+Publish pushes the component images `abox build` made, unchanged, and builds only
+the set. It refuses a stale build: changed sources (including a kit's folder in the
+repository), a component image that left the image store or was replaced, a base
+image or registry kit tag that now resolves to another digest, or an older build
+without component images. Run `abox build --team <team> --tag <tag>` again before
+publishing. Changing the resolved workload's repository also requires a rebuild.
+Build inputs must be ordinary files and directories, not symbolic links.
 
 `publish` needs Docker/Buildx but not sbx running or signed in. Registry credentials
 stay in Docker's host credential store; `abox secrets` does not configure them.

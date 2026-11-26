@@ -70,7 +70,7 @@ public sealed class BuiltKitCreationTests
             .Components.Single(component => component.Name == name);
 
     private static string Pinned(BuildComponent component) =>
-        component.Reference[..component.Reference.LastIndexOf(':')] + "@" + component.Digest;
+        component.Reference + "@" + component.Digest;
 
     [Fact]
     public async Task LocalCreationPassesTheSquadConfigurationMixinOfTheBuild()

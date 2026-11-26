@@ -13,12 +13,12 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
     private readonly Option<string> _team = new("--team")
     {
         Description =
-            "The team the squad belongs to. Defaults to the team of the user configuration.",
+            $"The team the squad belongs to. Saved in {FolderConfig.UserFile} of the location; defaults to the folder configuration, then the team of the user configuration.",
     };
     private readonly Option<string> _squad = new("--squad")
     {
         Description =
-            $"The squad the sandbox is created from. Defaults to the folder configuration ({FolderConfig.FileNames}); a conflicting --squad is rejected. One of them is required.",
+            $"The squad the sandbox is created from. Saved in {FolderConfig.UserFile} of the location; defaults to the folder configuration ({FolderConfig.FileNames}). A squad that conflicts with {FolderConfig.SharedFile} is rejected. One of them is required.",
     };
     private readonly LocationOption _location = new();
     private readonly Option<string> _tag = new("--tag")
@@ -72,12 +72,13 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
         var memory = AtLeastOne(parseResult.GetValue(_memory), "--memory");
         var cpus = AtLeastOne(parseResult.GetValue(_cpus), "--cpus");
         var tag = defaults.Tag(parseResult.GetValue(_tag));
-        var team = defaults.Team(parseResult.GetValue(_team));
         var location = await defaults.SandboxLocationAsync(
             parseResult.GetValue(_location),
             FolderConfigurationLoading.Now,
             cancellationToken
         );
+        var folderConfig = await location.FolderConfigurationAsync(cancellationToken);
+        var team = defaults.Team(parseResult.GetValue(_team) ?? folderConfig?.Team);
         return new CreateParameters(
             location,
             team,

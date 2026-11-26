@@ -20,7 +20,7 @@ public sealed class TeamBuildStoreTests
                 Squad = "ac",
                 Tag = "latest",
                 Reference = "agentic-box-rwest-sample:latest",
-                Template = "legacy-template",
+                PublishRepository = "legacy-images",
             }
         );
         var legacy = root.File("builds/ac/latest/build.json", original);
@@ -33,15 +33,15 @@ public sealed class TeamBuildStoreTests
                 Squad = "ac",
                 Tag = "latest",
                 Reference = "agentic-box-rwest-sample:latest",
-                Template = "new-template",
+                PublishRepository = "new-images",
             }
         );
         var current = store.Load(new SquadBuildIdentity("SAMPLE", "AC", "latest"))!;
         var unrelated = () => store.Load(new SquadBuildIdentity("other", "ac", "latest"));
 
         // Assert
-        old.Template.Should().Be("legacy-template");
-        current.Template.Should().Be("new-template");
+        old.PublishRepository.Should().Be("legacy-images");
+        current.PublishRepository.Should().Be("new-images");
         unrelated
             .Should()
             .Throw<AboxException>()

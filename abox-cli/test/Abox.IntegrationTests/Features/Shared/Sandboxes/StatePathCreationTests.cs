@@ -228,7 +228,8 @@ public sealed class StatePathCreationTests : IDisposable
         recreated.Should().Be(0);
         File.ReadAllText(saved).Should().Be("keep this session");
         var manifest = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        manifest
+        LocalWorkloadFactory
+            .Bundled(manifest)
             .State.Select(entry => (entry.SandboxPath, entry.RelativePath))
             .Should()
             .Equal((sandboxPath, relativePath));

@@ -5,19 +5,28 @@ using Abox.Features.Shared.Squads;
 namespace Abox.Features.Build;
 
 /// <summary>
-/// Runs <c>abox build</c>: resolves the teams to their squads, runs preflight, then builds.
+/// Runs <c>abox build</c>: finds the team sources, resolves the teams to their squads, runs
+/// preflight, then builds.
 /// </summary>
-internal sealed class BuildHandler(Preflight preflight, SquadResolver resolver, BuildService build)
-    : ICommandHandler<BuildParameters>
+internal sealed class BuildHandler(
+    Preflight preflight,
+    SourceRootResolver sourceRoots,
+    SquadResolver resolver,
+    BuildService build
+) : ICommandHandler<BuildParameters>
 {
     public async Task<int> HandleAsync(
         BuildParameters parameters,
         CancellationToken cancellationToken
     )
     {
+        // The team sources are first needed here, so this is where sourceRoot is asked for.
+        var root = Path.GetFullPath(
+            sourceRoots.Resolve(parameters.Root, Directory.GetCurrentDirectory(), parameters.Teams)
+        );
         var request = new BuildRequest(
-            resolver.ResolveTeams(parameters.RootDirectory, parameters.Teams),
-            parameters.RootDirectory,
+            resolver.ResolveTeams(root, parameters.Teams),
+            root,
             parameters.Tag,
             parameters.Rebuild
         );

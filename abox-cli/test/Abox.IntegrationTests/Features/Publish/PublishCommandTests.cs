@@ -247,11 +247,10 @@ public sealed class PublishCommandTests
             Tag = tag,
             Reference = $"agentic-box-rwest-{team}:{tag}",
             PublishRepository = "mtiae-developer-container-images-local",
-            WorkloadKitDirectory = workload,
         };
         PublicationBuilds.SaveWorkload(
             _store,
-            LocalWorkloadFactory.WithImages(_root, manifest),
+            LocalWorkloadFactory.WithImages(_root, manifest, workload),
             Path.Combine(workload, "workload.yaml"),
             "schemaVersion: \"3\"\nkind: workload\n",
             team

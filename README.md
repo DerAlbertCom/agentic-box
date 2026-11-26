@@ -15,7 +15,7 @@ trust it to use. A sandbox is not a guarantee against data loss or secret exposu
 - Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
   to install the tool; it includes the runtime abox needs.
 - Install [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/install/)
-  **0.51.0 or later**, on a host supported by Docker Sandboxes, with `sbx` on `PATH`.
+  **0.54.0 or later**, on a host supported by Docker Sandboxes, with `sbx` on `PATH`.
   abox checks runtime health and sign-in; interactive use can open Docker sign-in.
   For noninteractive use, run `sbx login` beforehand.
 - For **creation, including published squads**, have host Docker with **Buildx**

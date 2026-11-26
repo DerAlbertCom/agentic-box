@@ -425,7 +425,7 @@ public sealed class RunCommandTests
                 return new ProcessResult(0, """{"errors":[]}""", "");
             return request.Arguments[0] switch
             {
-                "version" => new(0, """{"client":{"version":"0.51.0"}}""", ""),
+                "version" => new(0, """{"client":{"version":"0.54.0"}}""", ""),
                 "diagnose" => new(0, """{"checks":[]}""", ""),
                 "ls" => new(0, $$"""[{"name":"{{Name}}","status":"running"}]""", ""),
                 "exec" when request.Arguments.Contains("command -v \"$1\"") => new(

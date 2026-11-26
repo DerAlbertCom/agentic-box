@@ -9,8 +9,7 @@ public sealed record RegistryPush(
     string Descriptor,
     string Reference,
     string WorkDirectory,
-    string? Builder,
-    bool WithGitHubToken
+    string? Builder
 );
 
 /// <summary>Pushes images to the registry, builds and pushes sets, inspects them and moves tags.</summary>

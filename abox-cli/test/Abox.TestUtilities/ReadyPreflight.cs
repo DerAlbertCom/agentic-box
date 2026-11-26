@@ -7,9 +7,9 @@ namespace Abox.Tests;
 internal static class ReadyPreflight
 {
     public static RuntimeVersion SupportedVersion =>
-        new(new Version(0, 51, 0), new Version(0, 51, 0));
+        new(new Version(0, 54, 0), new Version(0, 54, 0));
 
-    public static RuntimeVersion OldVersion => new(new Version(0, 50, 0), new Version(0, 51, 0));
+    public static RuntimeVersion OldVersion => new(new Version(0, 53, 0), new Version(0, 54, 0));
 
     public static DiagnoseReport Healthy =>
         new(

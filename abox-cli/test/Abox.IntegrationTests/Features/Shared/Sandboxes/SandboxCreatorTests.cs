@@ -75,10 +75,7 @@ public sealed class SandboxCreatorTests
             .Load(Identity)!
             .Components.ToDictionary(
                 component => component.Name,
-                component =>
-                    component.Reference[..component.Reference.LastIndexOf(':')]
-                    + "@"
-                    + component.Digest
+                component => component.Reference + "@" + component.Digest
             );
         File.ReadAllText(Path.Combine(kits, "workload", "workload.dockerfile"))
             .Should()

@@ -39,7 +39,7 @@ Exit codes: 0 on success, 1 on an `abox` error, 130 on cancellation. `run` passe
 
 - **`abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--yes]`**
   - `create`, `run`, `secrets`, `user-secrets` and `ports` resolve `--location`, then the user configuration's `defaultLocation`, then the current folder. The team name defaults to `defaultTeam`. Create reads no team sources: the published set or, with `--local`, the local build carries everything it needs. It requires `--squad` or `squad` in the folder configuration. `--tag` can be combined with `--local` to select a local build tag.
-  - Creates the sandbox from the squad's kit set in JFrog, under `rwest.jfrog.io/<pullRepository>`. The user setting `pullRepository` defaults to `mtiae-docker-release` and is independent of the workload's publish repository. The default tag is `latest`, pulled with `--pull always`, because sbx's default for kit sets is `missing`, which never refreshes a tag. `--tag` selects another tag. `--local` uses a prebuilt local workload image and its runtime kits with `--pull never`. Remote create needs no source repository or local build metadata: state and MCP settings come from the published set's bundled `squad.json`. Personal `.abox` kit customizations currently require `--local`.
+  - Creates the sandbox from the squad's kit set in JFrog, under `rwest.jfrog.io/<pullRepository>`. The user setting `pullRepository` defaults to `mtiae-docker-release` and is independent of the workload's publish repository. The default tag is `latest`, pulled with `--pull always`, because sbx's default for kit sets is `missing`, which never refreshes a tag. `--tag` selects another tag. `--local` uses the component images of the local build, wrapped in thin directory kits, with `--pull never`. Remote create needs no source repository or local build metadata: state and MCP settings come from the published set's bundled `squad.json`.
   - A sandbox that already exists for the location is replaced after confirmation. The confirmation lists what will be lost. State directories are kept: the sandbox name does not change, so their host paths do not change either.
   - Before it replaces a sandbox, local create checks the credentials the squad's local kits ask for: a stored value and sbx's approval for every domain. On a terminal it asks for what is missing; without one it warns and goes on. sbx never asks itself (`--no-input`), and its `Note:` lines are shown after creation. See [the authoring guide](authoring.md#secrets).
   - An existing sandbox keeps the image it was created from. A newer `latest` reaches only sandboxes created after it (inferred; verify).
@@ -48,8 +48,8 @@ Exit codes: 0 on success, 1 on an `abox` error, 130 on cancellation. `run` passe
   - Starts the sandbox if it is stopped. Never creates a sandbox: if none exists, prints the `abox create` command to run.
   - `shell` works offline. Other launchers list their needs under Launchers.
   - If JFrog has a newer `latest`, asks whether to replace the sandbox now. Skipped offline. *(proposed placement)*
-- **`abox build --team <names> [--root <dir>]`** resolves each team's folder under `teams` (from now on) and builds the kit set of every squad of it that no other squad of the team names as its `base`: one workload and the mixins reached through the chain. Rejects duplicate kit repositories; checking file collisions between kits is not built yet. Layers are shared, not repacked, so squads with common kits share blobs.
-- **`abox publish --team <name> [--root <dir>]`** pushes the kit set to `rwest.jfrog.io/<publishRepository>` (selected by the squad's resolved `.workload`) under `agentic-box-rwest-<team>/<squad>:<tag>`, `latest` by default, with the resolved squad configuration. Every squad keeps the same name when others are added. Publication uses the v3 BuildKit frontend through Docker Buildx; its registry credentials stay in Docker's host credential store. Only builds explicitly excluding personal `.abox` configuration can be published.
+- **`abox build --team <names> [--root <dir>] [--tag <tag>] [--rebuild]`** resolves each team's folder under `teams` (from now on) and builds every squad of it that no other squad of the team names as its `base`: one image per component (the workload, each local kit, the state mixin, the config mixin) in the host image store, under its final JFrog name. It pins the base image and registry kits by digest and rebuilds only the components whose inputs changed; `--rebuild` builds all again. Rejects duplicate kit repositories; checking file collisions between kits is not built yet. Layers are shared, not repacked, so squads with common kits share blobs. Outside the repository, `build` and `publish` find the team sources through the user setting `sourceRoot`.
+- **`abox publish --team <name> [--root <dir>]`** pushes the kit set to `rwest.jfrog.io/<publishRepository>` (selected by the squad's resolved `.workload`) under `agentic-box-rwest-<team>/<squad>:<tag>`, `latest` by default, with the resolved squad configuration. Every squad keeps the same name when others are added. Publish refuses stale builds, pushes the component images of the build unchanged and builds only the set with the v3 BuildKit frontend through Docker Buildx; see [ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md). Its registry credentials stay in Docker's host credential store.
 - **`abox prune [--full] [--sbx]`** removes the template images of sbx that stopped being used: it keeps the newest assembled kit set and the kit sources it is built from, and removes the older sets and the kit sources nothing uses. `--full` reaches for everything sbx holds: what a sandbox uses, sbx refuses and keeps. `--sbx` stops the running sandboxes first. Never touches secrets, or images of other repositories, nor anything an image of unknown age or id holds. *(proposed: also keep anything a stopped sandbox uses; also prune the local builds of the build store)*
 - **`abox secrets list|set|remove [--location <path>]`** manages the host-side secrets the kits of a folder's existing sandbox ask for, through `sbx secret` behind the scenes. It reads which services the kits ask for from the kit descriptors staged in the sandbox, and how to ask for each value from the `Secrets` of its bundled `squad.json`, so it works for published squads without team sources. It never creates or replaces a sandbox. Values are stored globally on the host. `set` and `remove` accept repeatable `--service <name>`.
 - **`abox user-secrets [--location <path>] [--force]`** copies explicitly selected local .NET user-secret stores into an existing sandbox. See [the safety contract](cli-reference.md#copying-net-user-secrets).
@@ -57,14 +57,13 @@ Exit codes: 0 on success, 1 on an `abox` error, 130 on cancellation. `run` passe
 
 ## Preflight
 
-Every command except `--help`, `--version`, `publish`, metadata-only builds and the
+Every command except `--help`, `--version`, `publish` and the
 hidden `exec` and `pipe` entry points runs these checks before sandbox work.
 `user-secrets` validates host input before runtime preflight. `publish` uses
-Docker/Buildx instead and does not require sbx; metadata-only builds require
-neither. `abox` never installs anything itself.
+Docker/Buildx instead and does not require sbx. `abox` never installs anything itself.
 
 1. **Installed:** `sbx` must be on `PATH` (`sbx.exe` on Windows). If not, print the install steps for the current OS (below) and exit with an error.
-2. **Version:** `sbx version --json` must be 0.51.0 or later. An older version gets an upgrade hint.
+2. **Version:** `sbx version --json` must be 0.54.0 or later. An older version gets an upgrade hint.
 3. **Health and sign-in:** abox runs `sbx diagnose --json` (about 0.5 s here). A failing check stops the command and prints its `hint`. If the `Authentication` check fails, abox starts the browser sign-in and checks again.
 
 Install steps, from https://docs.docker.com/ai/sandboxes/install/. sbx needs neither Docker Desktop nor Docker Engine.
@@ -143,7 +142,7 @@ References never include a file extension. The teams of a project live in a fold
 
 **`.workload`** (YAML)
 - `template`: container image to build on, as in `sbx run --template`. Default `docker.io/sbx/shell-docker-image`, a shell image with Docker Engine inside (`docker.io/sbx/shell-image` is the variant without it). Pin a tag or digest rather than `latest`. *(proposed)* Named `template` so `base` only means the parent `.abox`. *(name proposed)*
-- `publishRepository`: JFrog repository name on `rwest.jfrog.io`, required for publishing but optional for local builds. One lowercase registry path segment, without a host, slash or tag. Inherited with the root squad configuration's workload, recorded in the build manifest, and revalidated before publishing; changing it requires a rebuild. The included workloads use `mtiae-developer-container-images-local`.
+- `publishRepository`: JFrog repository name on `rwest.jfrog.io`, required to build. One lowercase registry path segment, without a host, slash or tag. Inherited with the root squad configuration's workload, recorded in the build manifest, and revalidated before publishing; changing it requires a rebuild. The included workloads use `mtiae-developer-container-images-local`.
 - `apt`: package names, installed with one `apt-get install` before the tools.
 - `mise`: tools, installed in the order of the list, so runtimes come before the tools that need them. Of several versions of a tool, the last one is active; the generator passes a tool's versions to mise reversed, because mise activates the first entry.
 - `scripts`: run as the last steps of the generated Dockerfile, during the image build.
@@ -241,7 +240,7 @@ Same rule for every XDG directory: use the variable if it is set, otherwise the 
 ## User configuration
 
 - Location: the `abox` config directory (see Base directories).
-- Contents: default team, default location, GitHub Enterprise tenant (default `rwe`, giving `rwe.ghe.com`), build settings, and personal `.abox` files (proposed: stored here), which can add but never replace team values. *(proposed)* Also the SSH key pair for `orca`, in `ssh/`.
+- Contents: default team, default location, `sourceRoot` (the repository folder `build` and `publish` read team sources from), GitHub Enterprise tenant (default `rwe`, giving `rwe.ghe.com`) and build settings *(proposed)*. Also the SSH key pair for `orca`, in `ssh/`.
 
 ## Agents
 

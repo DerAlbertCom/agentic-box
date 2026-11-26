@@ -58,9 +58,10 @@ internal sealed class BuildService(
                 )
             )
             .ToList();
+        // A workload without a publishRepository fails here, before Docker is used.
         foreach (var (team, squad) in squads)
         {
-            Repository(squad, new SquadBuildIdentity(team.Name, squad.Name, request.Tag));
+            _ = Repository(squad, new SquadBuildIdentity(team.Name, squad.Name, request.Tag));
         }
 
         var imageStore = await images.ImageStoreAsync(cancellationToken);
@@ -159,8 +160,6 @@ internal sealed class BuildService(
             && previous.Base?.Digest == baseImage.Digest;
         var manifest = Manifest(team.Name, squad, request.Tag, kits, baseImage, imageStore);
         manifest.CreatedAt = unchanged ? previous!.CreatedAt : DateTimeOffset.Now;
-        manifest.WorkloadKitDirectory = workloadDirectory;
-        manifest.StateMixinDirectory = squad.State.Count > 0 ? stateDirectory : null;
         await ConfigurationAsync(team.Name, squad, manifest, buildDirectory, MakeAsync);
 
         manifest.Components = built;
@@ -223,10 +222,9 @@ internal sealed class BuildService(
         return new ManifestKit
         {
             Name = kit.Name,
-            Reference = component.Directory,
+            Reference = kit.Directory!,
             IsLocal = true,
             Component = component.Name,
-            Source = kit.Directory,
             Arguments = kit.Arguments.ToDictionary(pair => pair.Key, pair => pair.Value),
         };
     }
@@ -269,7 +267,6 @@ internal sealed class BuildService(
                 return Task.FromResult(MixinSource(SquadConfigurationMixin.MixinName, directory));
             }
         );
-        manifest.ConfigurationMixinDirectory = directory;
     }
 
     private static ComponentSource MixinSource(string name, string directory) =>
@@ -317,7 +314,7 @@ internal sealed class BuildService(
     }
 
     private static string PinnedReference(PinnedImage image) =>
-        ImageReferences.Repository(image.Reference) + "@" + image.Digest;
+        ImageReferences.PinnedTo(image.Reference, image.Digest);
 
     private static bool SameRegistryKits(
         IReadOnlyList<ManifestKit> previous,
@@ -372,9 +369,7 @@ internal sealed class BuildService(
             Tag = tag,
             Reference = ImageName.OfTeam(teamName, tag),
             RootDirectory = squad.RootDirectory,
-            WorkloadName = squad.Workload.Name,
             PublishRepository = squad.Workload.PublishRepository,
-            Template = squad.Workload.Template,
             Base = baseImage,
             ImageStore = imageStore,
             ConfigFiles =

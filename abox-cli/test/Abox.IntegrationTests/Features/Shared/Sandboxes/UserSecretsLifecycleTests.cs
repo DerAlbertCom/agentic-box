@@ -197,8 +197,7 @@ public sealed class UserSecretsLifecycleTests
     [Theory]
     [InlineData("published")]
     [InlineData("local")]
-    [InlineData("run")]
-    public async Task AConflictingSquadInTheUserFileCannotReplace(string entry)
+    public async Task AGivenSquadReplacesTheSquadTheUserFileRemembers(string entry)
     {
         // Arrange
         using var fixture = new UserSecretsLifecycleFixture();
@@ -208,6 +207,26 @@ public sealed class UserSecretsLifecycleTests
 
         // Act
         var exit = await fixture.Replace(entry);
+
+        // Assert
+        exit.Should().Be(0);
+        File.ReadAllText(Path.Combine(fixture.Location, "abox.user.yaml"))
+            .Should()
+            .Contain("squad: ac\n")
+            .And.NotContain("bd");
+    }
+
+    [Fact]
+    public async Task RunCannotReplaceASandboxWhoseSquadConflictsWithTheUserFile()
+    {
+        // Arrange
+        using var fixture = new UserSecretsLifecycleFixture();
+        fixture.Existing();
+        fixture.Configure("squad: ac\n");
+        fixture.ConfigureForUser("squad: bd\n");
+
+        // Act
+        var exit = await fixture.Replace("run");
 
         // Assert
         exit.Should().Be(1);

@@ -20,14 +20,13 @@ published sets. All additions are unique across each inheritance chain.
 ## Build
 
 ```sh
-abox build --team mti-ca --no-personal --metadata-only
-abox build --team mti-ca --no-personal --no-verify
+abox build --team mti-ca
 ```
 
-The first command only prepares metadata; it cannot be used with `create --local`.
-The second builds the workload. sbx 0.51 cannot inspect recipe-based local kits,
-so these builds require `--no-verify`; creation processes their recipes normally.
-Do not publish without a successful image build and an authorized smoke test.
+This builds the component images of every leaf squad: the workload, each local
+kit (running its recipe), the state mixin and the config mixin. Later builds
+rebuild only what changed; `--rebuild` builds everything again.
+Do not publish without a successful build and an authorized smoke test.
 
 The workload retains all **41 mise tools and exact versions**, including npm
 build permissions, Linux architecture mappings/checksums, Azure CLI's pip pin,

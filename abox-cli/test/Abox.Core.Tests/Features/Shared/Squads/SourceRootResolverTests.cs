@@ -63,6 +63,54 @@ public sealed class SourceRootResolverTests : IDisposable
     }
 
     [Fact]
+    public void InsideTheRepositoryWithoutASourceRootTheRepositoryFolderIsOfferedAndSaved()
+    {
+        // Arrange
+        var nested = Path.Combine(_project, "src", "deep");
+        var resolver = Resolver(new TestConsole(answer: true));
+
+        // Act
+        var root = resolver.Resolve(null, nested, ["sample"]);
+
+        // Assert
+        root.Should().Be(nested);
+        File.ReadAllText(Paths.ConfigFile)
+            .Should()
+            .Be($"sourceRoot: '{_project.Replace("'", "''")}'\n");
+    }
+
+    [Fact]
+    public void ADeclinedOfferSavesNothing()
+    {
+        // Arrange
+        var console = new TestConsole(answer: false);
+        var resolver = Resolver(console);
+
+        // Act
+        var root = resolver.Resolve(null, _project, ["sample"]);
+
+        // Assert
+        root.Should().Be(_project);
+        console.Output.Should().ContainSingle(line => line.Contains("Remember"));
+        File.Exists(Paths.ConfigFile).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ASetSourceRootIsNotOfferedAgain()
+    {
+        // Arrange
+        var console = new TestConsole();
+        var resolver = Resolver(console, sourceRoot: _project);
+
+        // Act
+        resolver.Resolve(null, _project, ["sample"]);
+
+        // Assert
+        console.Output.Should().BeEmpty();
+        File.Exists(Paths.ConfigFile).Should().BeFalse();
+    }
+
+    [Fact]
     public void OutsideTheRepositoryTheSourceRootSettingIsUsed()
     {
         // Arrange

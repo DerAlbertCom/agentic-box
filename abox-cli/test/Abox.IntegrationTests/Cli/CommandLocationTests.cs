@@ -19,6 +19,26 @@ public sealed class CommandLocationTests
     {
         // Arrange
         using var root = new TempDirectory();
+        // Without a location, create works in the current directory and saves the folder
+        // settings there: keep that inside the temporary directory.
+        var originalDirectory = Directory.GetCurrentDirectory();
+        Directory.SetCurrentDirectory(root.CreateDirectory("current"));
+        try
+        {
+            await CreateAndRunAsync(root, configured, explicitLocation);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalDirectory);
+        }
+    }
+
+    private static async Task CreateAndRunAsync(
+        TempDirectory root,
+        bool configured,
+        bool explicitLocation
+    )
+    {
         var console = new TestConsole();
         var config = new AboxConfig
         {

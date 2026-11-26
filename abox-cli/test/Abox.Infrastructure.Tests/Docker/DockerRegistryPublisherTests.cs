@@ -105,14 +105,7 @@ public sealed class DockerRegistryPublisherTests : IDisposable
         // Act
         var digest = await Publisher()
             .PushAsync(
-                new RegistryPush(
-                    "source",
-                    "source/workload.yaml",
-                    Reference,
-                    _work.Path,
-                    "publisher",
-                    false
-                ),
+                new RegistryPush("source", "source/set.yaml", Reference, _work.Path, "publisher"),
                 CancellationToken.None
             );
 
@@ -126,7 +119,7 @@ public sealed class DockerRegistryPublisherTests : IDisposable
                 "--builder",
                 "publisher",
                 "--file",
-                "source/workload.yaml",
+                "source/set.yaml",
                 "--tag",
                 Reference,
                 "--metadata-file",
@@ -146,14 +139,7 @@ public sealed class DockerRegistryPublisherTests : IDisposable
         // Act
         var digest = await Publisher()
             .PushAsync(
-                new RegistryPush(
-                    "source",
-                    "source/workload.yaml",
-                    Reference,
-                    _work.Path,
-                    null,
-                    false
-                ),
+                new RegistryPush("source", "source/set.yaml", Reference, _work.Path, null),
                 CancellationToken.None
             );
 

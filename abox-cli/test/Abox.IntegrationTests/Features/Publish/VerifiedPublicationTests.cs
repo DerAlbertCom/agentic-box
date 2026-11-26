@@ -290,11 +290,10 @@ public sealed class VerifiedPublicationTests
                 Tag = "latest",
                 Reference = "agentic-box-rwest-sample:latest",
                 PublishRepository = "test-images-local",
-                WorkloadKitDirectory = Path.GetDirectoryName(workload)!,
             };
             return PublicationBuilds.SaveWorkload(
                 _store,
-                LocalWorkloadFactory.WithImages(_root, build),
+                LocalWorkloadFactory.WithImages(_root, build, Path.GetDirectoryName(workload)!),
                 workload,
                 "# syntax=docker/sandbox-kit:3\nschemaVersion: \"3\"\nkind: workload\n"
             );

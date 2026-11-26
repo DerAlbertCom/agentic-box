@@ -38,6 +38,9 @@ public static class InfrastructureServiceCollection
         services.AddScoped<ILocalImageStore>(provider =>
             provider.GetRequiredService<DockerComponentImages>()
         );
+        services.AddScoped<ILocalImageArchives>(provider =>
+            provider.GetRequiredService<DockerComponentImages>()
+        );
         services.AddScoped<IRegistryPublisher, DockerRegistryPublisher>();
         services.AddScoped<IRegistryDigests, DockerRegistryDigests>();
         services.AddScoped<IPublishedImageReader, DockerPublishedImageReader>();

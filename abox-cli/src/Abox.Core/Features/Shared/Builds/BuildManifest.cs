@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Abox.Features.Shared.Registry;
 
 namespace Abox.Features.Shared.Builds;
 
@@ -14,37 +15,47 @@ internal sealed class BuildManifest
     /// <summary>The tag the build is stored under.</summary>
     public string Tag { get; set; } = string.Empty;
 
-    /// <summary>When the build was made.</summary>
+    /// <summary>
+    /// When the build last changed. squad.json carries the same time; the record keeps it so
+    /// that a build and <c>abox run</c> can compare builds without reading an image.
+    /// </summary>
     public DateTimeOffset CreatedAt { get; set; }
 
     /// <summary>The owning project root discovered with the selected team.</summary>
     public string RootDirectory { get; set; } = string.Empty;
 
-    /// <summary>The name of the workload the base image is built from.</summary>
-    public string WorkloadName { get; set; } = string.Empty;
-
     /// <summary>The JFrog repository selected by the resolved workload.</summary>
     public string? PublishRepository { get; set; }
 
-    /// <summary>The directory of the generated workload kit.</summary>
-    public string WorkloadKitDirectory { get; set; } = string.Empty;
+    /// <summary>The directory the workload image was built from.</summary>
+    [JsonIgnore]
+    public string WorkloadKitDirectory =>
+        Component(ComponentNames.Workload)?.Directory ?? string.Empty;
 
-    /// <summary>The directory of the generated mixin that declares the state directories.</summary>
-    public string? StateMixinDirectory { get; set; }
+    /// <summary>The directory the state mixin image was built from; null without state.</summary>
+    [JsonIgnore]
+    public string? StateMixinDirectory => Component(ComponentNames.State)?.Directory;
 
-    /// <summary>The directory of the generated mixin that bundles squad.json; null on older manifests.</summary>
-    public string? ConfigurationMixinDirectory { get; set; }
-
-    /// <summary>The image the workload builds on.</summary>
-    public string Template { get; set; } = string.Empty;
+    /// <summary>The directory the configuration mixin image was built from.</summary>
+    [JsonIgnore]
+    public string? ConfigurationMixinDirectory =>
+        Component(ComponentNames.Configuration)?.Directory;
 
     /// <summary>The kits of the squad.</summary>
     public List<ManifestKit> Kits { get; set; } = [];
 
-    /// <summary>The MCP servers of the squad.</summary>
+    /// <summary>
+    /// The MCP servers of the squad. They are part of squad.json in the configuration image,
+    /// the one place they are kept, so the build record does not store them.
+    /// </summary>
+    [JsonIgnore]
     public List<ManifestMcp> Mcp { get; set; } = [];
 
-    /// <summary>The directories the squad keeps across a replacement.</summary>
+    /// <summary>
+    /// The directories the squad keeps across a replacement. Like <see cref="Mcp"/>, they are
+    /// kept only in squad.json in the configuration image.
+    /// </summary>
+    [JsonIgnore]
     public List<ManifestState> State { get; set; } = [];
 
     /// <summary>The configuration files the squad is made of.</summary>
@@ -61,6 +72,10 @@ internal sealed class BuildManifest
 
     /// <summary>The component images, in set order: workload, local kits, state, config.</summary>
     public List<BuildComponent> Components { get; set; } = [];
+
+    /// <summary>The component image of the given name, or null when the build has none.</summary>
+    public BuildComponent? Component(string name) =>
+        Components.FirstOrDefault(component => component.Name == name);
 
     /// <summary>SHA-256 fingerprints of the local source directories and configuration files.</summary>
     public Dictionary<string, string> SourceHashes { get; set; } = [];
@@ -120,6 +135,10 @@ internal sealed class BuildComponent
 
     /// <summary>The kit directory the image was built from.</summary>
     public string Directory { get; set; } = string.Empty;
+
+    /// <summary>The image pinned by its digest, as a set or a thin kit references it.</summary>
+    [JsonIgnore]
+    public string Pinned => ImageReferences.PinnedTo(Reference, Digest);
 }
 
 /// <summary>A kit of a local build.</summary>
@@ -128,7 +147,10 @@ internal sealed class ManifestKit
     /// <summary>The name the configuration gave the kit.</summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>What sbx is given: a directory or a reference.</summary>
+    /// <summary>
+    /// Where the kit comes from: its registry reference, or for a local kit its folder in the
+    /// repository, which the input hash of its component image covers.
+    /// </summary>
     public string Reference { get; set; } = string.Empty;
 
     /// <summary>Whether the kit is built from a local directory.</summary>
@@ -140,8 +162,10 @@ internal sealed class ManifestKit
     /// <summary>The name of a local kit's component image; null for a registry kit.</summary>
     public string? Component { get; set; }
 
-    /// <summary>A local kit's folder in the repository, which its input hash covers; null for a registry kit.</summary>
-    public string? Source { get; set; }
+    /// <summary>A registry kit pinned to the digest it resolved to at build time; as written when it has none.</summary>
+    [JsonIgnore]
+    public string PinnedReference =>
+        Digest is { } digest ? ImageReferences.PinnedTo(Reference, digest) : Reference;
 
     /// <summary>The values for the kit's arguments.</summary>
     public Dictionary<string, string> Arguments { get; set; } = [];

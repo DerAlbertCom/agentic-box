@@ -33,15 +33,22 @@ It does not print arbitrary unexpected exception messages as a fallback: those
 messages could contain secrets. Cancellation and sensitive-output suppression
 remain unchanged.
 
-### `abox build --team <name> [--root <dir>] [--tag <tag>] [--no-verify] [--no-personal] [--metadata-only]`
+### `abox build --team <name> [--root <dir>] [--tag <tag>] [--rebuild]`
 
-Normal builds run the following full image-building path. The explicit
-`--metadata-only` exception is described after the steps; `--no-verify` alone
-does not skip the workload image build.
+Build makes one image per component of a squad in the host image store and keeps a
+build record. Publish pushes those images unchanged; see
+[ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md).
 
-1. Resolves the team: its folder under `teams`, found in the directory of the command
-   or one of its parent directories. `--team` can be given more than once; without it
-   the user configuration `defaultTeam` is used.
+1. Resolves the team: its folder under `teams`, found from the start directory or one
+   of its parent directories. The start directory is `--root`, else the current
+   directory when team sources are found from there, else the user setting
+   `sourceRoot`, else an interactive prompt that validates and saves `sourceRoot`.
+   Without a terminal the command fails and names `sourceRoot` and `--root`. Inside
+   the repository without a `sourceRoot`, an interactive run offers to save the
+   repository folder as `sourceRoot`. The handler resolves this, not the option
+   binding, because the build is the first point that needs the team sources.
+   `--team` can be given more than once; without it the user configuration
+   `defaultTeam` is used.
 2. Builds every squad of the team that no other squad of the team names as its `base`
    — the squads named as a base are built with the squad that inherits from them.
 3. Reads the `.abox` of a squad inside the team folder and follows its `base` chain,
@@ -51,64 +58,81 @@ does not skip the workload image build.
 4. Checks the chain: a cycle, a kit, an MCP server, a parameter, a state directory or a
    secret that is declared twice, overlapping state directories, and a parameter that no
    configuration declares are errors. The error names the duplicate and the files that
-   declare it.
-5. Writes the workload kit: `workload.yaml` (the descriptor) and `workload.dockerfile`
-   (the recipe) in the build directory, with the scripts of the workload and the
-   bundled CA certificates copied into it.
-6. Writes the state mixin: one `host-mount@1` per state directory. Its image creates
-   the home state directories owned by the sandbox user, because sbx creates a missing
-   mount point and its parents as root.
-7. Runs the [kit build step](authoring.md#kit-build-step) of every local kit with a
-   `build` file: copies the kit into `kits/<kit>/` of the build directory,
-   runs `build <stagedKitDir>` from the kit's repository folder and uses the staged
-   copy from here on. A failing script fails the build with its output, and so does
-   a `build` file that is not executable or that is found on Windows. This also
-   runs with `--metadata-only`.
-8. Optionally checks additional local kit declarations with `sbx kit inspect`,
-   passing their resolved arguments, unless `--no-verify` is given. Inspection
-   **does not build images**. sbx 0.51.0 cannot inspect recipe-based local kits;
-   those require `--no-verify` and are processed by sbx at creation.
-9. Builds the generated workload through the v3 frontend with host
-   `docker buildx build --file workload.yaml --load --provenance=false`, using the
-   current Docker context's docker-driver builder. Workload apt, mise, scripts
-   and certificate setup run here, not at every sandbox create. BuildKit reuses
-   unchanged instruction/layer caches. No images are pushed. A unique local tag
-   `docker.io/library/abox-workload:<id>` and its actual immutable Docker image
-   content ID are reported; source changes during building fail the build.
-10. Writes a separate versioned thin runtime kit: the same v3 workload descriptor
-   and a companion Dockerfile containing only `FROM <unique-local-image>`.
-   The original generated sources remain unchanged for publication. The versioned
-   runtime directory keeps an unsuccessful rebuild from overwriting the previous
-   build's runtime kit.
-11. Writes the squad configuration mixin `config/` in the build directory:
+   declare it. A workload without a valid `publishRepository` fails, because its
+   component images have no registry name. Local kit arguments must be create-phase
+   arguments: a supplied `buildArg`/`buildSecret` argument fails. Every squad is
+   resolved and checked before Docker is used or a build changes.
+5. Needs Docker with Buildx and the docker-driver builder of the current Docker
+   context. Its image store (the host image store) receives the component images.
+6. Pins the workload's base image (`template`) and every registry kit to the digest
+   its tag resolves to now (`docker buildx imagetools inspect`). A reference that
+   already carries a digest keeps it.
+7. Writes the workload kit: `workload.yaml` (the descriptor) and `workload.dockerfile`
+   (the recipe, `FROM <repo>@<digest>`) in the build directory, with the scripts of
+   the workload and the bundled CA certificates copied into it.
+8. Runs the [kit build step](authoring.md#kit-build-step) of every local kit with a
+   `build` file whose image is built again: copies the kit into `kits/<kit>/` of the
+   build directory, runs `build <stagedKitDir>` from the kit's repository folder and
+   builds the kit's image from the staged copy. A failing script fails the build with
+   its output, and so does a `build` file that is not executable. Only a re-built
+   kit's staged copy is replaced; the staging folder is not wiped.
+9. Writes the state mixin when the squad declares state: one `host-mount@1` per state
+   directory. Its image creates the home state directories owned by the sandbox
+   user, because sbx creates a missing mount point and its parents as root.
+10. Writes the squad configuration mixin `config/` in the build directory:
    `squad.json` (see [the artifact format](artifact-format.md)), a declaration-only
    `config.yaml` and a `config.dockerfile` that copies it to
    `/usr/share/abox/squad.json`. `squad.json` carries the resolved `secrets`
-   declarations of the chain, including personal additions on local builds, as
-   `Secrets`: service, prompt, hosts, environment variable, inputs, separator,
-   encoding, placeholder and whether the value comes from a host command
-   (`FromCommand`), never values or host commands. `create --local` passes this mixin to
-   sbx, and `publish` pushes it, so local and published sandboxes carry the same
-   metadata. This also runs with `--metadata-only`.
-12. Writes the manifest of the build: `build.json` in the build directory. It records
-   whether personal configuration was included and the resolved workload's
-   `publishRepository`. Only `--no-personal` builds capture SHA-256 fingerprints of
-   configuration files (including the `.workload`) and local source trees (including
-   generated workload/state/configuration kits), checking them before and after verification and
-   image building. `LocalWorkload` records the unique tag, image content ID,
-   Docker context, runtime kit directory and its fingerprint on image builds.
+   declarations of the chain as `Secrets`: service, prompt, hosts, environment
+   variable, inputs, separator, encoding, placeholder and whether the value comes
+   from a host command (`FromCommand`), never values or host commands.
+11. Builds one image per component with the `docker/sandbox-kit:3` frontend:
+   `docker buildx build --platform linux/amd64 --provenance=false --load
+   --metadata-file`, taking the digest from `containerimage.digest`. The
+   components are the workload, each local kit (from its staged copy, or its own
+   folder), the state mixin (only when the squad declares state) and the config
+   mixin. Only the workload gets the `GITHUB_TOKEN` build secret. Workload apt,
+   mise, scripts and certificate setup run here, not at every sandbox create.
+   No images are pushed.
+12. Writes the build record: `build.json` in the build directory (`BuildManifest` in
+   code). Per component it records the name, kind, reference, digest, image ID,
+   input hash, descriptor text and file name, and directory. It also records the
+   pinned `Base` and registry kit digests, each local kit's component and repository
+   folder (its `Reference`), the `ImageStore`, the resolved workload's
+   `publishRepository`, the build time (`CreatedAt`, which `squad.json` carries too, so
+   builds and `abox run` compare without reading an image) and SHA-256 fingerprints of
+   the sources (configuration files, the workload file and its scripts, the folders the
+   component images were built from). MCP servers and state are not in the record:
+   `squad.json` in the configuration image is their only place.
+
+Each image is named with its final JFrog name,
+`rwest.jfrog.io/<publishRepository>/agentic-box-rwest-<team>/<squad>/components/<name>:<input hash>`.
+The names are `workload`, `kits/<kit name lowercased>`, `state` and `config`.
+
+**Incremental builds:** a component is built again only when its input hash
+changed, when its image is no longer in the image store with the recorded content
+ID, or when `--rebuild` is given. The input hash covers the kind, the directory
+content and the kit arguments. For a kit with a build step it covers the kit's
+repository folder, so the build step runs only when that folder changed. Files
+outside a kit's folder that its build step reads (such as `sbox-cli/`) are not
+covered; use `--rebuild` after changing them. A moved base digest changes the
+workload's Dockerfile and so rebuilds the workload. The config mixin dates the
+build (`CreatedAt` in `squad.json`): it keeps its date when nothing changed, and is
+built again with a new date when any component was built again, a registry kit or
+the base image was pinned to another digest, or the squad metadata changed.
+
+Every build is publishable. Personal `.abox` files in the user configuration
+directory are not read.
 
 The build lives in `<state dir>/builds/<team>/<squad>/<tag>/`, with lowercase team
 and squad path segments. The tag is `latest` unless the command or the user
 configuration says otherwise. Teams sharing a squad/tag keep separate generated
-sources, manifests, state mixins and local image selections, including in one
-multi-team build. Separate source projects deliberately using the same team identity
-still share that team's local storage; project identity is not a storage dimension.
+sources and build records, including in one multi-team build. Separate source
+projects deliberately using the same team identity still share that team's local
+storage; project identity is not a storage dimension.
 
 Generated workload display names/descriptions and state paths are quoted YAML
-scalars, preserving Unicode and YAML-significant characters. This quoting changes
-the generated descriptor bytes and their source fingerprints; rebuild affected
-local manifests before publishing after upgrading from unquoted generation.
+scalars, preserving Unicode and YAML-significant characters.
 
 Build-store reads check the manifest's squad, tag and explicit team ownership marker
 (`Reference`). If no qualified manifest exists, an old
@@ -117,13 +141,14 @@ ownership. Missing/conflicting ownership, duplicate JSON properties or unreadabl
 metadata require rebuilding for the requested team; no directory/source-path
 inference substitutes for provenance. A present but invalid qualified manifest
 never falls back to an older one. Builds write only the new layout: old sources,
-manifests, images and runtime directories are not moved, deleted or relabelled.
+manifests and images are not moved, deleted or relabelled. A build replaces an
+unreadable or foreign record of its own squad/tag with a full build.
 See [team-isolation verification](verification/team-qualified-builds.md) for the
 synthetic coverage and legacy compatibility checks.
 
-Normal and metadata-only builds, local/remote creation and reusable build-store
-access use the same registry-tag grammar: 1–128 ASCII letters, digits, underscores,
-periods or hyphens, starting with a letter, digit or underscore. The selected
+Builds, local/remote creation and reusable build-store access use the same
+registry-tag grammar: 1–128 ASCII letters, digits, underscores, periods or
+hyphens, starting with a letter, digit or underscore. The selected
 `--tag` or configured `defaultTag` is rejected before tag-derived filesystem access,
 generated script/certificate cleanup or external-tool/runtime operations. Paths,
 separators, whitespace and empty/overlong tags are invalid. An omitted `defaultTag`
@@ -131,128 +156,99 @@ still means `latest`; an explicitly blank default is invalid when selected, not 
 request to fall back to `latest`. Valid explicit tags can override invalid defaults.
 Published reference naming and tag promotion are unchanged.
 
-**Metadata-only preparation:** `--metadata-only` resolves configurations, writes
-generated workload/state/configuration sources and saves the manifest, but skips sbx preflight,
-all kit inspection and all Docker/Buildx/image operations. `LocalWorkload` is
-always null. No sbx or Docker installation/daemon/authentication is required for
-this maintainer preparation by abox itself; kit build steps still run, and their
-scripts may need such tools. Remote `create` does not use it: it reads published
-metadata with Docker/Buildx and creates the sandbox with sbx.
-The command reports that no image was built/selected and prints the remote create
-command. `--no-personal` still excludes personal declarations and captures source
-fingerprints; all existing publication provenance checks remain in force.
-
-This mode explicitly replaces the selected team/squad/tag manifest and **invalidates
-any previous local image selection, even with identical inputs**. It does not
-delete existing images, runtime kit directories or sandboxes, and does not retain
-an image whose validity could require Docker checks. To retain another local
-manifest, use a distinct tag. To use `create --local` after metadata-only
-preparation, run a normal `abox build` without `--metadata-only`; local create
-fails with that instruction instead of rebuilding implicitly. `--no-verify` is
-independent and still builds the workload image on a normal build.
-Existing local sandboxes remain runnable; `abox run` does not offer a metadata-only
-manifest as a newer local image build.
-
-Personal `.abox` files remain included for local builds by default. Maintainers
-must use `--no-personal` to exclude them from builds intended for publication.
-Default/local builds do not run the publication fingerprint checks and retain
-their existing symbolic-link/reparse-point support. `--no-personal` builds are
-strict: their inputs must be ordinary files/directories. Even a default build
-with no personal files must be rebuilt with `--no-personal` before publishing,
-because it has no source fingerprints.
-
 ### `abox publish --team <name> [--root <dir>] [--tag <tag>] [--builder <name>]`
 
+Publish does not build workloads, kits or mixins: it pushes the component images
+of the build and builds only the set; see
+[ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md).
+
 1. Resolves the teams like `build` does (`--team` can be repeated, or comes from
-   `defaultTeam`). The tag comes from `--tag`, `defaultTag`, or `latest`. Publishing
-   checks Docker/Buildx only; it does not call sbx or require its daemon/sign-in.
-2. Checks **all selected teams** before the first push: every leaf squad must have
-   a matching local build, known provenance excluding personal configuration,
-   a valid workload `publishRepository`, existing kit descriptors, and unchanged
-   source fingerprints. Legacy manifests
-   must be rebuilt. Invalid names and case-insensitive team/squad collisions are
-   rejected. All local source trees are copied to private temporary snapshots and
-   checked against the build's fingerprints before any registry write. Symbolic
-   links/reparse points in build inputs are rejected rather than followed.
-3. Builds and pushes the workload, every local mixin and the generated state mixin
-   through the v3 frontend, using `docker buildx build --file <descriptor> --push`.
-   Kits already named by registry reference are inspected and reused, not copied
-   or repushed. Supplied arguments must be declared **create-phase** arguments;
-   supplied `buildArg`/`buildSecret` arguments are explicitly unsupported and fail
-   before the first push. Arguments are fixed only in the set's `kits[].args`,
-   never duplicated as Buildx build arguments.
-4. Pushes the build's squad configuration mixin containing
-   `/usr/share/abox/squad.json`: the resolved team, squad, tag, build timestamp, kit
-   names/arguments, MCP declarations, state declarations and secret declarations
-   (`Secrets`). Publish does not write its own; a build without the mixin must be
-   rebuilt. Host source paths, raw `.abox` files, build provenance, host commands
-   and secret values are not included. Do not put credentials in kit arguments or
-   secret prompts; use host secrets.
-5. Publishes a `kind: set` descriptor listing those references and their resolved
-   kit arguments. The frontend pins the references by digest and merges their
-   layers/declarations into one ordinary workload kit, without flattening the layers.
-   Explicit minimal provenance requests retained index annotations. Every pushed
-   digest is read from Buildx's metadata file and checked through
+   `defaultTeam`; the start directory follows the same `sourceRoot` rules). The
+   tag comes from `--tag`, `defaultTag`, or `latest`. Publishing checks
+   Docker/Buildx only; it does not call sbx or require its daemon/sign-in.
+2. Loads every selected build. Records without components (older builds) are
+   refused. Invalid names and case-insensitive team/squad collisions are rejected.
+3. Before Docker is used, checks every selected squad's source fingerprints
+   (configuration files, the workload file and its scripts, generated kit folders)
+   and each local kit's repository folder against its input hash.
+4. Before the first push, checks that every component image is still in the image
+   store with its content ID, and that the base image and every registry kit tag
+   still resolve to the digest pinned at build time. Any stale finding fails with
+   "Run 'abox build --team <team> --tag <tag>' before publishing."
+5. Pushes each component unchanged (`docker --context <store> push <ref>`), checks
+   that the registry digest equals the build digest and verifies that the pushed
+   image kept its v3 descriptor and expected kind. Docker push keeps manifest
+   digests, so component digests in JFrog equal the local digests.
+6. Builds and pushes the set (`kind: set`, composition only) with
+   `docker buildx build --push`, using `--builder` when given. It lists the
+   workload, the kits in order (a local kit as its pushed component pinned by
+   digest, a registry kit as its pinned digest, each with its create-phase
+   arguments), the state mixin and the config mixin. This is the one
+   `buildx build` publish keeps, because the frontend resolves set components only
+   from the registry. The frontend merges their layers/declarations into one
+   ordinary workload kit, without flattening the layers. The set's digest is read
+   from Buildx's metadata file and checked through
    `docker buildx imagetools inspect --raw`. Every runnable platform manifest must
    retain its v3 descriptor and expected kind; an index-only annotation is not
    sufficient. Recognized attestation manifests are skipped.
-6. Pushes the set under a unique candidate tag and verifies it before promoting its
+7. Pushes the set under a unique candidate tag and verifies it before promoting its
    immutable digest with `imagetools create --prefer-index=false --tag <target>`.
    The requested tag is inspected again before success is reported.
+
+The config mixin carries `/usr/share/abox/squad.json`: the resolved team, squad,
+tag, build timestamp, kit names/arguments, MCP declarations, state declarations and
+secret declarations (`Secrets`). Host source paths, raw `.abox` files, build
+provenance, host commands and secret values are not included. Do not put
+credentials in kit arguments or secret prompts; use host secrets.
 
 The destination is **`rwest.jfrog.io/<publishRepository>`**, using the repository
 recorded from each squad's resolved `.workload` when it was built. The included
 workloads select `mtiae-developer-container-images-local`; there is no hardcoded
-repository fallback. Missing/invalid repositories fail before any Docker calls.
-Changing a workload (including its repository) requires a new `--no-personal`
-build, and older manifests without this setting must be rebuilt. A
-team always publishes **`agentic-box-rwest-<team>/<squad>:<tag>`**, regardless of its
-squad count. Distinct path segments keep team, squad and component identities
-separate; adding another squad does not rename existing images. Names are
-lowercased, and case collisions are rejected. The current implementation moves
-the chosen tag, including `latest`; use a dedicated `--tag` to test without
-replacing it. Whether a different approval policy is wanted remains a product
-question. The local manifest's unqualified team `Reference` is an ownership marker,
-not the remote publication name.
+repository fallback. Changing a workload (including its repository) requires a new
+build. A team always publishes **`agentic-box-rwest-<team>/<squad>:<tag>`**,
+regardless of its squad count. Distinct path segments keep team, squad and
+component identities separate; adding another squad does not rename existing
+images. Names are lowercased, and case collisions are rejected. The current
+implementation moves the chosen tag, including `latest`; use a dedicated `--tag`
+to test without replacing it. Whether a different approval policy is wanted
+remains a product question. The local manifest's unqualified team `Reference` is
+an ownership marker, not the remote publication name.
 
-Each component uses a unique `publish-<id>` tag under
-`agentic-box-rwest-<team>/<squad>/components/{workload,kit-N,state,config}`. The final
-set candidate uses `agentic-box-rwest-<team>/<squad>:publish-<id>`. A failed component
-push or failed candidate inspection cannot move the requested tag. This is not
-a transaction across squads/teams; failures after promotion cannot automatically
-roll back a tag. Temporary snapshots/descriptors are removed even on failure;
-cleanup failures produce warnings without hiding the original error. Images
-already pushed remain in JFrog. Registry retention is separate; `abox prune` does
-not remove components or candidates.
+Components keep the names and input-hash tags they got at build time, under
+`agentic-box-rwest-<team>/<squad>/components/{workload,kits/<kit>,state,config}`.
+The set candidate uses `agentic-box-rwest-<team>/<squad>:publish-<id>`. A failed
+component push or failed candidate inspection cannot move the requested tag. This
+is not a transaction across squads/teams; failures after promotion cannot
+automatically roll back a tag. The temporary set descriptor is removed even on
+failure; cleanup failures produce warnings without hiding the original error.
+Images already pushed remain in JFrog. Registry retention is separate; `abox prune`
+does not remove components or candidates.
 
-**Maintainer prerequisites and authentication:** Docker with the Buildx plugin and
-a working BuildKit builder. A `docker-container` builder is recommended to preserve
-OCI metadata and avoid the classic image store round trip:
+**Maintainer prerequisites and authentication:** Docker with the Buildx plugin.
+Build uses the docker-driver builder of the current Docker context. For the set,
+publish uses `--builder` when given, otherwise Buildx's selected builder
+(including `BUILDX_BUILDER`):
 
 ```sh
-docker buildx create --name abox-publisher --driver docker-container --bootstrap
 docker login rwest.jfrog.io
-abox build --team sample --no-personal
-abox publish --team sample --builder abox-publisher
+abox build --team sample
+abox publish --team sample
 ```
 
-`--builder` selects an existing builder; otherwise Buildx uses its selected builder
-(including `BUILDX_BUILDER`). Nothing is installed or provisioned automatically.
-The builder's default platform is published. The JFrog username and access token
-must have read/write access to the target repository; Buildx uses Docker's host
-credential configuration/credential helper, not `abox secrets` or sbx's sign-in.
-For automation, feed the token to `docker login --username <user> --password-stdin
+Nothing is installed or provisioned automatically. Component images are built for
+`linux/amd64`. The JFrog username and access token must have read/write access to
+the target repository; Docker and Buildx use Docker's host credential
+configuration/credential helper, not `abox secrets` or sbx's sign-in. For
+automation, feed the token to `docker login --username <user> --password-stdin
 rwest.jfrog.io`. Credentials are never passed by abox as process arguments or
-included in image layers. If `GITHUB_TOKEN` is set in the host environment, the
-workload receives it through the existing `github_token` BuildKit secret mount.
+included in image layers. If `GITHUB_TOKEN` is set in the host environment when
+building, the workload receives it through the `github_token` BuildKit secret mount.
 
-Publication builds from fingerprint-checked snapshots of the generated workload
-and local kits, not from sbx's internal template store. Source changes require a
-new build. This protects local inputs, not changing registry dependencies or
-network downloads in recipes: pin external images/digests and tool versions for
-reproducibility. `sbx kit push` is deliberately not used: its
-legacy `spec.yaml` packager does not understand these v3 descriptors; see
-[artifact-format.md](artifact-format.md).
+Publication pushes the images the build made, not sbx's internal template store.
+Source changes require a new build. This protects local inputs and pinned registry
+digests, not network downloads in recipes: pin tool versions for reproducibility.
+`sbx kit push` is deliberately not used: its legacy `spec.yaml` packager does not
+understand these v3 descriptors; see [artifact-format.md](artifact-format.md).
 
 ### Shared existing-sandbox resolution (#10)
 
@@ -326,9 +322,12 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
 ### `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>]
 [--local] [--yes]`
 
-1. Takes the team from `--team` or `defaultTeam`. Reads runtime-only `abox.yaml` and
-   `abox.user.yaml` from the sandbox location: its optional `squad` fills an omitted `--squad`,
-   while a case-insensitive conflict fails before preparation/replacement. Create
+1. Reads runtime-only `abox.yaml` and `abox.user.yaml` from the sandbox location. Takes
+   the team from `--team`, the folder's `team`, then `defaultTeam`. The folder's optional
+   `squad` fills an omitted `--squad`; a given `--squad` replaces the one `abox.user.yaml`
+   remembers, while a case-insensitive conflict with `abox.yaml` fails before
+   preparation/replacement. After the sandbox is created, the team and squad are saved in
+   `abox.user.yaml` unless the folder configuration already gives them. Create
    requires a squad from one of those sources and never resolves team folders:
    remote create works without a source tree, local manifest or build, and
    `--local` needs only the local build of `abox build`. Team sources are read
@@ -360,7 +359,11 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
    builds or container execution. The cached config image is retained. The metadata
    schema/identity, state paths and matching host-mount capabilities are validated;
    missing/invalid metadata requires maintainer republication, never local fallback.
-   Only `--local` reads the local build manifest for state and MCP metadata.
+   `--local` loads the build record instead and reads `squad.json` from the local
+   config image the same way (`docker image save`, then the archive reader and
+   validation of remote create: `PublishedConfigArchive` and
+   `PublishedRuntimeMetadata.ReadImage`), with state host-mounts checked against
+   the state mixin's descriptor.
 3. Resolves an existing current or legacy sandbox as above and retains its actual
    name for an authorized replacement. For a new sandbox, names it after the
    folder: `<folder>-abox-<hash>`, where the hash is the
@@ -393,8 +396,8 @@ See [verification and red evidence](verification/legacy-sandbox-compatibility.md
    the immutable platform digest resolved from
    `rwest.jfrog.io/<pullRepository>/agentic-box-rwest-<team>/<squad>:<tag>`, with
    `--pull always`, preventing moving-tag metadata drift. The set already contains
-   its mixins and arguments. With `--local`,
-    uses the **thin prebuilt-workload runtime kit**, `--kit <mixin>...`
+   its mixins and arguments. With `--local`, it
+    uses the **thin directory kits** of the build (below), `--kit <mixin>...`
     `--kit-arg <name>=<value>...` and `--pull never` instead. Both pass
     `--mount <host>:<path>... --static-mcp <names>` and `--no-input`: abox reads
     nothing from the terminal while sbx runs, so sbx must never wait on a question.
@@ -439,42 +442,49 @@ The same user configuration also accepts:
 - `teamsDirectory`: the project's teams directory, `teams` by default.
 - `kitsDirectory`: the kits directory relative to the project root, `kits` by default.
 
-Source discovery searches the start directory and its parents. `build` and
-`publish` start at the current directory. An explicit `--root` overrides that
-start, with relative paths made absolute before parent search. `create` and `run`
-read no team sources. The discovered team carries
-its owning project root into local kit/shared-workload lookup and build metadata;
-nested invocation directories never become accidental kit roots. Configured nested
-teams/kits directories, own-team-first base lookup, cross-team ambiguity checks
-and personal additions retain the same resolution rules. Team/default selection
+Source discovery searches the start directory and its parents. Only `build` and
+`publish` read team sources. Their start directory is `--root` (relative paths made
+absolute before parent search), else the current directory when team sources are
+found from there, else the user setting `sourceRoot`, else an interactive prompt
+that validates and saves `sourceRoot`; without a terminal they fail naming
+`sourceRoot` and `--root`. `create` and `run` read no team sources. The discovered
+team carries its owning project root into local kit/shared-workload lookup and
+build metadata; nested invocation directories never become accidental kit roots.
+Configured nested teams/kits directories, own-team-first base lookup and
+cross-team ambiguity checks retain the same resolution rules. Team/default selection
 is shared in `AboxConfig`, preserving repeated teams for build/publish and single
 teams for create/secrets. Settings are still loaded only by command actions, not
 for help or internal exec/pipe commands.
 
 `--tag` chooses the published set or local build tag, `latest` by default.
-`--local` opts into local kits and includes their local/personal customizations.
+`--local` uses the component images of the local build.
 Pull failures are reported without a silent local fallback.
 
-For `--local`, before replacement or state/MCP changes, creation verifies the
-runtime kit fingerprint and checks the unique image tag still has the recorded
-Docker content ID in its recorded context. A metadata-only or legacy manifest
-without `LocalWorkload`, missing image/context, replaced image or edited runtime kit fails
-with an explicit rebuild instruction. `create` never regenerates the runtime
-recipe or falls back to the original workload sources. Changing workload sources
-only takes effect after a successful new `build`; previous images keep their
-own unique tags and Docker's layer/build caches remain reusable.
+For `--local`, creation loads the build record; it reads no team sources and no
+staged kit folders. Before replacement or state/MCP changes, it checks that every
+component image is still in the recorded image store with its recorded content ID.
+A missing or replaced image, or a record without components (an older build),
+fails with an instruction to run `abox build`. `create` never builds from
+sources. It then writes thin directory kits into `<build dir>/create/<component>`:
+the workload as its descriptor plus `FROM <ref>:<tag>@<digest>`, each mixin as its
+descriptor plus `FROM scratch` and `COPY --from=<ref>:<tag>@<digest> / /`, because sbx
+keeps only the layers a mixin recipe adds on top of its `FROM`. The tag matters: BuildKit
+finds a local image by its tag, but looks up a digest-only reference it has not
+resolved before in the registry, where an unpublished component does not exist. Registry kits are
+passed pinned by digest. Thin directory kits are needed because sbx resolves OCI
+kit references only from the registry, even with `--pull never`. See
+[ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md).
 
 Sbx receives `SBX_KIT_BUILDER=host`, `BUILDX_BUILDER=<recorded-context>` and
 `DOCKER_CONTEXT=<recorded-context>` for local creation only. The context's
-docker-driver builder shares the prebuilt host image store; a selected remote or
+docker-driver builder shares the host image store of the build; a selected remote or
 docker-container builder is not substituted. The thin v3 frontend build stages
 declarations and exports/imports layers into sbx's separate runtime store, then
 sbx composes mixins and applies mount, credential, policy and other v3 requests.
-No `--template` override or v2 conversion is used. Workload installation is absent
-from this path, but the first thin build/layer transfer can still take time.
-Frontend resolution, registry-kit metadata and custom mixin recipes can still
-need network/build work; `--local` does not promise fully offline creation or
-prebuild arbitrary mixin recipes. The repository's mixins are declaration-only.
+No `--template` override or v2 conversion is used. No recipe of the squad runs on
+this path, but the first thin build/layer transfer can still take time. Registry
+kits pinned by digest can still need network access; `--local` does not promise
+fully offline creation.
 
 `Squads/StateEntry` owns the shared portable state-path and overlap rules for `.abox`
 resolution, consumed local manifests and bundled published metadata. Creation
@@ -513,9 +523,9 @@ published tag.
    recorded squad; it copies no secrets and changes no squad. When replacement is
    accepted and the folder config has `squad`, requires a known matching sandbox
    record before preparation/replacement. A conflict never silently switches squads.
-4. For a locally created sandbox, offers to replace it when the build of its recorded
-   team/squad/tag is newer than the one the
-   sandbox was made of. abox knows the squad of a sandbox because it keeps a record of
+4. For a locally created sandbox, offers to replace it when the build record of its
+   recorded team/squad/tag has component images and is newer than the build time
+   the sandbox recorded. abox knows the squad of a sandbox because it keeps a record of
    the sandboxes it created, in `<state dir>/sandboxes/`. Replacement stays local
    and uses only the newer build, without reading team sources.
    Accepted replacement uses `SandboxCreator`, including shared user-secret
@@ -1110,9 +1120,6 @@ one kit.
 The parameters are named values. A kit or an MCP server uses one with
 `${{ parameters.NAME }}`; a parameter no configuration declares is an error.
 
-The personal `.abox` files of the user live in the configuration directory. They add to
-a squad, they never replace it.
-
 The secrets say how a value is obtained:
 
 | Key | Meaning |
@@ -1138,7 +1145,7 @@ scripts:
   - enable-fzf.sh                             # run while the image is built
 ```
 
-`publishRepository` is optional for local builds but required for publication.
+`publishRepository` is required: `abox build` names every component image after it.
 It names one lowercase registry path segment, not a host, URL, path or tag: letters
 and digits separated by `.`, `_`, `__` or one or more `-`, with no whitespace.
 The root `.abox` selects the workload; children inherit its publish repository
@@ -1180,8 +1187,8 @@ The system trust store and certificate files remain in the runtime image.
 `MISE_EXTRA_CA_CERTS` and `NODE_EXTRA_CA_CERTS` add this same bundle to mise's and
 Node's roots for subsequent tool/package downloads without replacing default
 roots or disabling TLS verification. The host certificate store is never imported.
-Generated assets are covered by the workload source fingerprint and publication
-snapshot like the Dockerfile and scripts; no manifest contract change is needed.
+Generated assets are covered by the workload source fingerprint and input hash
+like the Dockerfile and scripts; no manifest contract change is needed.
 After updating the approved repository bundle, rebuild the CLI/tool and workload.
 
 ## The code
@@ -1200,12 +1207,17 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
       Build/          abox build: the command binds BuildParameters, BuildHandler resolves
                       the teams to squads and runs the service that does its work
         Assets/                     the inspection certificate chain, embedded in Abox.Core
+        ComponentImages.cs          the component images of a squad: input hashes, reuse of
+                                    unchanged images, builds into the host image store (ADR 0006)
         KitBuildStep.cs             stages a kit with a build file and runs its build (ADR 0001)
         StateMixinGenerator.cs      the state mixin of a built squad
         WorkloadKitGenerator.cs     turns a workload into a sandbox kit
         SquadConfigurationMixin.cs  the squad.json allowlist and its mixin
-      Publish/        abox publish: v3 frontend builds, JFrog pushes and set assembly;
-                      the command binds PublishParameters, PublishHandler does the work
+      Publish/        abox publish: freshness checks, component pushes, the set build and
+                      its promotion; the command binds PublishParameters, PublishHandler
+                      does the work
+        PublicationFreshness.cs     refuses stale builds: sources, component images, pinned
+                                    registry digests
       Create/         abox create: the command binds CreateParameters, CreateHandler
                       does the work
       Run/            abox run: the command binds RunParameters, RunHandler runs the
@@ -1274,17 +1286,18 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
           SecretIdentity.cs           the host, variable or service a secret is stored under
         Squads/           the .abox and .workload files, the chain, squad resolution
           McpDeclaration.cs      shared MCP name and HTTP(S) URL validation
+          SourceRootResolver.cs  the start directory of build and publish: --root, the
+                                 current directory, sourceRoot, then a prompt
           YamlScalar.cs          shared generated-YAML scalar quoting, including supplementary Unicode
         Builds/           the local build state shared by the command slices
           BuildManifest.cs
           BuildSources.cs
           BuildStore.cs
-          LocalWorkloadImages.cs  prebuilt workload images; owns the workload kit name
-          IWorkloadImageBuilder.cs  building workload images into the host image store,
-                                  with fresh image references
-          ILocalWorkloadImageStore.cs  inspecting them there (the host-builder check)
+          IComponentImageBuilder.cs  building component images for linux/amd64 into the
+                                  host image store
+          ILocalImageArchives.cs  saving them as image archives, to read their files
+          ILocalImageStore.cs     inspecting them there (the host-builder check)
           WorkloadBuildSecrets.cs  the secrets workload recipes may mount
-          PersonalConfigurations.cs
         Launchers/        the launcher abstraction
           ILauncher.cs           launcher contract; launcher services are constructor-injected
           LauncherSession.cs     what a launcher gets: location, sandbox, workspace, argv,
@@ -1313,10 +1326,11 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
           SquadSources.cs         local and remote ISquadSource adapters
         Registry/         publishing images to and reading them from the registry
           IRegistryPublisher.cs   push, inspect and tag for abox publish
+          IRegistryDigests.cs     the digest a registry reference resolves to now
           IPublishedImageReader.cs  inspect and save published images for remote create
           RegistryManifest.cs     a registry manifest: its kit descriptor or its platform images
           ImageReferences.cs      digest, pinning and repository rules of image references
-        Preflight/        runtime preflight for sandbox commands, secrets and normal builds
+        Preflight/        runtime preflight for sandbox commands, secrets and builds
           Preflight.cs            installed, new enough, healthy and signed in; the user messages
           IPreflightChecks.cs     what preflight asks of the sandbox runtime
           IHostPrograms.cs        whether a program is on the host's PATH
@@ -1326,7 +1340,6 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
           InstallInstructions.cs  how to install sbx on the current system
         SandboxCleanup/   ISandboxCleanup for abox prune: list sandboxes and template images,
                           stop a sandbox, remove a template image
-        KitInspection/    IKitInspector: checks a local kit's declarations for abox build
         KitBuildScripts/  IKitBuildScript: runs a local kit's build file into its staged copy
         Naming/           sandbox and image names
           ImageName.cs            the unqualified team reference of a local build
@@ -1362,7 +1375,6 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
       SbxSandboxInspection.cs        ISandboxInspection: probes through sbx exec
       SbxSandboxCleanup.cs           ISandboxCleanup: sbx ls, sbx stop, sbx template ls/rm;
                                      classifies template images by repository and tag
-      SbxKitInspector.cs             IKitInspector: sbx kit inspect with the kit arguments
       SbxHostSecretStore.cs          IHostSecretStore: sbx secret ls/set/set-custom/rm
       SbxCustomSecretArguments.cs    sbx secret set-custom arguments and the printed command line
       SbxCredentialBindings.cs       ICredentialApprovals: reads and merges sbx's credentials.yaml
@@ -1376,10 +1388,12 @@ abox-cli/src/       three projects; ADR 0004 records the split and the reference
       DotnetUserSecretStores.cs  IHostUserSecretStores: the host's .NET user-secrets store layout
     Docker/           every call to docker, with list arguments and use-case failure messages
       DockerCommand.cs               runs docker; maps OCI manifests to RegistryManifest
-      DockerWorkloadImages.cs        IWorkloadImageBuilder and ILocalWorkloadImageStore:
-                                     Buildx, the context, the docker-driver check, image
-                                     references, build and load
-      DockerRegistryPublisher.cs     IRegistryPublisher: buildx build --push, imagetools
+      DockerComponentImages.cs       IComponentImageBuilder and ILocalImageStore: Buildx,
+                                     the context, the docker-driver check, build and load,
+                                     image IDs, image save
+      DockerRegistryDigests.cs       IRegistryDigests: imagetools inspect
+      DockerRegistryPublisher.cs     IRegistryPublisher: docker push of components,
+                                     buildx build --push of the set, imagetools
       DockerPublishedImageReader.cs  IPublishedImageReader: imagetools inspect, pull, save;
                                      never echoes Docker output
     Shell/
@@ -1462,11 +1476,12 @@ For architecture and coding conventions, see the
   Buildx. Remote state/MCP metadata comes exclusively from the pinned published set.
   `--tag` chooses the tag of
   the local build and the published set, `latest` by default.
-- **Expensive local workload build before create.** `build` produces host-Docker
-  content using the v3 frontend. Local create only wraps that image in a thin v3
-  workload and composes kits. It checks recorded content identity and never
-  silently reruns the original workload recipe. Publication still builds from
-  independently fingerprint-checked original source snapshots.
+- **Build produces the component images; publish pushes them.** `build` makes one
+  host-Docker image per component with the v3 frontend and rebuilds only what
+  changed. Local create only wraps those images in thin directory kits; it checks
+  recorded content identity and never reruns a recipe. Publish refuses stale
+  builds, pushes the same images and builds only the set; see
+  [ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md).
 - **The teams folder.** A team is a folder under `teams`. Its `.abox` files (the squads
   of the team), its `.workload` and the scripts of the workload live in it. The kits
   stay in the `kits` folder of the project, so every team can use them; the workload of
@@ -1499,8 +1514,8 @@ For architecture and coding conventions, see the
 - Discovering published squads remotely when `--squad` is omitted.
 - Detecting file collisions between different kits; duplicate kit repositories are
   already rejected when resolving a squad.
-- Pruning local builds, versioned runtime kits, host-Docker `abox-workload` images
-  and registry components. `abox prune` currently removes only sbx template images.
+- Pruning local builds, their component images in the host image store, thin kit
+  folders and registry components. `abox prune` currently removes only sbx template images.
 - The `orca` launcher, and the `hc` helper and the `openssh-server` of the base image.
 - The Claude Code gateway to Copilot on GitHub Enterprise (open question 3).
 - The `worktrees` of the agents, which are lost when a sandbox is replaced (open

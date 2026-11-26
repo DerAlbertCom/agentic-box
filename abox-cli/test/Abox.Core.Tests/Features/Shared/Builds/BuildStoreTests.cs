@@ -63,12 +63,21 @@ public sealed class BuildStoreTests
     }
 
     [Fact]
-    public void TheKitsAndStateOfABuildSurviveTheRoundTrip()
+    public void TheKitsAndComponentsOfABuildSurviveTheRoundTripButNotTheBundledMetadata()
     {
         // Arrange
         using var root = new TempDirectory();
         var store = Store(root);
-        store.Save(ManifestWithKitsAndState());
+        var saved = ManifestWithKitsAndState();
+        saved.Components.Add(
+            new BuildComponent
+            {
+                Name = "workload",
+                Kind = ComponentKind.Workload,
+                Directory = "/kits/workload",
+            }
+        );
+        store.Save(saved);
 
         // Act
         var manifest = store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
@@ -76,11 +85,7 @@ public sealed class BuildStoreTests
         // Assert
         manifest.WorkloadKitDirectory.Should().Be("/kits/workload");
         manifest.Kits.Should().ContainSingle().Which.Name.Should().Be("pi-config");
-        manifest
-            .State.Should()
-            .ContainSingle()
-            .Which.SandboxPath.Should()
-            .Be("/home/agent/.config/opencode");
+        manifest.State.Should().BeEmpty("the state is kept in squad.json, not in the record");
     }
 
     [Fact]
@@ -127,7 +132,6 @@ public sealed class BuildStoreTests
             Squad = "ac",
             Tag = "latest",
             Reference = "agentic-box-rwest-sample:latest",
-            WorkloadKitDirectory = "/kits/workload",
             Kits =
             [
                 new ManifestKit

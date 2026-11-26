@@ -88,8 +88,8 @@ internal sealed class PublishServiceFixture
                     Tag = "latest",
                     Reference = "agentic-box-rwest-sample:latest",
                     PublishRepository = repository,
-                    WorkloadKitDirectory = workload,
-                }
+                },
+                workload: workload
             ),
             Path.Combine(workload, "workload.yaml"),
             "# syntax=docker/sandbox-kit:3\nschemaVersion: \"3\"\nkind: workload\n"

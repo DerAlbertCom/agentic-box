@@ -52,9 +52,13 @@ internal sealed class BuildCommand : AboxCommand<BuildParameters>
     {
         var tag = defaults.Tag(parseResult.GetValue(_tag));
         var teams = defaults.Teams(parseResult.GetValue(_teams));
-        var root = Path.GetFullPath(defaults.SourceRoot(parseResult.GetValue(_root), teams));
         return Task.FromResult(
-            new BuildParameters(teams, root, tag, parseResult.GetValue(_rebuild))
+            new BuildParameters(
+                teams,
+                parseResult.GetValue(_root),
+                tag,
+                parseResult.GetValue(_rebuild)
+            )
         );
     }
 }

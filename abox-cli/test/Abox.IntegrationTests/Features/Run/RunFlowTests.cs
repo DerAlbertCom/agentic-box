@@ -394,9 +394,9 @@ public sealed class RunFlowTests
                     Tag = "latest",
                     RootDirectory = sourceRoot.Path,
                     CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
-                    WorkloadKitDirectory = "/kits/workload",
                     Reference = ImageName.OfTeam("sample", "latest"),
-                }
+                },
+                workload: "/kits/workload"
             )
         );
 
@@ -542,9 +542,9 @@ public sealed class RunFlowTests
                     Squad = "ac",
                     Tag = "latest",
                     CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
-                    WorkloadKitDirectory = "/kits/workload",
                     Reference = ImageName.OfTeam("sample", "latest"),
-                }
+                },
+                workload: "/kits/workload"
             )
         );
 

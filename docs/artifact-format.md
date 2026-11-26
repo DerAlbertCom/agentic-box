@@ -19,14 +19,18 @@ The [official v3 frontend](https://github.com/docker/sandbox-kit-spec#publishing
 supports publication independently of that packager:
 
 1. Build each local kit with its descriptor as the Buildx `--file`. The first line
-   `# syntax=docker/sandbox-kit:3` selects the frontend. Push directly to the registry
-   with `--push`, rather than round-tripping through a classic Docker image store
-   that can discard descriptor annotations.
+   `# syntax=docker/sandbox-kit:3` selects the frontend. `abox build` loads each
+   component image into the host image store (`--load --provenance=false
+   --platform linux/amd64`); `abox publish` pushes it unchanged with
+   `docker push`, which keeps its manifest digest, and checks that the pushed image
+   kept its v3 descriptor.
 2. Generate a `kind: set` descriptor whose `kits` list contains published references
    and each kit's create-phase `args`. Local directories cannot appear in that list.
-3. Build and push the set with the same frontend. It resolves and pins the component
-   digests, validates composition, shares their layers and produces one ordinary
-   workload kit. Consumers never see `kind: set`.
+3. Build and push the set with the same frontend. It resolves the component
+   references (pinned by digest) from the registry, validates composition, shares
+   their layers and produces one ordinary workload kit. Consumers never see
+   `kind: set`. This is the one `buildx build` that `abox publish` runs, because
+   the frontend resolves set components only from the registry.
 
 `abox publish` uses this path for `rwest.jfrog.io/<publishRepository>`, using the
 repository selected in each resolved `.workload` and recorded in its local build
@@ -36,9 +40,10 @@ a change to the legacy `sbx kit push` implementation. The full command, naming a
 expectations are in [implementation.md](implementation.md).
 
 Every squad uses the stable path `agentic-box-rwest-<team>/<squad>:<tag>`, with
-components below a separate `/components/` segment. Builds must exclude personal
-configuration and retain matching source fingerprints. All selected inputs are
-validated/snapshotted before the first push. Uploaded artifact digests and every
+components below a separate `/components/` segment
+(`components/{workload,kits/<kit>,state,config}`, tagged with their input hash).
+Builds must retain matching source fingerprints, component images and pinned
+registry digests; all selected builds are checked before the first push. Uploaded artifact digests and every
 runnable platform descriptor are inspected remotely; only then is the verified
 candidate set promoted to the requested tag. No sbx preflight is needed to publish.
 
@@ -75,49 +80,42 @@ accepted as version 1.
 
 `abox build` generates this configuration mixin (`config/` in the build directory:
 `squad.json`, a declaration-only `config.yaml` and a `config.dockerfile` copying the
-file into place) for normal and `--metadata-only` builds. `abox create --local`
-passes it as an additional kit, so local sandboxes carry `squad.json` too, and
-`abox publish` pushes the same mixin as `/components/config`.
+file into place) and builds it into the config component image. `abox create
+--local` reads `squad.json` from that image and passes it as an additional kit, so
+local sandboxes carry `squad.json` too, and `abox publish` pushes the same image as
+`/components/config`.
 Identity, required fields and [portable canonical state paths and non-overlapping host mappings](authoring.md#state)
 are checked with the same rules as local creation; every mount must have
 an exact host-mount declaration in the processed set. Missing or incompatible
 metadata requires a maintainer rebuild/republish, never a local-manifest fallback.
 All metadata/MCP checks precede sandbox removal. Remote squad discovery is not
-implemented; `--squad` is required. `--local` consumes the prebuilt host workload
-through a thin v3 source kit instead of pulling the published set; see below.
+implemented; `--squad` is required. `--local` consumes the component images of the
+local build through thin directory kits instead of pulling the published set; see
+below.
 
-## Local prebuilds without registry writes
+## Local builds without registry writes
 
-Sbx 0.51.0 does not provide `kit build`. `kit inspect` reads declarations, and
-cannot load recipe-based v3 sources without a kit builder. Importing an OCI image
-with `sbx template load` does not make its kit reference resolve offline: a probe
-of `sbx create <loaded-reference> --pull never` still fetched the manifest from
-its registry. Template content alone is not a substitute for kit declarations.
+Sbx 0.51.0 does not provide `kit build`. Importing an OCI image with
+`sbx template load` does not make its kit reference resolve offline: sbx fetches
+the manifest of every OCI kit reference from its registry, even with
+`--pull never`. Only directory kits can use local images.
 
 Agentic Box therefore uses the supported source-kit host-builder path. `abox build`
-builds the original workload once with the v3 frontend into host Docker using
-`--load`. It retains the original recipe separately and writes a thin v3 workload
-whose entire recipe is `FROM <unique-prebuilt-local-tag>`. `abox create --local`
-uses that thin kit with sbx's host builder and the recorded docker-driver context,
-preserving all v3 composition and runtime capabilities. No workload apt/tool/script
-installation appears in the thin recipe. The recorded Docker content ID and thin
-kit fingerprint are checked before replacement; missing artifacts require rebuild.
+builds every component once with the v3 frontend into host Docker using `--load`.
+`abox create --local` writes thin directory kits into `<build dir>/create/`: the
+workload as its descriptor plus `FROM <ref>:<tag>@<digest>`, each mixin as its descriptor
+plus `FROM scratch` and `COPY --from=<ref>:<tag>@<digest> / /`, because sbx keeps only the
+layers a mixin recipe adds on top of its `FROM`. The tag lets BuildKit find the image
+in the local store; a digest-only reference is looked up in the registry. It uses them with sbx's host builder
+and the recorded docker-driver context, preserving all v3 composition and runtime
+capabilities. No recipe of the squad runs at create. The recorded Docker content
+IDs are checked before replacement; missing or replaced images require a rebuild.
+See [ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md).
 
-A local sbx 0.51.0 / Buildx 0.38.1 smoke test ran `abox build --no-personal` and
-two `abox create --local` commands for distinct folders using the resulting thin
-workload, an argument-bearing v3 mixin, network deny rule and a host state mount.
-A build-script timestamp matched the prebuilt image and both sandboxes; the
-argument's environment value and the mounted state file were also verified.
-The second create reported both the workload and composition cached. Only the
-probe sandboxes/images were removed afterward; no registry was written.
-Creation still stages/exports/imports content
-and composes mixins; it is not a promise of zero BuildKit work. Unlike the v2 POC,
-this route needs neither v2 translation nor a template override that could lose
-the workload's v3 declarations. Custom recipe-based mixins remain create-time
-work, and published sets keep using the existing verified publication pipeline.
+Creation still stages/exports/imports content and composes mixins; it is not a
+promise of zero BuildKit work. Unlike the v2 POC, this route needs neither v2
+translation nor a template override that could lose the workload's v3
+declarations.
 
-Remote consumers need neither sources nor any local build/metadata preparation.
-`abox build --metadata-only --no-personal` remains an optional maintainer mode,
-not a remote prerequisite. It clears local image selection without deleting prior
-artifacts. Normal builds and `--no-verify` still build the workload image. See the
+Remote consumers need neither sources nor any local build. See the
 [remote-only workflow](cli-reference.md#remote-only-workflow).

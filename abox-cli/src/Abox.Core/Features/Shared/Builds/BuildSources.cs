@@ -57,24 +57,9 @@ internal static class BuildSources
         }
     }
 
-    private static IEnumerable<string> Directories(BuildManifest manifest)
-    {
-        yield return manifest.WorkloadKitDirectory;
-        foreach (var kit in manifest.Kits.Where(kit => kit.IsLocal))
-        {
-            yield return kit.Reference;
-        }
-
-        if (manifest.StateMixinDirectory is { } state)
-        {
-            yield return state;
-        }
-
-        if (manifest.ConfigurationMixinDirectory is { } configuration)
-        {
-            yield return configuration;
-        }
-    }
+    /// <summary>The directories the component images were built from.</summary>
+    private static IEnumerable<string> Directories(BuildManifest manifest) =>
+        manifest.Components.Select(component => component.Directory);
 
     /// <summary>
     /// The input hash of a component image: its kind, the directory it is built from and the

@@ -27,7 +27,10 @@ internal sealed class SourceRootResolver(
         if (root is not null)
             return root;
         if (HasTeamSources(currentDirectory, teams))
+        {
+            OfferToRemember(currentDirectory, teams);
             return currentDirectory;
+        }
 
         var teamNames = string.Join(", ", teams.Select(team => $"'{team}'"));
         if (config.SourceRoot is { } configured)
@@ -61,6 +64,28 @@ internal sealed class SourceRootResolver(
         AboxConfigLoader.SaveSourceRoot(paths, folder);
         console.WriteLine($"Saved 'sourceRoot: {folder}' in '{paths.ConfigFile}'.");
         return folder;
+    }
+
+    /// <summary>
+    /// A build or publish inside the repository is the first time abox sees where the team
+    /// sources are: without a <c>sourceRoot</c>, an interactive run offers to remember the
+    /// repository folder, so later runs outside it find the sources too.
+    /// </summary>
+    private void OfferToRemember(string currentDirectory, IReadOnlyList<string> teams)
+    {
+        if (config.SourceRoot is not null || !console.IsInteractive)
+            return;
+
+        var repository = _discovery.TeamDirectory(currentDirectory, teams[0]).RootDirectory;
+        if (
+            console.Confirm(
+                $"Remember '{repository}' as 'sourceRoot', so build and publish find the team sources from other folders too?"
+            )
+        )
+        {
+            AboxConfigLoader.SaveSourceRoot(paths, repository);
+            console.WriteLine($"Saved 'sourceRoot: {repository}' in '{paths.ConfigFile}'.");
+        }
     }
 
     private bool HasTeamSources(string directory, IReadOnlyList<string> teams) =>

@@ -15,7 +15,7 @@ internal sealed partial class SbxInvoker(IProcessRunner runner)
     private const string Executable = "sbx";
 
     /// <summary>The first sbx version abox works with.</summary>
-    internal static readonly Version MinimumVersion = new(0, 51, 0);
+    internal static readonly Version MinimumVersion = new(0, 54, 0);
 
     /// <summary>Whether sbx is on the PATH of the host.</summary>
     internal bool IsOnPath(IHostPrograms programs) => programs.Exists(Executable);
@@ -98,7 +98,7 @@ internal sealed partial class SbxInvoker(IProcessRunner runner)
         return ParseVersion(report.Client?.Version ?? string.Empty);
     }
 
-    /// <summary>Reads the sbx version, like <c>v0.51.0</c> or <c>0.51.0</c>.</summary>
+    /// <summary>Reads the sbx version, like <c>v0.54.0</c> or <c>0.54.0</c>.</summary>
     private static Version ParseVersion(string text)
     {
         var match = VersionPattern().Match(text);

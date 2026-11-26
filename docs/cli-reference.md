@@ -9,10 +9,9 @@ and the [authoring guide](authoring.md).
 
 | Command | What it does |
 |---|---|
-| `abox build --team <name> [--root <dir>] [--tag <tag>] [--no-verify] [--no-personal]` | Prebuilds reusable local workload images with Docker Buildx and prepares the v3 kits of every squad. No registry writes. |
-| `abox build --team <name> --metadata-only` | Maintainer-only source preparation without image builds. Clears local image selection for this tag; not required for remote create. |
-| `abox publish --team <name> [--root <dir>] [--tag <tag>] [--builder <name>]` | Builds and pushes the local kit sets to `rwest.jfrog.io/<publishRepository>`, configured in each workload. Requires Docker Buildx and host registry sign-in. |
-| `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--memory <GB>] [--cpus <n>] [--yes]` | Pulls a self-contained published squad set, or uses a local prebuild with `--local`; neither reads team sources. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying; it or `--squad` must name the squad. `--memory` (whole GB) and `--cpus` size the sandbox; see [sandbox size](#sandbox-size). `--yes` confirms replacement. |
+| `abox build --team <name> [--root <dir>] [--tag <tag>] [--rebuild]` | Builds one image per component of every squad (workload, local kits, state and config mixins) into the host image store with Docker Buildx, rebuilding only what changed. `--rebuild` builds every component again. No registry writes. |
+| `abox publish --team <name> [--root <dir>] [--tag <tag>] [--builder <name>]` | Refuses stale builds, pushes the built component images unchanged and builds and pushes the kit set of each squad to `rwest.jfrog.io/<publishRepository>`, configured in each workload. Requires Docker Buildx and host registry sign-in. |
+| `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--memory <GB>] [--cpus <n>] [--yes]` | Pulls a self-contained published squad set, or uses the component images of a local build with `--local`; neither reads team sources. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying; it or `--squad` must name the squad. `--memory` (whole GB) and `--cpus` size the sandbox; see [sandbox size](#sandbox-size). `--yes` confirms replacement. |
 | `abox run [<launcher>] [--location <path>] [--terminal-theme <true\|false>] [-- <argv>...]` | Starts a launcher for the sandbox of a folder. The default launcher is a shell. `--terminal-theme` decides for this run whether the sandbox sets the terminal colors from its theme (see [Terminal colors](#terminal-colors)). |
 | `abox prune [--full] [--sbx]` | Removes the template images of sbx that stopped being used. `--full` reaches for everything sbx holds, `--sbx` stops the running sandboxes first. |
 | `abox secrets list\|set\|remove [--location <path>]` | The host secrets the kits of the folder's existing sandbox ask for, read from inside the sandbox; no team sources needed. `set` and `remove` also accept repeatable `--service <name>`; `list` does not. Values are stored globally on the host. |
@@ -26,10 +25,11 @@ and `abox exec <sandbox> -- <command>`.
 then the current folder. `create` reads no team sources, with or without `--local`.
 `build` and `publish` are the only commands that read team sources. Their search
 starts at `--root <dir>`, then at the current folder when the team sources are found
-from there, then at the user setting `sourceRoot`. When none of them applies, an
-interactive run asks for the repository folder, checks that the team sources are
-found from it and saves it as `sourceRoot`; a run without a terminal fails and names
-`sourceRoot` and `--root`.
+from there, then at the user setting `sourceRoot`. The first interactive `build` or
+`publish` inside the repository offers to save the repository folder as `sourceRoot`.
+When none of them applies, an interactive run asks for the repository folder, checks
+that the team sources are found from it and saves it as `sourceRoot`; a run without a
+terminal fails and names `sourceRoot` and `--root`.
 
 ## Reaching sandbox apps over HTTP
 
@@ -188,7 +188,7 @@ terminalTheme: true
 - `defaultLocation` is unset by default: `create`, `run`, `user-secrets` and `ports` use the current folder unless `--location` is given.
 - `sourceRoot` is unset by default: the repository folder with the team sources that
   `build` and `publish` use outside the repository. An interactive `build` or `publish`
-  asks for it once and saves it here. A saved folder without the team sources is an
+  inside the repository offers to save it here; outside it, one asks for it. A saved folder without the team sources is an
   error, not silently skipped.
 - `teamsDirectory` names the project's teams directory; the default is `teams`.
 - `kitsDirectory` names the kits directory relative to the project root; the default is `kits`.
@@ -229,8 +229,8 @@ userSecrets: [shared-store]
 userSecrets: [shared-store, my-dev-store]
 ```
 
-- The keys are `squad`, `userSecrets`, `portOffset`, `terminalTheme`, `memory` and
-  `cpus`. Every key is allowed in both files.
+- The keys are `team`, `squad`, `userSecrets`, `portOffset`, `terminalTheme`,
+  `memory` and `cpus`. Every key is allowed in both files.
 - `abox.user.yaml` overrides `abox.yaml`: a value or list in the user file replaces
   the one in the shared file as a whole (the example selects both stores; it does
   not append), and keys it does not set keep their shared value. Dictionaries are
@@ -244,7 +244,20 @@ userSecrets: [shared-store, my-dev-store]
   fail and ask you to rename it to `abox.yaml` or `abox.user.yaml` (the content is
   now YAML). `.yml` files are not recognised.
 - abox never writes `abox.yaml` and never touches `.gitignore`. It writes
-  `abox.user.yaml` only to save the [sandbox size](#sandbox-size) given to `abox create`.
+  `abox.user.yaml` only after `abox create`, to save the [team and squad](#team-and-squad)
+  and the [sandbox size](#sandbox-size).
+
+## Team and squad
+
+`abox create` takes the team from **`--team`, then `team` in the folder configuration,
+then `defaultTeam`**, and the squad from **`--squad`, then `squad` in the folder
+configuration**. Once the sandbox is created, both are saved in the location's
+`abox.user.yaml` unless the folder configuration already gives them, so the next
+`abox create` in that folder needs neither option. A given `--squad` replaces the squad
+`abox.user.yaml` remembers, but must match a `squad` in `abox.yaml`. `abox run`, which
+replaces a sandbox without anyone choosing a squad, refuses a sandbox whose squad
+differs from the folder's squad in either file. Lines are replaced or added as for the
+[sandbox size](#sandbox-size).
 
 ## Sandbox size
 
@@ -578,34 +591,28 @@ As a reference-naming example (not a promise that this sample is published),
 `abox create --team sample --squad ac --tag latest` pulls
 `rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac:latest`, validates its
 bundled metadata and creates from its immutable platform digest with `--pull always`.
-`abox create --team sample --local` uses a prebuilt local workload
-image plus its thin v3 runtime kit and local mixins, with `--pull never`. It does
-not rerun the workload's apt, mise or script installation. Only `--local` needs
-team files and a matching local build manifest. Remote state mounts and MCP
-registration come exclusively from the published set's bundled `squad.json`.
-Local-only/personal kit customizations require `--local`.
+`abox create --team sample --squad ac --local` uses the component images of the
+local build, wrapped in thin directory kits, with `--pull never`. It does not
+rerun any recipe of the squad. `--local` needs a matching local build record, not
+team files. State mounts and MCP registration come from the bundled `squad.json`:
+the published set's for remote create, the local config image's for `--local`.
 
 Local build and creation require host Docker with Buildx and a Docker Engine
-context's **docker-driver** builder. `build` prints a unique image reference and
-its immutable content ID, and records the Docker context. `create --local` checks
-that image and the generated thin recipe before replacing any existing sandbox;
-old manifests, missing/replaced images, and changed runtime recipes require a new
-`abox build`, never a silent workload rebuild. Keep the recorded Docker context
-available. `--no-verify` only skips additional kit inspection, not the image build.
-The explicit [metadata-only preparation mode](development.md#metadata-only-preparation)
-is the exception; it does not produce an image usable by `create --local`.
+context's **docker-driver** builder. `build` records each component image's
+reference, digest and content ID, and the Docker context. `create --local` checks
+those images before replacing any existing sandbox; builds without component
+images (made by older abox versions) and missing/replaced images require a new
+`abox build`, never a silent rebuild. Keep the recorded Docker context available.
 
-Local create still runs sbx's host builder for the thin `FROM <prebuilt-image>`
-v3 wrapper, loads/reuses layers in sbx's separate image store, and composes mixins
-and runtime declarations. This can take time on the first create. It may resolve
-the frontend or registry kit dependencies; it is not an offline guarantee.
-Custom mixins with their own recipes can still build during creation. The kits
-in this repository are declaration-only. Original workload sources remain separate
-for the existing fingerprint-checked publication pipeline.
+Local create still runs sbx's host builder for the thin directory kits (`FROM
+<image>` for the workload, `COPY --from=<image>` for each mixin), loads/reuses layers
+in sbx's separate image store, and composes mixins and runtime declarations. This
+can take time on the first create. Registry kits are pinned by digest and may still
+be fetched; it is not an offline guarantee.
 
 Remote create consumes the **already built and processed published set**, including
 its workload, mixins, arguments and v3 declarations. It does not reapply the team's
-local kit sources or use the local workload image. User-specific overlays on a
+local kit sources or use local component images. User-specific overlays on a
 published set are future work, not part of this lifecycle.
 
 ## Remote-only workflow
@@ -643,13 +650,13 @@ across future sbx upgrades. `sbx settings unset kit.allowedSources` restores the
 current defaults and discards the entire list override, including the added
 repository trust; a later remote create may add its configured repository again.
 
-Give `--squad` explicitly or set `squad` in the folder's `abox.yaml` or `abox.user.yaml`: remote squad
-discovery is not currently supported.
+Give `--squad` explicitly or set `squad` in the folder's `abox.yaml` or `abox.user.yaml`
+(a create saves it there): remote squad discovery is not currently supported.
 Missing/invalid bundled metadata, identity/schema mismatches, unsafe state paths,
 missing host-mount declarations and unavailable MCP registrations fail before
 an existing sandbox is removed, even with `--yes`. Older artifacts without the
 required metadata must be rebuilt and republished by a maintainer; local metadata
 is never substituted. `abox run` does not replace pulled sandboxes with local builds.
 
-For local builds, metadata-only preparation and publishing, see the
+For local builds and publishing, see the
 [development guide](development.md).

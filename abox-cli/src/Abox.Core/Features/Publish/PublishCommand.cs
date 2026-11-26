@@ -47,7 +47,7 @@ internal sealed class PublishCommand : AboxCommand<PublishParameters>
         return Task.FromResult(
             new PublishParameters(
                 teams,
-                defaults.SourceRoot(parseResult.GetValue(_root), teams),
+                parseResult.GetValue(_root),
                 defaults.TagWithoutValidation(parseResult.GetValue(_tag)),
                 parseResult.GetValue(_builder)
             )

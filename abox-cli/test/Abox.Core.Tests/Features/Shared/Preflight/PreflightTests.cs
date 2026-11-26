@@ -47,7 +47,7 @@ public sealed class PreflightTests
         _console
             .Errors.Should()
             .Equal(
-                "sbx 0.50.0 is too old. abox needs 0.51.0 or later.",
+                "sbx 0.53.0 is too old. abox needs 0.54.0 or later.",
                 "Upgrade sbx and try again."
             );
         await _checks.DidNotReceive().DiagnoseAsync(Arg.Any<CancellationToken>());
