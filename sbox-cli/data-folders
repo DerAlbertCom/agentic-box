@@ -6,8 +6,12 @@
 # with the Bun image of bundle, so the host needs only Docker.
 set -eu
 
+# The current folder as Docker on the host names it: pwd -W gives the Windows path under
+# the sh of Git for Windows, which Docker Desktop needs for folders such as /tmp.
+host_pwd() { pwd -W 2>/dev/null || pwd; }
+
 bun_image="oven/bun:1.4.4"
-workspace="$(cd "$(dirname "$0")" && pwd)"
+workspace="$(cd "$(dirname "$0")" && host_pwd)"
 package="$1"
 
 folders="$(docker run --rm --volume "$workspace/$package/package.json:/package.json:ro" "$bun_image" \

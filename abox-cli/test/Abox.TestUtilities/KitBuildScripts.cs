@@ -5,18 +5,15 @@ internal static class KitBuildScripts
 {
     internal static string Write(TempDirectory root, string kit, string body)
     {
-        if (OperatingSystem.IsWindows())
+        var path = root.File($"kits/{kit}/build", "#!/bin/sh\nset -e\n" + body);
+        if (!OperatingSystem.IsWindows())
         {
-            throw new InvalidOperationException(
-                Xunit.v3.DynamicSkipToken.Value + "Kit build steps need executable files."
+            File.SetUnixFileMode(
+                path,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
             );
         }
 
-        var path = root.File($"kits/{kit}/build", "#!/bin/sh\nset -e\n" + body);
-        File.SetUnixFileMode(
-            path,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
-        );
-        return path;
+        return Path.GetFullPath(path);
     }
 }
