@@ -14,7 +14,7 @@ missing.
 Uncommitted changes in abox-cli raise a warning and a question, because the package's
 informational version names the commit it was built from.
 
-Credentials come from the environment: ABOX_JFROG_USER and ABOX_JFROG_TOKEN (a JFrog
+Credentials come from the environment: JFROG_USER and JFROG_TOKEN (a JFrog
 identity token). They are used to read the feed and to push.
 
 .PARAMETER DryRun
@@ -24,7 +24,7 @@ Do everything but push, and print the packages that would be pushed.
 Do not run the abox test suites before packing.
 
 .EXAMPLE
-$env:ABOX_JFROG_USER = 'jdoe'; $env:ABOX_JFROG_TOKEN = '<token>'; ./publish-abox.ps1
+$env:JFROG_USER = 'jdoe'; $env:JFROG_TOKEN = '<token>'; ./publish-abox.ps1
 #>
 param(
     [switch] $DryRun,
@@ -70,10 +70,10 @@ function Confirm-Choice([string] $Title, [string] $Question) {
     return $Host.UI.PromptForChoice($Title, $Question, $choices, 0) -eq 1
 }
 
-$user = $env:ABOX_JFROG_USER
-$token = $env:ABOX_JFROG_TOKEN
+$user = $env:JFROG_USER
+$token = $env:JFROG_TOKEN
 if (-not $user -or -not $token) {
-    throw 'Set ABOX_JFROG_USER and ABOX_JFROG_TOKEN (a JFrog identity token) for rwest.jfrog.io.'
+    throw 'Set JFROG_USER and JFROG_TOKEN (a JFrog identity token) for rwest.jfrog.io.'
 }
 $credential = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("${user}:$token"))
 $headers = @{ Authorization = "Basic $credential" }

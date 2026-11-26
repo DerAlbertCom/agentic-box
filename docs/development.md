@@ -86,8 +86,8 @@ package that matches the host; this needs the .NET 10 SDK or newer. The tool run
 Publishing is manual for now. From the repository root, with a JFrog identity token:
 
 ```powershell
-$env:ABOX_JFROG_USER = '<user>'
-$env:ABOX_JFROG_TOKEN = '<identity token>'
+$env:JFROG_USER = '<user>'
+$env:JFROG_TOKEN = '<identity token>'
 ./publish-abox.ps1            # add -DryRun to pack without pushing
 ```
 
