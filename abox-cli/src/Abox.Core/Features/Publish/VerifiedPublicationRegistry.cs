@@ -149,7 +149,7 @@ internal sealed class VerifiedPublicationRegistry(
                 await InspectAsync(
                     inspection with
                     {
-                        Reference = ImageReferences.Repository(inspection.Reference) + "@" + digest,
+                        Reference = ImageReferences.PinnedTo(inspection.Reference, digest!),
                         Depth = inspection.Depth + 1,
                     },
                     cancellationToken

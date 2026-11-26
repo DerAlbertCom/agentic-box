@@ -109,21 +109,6 @@ internal static class PublishedRuntimeMetadata
         }
     }
 
-    /// <summary>The host-mount paths a processed set descriptor declares.</summary>
-    // A processed descriptor mixes plain capabilities with {"group": {...}} wrappers that have no type of their own.
-    internal static IReadOnlyCollection<string> HostMounts(JsonElement descriptor) =>
-        descriptor
-            .GetProperty("capabilities")
-            .EnumerateArray()
-            .Where(capability =>
-                capability.TryGetProperty("type", out var type)
-                && type.GetString() == HostMountCapability
-            )
-            .Select(capability =>
-                capability.GetProperty("config").GetProperty("path").GetString() ?? ""
-            )
-            .ToHashSet(StringComparer.Ordinal);
-
     /// <summary>The capability a kit declares a host mount with.</summary>
     internal const string HostMountCapability = "com.docker.sandbox/host-mount@1";
 

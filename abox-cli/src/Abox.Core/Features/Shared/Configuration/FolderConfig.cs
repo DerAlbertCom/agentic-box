@@ -8,32 +8,44 @@ using Abox.Features.Shared.Yaml;
 namespace Abox.Features.Shared.Configuration;
 
 /// <summary>What a create remembers in abox.user.yaml; a null value is left as it is.</summary>
-internal sealed record FolderSelection(string? Team, string? Squad, int? Memory, int? Cpus);
+internal sealed record FolderSelection(string? Team, string? Squad, int? Memory, int? Cpus)
+{
+    public bool IsEmpty => this == new FolderSelection(null, null, null, null);
+
+    /// <summary>The given values, with the current ones where this selection leaves them.</summary>
+    public FolderSelection Over(FolderSelection current) =>
+        new(
+            Team ?? current.Team,
+            Squad ?? current.Squad,
+            Memory ?? current.Memory,
+            Cpus ?? current.Cpus
+        );
+}
 
 /// <summary>Runtime-only opt-in in the sandbox folder, never a build input.</summary>
 internal sealed class FolderConfig
 {
-    private FolderConfig(
-        string location,
-        string? team,
-        string? squad,
-        string? sharedSquad,
-        IReadOnlyList<UserSecretSelection> userSecrets,
-        int? portOffset,
-        bool? terminalTheme,
-        int? memory,
-        int? cpus
-    )
+    /// <summary>Decodes and validates a merged folder configuration.</summary>
+    private FolderConfig(string location, YamlReader reader, string? sharedSquad)
     {
+        reader.RejectUnknownKeys(
+            TeamKey,
+            SquadKey,
+            UserSecretsKey,
+            PortOffsetKey,
+            TerminalThemeKey,
+            MemoryKey,
+            CpusKey
+        );
+        PortOffset = ReadPortOffset(reader);
         Location = Path.GetFullPath(location);
-        Team = team;
-        Squad = squad;
+        Team = ReadName(reader, TeamKey);
+        Squad = ReadName(reader, SquadKey);
         _sharedSquad = sharedSquad;
-        UserSecrets = userSecrets;
-        PortOffset = portOffset;
-        TerminalTheme = terminalTheme;
-        Memory = memory;
-        Cpus = cpus;
+        UserSecrets = UserSecretSelection.Parse(reader);
+        TerminalTheme = reader.GetBoolean(TerminalThemeKey);
+        Memory = ReadPositive(reader, MemoryKey);
+        Cpus = ReadPositive(reader, CpusKey);
     }
 
     /// <summary>The squad of the shared abox.yaml, which a given squad must match.</summary>
@@ -125,7 +137,7 @@ internal sealed class FolderConfig
             shared is null ? user
             : user is null ? shared
             : YamlReader.Merge(shared, user);
-        return merged is null ? null : Decode(location, merged, SharedSquad(shared));
+        return merged is null ? null : new FolderConfig(location, merged, SharedSquad(shared));
     }
 
     /// <summary>
@@ -159,57 +171,56 @@ internal sealed class FolderConfig
         CancellationToken cancellationToken
     )
     {
-        var (team, squad, memory, cpus) = selection;
-        if (team is null && squad is null && memory is null && cpus is null)
+        if (selection.IsEmpty)
             return;
         var path = Path.Combine(location, UserFile);
-        try
-        {
-            var yaml = File.Exists(path)
-                ? await File.ReadAllTextAsync(
+        await AccessAsync(
+            path,
+            "write",
+            async () =>
+            {
+                var current = await ReadTextAsync(path, cancellationToken) ?? string.Empty;
+                var yaml = WithSelection(current, selection);
+                EnsureReadsBack(
+                    selection,
+                    new FolderConfig(location, parser.Read(yaml, path), null),
+                    path
+                );
+                await File.WriteAllTextAsync(
                     path,
-                    new UTF8Encoding(false, true),
+                    yaml,
+                    new UTF8Encoding(false),
                     cancellationToken
-                )
-                : string.Empty;
-            if (team is not null)
-                yaml = WithTopLevelValue(yaml, TeamKey, Scalar(team));
-            if (squad is not null)
-                yaml = WithTopLevelValue(yaml, SquadKey, Scalar(squad));
-            if (memory is { } gigabytes)
-                yaml = WithTopLevelValue(
-                    yaml,
-                    MemoryKey,
-                    gigabytes.ToString(CultureInfo.InvariantCulture)
                 );
-            if (cpus is { } count)
-                yaml = WithTopLevelValue(
-                    yaml,
-                    CpusKey,
-                    count.ToString(CultureInfo.InvariantCulture)
-                );
-            var saved = Decode(location, parser.Read(yaml, path));
-            if (
-                (team is not null && saved.Team != team)
-                || (squad is not null && saved.Squad != squad)
-                || (memory is not null && saved.Memory != memory)
-                || (cpus is not null && saved.Cpus != cpus)
-            )
-                throw new AboxException(
-                    $"Cannot save the folder settings in '{path}'. Set them there by hand."
-                );
-            await File.WriteAllTextAsync(path, yaml, new UTF8Encoding(false), cancellationToken);
-        }
-        catch (DecoderFallbackException)
+                return yaml;
+            }
+        );
+    }
+
+    private static string WithSelection(string yaml, FolderSelection selection)
+    {
+        (string Key, string? Value)[] entries =
+        [
+            (TeamKey, selection.Team is { } team ? Scalar(team) : null),
+            (SquadKey, selection.Squad is { } squad ? Scalar(squad) : null),
+            (MemoryKey, selection.Memory?.ToString(CultureInfo.InvariantCulture)),
+            (CpusKey, selection.Cpus?.ToString(CultureInfo.InvariantCulture)),
+        ];
+        foreach (var (key, value) in entries)
         {
-            throw new AboxException($"'{path}' has invalid UTF-8. Fix the folder configuration.");
+            if (value is not null)
+                yaml = WithTopLevelValue(yaml, key, value);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
+        return yaml;
+    }
+
+    private static void EnsureReadsBack(FolderSelection selection, FolderConfig saved, string path)
+    {
+        var current = new FolderSelection(saved.Team, saved.Squad, saved.Memory, saved.Cpus);
+        if (selection.Over(current) != current)
             throw new AboxException(
-                $"Cannot write '{path}'. Check the folder and file permissions."
+                $"Cannot save the folder settings in '{path}'. Set them there by hand."
             );
-        }
     }
 
     /// <summary>A plain name stays readable; anything else is quoted.</summary>
@@ -240,6 +251,9 @@ internal sealed class FolderConfig
     public const string SquadKey = "squad";
     public const string MemoryKey = "memory";
     public const string CpusKey = "cpus";
+    private const string UserSecretsKey = "userSecrets";
+    private const string PortOffsetKey = "portOffset";
+    private const string TerminalThemeKey = "terminalTheme";
 
     public const string SharedFile = "abox.yaml";
     public const string UserFile = "abox.user.yaml";
@@ -262,22 +276,37 @@ internal sealed class FolderConfig
         CancellationToken cancellationToken
     )
     {
-        string yaml;
+        var yaml = await AccessAsync(path, "read", () => ReadTextAsync(path, cancellationToken));
+        return yaml is null ? null : parser.Read(yaml, path);
+    }
+
+    /// <summary>The text of a folder configuration file, or null when it does not exist.</summary>
+    private static async Task<string?> ReadTextAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+    {
         try
         {
-            yaml = await File.ReadAllTextAsync(
+            return await File.ReadAllTextAsync(
                 path,
                 new UTF8Encoding(false, true),
                 cancellationToken
             );
         }
-        catch (FileNotFoundException)
+        catch (Exception exception)
+            when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
             return null;
         }
-        catch (DirectoryNotFoundException)
+    }
+
+    /// <summary>Turns the file errors of reading or writing a folder configuration file into abox errors.</summary>
+    private static async Task<T> AccessAsync<T>(string path, string action, Func<Task<T>> access)
+    {
+        try
         {
-            return null;
+            return await access();
         }
         catch (DecoderFallbackException)
         {
@@ -286,41 +315,17 @@ internal sealed class FolderConfig
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             throw new AboxException(
-                $"Cannot read '{path}'. Check the folder and file permissions."
+                $"Cannot {action} '{path}'. Check the folder and file permissions."
             );
         }
-        return parser.Read(yaml, path);
     }
 
-    private static FolderConfig Decode(
-        string location,
-        YamlReader reader,
-        string? sharedSquad = null
-    )
+    private static int? ReadPortOffset(YamlReader reader)
     {
-        reader.RejectUnknownKeys(
-            TeamKey,
-            SquadKey,
-            "userSecrets",
-            "portOffset",
-            "terminalTheme",
-            MemoryKey,
-            CpusKey
-        );
-        var portOffset = reader.GetInteger("portOffset");
+        var portOffset = reader.GetInteger(PortOffsetKey);
         if (portOffset is { } offset)
-            ValidatePortOffset(offset, reader.SourceOf("portOffset"));
-        return new FolderConfig(
-            location,
-            ReadName(reader, TeamKey),
-            ReadName(reader, SquadKey),
-            sharedSquad,
-            UserSecretSelection.Parse(reader),
-            portOffset,
-            reader.GetBoolean("terminalTheme"),
-            ReadPositive(reader, MemoryKey),
-            ReadPositive(reader, CpusKey)
-        );
+            ValidatePortOffset(offset, reader.SourceOf(PortOffsetKey));
+        return portOffset;
     }
 
     private static int? ReadPositive(YamlReader reader, string key)
