@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { requireShell } from "../../test/shell";
 
 const launcher = join(import.meta.dir, "../launcher/sbox");
 const entry = join(import.meta.dir, "../src/main.ts");
@@ -17,7 +18,7 @@ afterEach(async () => {
 });
 
 function launch(path: string, ...args: string[]) {
-  const result = Bun.spawnSync(["/bin/sh", launcher, ...args], { env: { HOME: home, PATH: path } });
+  const result = Bun.spawnSync([requireShell(), launcher, ...args], { env: { HOME: home, PATH: path } });
   return { code: result.exitCode, stdout: result.stdout.toString(), stderr: result.stderr.toString() };
 }
 

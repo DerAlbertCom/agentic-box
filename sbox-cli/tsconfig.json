@@ -11,5 +11,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["sbox/src", "sbox/test", "sbox-*/src", "sbox-*/test"]
+  "include": ["sbox/src", "sbox/test", "sbox-*/src", "sbox-*/test", "test"]
 }

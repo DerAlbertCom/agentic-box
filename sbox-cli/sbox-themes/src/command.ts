@@ -78,7 +78,6 @@ function reportFailures(failures: readonly string[], ctx: CommandContext) {
 function recolorTerminal(ctx: CommandContext) {
   const script = join(ctx.paths.home, terminalColorScript);
   if (!existsSync(script)) return;
-  const result = Bun.spawnSync(["sh", script], { stdout: "pipe", stderr: "ignore" });
+  const result = Bun.spawnSync(["sh", script], { env: { ...ctx.env }, stdout: "pipe", stderr: "ignore" });
   if (result.exitCode === 0) ctx.stdout.write(result.stdout.toString());
 }
-

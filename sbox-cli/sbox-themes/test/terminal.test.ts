@@ -36,7 +36,12 @@ const white = sequences(
 
 /** Runs the rendered terminal color script the way the login script does and returns its output. */
 function runColorScript(): string {
-  const result = Bun.spawnSync(["sh", join(home.path, colorScript)], { stdout: "pipe", stderr: "pipe" });
+  // Bun's default spawn PATH is a startup snapshot; include the test preload's shell explicitly.
+  const result = Bun.spawnSync(["sh", join(home.path, colorScript)], {
+    env: { ...process.env },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   expect(result.stderr.toString()).toBe("");
   expect(result.exitCode).toBe(0);
   return result.stdout.toString();
@@ -89,6 +94,27 @@ const terminalTheme = { SBOX_TERMINAL_THEME: "1" };
 const switched = (name: string) => `Switched to the theme '${name}'. Some apps show it only after a restart.\n`;
 
 describe("sbox themes <name> and the terminal colors", () => {
+  test("uses the command's PATH to run the terminal color script", async () => {
+    // Arrange
+    await home.install("themes", {
+      package: themesPackage,
+      files: {
+        "themes/white/colors.toml": await Bun.file(join(themesPackage, "themes/white/colors.toml")).text(),
+        "apps/terminal/app.yaml": "files:\n  - template: colors.liquid\n    target: ~/.config/sbox/terminal-colors.sh\n",
+        "apps/terminal/colors.liquid": "printf unconfigured-shell\n",
+      },
+    });
+    await home.tool("sh", "#!/bin/sh\nprintf configured-shell\n");
+
+    // Act
+    const result = await home.run(["themes", "white"], { env: terminalTheme, tty: true });
+
+    // Assert
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toBe("configured-shell" + switched("white"));
+  });
+
   test("recolors the terminal with SBOX_TERMINAL_THEME=1", async () => {
     // Arrange
     await home.install("themes", { package: themesPackage });

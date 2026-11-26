@@ -13,7 +13,9 @@ public sealed class ProtectedTemporaryDirectoryTests
     [Theory]
     [InlineData("")]
     [InlineData("nested")]
-    public void LinkedParentOrAncestorIsRejectedWithoutRemovingUnownedContents(string subdirectory)
+    public async Task LinkedParentOrAncestorIsRejectedWithoutRemovingUnownedContents(
+        string subdirectory
+    )
     {
         // Arrange
         using var root = new CertificateTestDirectory();
@@ -22,7 +24,8 @@ public sealed class ProtectedTemporaryDirectoryTests
         var marker = Path.Combine(target, "keep.txt");
         File.WriteAllText(marker, "unowned contents");
         var link = Path.Combine(root.Path, "linked");
-        CreateDirectoryLink(link, target);
+        using var links = new DirectoryLinks();
+        await links.Add(link, target);
         var parent = Path.Combine(link, subdirectory);
         var console = Substitute.For<IConsole>();
 
@@ -37,21 +40,6 @@ public sealed class ProtectedTemporaryDirectoryTests
             .Should()
             .BeEmpty();
         console.DidNotReceive().WriteError(Arg.Any<string>());
-    }
-
-    private static void CreateDirectoryLink(string link, string target)
-    {
-        try
-        {
-            DirectoryLinks.CreateSymbolic(link, target);
-        }
-        catch (UnauthorizedAccessException) when (OperatingSystem.IsWindows())
-        {
-            throw new InvalidOperationException(
-                Xunit.v3.DynamicSkipToken.Value
-                    + "Windows directory-link creation needs permission."
-            );
-        }
     }
 
     [Fact]

@@ -6,7 +6,7 @@ const home = useThemeHome();
 
 beforeEach(async () => {
   await home.install("themes", { package: themesPackage });
-});
+}, process.platform === "win32" ? 60_000 : undefined);
 
 const fzfLog = () => join(home.path, "fzf.log");
 

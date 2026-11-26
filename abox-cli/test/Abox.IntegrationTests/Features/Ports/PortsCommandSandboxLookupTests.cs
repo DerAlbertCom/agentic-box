@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Abox.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -67,10 +66,12 @@ public sealed class PortsCommandSandboxLookupTests
         // Assert
         exit.Should().Be(0, cli.Console.AllText);
         cli.Console.AllText.Should().NotContain($"There is no sandbox for '{location}'");
+        await cli
+            .Certificates.Received(1)
+            .RefreshBootstrapAsync("rwe-ai-sbx-41bc30", Arg.Any<CancellationToken>());
         calls
-            .Single(call => call.Arguments[0] == "exec")
-            .Arguments.Should()
-            .Contain("rwe-ai-sbx-41bc30");
+            .Should()
+            .OnlyContain(call => new[] { "version", "diagnose", "ls" }.Contains(call.Arguments[0]));
     }
 
     private static void RequireWindowsDriveLookup()
@@ -87,7 +88,6 @@ public sealed class PortsCommandSandboxLookupTests
         string name
     )
     {
-        var calls = new List<ProcessRequest>();
         var inventory = $$"""
             [{"name":{{JsonSerializer.Serialize(
                 name
@@ -95,25 +95,9 @@ public sealed class PortsCommandSandboxLookupTests
                 originalLocation
             )}}]}]
             """;
-        var runner = Substitute.For<IProcessRunner>();
-        runner
-            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
-            .Returns(call =>
-            {
-                var request = call.Arg<ProcessRequest>();
-                calls.Add(request);
-                request.FileName.Should().Be("sbx");
-                var output = request.Arguments[0] switch
-                {
-                    "version" => """{"client":{"version":"0.54.0"}}""",
-                    "diagnose" => """{"checks":[]}""",
-                    "ls" => inventory,
-                    "exec" when request.Arguments.Contains("refresh-bootstrap") => "",
-                    _ => throw new InvalidOperationException("Unexpected runtime operation."),
-                };
-                return new ProcessResult(0, output, "");
-            });
-        cli.Services.AddSingleton(runner);
-        return calls;
+        return LegacySandboxInventoryFixture.UseRealSbx(
+            cli,
+            _ => new ProcessResult(0, inventory, "")
+        );
     }
 }
