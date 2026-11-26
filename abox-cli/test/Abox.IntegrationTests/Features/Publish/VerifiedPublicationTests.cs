@@ -60,7 +60,8 @@ public sealed class VerifiedPublicationTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*pushed digest*not promoted*"
         );
-        fixture.Calls.Should().HaveCount(2); // Buildx availability, then the first push only.
+        // The set push is the last call: nothing is inspected or promoted after it.
+        fixture.Calls.Last().Arguments.Should().Contain("--push");
         Directory.Exists(fixture.Calls.Last().Arguments.Last()).Should().BeFalse();
         fixture.Console.AllText.Should().NotContain("Published squad");
     }
@@ -118,45 +119,6 @@ public sealed class VerifiedPublicationTests
             );
         fixture.Calls[promotion - 1].Arguments.Should().Contain("--raw");
         fixture.Calls[promotion + 1].Arguments.Should().Contain("--raw");
-    }
-
-    [Fact]
-    public async Task LaterSquadUsesItsEntrySnapshotEvenWhenItsSourceChangesAtTheFirstRegistryWrite()
-    {
-        // Arrange
-        using var fixture = new PublicationFixture();
-        fixture.SaveBuild("ac");
-        var laterSource = fixture.SaveBuild("bd");
-        var original = File.ReadAllText(laterSource);
-        var publishedWorkloads = new List<string>();
-        fixture
-            .Runner.RunAsync(
-                Arg.Is<ProcessRequest>(request =>
-                    request.Arguments.Contains("--push")
-                    && request.Arguments.Any(arg => arg.Contains("/components/workload:"))
-                ),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                var request = call.Arg<ProcessRequest>();
-                publishedWorkloads.Add(
-                    File.ReadAllText(Path.Combine(request.Arguments.Last(), "workload.yaml"))
-                );
-                File.AppendAllText(laterSource, "description: changed after publication started\n");
-                return PublishTestProcess.Run(request);
-            });
-
-        // Act
-        await fixture.PublishAsync("ac", "bd");
-
-        // Assert
-        publishedWorkloads.Should().Equal(original, original);
-        File.ReadAllText(laterSource).Should().NotBe(original);
-        fixture
-            .Calls.Where(call => call.Arguments.Contains("--push"))
-            .Should()
-            .OnlyContain(call => !Directory.Exists(call.Arguments.Last()));
     }
 
     [Fact]
@@ -262,8 +224,8 @@ public sealed class VerifiedPublicationTests
         fixture
             .Runner.RunAsync(
                 Arg.Is<ProcessRequest>(request =>
-                    request.Arguments.Contains("--push")
-                    && request.Arguments.Any(arg => arg.Contains("/bd/components/"))
+                    request.Arguments.Contains("push")
+                    && request.Arguments.Last().Contains("/bd/components/")
                 ),
                 Arg.Any<CancellationToken>()
             )
@@ -305,8 +267,9 @@ public sealed class VerifiedPublicationTests
             _service = new PublishService(
                 _store,
                 new DockerRegistryPublisher(programs, Runner),
-                Console,
-                new YamlDotNetParser()
+                new DockerRegistryDigests(Runner),
+                new DockerComponentImages(programs, Runner),
+                Console
             );
             Runner
                 .When(runner =>
@@ -331,7 +294,7 @@ public sealed class VerifiedPublicationTests
             };
             return PublicationBuilds.SaveWorkload(
                 _store,
-                build,
+                LocalWorkloadFactory.WithImages(_root, build),
                 workload,
                 "# syntax=docker/sandbox-kit:3\nschemaVersion: \"3\"\nkind: workload\n"
             );
@@ -354,6 +317,7 @@ public sealed class VerifiedPublicationTests
                 {
                     Name = "remote",
                     Reference = "example.com/remote:1",
+                    Digest = LocalWorkloadFactory.Digest("example.com/remote:1"),
                     Arguments = new() { ["message"] = "hello" },
                 }
             );

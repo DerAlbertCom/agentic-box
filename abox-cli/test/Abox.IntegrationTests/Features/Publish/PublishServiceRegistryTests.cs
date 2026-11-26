@@ -4,6 +4,7 @@ using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Registry;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure;
+using Abox.Infrastructure.Docker;
 using NSubstitute;
 
 namespace Abox.Tests;
@@ -21,8 +22,9 @@ public sealed class PublishServiceRegistryTests
         _service = new PublishService(
             _fixture.Store,
             _registry,
-            _fixture.Console,
-            new YamlDotNetParser()
+            new DockerRegistryDigests(LocalWorkloadFactory.Runner()),
+            LocalWorkloadFactory.Images(),
+            _fixture.Console
         );
         _registry.IsInstalled.Returns(true);
         _registry.PushAsync(Arg.Any<RegistryPush>(), Arg.Any<CancellationToken>()).Returns(Pushed);
@@ -89,7 +91,7 @@ public sealed class PublishServiceRegistryTests
                 Arg.Any<CancellationToken>()
             );
         await _registry
-            .Received(3)
+            .Received(1)
             .InspectAsync(
                 Arg.Is<string>(reference => reference.EndsWith(Leaf, StringComparison.Ordinal)),
                 "publisher",

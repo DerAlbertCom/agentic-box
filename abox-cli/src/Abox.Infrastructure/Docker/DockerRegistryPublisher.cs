@@ -40,27 +40,20 @@ internal sealed class DockerRegistryPublisher(IHostPrograms programs, IProcessRu
             arguments.AddRange(DockerCommand.GitHubBuildSecret());
         arguments.Add(push.Directory);
         await _docker.RunAsync(arguments, true, OperationFailure, cancellationToken);
-        return PushedDigest(metadata);
+        return DockerCommand.BuiltDigest(metadata);
     }
 
-    private static string? PushedDigest(string metadata)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(File.ReadAllText(metadata));
-            return document.RootElement.GetProperty("containerimage.digest").GetString();
-        }
-        catch (Exception exception)
-            when (exception
-                    is JsonException
-                        or KeyNotFoundException
-                        or InvalidOperationException
-                        or IOException
-            )
-        {
-            return null;
-        }
-    }
+    public async Task PushImageAsync(
+        string imageStore,
+        string reference,
+        CancellationToken cancellationToken
+    ) =>
+        await _docker.RunAsync(
+            ["--context", imageStore, "push", reference],
+            true,
+            OperationFailure,
+            cancellationToken
+        );
 
     public async Task TagAsync(
         string candidate,

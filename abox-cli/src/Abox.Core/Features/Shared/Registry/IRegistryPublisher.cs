@@ -13,7 +13,7 @@ public sealed record RegistryPush(
     bool WithGitHubToken
 );
 
-/// <summary>Builds and pushes images to the registry, inspects them and moves tags.</summary>
+/// <summary>Pushes images to the registry, builds and pushes sets, inspects them and moves tags.</summary>
 public interface IRegistryPublisher
 {
     /// <summary>Whether the image tooling is installed on the host.</summary>
@@ -24,6 +24,11 @@ public interface IRegistryPublisher
 
     /// <summary>Builds and pushes the image; returns the pushed digest, or null when it cannot be read.</summary>
     Task<string?> PushAsync(RegistryPush push, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Pushes an image of the host image store unchanged, so the registry keeps its digest.
+    /// </summary>
+    Task PushImageAsync(string imageStore, string reference, CancellationToken cancellationToken);
 
     /// <summary>Points <paramref name="reference"/> at the already pushed <paramref name="candidate"/>.</summary>
     Task TagAsync(

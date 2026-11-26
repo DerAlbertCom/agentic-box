@@ -226,6 +226,7 @@ internal sealed class BuildService(
             Reference = component.Directory,
             IsLocal = true,
             Component = component.Name,
+            Source = kit.Directory,
             Arguments = kit.Arguments.ToDictionary(pair => pair.Key, pair => pair.Value),
         };
     }
@@ -376,7 +377,14 @@ internal sealed class BuildService(
             Template = squad.Workload.Template,
             Base = baseImage,
             ImageStore = imageStore,
-            ConfigFiles = [.. squad.ConfigFiles, squad.Workload.Path],
+            ConfigFiles =
+            [
+                .. squad.ConfigFiles,
+                squad.Workload.Path,
+                .. squad.Workload.Scripts.Select(script =>
+                    Path.GetFullPath(Path.Combine(squad.Workload.Directory, script))
+                ),
+            ],
             Kits = [.. kits],
         };
 

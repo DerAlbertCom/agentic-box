@@ -101,7 +101,7 @@ internal static class LocalWorkloadFactory
         if (!ImageName.TryParseTeam(build.Reference, build.Tag, out var team))
             throw new InvalidOperationException("The build record has no team.");
         var repository =
-            "rwest.jfrog.io/test-images-local/"
+            $"rwest.jfrog.io/{build.PublishRepository ?? "test-images-local"}/"
             + new SquadBuildIdentity(team, build.Squad, build.Tag).Repository
             + "/components/";
         // A tag of its own keeps parallel tests with the same squad apart.
@@ -130,7 +130,16 @@ internal static class LocalWorkloadFactory
         foreach (var kit in build.Kits.Where(kit => kit.IsLocal))
         {
             kit.Component = ComponentNames.Kit(kit.Name);
-            build.Components.Add(Component(kit.Component, ComponentKind.Mixin, "kind: mixin\n"));
+            kit.Source ??= Directory.Exists(kit.Reference) ? kit.Reference : null;
+            var component = Component(kit.Component, ComponentKind.Mixin, "kind: mixin\n");
+            // Like a build, the input hash of a local kit covers its folder in the repository.
+            if (kit.Source is { } source)
+                component.InputHash = BuildSources.InputHash(
+                    ComponentKind.Mixin,
+                    source,
+                    kit.Arguments
+                );
+            build.Components.Add(component);
         }
         if (build.State.Count > 0)
         {
@@ -162,6 +171,10 @@ internal static class LocalWorkloadFactory
         );
         return build;
     }
+
+    /// <summary>The kit directory a synthetic image was built from, or null when it was not.</summary>
+    public static string? BuiltFrom(string reference) =>
+        Built.TryGetValue(reference, out var directory) ? directory : null;
 
     /// <summary>Puts an image built from <paramref name="directory"/> into the synthetic image store.</summary>
     public static void Load(string reference, string directory) => Built[reference] = directory;

@@ -14,6 +14,7 @@ internal enum PublicationImageKind
 
 internal sealed record PublicationPush(
     string Directory,
+    string Descriptor,
     string Reference,
     PublicationImageKind Kind,
     string PublicationDirectory
@@ -22,7 +23,6 @@ internal sealed record PublicationPush(
 /// <summary>Publication's verified writes and all-runnable-platform inspection policy.</summary>
 internal sealed class VerifiedPublicationRegistry(
     IRegistryPublisher registry,
-    PublicationSources sources,
     IConsole console,
     string? builder
 )
@@ -55,7 +55,7 @@ internal sealed class VerifiedPublicationRegistry(
         var digest = await registry.PushAsync(
             new RegistryPush(
                 request.Directory,
-                sources.Descriptor(request.Directory),
+                request.Descriptor,
                 request.Reference,
                 request.PublicationDirectory,
                 builder,
@@ -72,6 +72,13 @@ internal sealed class VerifiedPublicationRegistry(
         await InspectAsync(new Inspection(pinned, request.Kind), cancellationToken);
         return pinned;
     }
+
+    /// <summary>Checks that a pushed image kept its v3 kit descriptor of the given kind.</summary>
+    internal async Task VerifyAsync(
+        string reference,
+        PublicationImageKind kind,
+        CancellationToken cancellationToken
+    ) => await InspectAsync(new Inspection(reference, kind), cancellationToken);
 
     internal async Task PromoteAndConfirmAsync(
         string candidate,
