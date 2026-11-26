@@ -34,23 +34,41 @@ param(
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 
-$source = 'https://rwest.jfrog.io/artifactory/api/nuget/v3/mtiae-agentic-box-local'
+$source = 'https://rwest.jfrog.io/artifactory/api/nuget/v3/mtiae-agentic-box-local/index.json'
 $packageId = 'RwestAgenticBox.Cli'
 $cliRoot = Join-Path $PSScriptRoot 'abox-cli'
 $project = Join-Path $cliRoot 'src/Abox/Abox.csproj'
 
+function Get-FeedJson([string] $Url, [hashtable] $Headers) {
+    $answer = Invoke-RestMethod $Url -Headers $Headers
+    # Artifactory may answer with a non-JSON content type, which leaves a string.
+    if ($answer -is [string]) { $answer = $answer | ConvertFrom-Json }
+    return $answer
+}
+
+# Lists the versions through the registration resource, because Artifactory's service
+# index offers no flat container (PackageBaseAddress).
 function Get-PublishedVersions([hashtable] $Headers) {
-    $index = Invoke-RestMethod $source -Headers $Headers
-    $baseAddress = $index.resources |
-        Where-Object { $_.'@type' -like 'PackageBaseAddress/3.0.0*' } |
+    $index = Get-FeedJson $source $Headers
+    $registrationBase = $index.resources |
+        Where-Object { $_.'@type' -like 'RegistrationsBaseUrl*' } |
         Select-Object -First 1 -ExpandProperty '@id'
-    $versionsUrl = "$($baseAddress.TrimEnd('/'))/$($packageId.ToLowerInvariant())/index.json"
+    if (-not $registrationBase) {
+        $answer = $index | ConvertTo-Json -Depth 4 -Compress
+        throw "$source is not a NuGet v3 service index with a RegistrationsBaseUrl resource. It answered: $($answer.Substring(0, [Math]::Min(500, $answer.Length)))"
+    }
+    $registrationUrl = "$($registrationBase.TrimEnd('/'))/$($packageId.ToLowerInvariant())/index.json"
     try {
-        return (Invoke-RestMethod $versionsUrl -Headers $Headers).versions
+        $registration = Get-FeedJson $registrationUrl $Headers
     }
     catch [Microsoft.PowerShell.Commands.HttpResponseException] {
         if ($_.Exception.Response.StatusCode -eq 404) { return @() }
         throw
+    }
+    foreach ($page in $registration.items) {
+        # A page lists its versions inline or only links to them.
+        $leaves = if ($page.items) { $page.items } else { (Get-FeedJson $page.'@id' $Headers).items }
+        $leaves | ForEach-Object { $_.catalogEntry.version }
     }
 }
 

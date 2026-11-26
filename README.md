@@ -35,15 +35,24 @@ requirements listed below.
 ## Install
 
 The NuGet package is **`RwestAgenticBox.Cli`**; the installed command is **`abox`**.
-Once your maintainer has published the package to a NuGet source you have configured:
+It is published to the JFrog NuGet feed `mtiae-cs-nuget-prod`, not to nuget.org.
+If that feed is not yet a NuGet source of yours, add it once with your JFrog user and
+identity token (on Linux/macOS also pass `--store-password-in-clear-text`):
+
+```sh
+dotnet nuget add source https://rwest.jfrog.io/artifactory/api/nuget/v3/mtiae-cs-nuget-prod/index.json --name mtiae-cs-nuget-prod --username <user> --password <identity token>
+```
+
+Then install it:
 
 ```sh
 dotnet tool install --global RwestAgenticBox.Cli
 abox --help
 ```
 
-This is not a claim that the package is available on nuget.org. If installation
-cannot find it, ask for the package feed and version, or use the
+Installing needs the .NET 10 SDK or newer; it picks the package built for your platform.
+If installation cannot find the package, ask your maintainer for read access to the
+feed, or use the
 [source-build instructions](docs/development.md#building-and-running-the-command-line).
 Ensure the global tools directory is on `PATH`: `$HOME/.dotnet/tools` on Linux/macOS
 or `%USERPROFILE%\.dotnet\tools` on Windows. The installer reports any setup needed.

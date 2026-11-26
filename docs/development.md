@@ -95,8 +95,13 @@ The script shows the latest stable version on the push feed
 `mtiae-agentic-box-local` on `rwest.jfrog.io` and asks whether to bump the patch or the
 minor version. It warns about uncommitted changes in `abox-cli` and asks before
 continuing, runs the test suites (`-SkipTests` skips them), packs into the ignored
-`artifacts/abox/<version>/` and pushes the RID packages before the pointer package. The
-push feed is not the feed users install from; that pull feed is not defined yet.
+`artifacts/abox/<version>/` and pushes the RID packages before the pointer package.
+
+Users install from the virtual repository `mtiae-cs-nuget-prod`, which lists
+`mtiae-agentic-box-local` first, ahead of the nuget.org remote. It caches metadata for
+up to 10 minutes, so a new version can take that long to appear there. Readers need
+read access to `mtiae-agentic-box-local` as well. Artifactory's v3 service index offers
+no flat container, so the script lists versions through the registration resource.
 
 ## Local sandbox builds
 
