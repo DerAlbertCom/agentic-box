@@ -16,15 +16,15 @@ namespace Abox.Tests;
 public sealed class SandboxCreatorTeamTests
 {
     private readonly SandboxCreatorFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
-    private TestConsole _console => _fixture.Console;
-    private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
-    private IMcpServerRegistry _mcp => _fixture.Mcp;
-    private IPublishedSquadSource _published => _fixture.Published;
-    private AboxPaths _paths => _fixture.Paths;
-    private BuildStore _store => _fixture.Store;
-    private SandboxRecordStore _records => _fixture.Records;
-    private SandboxCreator _service => _fixture.Service;
+    private TempDirectory Root => _fixture.Root;
+    private TestConsole Console => _fixture.Console;
+    private ISandboxLifecycle Lifecycle => _fixture.Lifecycle;
+    private IMcpServerRegistry Mcp => _fixture.Mcp;
+    private IPublishedSquadSource Published => _fixture.Published;
+    private AboxPaths Paths => _fixture.Paths;
+    private BuildStore Store => _fixture.Store;
+    private SandboxRecordStore Records => _fixture.Records;
+    private SandboxCreator Service => _fixture.Service;
 
     private SandboxCreationRequest Request() => _fixture.Request();
 
@@ -39,9 +39,9 @@ public sealed class SandboxCreatorTeamTests
         // Act
         foreach (var team in teams)
         {
-            var location = _root.CreateDirectory("locations/" + team.Name);
+            var location = Root.CreateDirectory("locations/" + team.Name);
             (
-                await _service.CreateAsync(
+                await Service.CreateAsync(
                     Request() with
                     {
                         Team = team,
@@ -57,9 +57,9 @@ public sealed class SandboxCreatorTeamTests
         // Assert
         foreach (var team in teams)
         {
-            var build = _store.Load(new SquadBuildIdentity(team.Name, "ac", "latest"))!;
-            var location = Path.Combine(_root.Path, "locations", team.Name);
-            await _lifecycle
+            var build = Store.Load(new SquadBuildIdentity(team.Name, "ac", "latest"))!;
+            var location = Path.Combine(Root.Path, "locations", team.Name);
+            await Lifecycle
                 .Received(1)
                 .CreateAsync(
                     Arg.Is<SandboxDefinition>(request =>
@@ -71,19 +71,19 @@ public sealed class SandboxCreatorTeamTests
                     ),
                     Arg.Any<CancellationToken>()
                 );
-            var record = _records.Load(SandboxName.For(location))!;
+            var record = Records.Load(SandboxName.For(location))!;
             record.Team.Should().Be(team.Name);
             record.BuildCreatedAt.Should().Be(build.CreatedAt);
             BuildSources.EnsureUnchanged(build);
         }
-        _published.ReceivedCalls().Should().BeEmpty();
+        Published.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
     public async Task OwnedLegacyLocalCreationDoesNotMigrateOrRelabelItsBuild()
     {
         // Arrange
-        var image = LocalWorkloadFactory.Artifact(_root);
+        var image = LocalWorkloadFactory.Artifact(Root);
         var original = JsonSerializer.Serialize(
             new BuildManifest
             {
@@ -93,14 +93,14 @@ public sealed class SandboxCreatorTeamTests
                 LocalWorkload = image,
             }
         );
-        var legacy = _root.File("state/builds/ac/latest/build.json", original);
+        var legacy = Root.File("state/builds/ac/latest/build.json", original);
 
         // Act
-        var exitCode = await _service.CreateAsync(Request(), CancellationToken.None);
+        var exitCode = await Service.CreateAsync(Request(), CancellationToken.None);
 
         // Assert
         exitCode.Should().Be(0);
-        await _lifecycle
+        await Lifecycle
             .Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
@@ -109,7 +109,7 @@ public sealed class SandboxCreatorTeamTests
                 Arg.Any<CancellationToken>()
             );
         File.ReadAllText(legacy).Should().Be(original);
-        Directory.Exists(Path.Combine(_paths.BuildsDirectory, "sample")).Should().BeFalse();
+        Directory.Exists(Path.Combine(Paths.BuildsDirectory, "sample")).Should().BeFalse();
     }
 
     [Theory]
@@ -118,7 +118,7 @@ public sealed class SandboxCreatorTeamTests
     public async Task UnownedLegacyLocalCreationCannotPrepareOrReplaceASandbox(string? reference)
     {
         // Arrange
-        _root.File(
+        Root.File(
             "state/builds/ac/latest/build.json",
             JsonSerializer.Serialize(
                 new BuildManifest
@@ -126,22 +126,22 @@ public sealed class SandboxCreatorTeamTests
                     Squad = "ac",
                     Tag = "latest",
                     Reference = reference,
-                    LocalWorkload = LocalWorkloadFactory.Artifact(_root),
+                    LocalWorkload = LocalWorkloadFactory.Artifact(Root),
                 }
             )
         );
 
         // Act
         var create = () =>
-            _service.CreateAsync(Request() with { AssumeYes = true }, CancellationToken.None);
+            Service.CreateAsync(Request() with { AssumeYes = true }, CancellationToken.None);
 
         // Assert
         (await create.Should().ThrowAsync<AboxException>()).WithMessage(
             "*abox build --team sample --tag latest*"
         );
-        _lifecycle.ReceivedCalls().Should().BeEmpty();
-        _mcp.ReceivedCalls().Should().BeEmpty();
-        _records.Load(SandboxName.For(_root.Path)).Should().BeNull();
+        Lifecycle.ReceivedCalls().Should().BeEmpty();
+        Mcp.ReceivedCalls().Should().BeEmpty();
+        Records.Load(SandboxName.For(Root.Path)).Should().BeNull();
     }
 
     private async Task<IReadOnlyList<SquadResolver.ResolvedTeam>> BuildSharedSquadsAsync(
@@ -150,23 +150,23 @@ public sealed class SandboxCreatorTeamTests
     {
         foreach (var team in new[] { "sample", "other" })
         {
-            _root.File($"teams/{team}/ac.abox", $"workload: {team}\nstate: [~/.{team}]\n");
-            _root.File($"teams/{team}/{team}.workload", $"template: example.com/{team}:1\n");
+            Root.File($"teams/{team}/ac.abox", $"workload: {team}\nstate: [~/.{team}]\n");
+            Root.File($"teams/{team}/{team}.workload", $"template: example.com/{team}:1\n");
         }
         var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
         var names = reverse ? new[] { "other", "sample" } : new[] { "sample", "other" };
-        var teams = names.Select(team => resolver.ResolveTeam(_root.Path, team)).ToList();
+        var teams = names.Select(team => resolver.ResolveTeam(Root.Path, team)).ToList();
         var build = TestServiceGraphs.Build(
             resolver,
-            new PersonalConfigurations(_paths),
-            _store,
+            new PersonalConfigurations(Paths),
+            Store,
             LocalWorkloadFactory.Images(),
-            _console
+            Console
         );
         await build.BuildAsync(
             new BuildRequest(
                 teams,
-                _root.Path,
+                Root.Path,
                 "latest",
                 Verify: false,
                 IncludePersonalConfigurations: false

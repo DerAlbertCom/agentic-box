@@ -14,18 +14,18 @@ public interface IHostDevelopmentCertificate
 
 public sealed class ExportedDevelopmentCertificate : IDisposable
 {
-    private readonly byte[] pfx;
+    private readonly byte[] _pfx;
 
     public ExportedDevelopmentCertificate(byte[] pfx, string password)
     {
-        this.pfx = pfx;
+        _pfx = pfx;
         Password = password;
     }
 
-    public ReadOnlyMemory<byte> Pfx => pfx;
+    public ReadOnlyMemory<byte> Pfx => _pfx;
     public string Password { get; }
 
     public override string ToString() => "ExportedDevelopmentCertificate (private material hidden)";
 
-    public void Dispose() => CryptographicOperations.ZeroMemory(pfx);
+    public void Dispose() => CryptographicOperations.ZeroMemory(_pfx);
 }

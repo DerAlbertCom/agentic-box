@@ -10,15 +10,15 @@ namespace Abox.Tests;
 public sealed class RunFlowTeamTests
 {
     private readonly RunFlowFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
-    private TestConsole _console => _fixture.Console;
-    private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
-    private IMcpServerRegistry _mcp => _fixture.Mcp;
-    private ISandboxInspection _inspection => _fixture.Inspection;
-    private ISandboxExec _exec => _fixture.Exec;
-    private RunFlow _service => _fixture.Service;
-    private BuildStore _store => _fixture.Store;
-    private SandboxRecordStore _records => _fixture.Records;
+    private TempDirectory Root => _fixture.Root;
+    private TestConsole Console => _fixture.Console;
+    private ISandboxLifecycle Lifecycle => _fixture.Lifecycle;
+    private IMcpServerRegistry Mcp => _fixture.Mcp;
+    private ISandboxInspection Inspection => _fixture.Inspection;
+    private ISandboxExec Exec => _fixture.Exec;
+    private RunFlow Service => _fixture.Service;
+    private BuildStore Store => _fixture.Store;
+    private SandboxRecordStore Records => _fixture.Records;
 
     [Theory]
     [InlineData("qualified")]
@@ -30,11 +30,11 @@ public sealed class RunFlowTeamTests
     )
     {
         // Arrange
-        var name = SandboxName.For(_root.Path);
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _records.Save(
+        Records.Save(
             name,
             new SandboxRecord
             {
@@ -50,15 +50,15 @@ public sealed class RunFlowTeamTests
             Tag = "latest",
             Reference = "agentic-box-rwest-other:latest",
             CreatedAt = DateTimeOffset.Now,
-            LocalWorkload = LocalWorkloadFactory.Artifact(_root),
+            LocalWorkload = LocalWorkloadFactory.Artifact(Root),
         };
         if (storage == "qualified")
-            _store.Save(build);
+            Store.Save(build);
         else
         {
             if (storage == "unknown-legacy")
                 build.Reference = null;
-            _root.File(
+            Root.File(
                 storage == "corrupt-qualified"
                     ? "state/builds/sample/ac/latest/build.json"
                     : "state/builds/ac/latest/build.json",
@@ -67,23 +67,22 @@ public sealed class RunFlowTeamTests
         }
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(0);
-        _console.AllText.Should().NotContain("newer build").And.NotContain("Replace the sandbox");
+        Console.AllText.Should().NotContain("newer build").And.NotContain("Replace the sandbox");
         if (storage != "qualified")
-            _console.AllText.Should().Contain("abox build --team sample --tag latest");
-        await _exec
-            .Received(1)
+            Console.AllText.Should().Contain("abox build --team sample --tag latest");
+        await Exec.Received(1)
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
-        await _lifecycle
+        await Lifecycle
             .DidNotReceive()
             .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _lifecycle
+        await Lifecycle
             .DidNotReceive()
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>());
     }
@@ -98,19 +97,19 @@ public sealed class RunFlowTeamTests
         // Arrange
         using var otherSources = new TempDirectory();
         var otherImage = LocalWorkloadFactory.Artifact(otherSources);
-        var name = SandboxName.For(_root.Path);
-        _root.File("teams/sample/ac.abox", "workload: sample\n");
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Root.File("teams/sample/ac.abox", "workload: sample\n");
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _lifecycle
+        Lifecycle
             .RemoveAsync(name, Arg.Any<CancellationToken>())
             .Returns(new SandboxRemoval(true, ""));
-        _lifecycle
+        Lifecycle
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(new SandboxCreation(""));
-        _mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
-        _records.Save(
+        Mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
+        Records.Save(
             name,
             new SandboxRecord
             {
@@ -125,15 +124,15 @@ public sealed class RunFlowTeamTests
             Squad = "ac",
             Tag = "latest",
             Reference = "agentic-box-rwest-sample:latest",
-            RootDirectory = _root.Path,
+            RootDirectory = Root.Path,
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
-            LocalWorkload = LocalWorkloadFactory.Artifact(_root),
+            LocalWorkload = LocalWorkloadFactory.Artifact(Root),
         };
         if (legacy)
-            _root.File("state/builds/ac/latest/build.json", JsonSerializer.Serialize(selected));
+            Root.File("state/builds/ac/latest/build.json", JsonSerializer.Serialize(selected));
         else
-            _store.Save(selected);
-        _store.Save(
+            Store.Save(selected);
+        Store.Save(
             new BuildManifest
             {
                 Squad = "ac",
@@ -146,15 +145,15 @@ public sealed class RunFlowTeamTests
         );
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(0);
-        _console.AllText.Should().Contain("newer build");
-        await _lifecycle
+        Console.AllText.Should().Contain("newer build");
+        await Lifecycle
             .Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
@@ -162,10 +161,9 @@ public sealed class RunFlowTeamTests
                 ),
                 Arg.Any<CancellationToken>()
             );
-        _records.Load(name)!.Team.Should().Be("sample");
-        _records.Load(name)!.BuildCreatedAt.Should().Be(selected.CreatedAt);
-        await _exec
-            .Received(1)
+        Records.Load(name)!.Team.Should().Be("sample");
+        Records.Load(name)!.BuildCreatedAt.Should().Be(selected.CreatedAt);
+        await Exec.Received(1)
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
@@ -176,8 +174,8 @@ public sealed class RunFlowTeamTests
     {
         // Arrange
         using var other = new TempDirectory();
-        _records.Save(
-            SandboxName.For(_root.Path),
+        Records.Save(
+            SandboxName.For(Root.Path),
             new SandboxRecord
             {
                 Team = "sample",
@@ -186,16 +184,16 @@ public sealed class RunFlowTeamTests
             }
         );
         if (hasOwnedBuild)
-            _store.Save(
+            Store.Save(
                 new BuildManifest
                 {
                     Squad = "ac",
                     Tag = "latest",
                     Reference = "agentic-box-rwest-sample:latest",
-                    RootDirectory = _root.Path,
+                    RootDirectory = Root.Path,
                 }
             );
-        _store.Save(
+        Store.Save(
             new BuildManifest
             {
                 Squad = "ac",
@@ -206,20 +204,20 @@ public sealed class RunFlowTeamTests
         );
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(1);
-        _console
+        Console
             .AllText.Should()
             .Contain("--team sample --squad ac --tag latest")
             .And.NotContain(other.Path);
         if (hasOwnedBuild)
-            _console.AllText.Should().Contain($"--local --root \"{_root.Path}\"");
+            Console.AllText.Should().Contain($"--local --root \"{Root.Path}\"");
         else
-            _console.AllText.Should().NotContain("--local").And.NotContain("--root");
+            Console.AllText.Should().NotContain("--local").And.NotContain("--root");
     }
 }

@@ -9,10 +9,10 @@ namespace Abox.Tests;
 public sealed class PublishServiceOciTests
 {
     private readonly PublishServiceFixture _fixture = new();
-    private IProcessRunner _runner => _fixture.Runner;
-    private TestConsole _console => _fixture.Console;
-    private List<ProcessRequest> _calls => _fixture.Calls;
-    private PublishService _service => _fixture.Service;
+    private IProcessRunner Runner => _fixture.Runner;
+    private TestConsole Console => _fixture.Console;
+    private List<ProcessRequest> Calls => _fixture.Calls;
+    private PublishService Service => _fixture.Service;
 
     private PublishRequest Request(params string[] squads) => _fixture.Request(squads);
 
@@ -41,7 +41,7 @@ public sealed class PublishServiceOciTests
     {
         // Arrange
         SaveRegistryKitBuild();
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--raw")),
                 Arg.Any<CancellationToken>()
@@ -49,15 +49,15 @@ public sealed class PublishServiceOciTests
             .Returns(new ProcessResult(0, manifest, ""));
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*did not retain a valid v3 mixin descriptor*Publication stopped*"
         );
-        _calls.Should().NotContain(call => call.Arguments.Contains("--push"));
-        _calls.Should().NotContain(call => call.Arguments.Contains("create"));
-        _console.AllText.Should().NotContain("Published squad");
+        Calls.Should().NotContain(call => call.Arguments.Contains("--push"));
+        Calls.Should().NotContain(call => call.Arguments.Contains("create"));
+        Console.AllText.Should().NotContain("Published squad");
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class PublishServiceOciTests
     {
         // Arrange
         SaveRegistryKitBuild();
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--raw")),
                 Arg.Any<CancellationToken>()
@@ -73,14 +73,14 @@ public sealed class PublishServiceOciTests
             .Returns(new ProcessResult(0, PublicationIndex(VerifiedDigest), ""));
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*has too many nested image indexes*"
         );
-        _calls.Should().NotContain(call => call.Arguments.Contains("--push"));
-        _calls.Should().NotContain(call => call.Arguments.Contains("create"));
+        Calls.Should().NotContain(call => call.Arguments.Contains("--push"));
+        Calls.Should().NotContain(call => call.Arguments.Contains("create"));
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class PublishServiceOciTests
         SaveRegistryKitBuild();
         const string invalidDigest =
             "sha256:6666666666666666666666666666666666666666666666666666666666666666";
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--raw")),
                 Arg.Any<CancellationToken>()
@@ -108,17 +108,17 @@ public sealed class PublishServiceOciTests
             });
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*did not retain a valid v3 mixin descriptor*"
         );
-        _calls
+        Calls
             .Should()
             .Contain(call => call.Arguments.Last() == "ghcr.io/example/tool@" + invalidDigest);
-        _calls.Should().NotContain(call => call.Arguments.Contains("--push"));
-        _calls.Should().NotContain(call => call.Arguments.Contains("create"));
+        Calls.Should().NotContain(call => call.Arguments.Contains("--push"));
+        Calls.Should().NotContain(call => call.Arguments.Contains("create"));
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class PublishServiceOciTests
         SaveRegistryKitBuild();
         const string leafDigest =
             "sha256:7777777777777777777777777777777777777777777777777777777777777777";
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call =>
                     call.Arguments.Contains("--raw") && call.Arguments.Last().StartsWith("ghcr.io/")
@@ -149,7 +149,7 @@ public sealed class PublishServiceOciTests
             });
 
         // Act
-        var result = await _service.PublishAsync(
+        var result = await Service.PublishAsync(
             Request("ac") with
             {
                 Builder = "publisher",
@@ -159,17 +159,17 @@ public sealed class PublishServiceOciTests
 
         // Assert
         result.Should().Be(0);
-        _calls
+        Calls
             .Where(call => call.Arguments.Contains("--raw"))
             .Should()
             .OnlyContain(call =>
                 call.Arguments.Contains("--builder") && call.Arguments.Contains("publisher")
             );
-        _calls
+        Calls
             .Should()
             .Contain(call => call.Arguments.Last() == "ghcr.io/example/tool@" + leafDigest);
-        _calls.Should().ContainSingle(call => call.Arguments.Contains("create"));
-        _console.AllText.Should().Contain("Published squad 'ac'");
+        Calls.Should().ContainSingle(call => call.Arguments.Contains("create"));
+        Console.AllText.Should().Contain("Published squad 'ac'");
     }
 
     [Theory]
@@ -181,7 +181,7 @@ public sealed class PublishServiceOciTests
     {
         // Arrange
         SaveBuild("ac");
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--push")),
                 Arg.Any<CancellationToken>()
@@ -194,14 +194,14 @@ public sealed class PublishServiceOciTests
             });
 
         // Act
-        var action = () => _service.PublishAsync(Request("ac"), CancellationToken.None);
+        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*Cannot read the pushed digest*requested set tag was not promoted*"
         );
-        _calls.Should().NotContain(call => call.Arguments.Contains("create"));
-        _console.AllText.Should().NotContain("Published squad");
+        Calls.Should().NotContain(call => call.Arguments.Contains("create"));
+        Console.AllText.Should().NotContain("Published squad");
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public sealed class PublishServiceOciTests
     {
         // Arrange
         SaveBuild("ac");
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(call => call.Arguments.Contains("--push")),
                 Arg.Any<CancellationToken>()
@@ -230,22 +230,22 @@ public sealed class PublishServiceOciTests
             });
 
         // Act
-        await _service.PublishAsync(Request("ac"), CancellationToken.None);
+        await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
         const string repository =
             "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac";
-        var inspected = _calls
+        var inspected = Calls
             .Where(call => call.Arguments.Contains("--raw"))
             .Select(call => call.Arguments.Last());
         inspected.Should().Contain(repository + "/components/workload@" + VerifiedDigest);
         inspected.Should().Contain(repository + "/components/config@" + VerifiedDigest);
         inspected.Should().Contain(repository + "@" + VerifiedDigest);
-        var promotion = _calls.Single(call => call.Arguments.Contains("create"));
+        var promotion = Calls.Single(call => call.Arguments.Contains("create"));
         promotion.Arguments.Should().Contain("--prefer-index=false");
         promotion.Arguments.Should().Contain(repository + ":latest");
         promotion.Arguments.Last().Should().Be(repository + "@" + VerifiedDigest);
-        _calls.Last().Arguments.Should().Contain(repository + ":latest");
+        Calls.Last().Arguments.Should().Contain(repository + ":latest");
     }
 
     private static string PublicationIndex(params string[] digests) =>

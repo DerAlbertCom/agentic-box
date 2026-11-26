@@ -31,55 +31,55 @@ internal static class UserSecretsNetworkPolicy
     // an inactive or unrelated same-scope rule cannot hide malformed required fields.
     private sealed class SandboxNetworkRule(JsonElement rule)
     {
-        private readonly string name = Text(rule, "name");
-        private readonly string appliesTo = Text(rule, "applies_to");
-        private readonly string type = Text(rule, "resource_type");
-        private readonly string decision = Text(rule, "decision");
-        private readonly string origin = Text(rule, "origin");
-        private readonly string layer = Text(rule, "layer");
-        private readonly string status = Text(rule, "status");
-        private readonly bool editable = rule.GetProperty("editable").GetBoolean();
-        private readonly string sandboxId = Text(rule, "sandbox_id");
-        private readonly JsonElement provenance = rule.GetProperty("provenance");
-        private readonly string createdVia = Text(rule.GetProperty("provenance"), "created_via");
-        private readonly string[] actions = Strings(rule, "actions");
+        private readonly string _name = Text(rule, "name");
+        private readonly string _appliesTo = Text(rule, "applies_to");
+        private readonly string _type = Text(rule, "resource_type");
+        private readonly string _decision = Text(rule, "decision");
+        private readonly string _origin = Text(rule, "origin");
+        private readonly string _layer = Text(rule, "layer");
+        private readonly string _status = Text(rule, "status");
+        private readonly bool _editable = rule.GetProperty("editable").GetBoolean();
+        private readonly string _sandboxId = Text(rule, "sandbox_id");
+        private readonly JsonElement _provenance = rule.GetProperty("provenance");
+        private readonly string _createdVia = Text(rule.GetProperty("provenance"), "created_via");
+        private readonly string[] _actions = Strings(rule, "actions");
         internal string[] Resources { get; } = Strings(rule, "resources");
 
         internal bool IsActiveTcpAllowFor(string sandbox)
         {
-            var exactSandbox = appliesTo == "sandbox:" + sandbox && sandboxId == sandbox;
-            var localAllow = type == "network" && decision == "allow" && origin == "scoped";
+            var exactSandbox = _appliesTo == "sandbox:" + sandbox && _sandboxId == sandbox;
+            var localAllow = _type == "network" && _decision == "allow" && _origin == "scoped";
             return exactSandbox && localAllow && IsActiveLocalTcp();
         }
 
         private bool IsActiveLocalTcp() =>
-            layer == "local" && status == "active" && actions.Contains("net:connect:tcp");
+            _layer == "local" && _status == "active" && _actions.Contains("net:connect:tcp");
 
         internal bool IsKitProvisioned(string sandbox) =>
-            name == "kit:" + sandbox
-            && !editable
-            && createdVia == "provisioned"
-            && Text(provenance, "source") == "sandboxes";
+            _name == "kit:" + sandbox
+            && !_editable
+            && _createdVia == "provisioned"
+            && Text(_provenance, "source") == "sandboxes";
 
         internal bool IsPersistentLocal()
         {
-            if (!editable || createdVia != "added")
+            if (!_editable || _createdVia != "added")
                 return false;
             if (!HasPersistentIdentity() || !HasOnlyPersistentFields())
                 return false;
             // Unlike kit declarations, every resource/action in a local rule must be narrow.
-            return actions.Length == 1
+            return _actions.Length == 1
                 && Resources.Length > 0
                 && Resources.All(resource => LocalhostPort(resource) is not null);
         }
 
         private bool HasPersistentIdentity() =>
-            name == Text(rule, "id")
-            && Guid.TryParseExact(name, "D", out _)
+            _name == Text(rule, "id")
+            && Guid.TryParseExact(_name, "D", out _)
             && Guid.TryParseExact(Text(rule, "policy_id"), "D", out _);
 
         private bool HasOnlyPersistentFields() =>
-            provenance.EnumerateObject().Count() == 1 && KnownPersistentLocalFields(rule);
+            _provenance.EnumerateObject().Count() == 1 && KnownPersistentLocalFields(rule);
     }
 
     // The observed persistent-local schema has no expiry or conditional constraints.

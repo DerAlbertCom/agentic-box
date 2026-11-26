@@ -25,17 +25,17 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public ISandboxUserSecrets UserSecrets { get; } = Substitute.For<ISandboxUserSecrets>();
     public string Location { get; }
     public string Name => SandboxName.For(Location);
-    private readonly CliTestApplication application;
-    public ISandboxLifecycle Lifecycle => application.Lifecycle;
-    public IMcpServerRegistry Mcp => application.Mcp;
-    public IKitSourceTrust KitSources => application.KitSources;
-    public ISandboxInspection Inspection => application.Inspection;
-    public IServiceCollection Services => application.Services;
-    public IApplicationPortPublisher Publisher => application.Publisher;
-    public ISandboxDevelopmentCertificates Certificates => application.Certificates;
-    public IHostSecretStore HostSecrets => application.HostSecrets;
-    public ISandboxSquadFileReader SquadFiles => application.SquadFiles;
-    public IServiceProvider Provider => application.Provider;
+    private readonly CliTestApplication _application;
+    public ISandboxLifecycle Lifecycle => _application.Lifecycle;
+    public IMcpServerRegistry Mcp => _application.Mcp;
+    public IKitSourceTrust KitSources => _application.KitSources;
+    public ISandboxInspection Inspection => _application.Inspection;
+    public IServiceCollection Services => _application.Services;
+    public IApplicationPortPublisher Publisher => _application.Publisher;
+    public ISandboxDevelopmentCertificates Certificates => _application.Certificates;
+    public IHostSecretStore HostSecrets => _application.HostSecrets;
+    public ISandboxSquadFileReader SquadFiles => _application.SquadFiles;
+    public IServiceProvider Provider => _application.Provider;
 
     public UserSecretsCliHarness(
         AboxConfig? config = null,
@@ -47,7 +47,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
         Location = Root.CreateDirectory("folder");
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists(Arg.Any<string>()).Returns(true);
-        application = new CliTestApplication(
+        _application = new CliTestApplication(
             Console,
             AboxPaths.For(Root.Path, Root.Path),
             new TrailingArguments()
@@ -116,7 +116,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
 
     public void Dispose()
     {
-        application.Dispose();
+        _application.Dispose();
         Root.Dispose();
     }
 }

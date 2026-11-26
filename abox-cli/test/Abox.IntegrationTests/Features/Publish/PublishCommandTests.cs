@@ -103,7 +103,7 @@ public sealed class PublishCommandTests
             _console
         );
         await build.BuildAsync(
-            new Abox.Features.Build.BuildRequest(
+            new Features.Build.BuildRequest(
                 [resolver.ResolveTeam(_root.Path, "sample")],
                 _root.Path,
                 "latest",

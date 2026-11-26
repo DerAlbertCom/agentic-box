@@ -16,39 +16,38 @@ namespace Abox.Tests;
 public sealed class RunFlowTests
 {
     private readonly RunFlowFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
-    private TestConsole _console => _fixture.Console;
-    private ISandboxLifecycle _lifecycle => _fixture.Lifecycle;
-    private IMcpServerRegistry _mcp => _fixture.Mcp;
-    private ISandboxInspection _inspection => _fixture.Inspection;
-    private ISandboxExec _exec => _fixture.Exec;
-    private RunFlow _service => _fixture.Service;
-    private BuildStore _store => _fixture.Store;
-    private SandboxRecordStore _records => _fixture.Records;
-    private SandboxCreator _create => _fixture.Create;
+    private TempDirectory Root => _fixture.Root;
+    private TestConsole Console => _fixture.Console;
+    private ISandboxLifecycle Lifecycle => _fixture.Lifecycle;
+    private IMcpServerRegistry Mcp => _fixture.Mcp;
+    private ISandboxInspection Inspection => _fixture.Inspection;
+    private ISandboxExec Exec => _fixture.Exec;
+    private RunFlow Service => _fixture.Service;
+    private BuildStore Store => _fixture.Store;
+    private SandboxRecordStore Records => _fixture.Records;
+    private SandboxCreator Create => _fixture.Create;
 
     [Fact]
     public async Task TheShellRunsInTheWorkspaceOfTheSandbox()
     {
         // Arrange
-        var name = SandboxName.For(_root.Path);
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _inspection
+        Inspection
             .GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>())
             .Returns("/home/agent/workspace");
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(0);
-        await _exec
-            .Received(1)
+        await Exec.Received(1)
             .RunAsync(
                 Arg.Is<SandboxExecRequest>(request =>
                     request.Command.SequenceEqual(new[] { "bash", "-l" })
@@ -63,25 +62,24 @@ public sealed class RunFlowTests
     public async Task TheShellRunsInTheFolderWhenTheRuntimeDoesNotSayWhereTheWorkspaceIs()
     {
         // Arrange
-        var name = SandboxName.For(_root.Path);
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _inspection
+        Inspection
             .GetWorkspaceDirectoryAsync(name, Arg.Any<CancellationToken>())
             .Returns((string?)null);
 
         // Act
-        await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
-        await _exec
-            .Received(1)
+        await Exec.Received(1)
             .RunAsync(
-                Arg.Is<SandboxExecRequest>(request => request.WorkingDirectory == _root.Path),
+                Arg.Is<SandboxExecRequest>(request => request.WorkingDirectory == Root.Path),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -90,20 +88,19 @@ public sealed class RunFlowTests
     public async Task TheShellRunsTheCommandThatIsGiven()
     {
         // Arrange
-        var name = SandboxName.For(_root.Path);
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
 
         // Act
-        await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), ["ls", "-la"]),
+        await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), ["ls", "-la"]),
             CancellationToken.None
         );
 
         // Assert
-        await _exec
-            .Received(1)
+        await Exec.Received(1)
             .RunAsync(
                 Arg.Is<SandboxExecRequest>(request =>
                     request.Command.SequenceEqual(new[] { "ls", "-la" })
@@ -117,21 +114,20 @@ public sealed class RunFlowTests
     {
         // Arrange: the fixture has no existing sandbox.
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(1);
-        _console
+        Console
             .AllText.Should()
             .Contain("abox create")
             .And.Contain("--squad <name>")
             .And.Contain("--team sample")
             .And.Contain("replace <name> placeholders");
-        await _exec
-            .DidNotReceive()
+        await Exec.DidNotReceive()
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
@@ -139,7 +135,7 @@ public sealed class RunFlowTests
     public async Task TheCreateHintUsesTheSandboxRecord()
     {
         // Arrange
-        _store.Save(
+        Store.Save(
             new BuildManifest
             {
                 Squad = "ac",
@@ -147,8 +143,8 @@ public sealed class RunFlowTests
                 Reference = ImageName.OfTeam("sample", "release"),
             }
         );
-        _records.Save(
-            SandboxName.For(_root.Path),
+        Records.Save(
+            SandboxName.For(Root.Path),
             new SandboxRecord
             {
                 Team = "sample",
@@ -158,22 +154,22 @@ public sealed class RunFlowTests
         );
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(1);
-        _console.AllText.Should().Contain("--team sample --squad ac --tag release --local");
+        Console.AllText.Should().Contain("--team sample --squad ac --tag release --local");
     }
 
     [Fact]
     public async Task ARecordWithoutAKitReferenceDoesNotProveTheSandboxWasLocal()
     {
         // Arrange
-        _records.Save(
-            SandboxName.For(_root.Path),
+        Records.Save(
+            SandboxName.For(Root.Path),
             new SandboxRecord { Squad = "ac", Tag = "release" }
         );
         var config = new AboxConfig();
@@ -181,27 +177,27 @@ public sealed class RunFlowTests
             config,
             new LauncherRegistry([new ShellLauncher()]),
             new SquadResolver(config, new YamlDotNetParser()),
-            _store,
-            _records,
-            _create,
-            _inspection,
-            _exec,
-            SandboxFactory.Https(_exec, _console),
-            SandboxFactory.Resolver(_lifecycle, SandboxFactory.Hints(config, _store, _records)),
-            SandboxFactory.Hints(config, _store, _records),
+            Store,
+            Records,
+            Create,
+            Inspection,
+            Exec,
+            SandboxFactory.Https(Exec, Console),
+            SandboxFactory.Resolver(Lifecycle, SandboxFactory.Hints(config, Store, Records)),
+            SandboxFactory.Hints(config, Store, Records),
             Substitute.For<IHostPrograms>(),
-            _console
+            Console
         );
 
         // Act
         var exitCode = await service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(1);
-        _console
+        Console
             .AllText.Should()
             .Contain("--team <name> --squad ac --tag release")
             .And.Contain("replace <name> placeholders")
@@ -213,17 +209,17 @@ public sealed class RunFlowTests
     public async Task TheCreateHintCanUseTheDefaultTeamsOnlySquad()
     {
         // Arrange
-        _root.File("teams/sample/ac.abox", "workload: sample\n");
+        Root.File("teams/sample/ac.abox", "workload: sample\n");
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(1);
-        _console
+        Console
             .AllText.Should()
             .Contain("--team sample --squad ac --tag latest")
             .And.NotContain("<name>");
@@ -233,47 +229,47 @@ public sealed class RunFlowTests
     public async Task AnOldRecordCanRecoverTheTeamFromItsBuildMetadata()
     {
         // Arrange
-        _records.Save(
-            SandboxName.For(_root.Path),
+        Records.Save(
+            SandboxName.For(Root.Path),
             new SandboxRecord { Squad = "ac", Tag = "release" }
         );
-        _root.File(
+        Root.File(
             "state/builds/ac/release/build.json",
             System.Text.Json.JsonSerializer.Serialize(
                 new BuildManifest
                 {
                     Squad = "ac",
                     Tag = "release",
-                    RootDirectory = _root.Path,
+                    RootDirectory = Root.Path,
                     Reference = ImageName.OfTeam("other-team", "release"),
                 }
             )
         );
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(1);
-        _console.AllText.Should().Contain("--team other-team --squad ac --tag release --local");
-        _console.AllText.Should().Contain($"--root \"{_root.Path}\"");
+        Console.AllText.Should().Contain("--team other-team --squad ac --tag release --local");
+        Console.AllText.Should().Contain($"--root \"{Root.Path}\"");
     }
 
     [Fact]
     public async Task MissingLauncherProgramsPrintThePublishedSquadInTheCreateHint()
     {
         // Arrange
-        var name = SandboxName.For(_root.Path);
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _inspection
+        Inspection
             .HasProgramAsync(name, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false);
-        _records.Save(
+        Records.Save(
             name,
             new SandboxRecord
             {
@@ -285,14 +281,14 @@ public sealed class RunFlowTests
         );
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("app", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("app", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(1);
-        _console
+        Console
             .AllText.Should()
             .Contain("--team other-team --squad ac --tag release")
             .And.NotContain("--local");
@@ -306,37 +302,37 @@ public sealed class RunFlowTests
         // Arrange
         if (emptyRecord)
         {
-            _records.Save(SandboxName.For(_root.Path), new SandboxRecord());
+            Records.Save(SandboxName.For(Root.Path), new SandboxRecord());
         }
 
         var service = new RunFlow(
             new AboxConfig(),
             new LauncherRegistry([new ShellLauncher()]),
             new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
-            _store,
-            _records,
-            _create,
-            _inspection,
-            _exec,
-            SandboxFactory.Https(_exec, _console),
+            Store,
+            Records,
+            Create,
+            Inspection,
+            Exec,
+            SandboxFactory.Https(Exec, Console),
             SandboxFactory.Resolver(
-                _lifecycle,
-                SandboxFactory.Hints(new AboxConfig(), _store, _records)
+                Lifecycle,
+                SandboxFactory.Hints(new AboxConfig(), Store, Records)
             ),
-            SandboxFactory.Hints(new AboxConfig(), _store, _records),
+            SandboxFactory.Hints(new AboxConfig(), Store, Records),
             Substitute.For<IHostPrograms>(),
-            _console
+            Console
         );
 
         // Act
         var exitCode = await service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(1);
-        _console
+        Console
             .AllText.Should()
             .Contain("--team <name> --squad <name>")
             .And.Contain("replace <name> placeholders");
@@ -348,8 +344,8 @@ public sealed class RunFlowTests
         // Arrange: the fixture registers only the shell and app launchers.
         // Act
         var action = () =>
-            _service.RunAsync(
-                new RunRequest("nope", RunFlowFixture.Location(_root.Path), []),
+            Service.RunAsync(
+                new RunRequest("nope", RunFlowFixture.Location(Root.Path), []),
                 CancellationToken.None
             );
 
@@ -366,20 +362,20 @@ public sealed class RunFlowTests
     {
         // Arrange
         using var sources = new TempDirectory();
-        var sourceRoot = separateSources ? sources : _root;
-        var name = SandboxName.For(_root.Path);
-        _lifecycle
+        var sourceRoot = separateSources ? sources : Root;
+        var name = SandboxName.For(Root.Path);
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _lifecycle
+        Lifecycle
             .RemoveAsync(name, Arg.Any<CancellationToken>())
             .Returns(new SandboxRemoval(true, string.Empty));
-        _lifecycle
+        Lifecycle
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())
             .Returns(new SandboxCreation(string.Empty));
-        _mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
+        Mcp.ListAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<string>)[]);
         sourceRoot.File("teams/sample/ac.abox", "workload: sample\n");
-        _records.Save(
+        Records.Save(
             name,
             new SandboxRecord
             {
@@ -389,7 +385,7 @@ public sealed class RunFlowTests
                 BuildCreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             }
         );
-        _store.Save(
+        Store.Save(
             new BuildManifest
             {
                 Squad = "ac",
@@ -398,25 +394,25 @@ public sealed class RunFlowTests
                 CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
                 WorkloadKitDirectory = "/kits/workload",
                 Reference = ImageName.OfTeam("sample", "latest"),
-                LocalWorkload = LocalWorkloadFactory.Artifact(_root),
+                LocalWorkload = LocalWorkloadFactory.Artifact(Root),
             }
         );
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(0);
-        _console.AllText.Should().Contain("newer build");
-        await _lifecycle.Received(1).RemoveAsync(name, Arg.Any<CancellationToken>());
-        await _lifecycle
+        Console.AllText.Should().Contain("newer build");
+        await Lifecycle.Received(1).RemoveAsync(name, Arg.Any<CancellationToken>());
+        await Lifecycle
             .Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource == Path.Combine(_root.Path, "runtime", "workload")
+                    request.KitSource == Path.Combine(Root.Path, "runtime", "workload")
                     && request.PullPolicy == PullPolicy.Never
                 ),
                 Arg.Any<CancellationToken>()
@@ -427,11 +423,11 @@ public sealed class RunFlowTests
     public async Task APulledSandboxIsNotReplacedByANewerLocalBuild()
     {
         // Arrange
-        var name = SandboxName.For(_root.Path);
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _records.Save(
+        Records.Save(
             name,
             new SandboxRecord
             {
@@ -443,7 +439,7 @@ public sealed class RunFlowTests
                     "rwest.jfrog.io/team-docker-release/agentic-box-rwest-sample/ac:latest",
             }
         );
-        _store.Save(
+        Store.Save(
             new BuildManifest
             {
                 Squad = "ac",
@@ -454,15 +450,15 @@ public sealed class RunFlowTests
         );
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(0);
-        _console.AllText.Should().NotContain("newer build");
-        await _lifecycle
+        Console.AllText.Should().NotContain("newer build");
+        await Lifecycle
             .DidNotReceive()
             .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -471,11 +467,11 @@ public sealed class RunFlowTests
     public async Task NewerMetadataOnlyPreparationDoesNotInterruptAnExistingLocalSandbox()
     {
         // Arrange
-        var name = SandboxName.For(_root.Path);
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _records.Save(
+        Records.Save(
             name,
             new SandboxRecord
             {
@@ -485,7 +481,7 @@ public sealed class RunFlowTests
                 BuildCreatedAt = DateTimeOffset.MinValue,
             }
         );
-        _store.Save(
+        Store.Save(
             new BuildManifest
             {
                 Squad = "ac",
@@ -497,19 +493,18 @@ public sealed class RunFlowTests
         );
 
         // Act
-        var exitCode = await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        var exitCode = await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
         exitCode.Should().Be(0);
-        _console.AllText.Should().NotContain("newer build");
-        await _lifecycle
+        Console.AllText.Should().NotContain("newer build");
+        await Lifecycle
             .DidNotReceive()
             .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _exec
-            .Received(1)
+        await Exec.Received(1)
             .RunAsync(Arg.Any<SandboxExecRequest>(), Arg.Any<CancellationToken>());
     }
 
@@ -517,13 +512,13 @@ public sealed class RunFlowTests
     public async Task ANewerBuildIsNotOfferedWhenTheAnswerIsNo()
     {
         // Arrange
-        var name = SandboxName.For(_root.Path);
-        _console.Answer = false;
-        _lifecycle
+        var name = SandboxName.For(Root.Path);
+        Console.Answer = false;
+        Lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { new SandboxInfo(name, "running", DateTimeOffset.Now) });
-        _root.File("teams/sample/ac.abox", "workload: sample\n");
-        _records.Save(
+        Root.File("teams/sample/ac.abox", "workload: sample\n");
+        Records.Save(
             name,
             new SandboxRecord
             {
@@ -533,7 +528,7 @@ public sealed class RunFlowTests
                 BuildCreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             }
         );
-        _store.Save(
+        Store.Save(
             new BuildManifest
             {
                 Squad = "ac",
@@ -541,18 +536,18 @@ public sealed class RunFlowTests
                 CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
                 WorkloadKitDirectory = "/kits/workload",
                 Reference = ImageName.OfTeam("sample", "latest"),
-                LocalWorkload = LocalWorkloadFactory.Artifact(_root),
+                LocalWorkload = LocalWorkloadFactory.Artifact(Root),
             }
         );
 
         // Act
-        await _service.RunAsync(
-            new RunRequest("shell", RunFlowFixture.Location(_root.Path), []),
+        await Service.RunAsync(
+            new RunRequest("shell", RunFlowFixture.Location(Root.Path), []),
             CancellationToken.None
         );
 
         // Assert
-        await _lifecycle
+        await Lifecycle
             .DidNotReceive()
             .RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

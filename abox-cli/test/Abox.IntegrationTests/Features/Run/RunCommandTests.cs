@@ -361,7 +361,7 @@ public sealed class RunCommandTests
 
     private sealed class Fixture : IDisposable
     {
-        private readonly CliTestApplication application;
+        private readonly CliTestApplication _application;
 
         public Fixture()
         {
@@ -374,13 +374,13 @@ public sealed class RunCommandTests
             programs
                 .Exists(Arg.Any<string>())
                 .Returns(call => !MissingOnHost.Contains(call.Arg<string>()));
-            application = new CliTestApplication(
+            _application = new CliTestApplication(
                 Console,
                 AboxPaths.For(Root.Path, Root.Path),
                 new TrailingArguments()
             );
             Root.File("config.yaml", "defaultTeam: sample\n");
-            application
+            _application
                 .Services.AddSingleton(runner)
                 .AddSingleton<ILauncher, ProbeLauncher>()
                 .AddSingleton(programs);
@@ -390,7 +390,7 @@ public sealed class RunCommandTests
         public TestConsole Console { get; } = new();
         public string Location { get; }
         public string Name => SandboxName.For(Location);
-        public IServiceProvider Provider => application.Provider;
+        public IServiceProvider Provider => _application.Provider;
         public string Workspace { get; init; } = "/home/agent/workspace";
         public int ExecExitCode { get; init; }
         public HashSet<string> MissingOnHost { get; } = [];
@@ -460,7 +460,7 @@ public sealed class RunCommandTests
 
         public void Dispose()
         {
-            application.Dispose();
+            _application.Dispose();
             Root.Dispose();
         }
     }

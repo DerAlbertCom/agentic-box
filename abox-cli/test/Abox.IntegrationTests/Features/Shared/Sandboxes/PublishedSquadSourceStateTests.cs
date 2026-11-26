@@ -10,9 +10,9 @@ namespace Abox.Tests;
 public sealed class PublishedSquadSourceStateTests
 {
     private readonly PublishedSquadSourceFixture _fixture = new();
-    private JsonObject _metadata => _fixture.Metadata;
-    private List<ProcessRequest> _calls => _fixture.Calls;
-    private Dictionary<string, string> _rawManifests => _fixture.RawManifests;
+    private JsonObject Metadata => _fixture.Metadata;
+    private List<ProcessRequest> Calls => _fixture.Calls;
+    private Dictionary<string, string> RawManifests => _fixture.RawManifests;
 
     private Task<PublishedSquad> LoadAsync() => _fixture.LoadAsync();
 
@@ -78,7 +78,7 @@ public sealed class PublishedSquadSourceStateTests
         var state = result.Metadata.State.Should().ContainSingle().Which;
         state.SandboxPath.Should().Be(sandboxPath);
         state.RelativePath.Should().Be(relativePath);
-        _calls
+        Calls
             .Should()
             .NotContain(call =>
                 call.Arguments.Contains("build") || call.Arguments.Contains("create")
@@ -87,7 +87,7 @@ public sealed class PublishedSquadSourceStateTests
 
     private void SetPublishedState(params (string SandboxPath, string RelativePath)[] state)
     {
-        _metadata["State"] = JsonSerializer.SerializeToNode(
+        Metadata["State"] = JsonSerializer.SerializeToNode(
             state.Select(entry => new { entry.SandboxPath, entry.RelativePath })
         );
         var descriptor = new
@@ -101,7 +101,7 @@ public sealed class PublishedSquadSourceStateTests
                 config = new { path = entry.SandboxPath },
             }),
         };
-        _rawManifests[PinnedSet] = JsonSerializer.Serialize(
+        RawManifests[PinnedSet] = JsonSerializer.Serialize(
             new
             {
                 schemaVersion = 2,

@@ -7,12 +7,12 @@ namespace Abox.Features.Shared.Configuration;
 /// <summary>An exact store ID or literal prefix selection, optionally restricted to effective .NET keys.</summary>
 internal sealed class UserSecretSelection
 {
-    private readonly string[][]? patterns;
+    private readonly string[][]? _patterns;
 
     private UserSecretSelection(string id, string[]? keys)
     {
         Id = id;
-        patterns = keys?.Select(key => key.Split('*')).ToArray();
+        _patterns = keys?.Select(key => key.Split('*')).ToArray();
     }
 
     private UserSecretSelection(
@@ -22,18 +22,18 @@ internal sealed class UserSecretSelection
     )
     {
         Id = id;
-        patterns =
-            previous is null ? selection.patterns
-            : previous.patterns is null || selection.patterns is null ? null
-            : [.. previous.patterns, .. selection.patterns];
+        _patterns =
+            previous is null ? selection._patterns
+            : previous._patterns is null || selection._patterns is null ? null
+            : [.. previous._patterns, .. selection._patterns];
     }
 
     public string Id { get; }
     internal bool IsPrefixPattern => Id.EndsWith('*');
-    internal bool IsFiltered => patterns is not null;
+    internal bool IsFiltered => _patterns is not null;
 
     internal bool Includes(string key) =>
-        patterns is null || patterns.Any(parts => Matches(key, parts));
+        _patterns is null || _patterns.Any(parts => Matches(key, parts));
 
     private static bool Matches(string key, string[] parts)
     {
@@ -113,27 +113,27 @@ internal sealed class UserSecretSelection
 
     private sealed class SelectionAccumulator
     {
-        private readonly List<UserSecretSelection> selections = [];
-        private readonly Dictionary<string, int> indices = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<UserSecretSelection> _selections = [];
+        private readonly Dictionary<string, int> _indices = new(StringComparer.OrdinalIgnoreCase);
 
         public void Add(string id, UserSecretSelection selection)
         {
             UserSecretId.Validate(id);
-            if (!indices.TryGetValue(id, out var index))
+            if (!_indices.TryGetValue(id, out var index))
             {
-                indices.Add(id, selections.Count);
-                selections.Add(new UserSecretSelection(id, selection, null));
+                _indices.Add(id, _selections.Count);
+                _selections.Add(new UserSecretSelection(id, selection, null));
                 return;
             }
-            var previous = selections[index];
+            var previous = _selections[index];
             if (!previous.Id.Equals(id, StringComparison.Ordinal))
                 throw new AboxException(
                     "Host user-secret store IDs collide case-insensitively. Rename the conflicting host directories; no stores were copied."
                 );
-            selections[index] = new UserSecretSelection(id, selection, previous);
+            _selections[index] = new UserSecretSelection(id, selection, previous);
         }
 
-        public UserSecretSelection[] ToArray() => selections.ToArray();
+        public UserSecretSelection[] ToArray() => _selections.ToArray();
     }
 
     private static UserSecretSelection ParseObject(YamlEntry entry)

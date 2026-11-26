@@ -10,10 +10,10 @@ namespace Abox.Infrastructure;
 /// </summary>
 internal sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunner
 {
-    private readonly Action<Process> kill = process => process.Kill(entireProcessTree: true);
+    private readonly Action<Process> _kill = process => process.Kill(entireProcessTree: true);
 
     internal ProcessRunner(ProcessOutput? output, Action<Process> kill)
-        : this(output) => this.kill = kill;
+        : this(output) => _kill = kill;
 
     public async Task<ProcessResult> RunUntilReadyAsync(
         ProcessRequest request,
@@ -159,37 +159,37 @@ internal sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunn
     /// <summary>Both streams are read on their own threads; one lock keeps their arrival order.</summary>
     private sealed class OutputCapture(bool discard, Action<ProcessOutputLine>? lines)
     {
-        private readonly Lock gate = new();
-        private readonly StringBuilder standardOutput = new();
-        private readonly StringBuilder standardError = new();
-        private readonly StringBuilder combined = new();
+        private readonly Lock _gate = new();
+        private readonly StringBuilder _standardOutput = new();
+        private readonly StringBuilder _standardError = new();
+        private readonly StringBuilder _combined = new();
 
         public void Add(ProcessStream stream, string? text)
         {
             if (discard || text is null)
                 return;
 
-            lock (gate)
+            lock (_gate)
             {
                 (
-                    stream == ProcessStream.StandardOutput ? standardOutput : standardError
+                    stream == ProcessStream.StandardOutput ? _standardOutput : _standardError
                 ).AppendLine(text);
-                combined.AppendLine(text);
+                _combined.AppendLine(text);
                 lines?.Invoke(new ProcessOutputLine(stream, text));
             }
         }
 
         public ProcessResult Result(int exitCode)
         {
-            lock (gate)
+            lock (_gate)
             {
                 return new ProcessResult(
                     exitCode,
-                    standardOutput.ToString(),
-                    standardError.ToString()
+                    _standardOutput.ToString(),
+                    _standardError.ToString()
                 )
                 {
-                    Output = combined.ToString(),
+                    Output = _combined.ToString(),
                 };
             }
         }
@@ -313,7 +313,7 @@ internal sealed class ProcessRunner(ProcessOutput? output = null) : IProcessRunn
     {
         try
         {
-            kill(process);
+            _kill(process);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
         }

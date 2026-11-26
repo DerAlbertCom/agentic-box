@@ -9,46 +9,46 @@ namespace Abox.Tests;
 
 public sealed class ApplicationPortsTests : IDisposable
 {
-    private readonly TempDirectory root = new();
-    private readonly IProcessRunner runner = Substitute.For<IProcessRunner>();
-    private readonly List<ProcessRequest> calls = [];
-    private string inventory = "[]";
-    private ProcessResult? publishFailure;
-    private bool acknowledgeWithoutPublishing;
-    private string? publicationInventory;
-    private string relayInventory = "[{\"application_port\":8203,\"relay_port\":58203}]";
-    private ProcessResult? relayFailure;
-    private readonly SbxApplicationPorts client;
+    private readonly TempDirectory _root = new();
+    private readonly IProcessRunner _runner = Substitute.For<IProcessRunner>();
+    private readonly List<ProcessRequest> _calls = [];
+    private string _inventory = "[]";
+    private ProcessResult? _publishFailure;
+    private bool _acknowledgeWithoutPublishing;
+    private string? _publicationInventory;
+    private string _relayInventory = "[{\"application_port\":8203,\"relay_port\":58203}]";
+    private ProcessResult? _relayFailure;
+    private readonly SbxApplicationPorts _client;
 
     public ApplicationPortsTests()
     {
-        client = new SbxApplicationPorts(new SbxInvoker(runner));
-        runner
+        _client = new SbxApplicationPorts(new SbxInvoker(_runner));
+        _runner
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
             .Returns(call => RespondToRuntime(call.Arg<ProcessRequest>()));
     }
 
     private ProcessResult RespondToRuntime(ProcessRequest request)
     {
-        calls.Add(request);
-        if (request.Arguments.Contains("python3") && relayFailure is not null)
-            return relayFailure;
+        _calls.Add(request);
+        if (request.Arguments.Contains("python3") && _relayFailure is not null)
+            return _relayFailure;
         if (request.Arguments.Contains("--unpublish"))
-            inventory =
+            _inventory =
                 "[{\"host_ip\":\"127.0.0.1\",\"host_port\":19000,\"sandbox_port\":9000,\"protocol\":\"tcp4\"}]";
-        if (request.Arguments.Contains("--publish") && publishFailure is not null)
-            return publishFailure;
-        if (request.Arguments.Contains("--publish") && !acknowledgeWithoutPublishing)
-            inventory =
-                publicationInventory
+        if (request.Arguments.Contains("--publish") && _publishFailure is not null)
+            return _publishFailure;
+        if (request.Arguments.Contains("--publish") && !_acknowledgeWithoutPublishing)
+            _inventory =
+                _publicationInventory
                 ?? """
                     [{"host_ip":"127.0.0.1","host_port":18203,"sandbox_port":58203,"protocol":"tcp4"},
                      {"host_ip":"127.0.0.1","host_port":19000,"sandbox_port":9000,"protocol":"tcp4"}]
                     """;
         return new ProcessResult(
             0,
-            request.Arguments.Contains("python3") ? relayInventory
-                : request.Arguments[0] == "ports" ? inventory
+            request.Arguments.Contains("python3") ? _relayInventory
+                : request.Arguments[0] == "ports" ? _inventory
                 : "",
             ""
         );
@@ -61,28 +61,28 @@ public sealed class ApplicationPortsTests : IDisposable
         var mappings = new ApplicationPortMapping[] { new(8203, 18203), new(8204, 28204) };
 
         // Act
-        var action = () => client.PublishAsync("actual", mappings, CancellationToken.None);
+        var action = () => _client.PublishAsync("actual", mappings, CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*same offset*");
-        calls.Should().BeEmpty();
+        _calls.Should().BeEmpty();
     }
 
     [Fact]
     public async Task RelayReceivesTheOffsetAndCompleteTcpInventoryBeforeAnyBindingChange()
     {
         // Arrange
-        inventory = """
+        _inventory = """
             [{"host_ip":"127.0.0.1","host_port":28203,"sandbox_port":58203,"protocol":"tcp4"},
              {"host_ip":"0.0.0.0","host_port":19000,"sandbox_port":59000,"protocol":"tcp"},
              {"host_ip":"::1","host_port":19001,"sandbox_port":59001,"protocol":"tcp6"}]
             """;
 
         // Act
-        await client.PublishAsync("actual", [new(8203, 28203)], CancellationToken.None);
+        await _client.PublishAsync("actual", [new(8203, 28203)], CancellationToken.None);
 
         // Assert
-        var relay = calls.Single(call => call.Arguments.Contains("python3"));
+        var relay = _calls.Single(call => call.Arguments.Contains("python3"));
         relay
             .Arguments.Should()
             .ContainInOrder(
@@ -91,7 +91,7 @@ public sealed class ApplicationPortsTests : IDisposable
                 "--bindings",
                 "[[58203,28203],[59000,19000],[59001,19001]]"
             );
-        calls
+        _calls
             .Should()
             .NotContain(call =>
                 call.Arguments.Contains("--publish") || call.Arguments.Contains("--unpublish")
@@ -106,19 +106,19 @@ public sealed class ApplicationPortsTests : IDisposable
     )
     {
         // Arrange
-        relayInventory =
+        _relayInventory =
             """[{"application_port":8203,"relay_port":58203},{"application_port":8204,"relay_port":58204}]""";
         var attempts = 0;
-        runner
+        _runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--publish")),
                 Arg.Any<CancellationToken>()
             )
             .Returns(call =>
             {
-                calls.Add(call.Arg<ProcessRequest>());
+                _calls.Add(call.Arg<ProcessRequest>());
                 attempts++;
-                inventory =
+                _inventory =
                     attempts == 1
                         ? """[{"host_ip":"127.0.0.1","host_port":28203,"sandbox_port":58203,"protocol":"tcp4"}]"""
                         : """[{"host_ip":"127.0.0.1","host_port":28203,"sandbox_port":58203,"protocol":"tcp4"},{"host_ip":"127.0.0.1","host_port":28204,"sandbox_port":58204,"protocol":"tcp4"}]""";
@@ -127,7 +127,7 @@ public sealed class ApplicationPortsTests : IDisposable
                     : Task.FromResult(
                         new ProcessResult(
                             attempts == 1 ? 1 : 0,
-                            inventory,
+                            _inventory,
                             attempts == 1 ? "partial runtime failure" : ""
                         )
                     );
@@ -135,7 +135,7 @@ public sealed class ApplicationPortsTests : IDisposable
         var mappings = new ApplicationPortMapping[] { new(8203, 28203), new(8204, 28204) };
 
         // Act
-        var first = () => client.PublishAsync("actual", mappings, CancellationToken.None);
+        var first = () => _client.PublishAsync("actual", mappings, CancellationToken.None);
         if (cancel)
             await first.Should().ThrowAsync<OperationCanceledException>();
         else
@@ -143,24 +143,24 @@ public sealed class ApplicationPortsTests : IDisposable
                 .Should()
                 .ThrowAsync<AboxException>()
                 .WithMessage("*partial runtime failure*");
-        await client.PublishAsync("actual", mappings, CancellationToken.None);
+        await _client.PublishAsync("actual", mappings, CancellationToken.None);
 
         // Assert
-        calls.Where(call => call.Arguments.Contains("--publish")).Should().HaveCount(2);
-        calls
+        _calls.Where(call => call.Arguments.Contains("--publish")).Should().HaveCount(2);
+        _calls
             .Last(call => call.Arguments.Contains("--publish"))
             .Arguments.Should()
             .Equal("ports", "actual", "--publish", "127.0.0.1:28204:58204/tcp4", "--json");
-        calls.Should().NotContain(call => call.Arguments.Contains("--unpublish"));
+        _calls.Should().NotContain(call => call.Arguments.Contains("--unpublish"));
     }
 
     [Fact]
     public async Task OffsetConflictFromRelayCannotTakeOverAnOtherwiseMatchingDirectNativeMapping()
     {
         // Arrange
-        inventory =
+        _inventory =
             """[{"host_ip":"127.0.0.1","host_port":28203,"sandbox_port":8203,"protocol":"tcp4"},{"host_ip":"127.0.0.1","host_port":18204,"sandbox_port":58204,"protocol":"tcp4"}]""";
-        relayFailure = new ProcessResult(
+        _relayFailure = new ProcessResult(
             1,
             "",
             "Requested offset change conflicts with existing host port 18204 -> sandbox target 58204. Explicitly remove the exact old binding."
@@ -168,19 +168,19 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.PublishAsync("actual", [new(8203, 28203)], CancellationToken.None);
+            _client.PublishAsync("actual", [new(8203, 28203)], CancellationToken.None);
 
         // Assert
         await action
             .Should()
             .ThrowAsync<AboxException>()
             .WithMessage("*offset change*18204*exact old binding*");
-        calls
+        _calls
             .Should()
             .NotContain(call =>
                 call.Arguments.Contains("--publish") || call.Arguments.Contains("--unpublish")
             );
-        inventory.Should().Contain("18204").And.Contain("8203");
+        _inventory.Should().Contain("18204").And.Contain("8203");
     }
 
     [Theory]
@@ -193,15 +193,15 @@ public sealed class ApplicationPortsTests : IDisposable
     )
     {
         // Arrange
-        inventory = $$"""
+        _inventory = $$"""
             [{"host_ip":"127.0.0.1","host_port":{{hostPort}},"sandbox_port":8203,"protocol":"tcp4"},
               {"host_ip":"127.0.0.1","host_port":19000,"sandbox_port":9000,"protocol":"tcp4"}]
             """;
-        var original = inventory;
+        var original = _inventory;
 
         // Act
         var action = () =>
-            client.PublishAsync("actual", [new(8203, 8203 + offset)], CancellationToken.None);
+            _client.PublishAsync("actual", [new(8203, 8203 + offset)], CancellationToken.None);
 
         // Assert
         await action
@@ -210,28 +210,28 @@ public sealed class ApplicationPortsTests : IDisposable
             .WithMessage(
                 $"*conflicting runtime mapping*127.0.0.1:{hostPort}:8203/tcp4*explicitly remove*exact binding*"
             );
-        calls
+        _calls
             .Should()
             .NotContain(call =>
                 call.Arguments.Contains("--unpublish") || call.Arguments.Contains("--publish")
             );
-        inventory.Should().Be(original);
+        _inventory.Should().Be(original);
     }
 
     [Fact]
     public async Task AllRequestedConflictsAreCheckedBeforePublishingAnyMissingMapping()
     {
         // Arrange
-        relayInventory =
+        _relayInventory =
             "[{\"application_port\":8203,\"relay_port\":58203},{\"application_port\":8204,\"relay_port\":58204}]";
-        inventory = """
+        _inventory = """
             [{"host_ip":"127.0.0.1","host_port":18204,"sandbox_port":8204,"protocol":"tcp4"},
              {"host_ip":"127.0.0.1","host_port":19000,"sandbox_port":9000,"protocol":"tcp4"}]
             """;
 
         // Act
         var action = () =>
-            client.PublishAsync(
+            _client.PublishAsync(
                 "actual",
                 [new(8203, 18203), new(8204, 18204)],
                 CancellationToken.None
@@ -239,7 +239,7 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*18204*conflicting*");
-        calls
+        _calls
             .Should()
             .NotContain(call =>
                 call.Arguments.Contains("--unpublish") || call.Arguments.Contains("--publish")
@@ -250,17 +250,17 @@ public sealed class ApplicationPortsTests : IDisposable
     public async Task PublishesDedicatedRelayRatherThanOccupyingTheApplicationListener()
     {
         // Arrange
-        acknowledgeWithoutPublishing = true;
-        inventory =
+        _acknowledgeWithoutPublishing = true;
+        _inventory =
             "[{\"host_ip\":\"127.0.0.1\",\"host_port\":18203,\"sandbox_port\":58203,\"protocol\":\"tcp4\"}]";
 
         // Act
-        await client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
+        await _client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
-        calls.Should().ContainSingle(call => call.Arguments.Contains("python3"));
-        calls.Should().NotContain(call => call.Arguments.Contains("--publish"));
-        var relay = calls.Single(call => call.Arguments.Contains("python3"));
+        _calls.Should().ContainSingle(call => call.Arguments.Contains("python3"));
+        _calls.Should().NotContain(call => call.Arguments.Contains("--publish"));
+        var relay = _calls.Single(call => call.Arguments.Contains("python3"));
         relay.Arguments.Take(6).Should().Equal("exec", "-i", "actual", "python3", "-I", "-c");
         relay
             .Arguments.Skip(7)
@@ -290,33 +290,33 @@ public sealed class ApplicationPortsTests : IDisposable
     public async Task UnconfirmedRelayListenersPreventHostPublication(string json)
     {
         // Arrange
-        relayInventory = json;
+        _relayInventory = json;
 
         // Act
         var action = () =>
-            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
+            _client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*relay*confirm*retry*");
-        calls.Should().NotContain(call => call.Arguments.Contains("--publish"));
+        _calls.Should().NotContain(call => call.Arguments.Contains("--publish"));
     }
 
     [Fact]
     public async Task MissingPythonIsActionableAndCannotPublishAnUnreachableNativeMapping()
     {
         // Arrange
-        relayFailure = new ProcessResult(127, "", "python3: not found");
+        _relayFailure = new ProcessResult(127, "", "python3: not found");
 
         // Act
         var action = () =>
-            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
+            _client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action
             .Should()
             .ThrowAsync<AboxException>()
             .WithMessage("*Python 3.8+*nothing is installed automatically*python3: not found*");
-        calls.Should().NotContain(call => call.Arguments.Contains("--publish"));
+        _calls.Should().NotContain(call => call.Arguments.Contains("--publish"));
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public sealed class ApplicationPortsTests : IDisposable
     {
         // Arrange
         using var cancellation = new CancellationTokenSource();
-        runner
+        _runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("python3")),
                 Arg.Any<CancellationToken>()
@@ -336,22 +336,22 @@ public sealed class ApplicationPortsTests : IDisposable
             });
 
         // Act
-        var action = () => client.PublishAsync("actual", [new(8203, 18203)], cancellation.Token);
+        var action = () => _client.PublishAsync("actual", [new(8203, 18203)], cancellation.Token);
 
         // Assert
         await action.Should().ThrowAsync<OperationCanceledException>();
-        calls.Should().NotContain(call => call.Arguments.Contains("--publish"));
+        _calls.Should().NotContain(call => call.Arguments.Contains("--publish"));
     }
 
     [Fact]
     public async Task MissingPostPublishConfirmationIsNotReportedAsSuccess()
     {
         // Arrange
-        acknowledgeWithoutPublishing = true;
+        _acknowledgeWithoutPublishing = true;
 
         // Act
         var action = () =>
-            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
+            _client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*did not confirm*retry*");
@@ -368,17 +368,17 @@ public sealed class ApplicationPortsTests : IDisposable
     )
     {
         // Arrange
-        publicationInventory = $$"""
+        _publicationInventory = $$"""
             [{"host_ip":"{{hostIp}}","host_port":18203,"sandbox_port":{{target}},"protocol":"{{protocol}}"}]
             """;
 
         // Act
         var action = () =>
-            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
+            _client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*did not confirm*retry*");
-        calls.Should().NotContain(call => call.Arguments.Contains("--unpublish"));
+        _calls.Should().NotContain(call => call.Arguments.Contains("--unpublish"));
     }
 
     [Fact]
@@ -389,11 +389,11 @@ public sealed class ApplicationPortsTests : IDisposable
         cancellation.Cancel();
 
         // Act
-        var action = () => client.PublishAsync("actual", [new(8203, 18203)], cancellation.Token);
+        var action = () => _client.PublishAsync("actual", [new(8203, 18203)], cancellation.Token);
 
         // Assert
         await action.Should().ThrowAsync<OperationCanceledException>();
-        calls.Should().BeEmpty();
+        _calls.Should().BeEmpty();
     }
 
     [Theory]
@@ -412,15 +412,15 @@ public sealed class ApplicationPortsTests : IDisposable
     public async Task UnknownOrConflictingInventoryCannotTriggerPublication(string json)
     {
         // Arrange
-        inventory = json;
+        _inventory = json;
 
         // Act
         var action = () =>
-            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
+            _client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>();
-        calls
+        _calls
             .Should()
             .NotContain(call =>
                 call.Arguments.Contains("--publish") || call.Arguments.Contains("--unpublish")
@@ -438,18 +438,18 @@ public sealed class ApplicationPortsTests : IDisposable
         var mappings = new ApplicationPortMapping[] { new(sandboxPort, hostPort) };
 
         // Act
-        var action = () => client.PublishAsync("actual", mappings, CancellationToken.None);
+        var action = () => _client.PublishAsync("actual", mappings, CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>();
-        calls.Should().BeEmpty();
+        _calls.Should().BeEmpty();
     }
 
     [Fact]
     public async Task OccupiedHostPortsPreserveRuntimeDiagnosticsWithoutAttemptingRemoval()
     {
         // Arrange
-        publishFailure = new ProcessResult(
+        _publishFailure = new ProcessResult(
             1,
             "",
             "host 127.0.0.1:18203 is already in use; choose a different host port"
@@ -457,34 +457,38 @@ public sealed class ApplicationPortsTests : IDisposable
 
         // Act
         var action = () =>
-            client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
+            _client.PublishAsync("actual", [new(8203, 18203)], CancellationToken.None);
 
         // Assert
         await action.Should().ThrowAsync<AboxException>().WithMessage("*18203*already in use*");
-        calls.Should().NotContain(call => call.Arguments.Contains("--unpublish"));
+        _calls.Should().NotContain(call => call.Arguments.Contains("--unpublish"));
     }
 
     [Fact]
     public async Task StartsBeforeInventoryAndReusesMappingsWithoutRemovingUnrelatedOnes()
     {
         // Arrange
-        inventory = """
+        _inventory = """
             [{"host_ip":"127.0.0.1","host_port":19000,"sandbox_port":9000,"protocol":"tcp4"}]
             """;
 
         // Act
-        await client.PublishAsync(
+        await _client.PublishAsync(
             "actual-legacy-name",
             [new(8203, 18203), new(8203, 18203)],
             CancellationToken.None
         );
-        await client.PublishAsync("actual-legacy-name", [new(8203, 18203)], CancellationToken.None);
+        await _client.PublishAsync(
+            "actual-legacy-name",
+            [new(8203, 18203)],
+            CancellationToken.None
+        );
 
         // Assert
-        calls[0].Arguments.Should().Equal("exec", "actual-legacy-name", "true");
-        calls[0].AttachConsole.Should().BeFalse();
-        calls[0].StandardInput.Should().Be("");
-        calls
+        _calls[0].Arguments.Should().Equal("exec", "actual-legacy-name", "true");
+        _calls[0].AttachConsole.Should().BeFalse();
+        _calls[0].StandardInput.Should().Be("");
+        _calls
             .Where(call => call.Arguments.Contains("--publish"))
             .Should()
             .ContainSingle()
@@ -496,10 +500,10 @@ public sealed class ApplicationPortsTests : IDisposable
                 "127.0.0.1:18203:58203/tcp4",
                 "--json"
             );
-        calls
+        _calls
             .Should()
             .OnlyContain(call => call.FileName == "sbx" && !call.Arguments.Contains("--unpublish"));
     }
 
-    public void Dispose() => root.Dispose();
+    public void Dispose() => _root.Dispose();
 }

@@ -10,8 +10,8 @@ namespace Abox.Tests;
 public sealed class LocalWorkloadImagesTests : IDisposable
 {
     private readonly LocalWorkloadImagesFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
-    private IProcessRunner _runner => _fixture.Runner;
+    private TempDirectory Root => _fixture.Root;
+    private IProcessRunner Runner => _fixture.Runner;
 
     public void Dispose() => _fixture.Dispose();
 
@@ -34,15 +34,15 @@ public sealed class LocalWorkloadImagesTests : IDisposable
             .Be($"FROM {image.Reference}\n");
         File.ReadAllText(Path.Combine(image.RuntimeKitDirectory, "workload.yaml"))
             .Should()
-            .Be(File.ReadAllText(Path.Combine(_root.Path, "source", "workload.yaml")));
-        await _runner
+            .Be(File.ReadAllText(Path.Combine(Root.Path, "source", "workload.yaml")));
+        await Runner
             .Received(2)
             .RunAsync(
                 Arg.Is<ProcessRequest>(request =>
                     request.FileName == "docker"
                     && request.Arguments.Contains("--load")
                     && request.Arguments.Contains(
-                        Path.Combine(_root.Path, "source", "workload.yaml")
+                        Path.Combine(Root.Path, "source", "workload.yaml")
                     )
                     && request.Arguments.Contains("test-context")
                     && !request.Arguments.Contains("--push")
@@ -56,16 +56,16 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     {
         // Arrange
         var image = await BuildAsync("one");
-        _runner.ClearReceivedCalls();
+        Runner.ClearReceivedCalls();
 
         // Act
         await LocalWorkloadFactory
-            .Images(_runner)
+            .Images(Runner)
             .EnsureAvailableAsync(image, CancellationToken.None);
 
         // Assert
-        await _runner.Received(2).RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>());
-        await _runner
+        await Runner.Received(2).RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>());
+        await Runner
             .DidNotReceive()
             .RunAsync(
                 Arg.Is<ProcessRequest>(request =>
@@ -80,15 +80,15 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     {
         // Arrange
         var image = await BuildAsync("runtime");
-        _runner.ClearReceivedCalls();
+        Runner.ClearReceivedCalls();
 
         // Act
         await LocalWorkloadFactory
-            .Images(_runner)
+            .Images(Runner)
             .EnsureAvailableAsync(image, CancellationToken.None);
 
         // Assert
-        await _runner
+        await Runner
             .Received(1)
             .RunAsync(
                 Arg.Is<ProcessRequest>(request =>
@@ -115,7 +115,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     public async Task UnprovenImageIdentityNeverProducesARuntimeKit(string contentId)
     {
         // Arrange
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("{{.Id}}")),
                 Arg.Any<CancellationToken>()
@@ -129,7 +129,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
         (await build.Should().ThrowAsync<AboxException>()).WithMessage(
             "*valid content ID*abox build*again*"
         );
-        Directory.Exists(Path.Combine(_root.Path, "runtime")).Should().BeFalse();
+        Directory.Exists(Path.Combine(Root.Path, "runtime")).Should().BeFalse();
     }
 
     [Theory]
@@ -139,7 +139,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     {
         // Arrange
         var image = await BuildAsync("one");
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("{{.Id}}")),
                 Arg.Any<CancellationToken>()
@@ -152,9 +152,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
 
         // Act
         var action = () =>
-            LocalWorkloadFactory
-                .Images(_runner)
-                .EnsureAvailableAsync(image, CancellationToken.None);
+            LocalWorkloadFactory.Images(Runner).EnsureAvailableAsync(image, CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*abox build*again*");
@@ -169,19 +167,17 @@ public sealed class LocalWorkloadImagesTests : IDisposable
             Path.Combine(image.RuntimeKitDirectory, "workload.dockerfile"),
             "RUN expensive-install\n"
         );
-        _runner.ClearReceivedCalls();
+        Runner.ClearReceivedCalls();
 
         // Act
         var action = () =>
-            LocalWorkloadFactory
-                .Images(_runner)
-                .EnsureAvailableAsync(image, CancellationToken.None);
+            LocalWorkloadFactory.Images(Runner).EnsureAvailableAsync(image, CancellationToken.None);
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*runtime kit changed*abox build*"
         );
-        await _runner
+        await Runner
             .DidNotReceive()
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>());
     }
@@ -190,7 +186,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     public async Task ARemoteBuilderIsNotUsedForHostOnlyImages()
     {
         // Arrange
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("ls")),
                 Arg.Any<CancellationToken>()
@@ -210,7 +206,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*docker-driver*docker-container*"
         );
-        await _runner
+        await Runner
             .DidNotReceive()
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--load")),
@@ -222,7 +218,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     public async Task SourcesChangedWhileDockerBuildsAreNotRecorded()
     {
         // Arrange
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--load")),
                 Arg.Any<CancellationToken>()
@@ -230,7 +226,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
             .Returns(_ =>
             {
                 File.AppendAllText(
-                    Path.Combine(_root.Path, "source", "workload.yaml"),
+                    Path.Combine(Root.Path, "source", "workload.yaml"),
                     "description: changed\n"
                 );
                 return new ProcessResult(0, "", "");
@@ -243,7 +239,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*sources changed*abox build*"
         );
-        Directory.Exists(Path.Combine(_root.Path, "one")).Should().BeFalse();
+        Directory.Exists(Path.Combine(Root.Path, "one")).Should().BeFalse();
     }
 
     [Theory]
@@ -255,7 +251,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     {
         // Arrange
         var programs = Substitute.For<IHostPrograms>();
-        var images = LocalWorkloadFactory.Images(programs, _runner, new TestConsole());
+        var images = LocalWorkloadFactory.Images(programs, Runner, new TestConsole());
 
         // Act
         Func<Task> action = checkAvailability
@@ -266,7 +262,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "Local workload images need Docker with Buildx on PATH. Install Docker and run 'abox build' again."
         );
-        await _runner
+        await Runner
             .DidNotReceive()
             .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>());
     }
@@ -275,7 +271,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
     public async Task MissingBuildxStopsLocalBuildBeforeContextSelection()
     {
         // Arrange
-        _runner
+        Runner
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("version")),
                 Arg.Any<CancellationToken>()
@@ -289,7 +285,7 @@ public sealed class LocalWorkloadImagesTests : IDisposable
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*Local workload image operation failed*exit 17*No source-build fallback*synthetic buildx failure*"
         );
-        await _runner
+        await Runner
             .DidNotReceive()
             .RunAsync(
                 Arg.Is<ProcessRequest>(request =>

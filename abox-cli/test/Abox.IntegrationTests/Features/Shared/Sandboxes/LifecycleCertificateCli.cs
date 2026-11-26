@@ -11,8 +11,8 @@ namespace Abox.Tests;
 /// <summary>Synthetic CLI identity/exports only; never accesses host certificates or trust.</summary>
 internal sealed class LifecycleCertificateCli : IDisposable
 {
-    private readonly RSA key = RSA.Create(2048);
-    private readonly CertificateTestDirectory staging = new();
+    private readonly RSA _key = RSA.Create(2048);
+    private readonly CertificateTestDirectory _staging = new();
     public X509Certificate2 Current { get; private set; }
     public int Exports { get; private set; }
     public Action? Exported { get; set; }
@@ -28,7 +28,7 @@ internal sealed class LifecycleCertificateCli : IDisposable
         Exporter = new DotnetDevelopmentCertificate(
             runner,
             console,
-            staging.Path,
+            _staging.Path,
             [new("synthetic-dev-certs", 6)]
         );
     }
@@ -43,7 +43,7 @@ internal sealed class LifecycleCertificateCli : IDisposable
     {
         var request = new CertificateRequest(
             "CN=localhost",
-            key,
+            _key,
             HashAlgorithmName.SHA256,
             RSASignaturePadding.Pkcs1
         );
@@ -96,7 +96,7 @@ internal sealed class LifecycleCertificateCli : IDisposable
     public void Dispose()
     {
         Current.Dispose();
-        key.Dispose();
-        staging.Dispose();
+        _key.Dispose();
+        _staging.Dispose();
     }
 }

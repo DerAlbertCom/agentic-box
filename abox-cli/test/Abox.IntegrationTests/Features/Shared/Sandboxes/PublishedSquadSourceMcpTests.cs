@@ -18,17 +18,17 @@ namespace Abox.Tests;
 public sealed class PublishedSquadSourceMcpTests
 {
     private readonly PublishedSquadSourceFixture _fixture = new();
-    private IProcessRunner _runner => _fixture.Runner;
-    private IHostPrograms _programs => _fixture.Programs;
-    private List<ProcessRequest> _calls => _fixture.Calls;
-    private TestConsole _console => _fixture.Console;
-    private JsonObject _metadata => _fixture.Metadata;
+    private IProcessRunner Runner => _fixture.Runner;
+    private IHostPrograms Programs => _fixture.Programs;
+    private List<ProcessRequest> Calls => _fixture.Calls;
+    private TestConsole Console => _fixture.Console;
+    private JsonObject Metadata => _fixture.Metadata;
 
     private RemoteSquadSource Remote(AboxConfig config, IKitSourceTrust kitSources) =>
         new(
             config,
             kitSources,
-            new PublishedSquadSource(new DockerPublishedImageReader(_programs, _runner), _console)
+            new PublishedSquadSource(new DockerPublishedImageReader(Programs, Runner), Console)
         );
 
     [Theory]
@@ -88,15 +88,15 @@ public sealed class PublishedSquadSourceMcpTests
             new PersonalConfigurations(paths),
             store,
             images,
-            _console
+            Console
         );
         await build.BuildAsync(
             new BuildRequest([team], root.Path, "latest", Verify: false, MetadataOnly: !local),
             CancellationToken.None
         );
         var manifest = store.Load(new SquadBuildIdentity("mti-ca", "ac", "latest"))!;
-        _metadata["Mcp"] = JsonSerializer.SerializeToNode(manifest.Mcp);
-        _metadata["State"] = new JsonArray();
+        Metadata["Mcp"] = JsonSerializer.SerializeToNode(manifest.Mcp);
+        Metadata["State"] = new JsonArray();
         var name = SandboxName.For(root.Path);
         lifecycle
             .ListAsync(Arg.Any<CancellationToken>())
@@ -107,8 +107,8 @@ public sealed class PublishedSquadSourceMcpTests
             paths,
             lifecycle,
             mcp,
-            _console,
-            new LocalSquadSource(store, images, _console),
+            Console,
+            new LocalSquadSource(store, images, Console),
             Remote(config, Substitute.For<IKitSourceTrust>()),
             new UserSecretsCopy(
                 config,
@@ -161,13 +161,13 @@ public sealed class PublishedSquadSourceMcpTests
                 Arg.Any<CancellationToken>()
             );
         records.Load(name)!.Team.Should().Be("mti-ca");
-        _calls
+        Calls
             .Should()
             .OnlyContain(call =>
                 !call.Arguments.Contains("build") && !call.Arguments.Contains("create")
             );
         if (!local)
-            _calls
+            Calls
                 .Should()
                 .Contain(
                     call => call.Arguments[0] == "image",

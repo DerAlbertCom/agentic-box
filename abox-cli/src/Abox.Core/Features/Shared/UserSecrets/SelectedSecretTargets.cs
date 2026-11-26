@@ -20,13 +20,7 @@ internal static class SelectedSecretTargets
             if (value is not null && !targets.ContainsKey(key))
                 targets.Add(
                     key,
-                    EndpointAdaptation.Rewrite(
-                        value,
-                        ports,
-                        key,
-                        store.Values,
-                        DescribeSetting(store.Id, key, null)
-                    )
+                    Rewrite(value, ports, key, store.Values, DescribeSetting(store.Id, key, null))
                 );
         return targets;
     }
@@ -46,7 +40,7 @@ internal static class SelectedSecretTargets
         {
             result.Add(
                 DatabaseHostKey,
-                EndpointAdaptation.Rewrite(
+                Rewrite(
                     host,
                     ports,
                     DatabaseHostKey,

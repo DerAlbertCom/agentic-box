@@ -6,12 +6,12 @@ namespace Abox.Tests;
 /// <summary>Local transport for the existing opt-in, non-root disposable Linux fixture.</summary>
 internal sealed class DisposableCertificateRuntime : IDisposable
 {
-    private readonly ProcessRunner local = new();
-    private readonly string sandbox;
+    private readonly ProcessRunner _local = new();
+    private readonly string _sandbox;
 
     private DisposableCertificateRuntime(string sandbox, string runtime)
     {
-        this.sandbox = sandbox;
+        _sandbox = sandbox;
         RuntimePath = runtime;
     }
 
@@ -49,8 +49,8 @@ internal sealed class DisposableCertificateRuntime : IDisposable
         // Never install root trust, even in an explicitly disposable fixture.
         if (request.Arguments.Contains("root"))
             return Task.FromResult(new ProcessResult(0, "", ""));
-        var arguments = request.Arguments.SkipWhile(arg => arg != sandbox).Skip(1).ToArray();
-        return local.RunAsync(
+        var arguments = request.Arguments.SkipWhile(arg => arg != _sandbox).Skip(1).ToArray();
+        return _local.RunAsync(
             request with
             {
                 FileName = arguments[0],

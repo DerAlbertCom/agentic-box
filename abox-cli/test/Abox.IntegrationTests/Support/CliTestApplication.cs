@@ -14,8 +14,8 @@ namespace Abox.Tests;
 /// <summary>Production CLI registration with caller-owned overrides and lazy provider lifetime.</summary>
 internal sealed class CliTestApplication : IDisposable
 {
-    private ServiceProvider? provider;
-    private IServiceScope? scope;
+    private ServiceProvider? _provider;
+    private IServiceScope? _scope;
 
     internal CliTestApplication(IConsole console, AboxPaths paths, TrailingArguments trailing)
     {
@@ -42,7 +42,7 @@ internal sealed class CliTestApplication : IDisposable
     internal IServiceCollection Services { get; }
 
     /// <summary>The invocation scope, opened once like the entry point opens it per process run.</summary>
-    internal IServiceProvider Provider => (scope ??= OpenScope()).ServiceProvider;
+    internal IServiceProvider Provider => (_scope ??= OpenScope()).ServiceProvider;
     internal ISandboxLifecycle Lifecycle { get; } = Substitute.For<ISandboxLifecycle>();
     internal IMcpServerRegistry Mcp { get; } = Substitute.For<IMcpServerRegistry>();
     internal IKitSourceTrust KitSources { get; } = Substitute.For<IKitSourceTrust>();
@@ -60,15 +60,15 @@ internal sealed class CliTestApplication : IDisposable
 
     private IServiceScope OpenScope()
     {
-        provider = Services.BuildServiceProvider(
+        _provider = Services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true }
         );
-        return provider.CreateScope();
+        return _provider.CreateScope();
     }
 
     public void Dispose()
     {
-        scope?.Dispose();
-        provider?.Dispose();
+        _scope?.Dispose();
+        _provider?.Dispose();
     }
 }

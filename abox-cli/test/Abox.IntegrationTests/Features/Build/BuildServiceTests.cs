@@ -15,26 +15,26 @@ namespace Abox.Tests;
 public sealed class BuildServiceTests
 {
     private readonly BuildServiceFixture _fixture = new();
-    private TempDirectory _root => _fixture.Root;
-    private IKitInspector _inspector => _fixture.Inspector;
-    private IProcessRunner _runner => _fixture.Runner;
-    private TestConsole _console => _fixture.Console;
-    private BuildStore _store => _fixture.Store;
-    private SquadResolver _resolver => _fixture.Resolver;
-    private BuildService _service => _fixture.Service;
+    private TempDirectory Root => _fixture.Root;
+    private IKitInspector Inspector => _fixture.Inspector;
+    private IProcessRunner Runner => _fixture.Runner;
+    private TestConsole Console => _fixture.Console;
+    private BuildStore Store => _fixture.Store;
+    private SquadResolver Resolver => _fixture.Resolver;
+    private BuildService Service => _fixture.Service;
 
     [Fact]
     public async Task EachBuildKeepsTheRepositoryOfItsInheritedWorkload()
     {
         // Arrange
-        _root.File("teams/sample/ac.abox", "base: cape\n");
-        _root.File("teams/other/cape.abox", "workload: shared\n");
-        _root.File("kits/shared.workload", "publishRepository: shared-images-local\n");
-        _root.File("teams/sample/bd.abox", "workload: sample\n");
-        _root.File("teams/sample/sample.workload", "publishRepository: sample-images-local\n");
+        Root.File("teams/sample/ac.abox", "base: cape\n");
+        Root.File("teams/other/cape.abox", "workload: shared\n");
+        Root.File("kits/shared.workload", "publishRepository: shared-images-local\n");
+        Root.File("teams/sample/bd.abox", "workload: sample\n");
+        Root.File("teams/sample/sample.workload", "publishRepository: sample-images-local\n");
 
         // Act
-        await _service.BuildAsync(
+        await Service.BuildAsync(
             Request() with
             {
                 IncludePersonalConfigurations = false,
@@ -43,11 +43,11 @@ public sealed class BuildServiceTests
         );
 
         // Assert
-        _store
+        Store
             .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
             .PublishRepository.Should()
             .Be("shared-images-local");
-        _store
+        Store
             .Load(new SquadBuildIdentity("sample", "bd", "latest"))!
             .PublishRepository.Should()
             .Be("sample-images-local");
@@ -57,20 +57,20 @@ public sealed class BuildServiceTests
     public async Task ChangingTheWorkloadRepositoryRequiresRebuildingBeforePublication()
     {
         // Arrange
-        _root.File("teams/sample/sample.workload", "publishRepository: original-images-local\n");
-        await _service.BuildAsync(
+        Root.File("teams/sample/sample.workload", "publishRepository: original-images-local\n");
+        await Service.BuildAsync(
             Request() with
             {
                 IncludePersonalConfigurations = false,
             },
             CancellationToken.None
         );
-        _root.File("teams/sample/sample.workload", "publishRepository: other-images-local\n");
+        Root.File("teams/sample/sample.workload", "publishRepository: other-images-local\n");
 
         // Act
         var check = () =>
             BuildSources.EnsureUnchanged(
-                _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!
+                Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!
             );
 
         // Assert
@@ -82,7 +82,7 @@ public sealed class BuildServiceTests
     {
         // Arrange: the fixture supplies sources with personal configuration.
         // Act
-        await _service.BuildAsync(
+        await Service.BuildAsync(
             Request() with
             {
                 IncludePersonalConfigurations = false,
@@ -91,7 +91,7 @@ public sealed class BuildServiceTests
         );
 
         // Assert
-        var manifest = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         manifest.IncludesPersonalConfigurations.Should().BeFalse();
         manifest.Kits.Should().BeEmpty();
         manifest.ConfigFiles.Should().NotContain(file => file.Contains("personal.abox"));
@@ -104,7 +104,7 @@ public sealed class BuildServiceTests
     {
         // Arrange: the fixture supplies a publishable workload and bundled assets.
         // Act
-        await _service.BuildAsync(
+        await Service.BuildAsync(
             Request() with
             {
                 IncludePersonalConfigurations = false,
@@ -112,8 +112,8 @@ public sealed class BuildServiceTests
             CancellationToken.None
         );
         // Assert
-        var manifest = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        var snapshot = BuildSources.Snapshot(manifest, _root.CreateDirectory("snapshot"));
+        var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var snapshot = BuildSources.Snapshot(manifest, Root.CreateDirectory("snapshot"));
         var asset = Path.Combine("certificates", "rwe_inspection_certificate_chain.pem");
         File.ReadAllBytes(Path.Combine(snapshot[manifest.WorkloadKitDirectory], asset))
             .Should()
@@ -132,10 +132,10 @@ public sealed class BuildServiceTests
     {
         // Arrange: use the fixture's personal configuration and default build request.
         // Act
-        await _service.BuildAsync(Request(), CancellationToken.None);
+        await Service.BuildAsync(Request(), CancellationToken.None);
 
         // Assert
-        var manifest = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         manifest.IncludesPersonalConfigurations.Should().BeTrue();
         manifest.Kits.Should().ContainSingle().Which.Name.Should().Be("private");
         manifest.SourceHashes.Should().BeEmpty();
@@ -147,11 +147,11 @@ public sealed class BuildServiceTests
     public async Task OnlyPublicationBuildsEnforceLinkFreeInputs(bool includePersonalConfigurations)
     {
         // Arrange
-        _root.File("teams/sample/ac.abox", "workload: sample\nkits: [private]\n");
-        File.Delete(Path.Combine(_root.Path, "config", "personal.abox"));
-        var target = _root.CreateDirectory("shared");
-        _root.File("shared/payload.txt", "linked kit payload");
-        var link = Path.Combine(_root.Path, "kits", "private", "linked");
+        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [private]\n");
+        File.Delete(Path.Combine(Root.Path, "config", "personal.abox"));
+        var target = Root.CreateDirectory("shared");
+        Root.File("shared/payload.txt", "linked kit payload");
+        var link = Path.Combine(Root.Path, "kits", "private", "linked");
         try
         {
             var result = await DirectoryLinks.CreateAsync(link, target);
@@ -181,18 +181,18 @@ public sealed class BuildServiceTests
         if (includePersonalConfigurations)
         {
             // Act
-            var exitCode = await _service.BuildAsync(request, CancellationToken.None);
+            var exitCode = await Service.BuildAsync(request, CancellationToken.None);
 
             // Assert
             exitCode.Should().Be(0);
-            _store
+            Store
                 .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
                 .SourceHashes.Should()
                 .BeEmpty();
-            await _inspector
+            await Inspector
                 .Received(1)
                 .InspectAsync(
-                    Path.Combine(_root.Path, "kits", "private"),
+                    Path.Combine(Root.Path, "kits", "private"),
                     Arg.Any<IReadOnlyDictionary<string, string>>(),
                     Arg.Any<CancellationToken>()
                 );
@@ -200,13 +200,13 @@ public sealed class BuildServiceTests
         else
         {
             // Act
-            var action = () => _service.BuildAsync(request, CancellationToken.None);
+            var action = () => Service.BuildAsync(request, CancellationToken.None);
 
             // Assert
             (await action.Should().ThrowAsync<AboxException>()).WithMessage(
                 "*symbolic link or reparse point*"
             );
-            _store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
+            Store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
         }
     }
 
@@ -214,8 +214,8 @@ public sealed class BuildServiceTests
     public async Task SourcesChangedDuringVerificationAreNotSavedAsAVerifiedBuild()
     {
         // Arrange
-        _root.File("teams/sample/ac.abox", "workload: sample\nkits: [private]\n");
-        _inspector
+        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [private]\n");
+        Inspector
             .InspectAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyDictionary<string, string>>(),
@@ -225,7 +225,7 @@ public sealed class BuildServiceTests
             {
                 File.AppendAllText(
                     Path.Combine(
-                        _store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest")),
+                        Store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest")),
                         "workload",
                         "workload.yaml"
                     ),
@@ -236,7 +236,7 @@ public sealed class BuildServiceTests
 
         // Act
         var action = () =>
-            _service.BuildAsync(
+            Service.BuildAsync(
                 Request() with
                 {
                     IncludePersonalConfigurations = false,
@@ -246,17 +246,17 @@ public sealed class BuildServiceTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage("*sources changed*");
-        _store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
+        Store.Load(new SquadBuildIdentity("sample", "ac", "latest")).Should().BeNull();
     }
 
     private BuildRequest Request() =>
-        new([_resolver.ResolveTeam(_root.Path, "sample")], _root.Path, "latest");
+        new([Resolver.ResolveTeam(Root.Path, "sample")], Root.Path, "latest");
 
     [Fact]
     public async Task TheConfigurationMixinCarriesTheSecretDeclarationsOfTheChain()
     {
         // Arrange
-        _root.File(
+        Root.File(
             "teams/sample/ac.abox",
             """
             base: shared
@@ -274,11 +274,11 @@ public sealed class BuildServiceTests
                 encoding: base64
             """
         );
-        _root.File("teams/sample/shared.abox", "workload: sample\nsecrets: [github]\n");
-        _root.File("config/personal.abox", "secrets:\n  - service: private\n    prompt: Mine\n");
+        Root.File("teams/sample/shared.abox", "workload: sample\nsecrets: [github]\n");
+        Root.File("config/personal.abox", "secrets:\n  - service: private\n    prompt: Mine\n");
 
         // Act
-        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
 
         // Assert
         var metadata = BundledSquadMetadata();
@@ -321,7 +321,7 @@ public sealed class BuildServiceTests
     {
         // Arrange: the fixture's squad declares no secrets.
         // Act
-        await _service.BuildAsync(
+        await Service.BuildAsync(
             Request() with
             {
                 IncludePersonalConfigurations = false,
@@ -341,7 +341,7 @@ public sealed class BuildServiceTests
     public async Task TheConfigurationMixinNeverCarriesTheHostCommandOfASecret()
     {
         // Arrange
-        _root.File(
+        Root.File(
             "teams/sample/ac.abox",
             """
             workload: sample
@@ -353,7 +353,7 @@ public sealed class BuildServiceTests
         );
 
         // Act
-        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
 
         // Assert
         var metadata = BundledSquadMetadata();
@@ -365,7 +365,7 @@ public sealed class BuildServiceTests
     public async Task TheConfigurationMixinMarksACommandBackedSecretWithItsHostsVariableAndPlaceholder()
     {
         // Arrange
-        _root.File(
+        Root.File(
             "teams/sample/ac.abox",
             """
             workload: sample
@@ -379,7 +379,7 @@ public sealed class BuildServiceTests
         );
 
         // Act
-        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
 
         // Assert
         AssertJson(
@@ -404,7 +404,7 @@ public sealed class BuildServiceTests
     public async Task TheBundledSecretsReadBackFromASandboxAsTheDeclarationsOfTheChainWithoutCommands()
     {
         // Arrange
-        _root.File(
+        Root.File(
             "teams/sample/ac.abox",
             """
             workload: sample
@@ -424,14 +424,14 @@ public sealed class BuildServiceTests
                 placeholder: gho_{rand}
             """
         );
-        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         var json = File.ReadAllText(Path.Combine(build.ConfigurationMixinDirectory!, "squad.json"));
 
         // Act
-        var metadata = Abox.Features.Secrets.SandboxSquadMetadata.Read(
+        var metadata = Features.Secrets.SandboxSquadMetadata.Read(
             "sample-sandbox",
-            new Abox.Features.Shared.Credentials.SandboxSquadFiles([], json),
+            new Features.Shared.Credentials.SandboxSquadFiles([], json),
             new YamlDotNetParser()
         );
 
@@ -468,7 +468,7 @@ public sealed class BuildServiceTests
 
     private JsonElement BundledSquadMetadata()
     {
-        var build = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         var json = File.ReadAllText(Path.Combine(build.ConfigurationMixinDirectory!, "squad.json"));
         return JsonDocument.Parse(json).RootElement.Clone();
     }
@@ -487,20 +487,20 @@ public sealed class BuildServiceTests
     {
         // Arrange: use the fixture's local workload and fake image builder.
         // Act
-        await _service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
+        await Service.BuildAsync(Request() with { Verify = false }, CancellationToken.None);
 
         // Assert
-        var manifest = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
         manifest.LocalWorkload.Should().NotBeNull();
         manifest.LocalWorkload!.ImageId.Should().Be(LocalWorkloadFactory.ImageId);
         manifest.LocalWorkload.RuntimeKitDirectory.Should().NotBe(manifest.WorkloadKitDirectory);
-        await _runner
+        await Runner
             .Received(1)
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--load")),
                 Arg.Any<CancellationToken>()
             );
-        await _inspector
+        await Inspector
             .DidNotReceive()
             .InspectAsync(
                 Arg.Any<string>(),
@@ -517,19 +517,19 @@ public sealed class BuildServiceTests
     )
     {
         // Arrange
-        await _service.BuildAsync(Request(), CancellationToken.None);
-        var image = _store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.LocalWorkload!;
+        await Service.BuildAsync(Request(), CancellationToken.None);
+        var image = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.LocalWorkload!;
         var recipePath = Path.Combine(image.RuntimeKitDirectory, "workload.dockerfile");
         var previousRecipe = File.ReadAllText(recipePath);
         if (changeInputs)
         {
-            _root.File("teams/sample/sample.workload", "template: example.com/other:2\n");
+            Root.File("teams/sample/sample.workload", "template: example.com/other:2\n");
         }
-        _runner.ClearReceivedCalls();
-        _inspector.ClearReceivedCalls();
+        Runner.ClearReceivedCalls();
+        Inspector.ClearReceivedCalls();
 
         // Act
-        var exitCode = await _service.BuildAsync(
+        var exitCode = await Service.BuildAsync(
             Request() with
             {
                 MetadataOnly = true,
@@ -539,19 +539,19 @@ public sealed class BuildServiceTests
 
         // Assert
         exitCode.Should().Be(0);
-        _store
+        Store
             .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
             .LocalWorkload.Should()
             .BeNull();
-        _store
+        Store
             .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
             .Template.Should()
             .Be(changeInputs ? "example.com/other:2" : "example.com/base:1");
         File.ReadAllText(recipePath).Should().Be(previousRecipe);
         File.Exists(Path.Combine(image.RuntimeKitDirectory, "workload.yaml")).Should().BeTrue();
-        _console.AllText.Should().Contain("invalidated").And.Contain("not deleted");
-        _runner.ReceivedCalls().Should().BeEmpty();
-        _inspector.ReceivedCalls().Should().BeEmpty();
+        Console.AllText.Should().Contain("invalidated").And.Contain("not deleted");
+        Runner.ReceivedCalls().Should().BeEmpty();
+        Inspector.ReceivedCalls().Should().BeEmpty();
     }
 
     private sealed class LinkUnavailableException(string message) : Exception(message);

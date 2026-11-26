@@ -20,13 +20,13 @@ internal sealed class PortsCommandFixture : IDisposable
     public TempDirectory Root { get; } = new();
     public TestConsole Console { get; } = new();
     public IPreflightChecks Preflight { get; } = ReadyPreflight.Checks();
-    public IApplicationPortPublisher Publisher => application.Publisher;
-    public ISandboxDevelopmentCertificates Certificates => application.Certificates;
+    public IApplicationPortPublisher Publisher => _application.Publisher;
+    public ISandboxDevelopmentCertificates Certificates => _application.Certificates;
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public string Location { get; }
     public string Name => SandboxName.For(Location);
-    private readonly CliTestApplication application;
-    public ISandboxLifecycle Lifecycle => application.Lifecycle;
+    private readonly CliTestApplication _application;
+    public ISandboxLifecycle Lifecycle => _application.Lifecycle;
 
     public PortsCommandFixture(
         AboxConfig? config = null,
@@ -37,12 +37,12 @@ internal sealed class PortsCommandFixture : IDisposable
         Location = Root.CreateDirectory("folder");
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists(Arg.Any<string>()).Returns(true);
-        application = new CliTestApplication(
+        _application = new CliTestApplication(
             Console,
             AboxPaths.For(Root.Path, Root.Path),
             new TrailingArguments()
         );
-        application
+        _application
             .Services.AddSingleton(config ?? new AboxConfig { DefaultLocation = Location })
             .AddSingleton<ISandboxExec>(
                 runner is null ? Exec : new SbxSandboxExec(new SbxInvoker(runner))
@@ -51,17 +51,17 @@ internal sealed class PortsCommandFixture : IDisposable
             .AddSingleton(Preflight);
         if (runner is null)
         {
-            application.WithSandboxSubstitutes();
+            _application.WithSandboxSubstitutes();
             Lifecycle
                 .ListAsync(Arg.Any<CancellationToken>())
                 .Returns(new[] { new SandboxInfo(Name, "running", null) });
         }
         else
         {
-            application.Services.AddSingleton<ISandboxLifecycle>(
+            _application.Services.AddSingleton<ISandboxLifecycle>(
                 new SbxSandboxLifecycle(new SbxInvoker(runner))
             );
-            application
+            _application
                 .Services.AddSingleton<IApplicationPortPublisher>(
                     new SbxApplicationPorts(new SbxInvoker(runner))
                 )
@@ -70,15 +70,15 @@ internal sealed class PortsCommandFixture : IDisposable
                 );
         }
         if (exporter is not null)
-            application.Services.AddSingleton<IHostDevelopmentCertificate>(exporter);
-        _ = application.Provider;
+            _application.Services.AddSingleton<IHostDevelopmentCertificate>(exporter);
+        _ = _application.Provider;
     }
 
     public Task<int> Run(params string[] args) =>
-        application.Provider.GetRequiredService<AboxRootCommand>().InvokeAsync(["ports", .. args]);
+        _application.Provider.GetRequiredService<AboxRootCommand>().InvokeAsync(["ports", .. args]);
 
     public Task<int> Run(CancellationToken cancellationToken, params string[] args) =>
-        application
+        _application
             .Provider.GetRequiredService<AboxRootCommand>()
             .Parse(["ports", .. args])
             .InvokeAsync(cancellationToken: cancellationToken);
@@ -87,7 +87,7 @@ internal sealed class PortsCommandFixture : IDisposable
     public async Task<string> Help()
     {
         using var output = new StringWriter();
-        await application
+        await _application
             .Provider.GetRequiredService<AboxRootCommand>()
             .Parse(["ports", "--help"])
             .InvokeAsync(new InvocationConfiguration { Output = output });
@@ -105,7 +105,7 @@ internal sealed class PortsCommandFixture : IDisposable
 
     public void Dispose()
     {
-        application.Dispose();
+        _application.Dispose();
         Root.Dispose();
     }
 }

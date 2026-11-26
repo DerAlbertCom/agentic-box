@@ -3,13 +3,13 @@ namespace Abox.Features.Shared.Common;
 /// <summary>A temporary working directory whose cleanup failures are warnings.</summary>
 internal sealed class TemporaryDirectory : IDisposable
 {
-    private readonly IConsole console;
-    private readonly string purpose;
+    private readonly IConsole _console;
+    private readonly string _purpose;
 
     public TemporaryDirectory(string prefix, string purpose, IConsole console)
     {
-        this.console = console;
-        this.purpose = purpose;
+        _console = console;
+        _purpose = purpose;
         Path = System.IO.Path.Combine(
             System.IO.Path.GetTempPath(),
             prefix + Guid.NewGuid().ToString("N")
@@ -27,8 +27,8 @@ internal sealed class TemporaryDirectory : IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            console.WriteError(
-                $"warning: could not remove {purpose} directory '{Path}': {exception.Message}"
+            _console.WriteError(
+                $"warning: could not remove {_purpose} directory '{Path}': {exception.Message}"
             );
         }
     }

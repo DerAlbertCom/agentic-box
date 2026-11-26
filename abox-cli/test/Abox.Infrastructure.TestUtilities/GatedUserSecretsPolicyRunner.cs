@@ -10,22 +10,22 @@ namespace Abox.Tests;
 
 internal sealed class GatedUserSecretsPolicyRunner : IProcessRunner, IDisposable
 {
-    private readonly TempDirectory root = new();
-    private readonly Channel<int> started = Channel.CreateUnbounded<int>();
-    private readonly Channel<int> cancelled = Channel.CreateUnbounded<int>();
-    private readonly Channel<int> finished = Channel.CreateUnbounded<int>();
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<ProcessResult>> checks = new();
-    private readonly TaskCompletionSource cleanup = new(
+    private readonly TempDirectory _root = new();
+    private readonly Channel<int> _started = Channel.CreateUnbounded<int>();
+    private readonly Channel<int> _cancelled = Channel.CreateUnbounded<int>();
+    private readonly Channel<int> _finished = Channel.CreateUnbounded<int>();
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<ProcessResult>> _checks = new();
+    private readonly TaskCompletionSource _cleanup = new(
         TaskCreationOptions.RunContinuationsAsynchronously
     );
-    private readonly string inventory;
-    private int active;
-    private int maximumActive;
+    private readonly string _inventory;
+    private int _active;
+    private int _maximumActive;
 
     internal GatedUserSecretsPolicyRunner(string sandbox, params string[] resources)
     {
         Sandbox = sandbox;
-        inventory = Inventory(sandbox, resources);
+        _inventory = Inventory(sandbox, resources);
         Client = new SbxUserSecrets(new SbxInvoker(this));
     }
 
@@ -33,31 +33,31 @@ internal sealed class GatedUserSecretsPolicyRunner : IProcessRunner, IDisposable
     internal SbxUserSecrets Client { get; }
     internal bool HoldCancellationCleanup { get; init; }
     internal ConcurrentQueue<ProcessRequest> Requests { get; } = new();
-    internal int Active => Volatile.Read(ref active);
-    internal int MaximumActive => Volatile.Read(ref maximumActive);
+    internal int Active => Volatile.Read(ref _active);
+    internal int MaximumActive => Volatile.Read(ref _maximumActive);
 
     internal Task<IReadOnlyList<int>> ReadAsync(CancellationToken token = default) =>
         Client.GetUserSecretsHostPortsAsync(Sandbox, token);
 
     internal async Task<int> NextStartedAsync() =>
-        await started.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(15));
+        await _started.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(15));
 
     internal async Task<int> NextCancelledAsync() =>
-        await cancelled.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(15));
+        await _cancelled.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(15));
 
     internal async Task<int> NextFinishedAsync() =>
-        await finished.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(15));
+        await _finished.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(15));
 
     internal void Complete(int port, bool allowed = true) =>
         CompleteRaw(port, new ProcessResult(0, Authorization(Sandbox, port, allowed), ""));
 
-    internal void CompleteRaw(int port, ProcessResult result) => checks[port].SetResult(result);
+    internal void CompleteRaw(int port, ProcessResult result) => _checks[port].SetResult(result);
 
     internal void Fail(int port) =>
-        checks[port]
+        _checks[port]
             .SetException(new InvalidOperationException("synthetic-password 123456789 true"));
 
-    internal void ReleaseCleanup() => cleanup.TrySetResult();
+    internal void ReleaseCleanup() => _cleanup.TrySetResult();
 
     public Task<ProcessResult> RunUntilReadyAsync(
         ProcessRequest request,
@@ -69,38 +69,38 @@ internal sealed class GatedUserSecretsPolicyRunner : IProcessRunner, IDisposable
     {
         Requests.Enqueue(request);
         if (request.Arguments[1] == "ls")
-            return new ProcessResult(0, inventory, "");
+            return new ProcessResult(0, _inventory, "");
 
         var port = int.Parse(request.Arguments[^1].AsSpan("localhost:".Length));
         var gate = new TaskCompletionSource<ProcessResult>(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
-        checks.TryAdd(port, gate).Should().BeTrue("each normalized candidate is checked once");
-        var count = Interlocked.Increment(ref active);
+        _checks.TryAdd(port, gate).Should().BeTrue("each normalized candidate is checked once");
+        var count = Interlocked.Increment(ref _active);
         int previous;
         do
         {
-            previous = Volatile.Read(ref maximumActive);
+            previous = Volatile.Read(ref _maximumActive);
         } while (
             count > previous
-            && Interlocked.CompareExchange(ref maximumActive, count, previous) != previous
+            && Interlocked.CompareExchange(ref _maximumActive, count, previous) != previous
         );
-        started.Writer.TryWrite(port);
+        _started.Writer.TryWrite(port);
         try
         {
             return await gate.Task.WaitAsync(token);
         }
         catch (OperationCanceledException)
         {
-            cancelled.Writer.TryWrite(port);
+            _cancelled.Writer.TryWrite(port);
             if (HoldCancellationCleanup)
-                await cleanup.Task;
+                await _cleanup.Task;
             throw;
         }
         finally
         {
-            Interlocked.Decrement(ref active);
-            finished.Writer.TryWrite(port);
+            Interlocked.Decrement(ref _active);
+            _finished.Writer.TryWrite(port);
         }
     }
 
@@ -147,6 +147,6 @@ internal sealed class GatedUserSecretsPolicyRunner : IProcessRunner, IDisposable
     public void Dispose()
     {
         ReleaseCleanup();
-        root.Dispose();
+        _root.Dispose();
     }
 }

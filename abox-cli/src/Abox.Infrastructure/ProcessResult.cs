@@ -5,7 +5,7 @@ namespace Abox.Infrastructure;
 /// </summary>
 internal sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError)
 {
-    private readonly string? output;
+    private readonly string? _output;
 
     public bool Succeeded => ExitCode == 0;
 
@@ -15,7 +15,7 @@ internal sealed record ProcessResult(int ExitCode, string StandardOutput, string
     /// </summary>
     public string Output
     {
-        get => output ?? StandardOutput + StandardError;
-        init => output = value;
+        get => _output ?? StandardOutput + StandardError;
+        init => _output = value;
     }
 }
