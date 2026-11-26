@@ -38,10 +38,17 @@ public sealed class PublishDiscoveryTests
         project
             .Console.AllText.Should()
             .Contain("rwest.jfrog.io/source-images-local/agentic-box-rwest-sample/ac:release");
+        // Only the set is built; the three component images are pushed as built.
         await project
-            .Runner.Received(4)
+            .Runner.Received(1)
             .RunAsync(
                 Arg.Is<ProcessRequest>(request => request.Arguments.Contains("--push")),
+                Arg.Any<CancellationToken>()
+            );
+        await project
+            .Runner.Received(3)
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request => request.Arguments.Contains("push")),
                 Arg.Any<CancellationToken>()
             );
     }

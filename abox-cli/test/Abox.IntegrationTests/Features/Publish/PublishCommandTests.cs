@@ -74,8 +74,9 @@ public sealed class PublishCommandTests
             .AllText.Should()
             .Contain("agentic-box-rwest-one/ac:test")
             .And.Contain("agentic-box-rwest-two/bd:test");
+        // One set per squad is built; its components are pushed as built.
         await _runner
-            .Received(6)
+            .Received(2)
             .RunAsync(
                 Arg.Is<ProcessRequest>(request =>
                     request.Arguments.Contains("--builder")
@@ -197,8 +198,9 @@ public sealed class PublishCommandTests
             new PublishService(
                 _store,
                 new DockerRegistryPublisher(_programs, _runner),
-                _console,
-                new YamlDotNetParser()
+                new DockerRegistryDigests(_runner),
+                new DockerComponentImages(_programs, _runner),
+                _console
             )
         );
         return await application
@@ -249,7 +251,7 @@ public sealed class PublishCommandTests
         };
         PublicationBuilds.SaveWorkload(
             _store,
-            manifest,
+            LocalWorkloadFactory.WithImages(_root, manifest),
             Path.Combine(workload, "workload.yaml"),
             "schemaVersion: \"3\"\nkind: workload\n",
             team

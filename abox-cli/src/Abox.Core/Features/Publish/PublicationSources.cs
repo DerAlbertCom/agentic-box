@@ -2,14 +2,13 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
-using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Publish;
 
 internal sealed record SelectedPublicationBuild(SquadBuildIdentity Identity, BuildManifest Build);
 
-/// <summary>Validates the entire selection, then prepares private fingerprint-checked sources.</summary>
-internal sealed class PublicationSources(BuildStore store, IYamlParser parser)
+/// <summary>Loads and validates the build records of the entire selection.</summary>
+internal sealed class PublicationSources(BuildStore store)
 {
     internal IReadOnlyList<SelectedPublicationBuild> LoadBuilds(PublishRequest request)
     {
@@ -24,29 +23,6 @@ internal sealed class PublicationSources(BuildStore store, IYamlParser parser)
         if (builds.Count == 0)
             throw new AboxException("No squad builds were selected for publication.");
         return builds;
-    }
-
-    internal IReadOnlyList<IReadOnlyDictionary<string, string>> PrepareSnapshots(
-        IReadOnlyList<SelectedPublicationBuild> builds,
-        string directory
-    )
-    {
-        // All teams' sources and supplied local arguments are checked before any registry write.
-        var snapshots = builds
-            .Select(
-                (item, index) =>
-                    BuildSources.Snapshot(
-                        item.Build,
-                        Path.Combine(directory, "sources", index.ToString())
-                    )
-            )
-            .ToList();
-        for (var index = 0; index < builds.Count; index++)
-        {
-            foreach (var kit in builds[index].Build.Kits.Where(kit => kit.IsLocal))
-                ValidateLocalArguments(snapshots[index][kit.Reference], kit.Arguments);
-        }
-        return snapshots;
     }
 
     private SelectedPublicationBuild SelectBuild(SquadBuildIdentity identity) =>
@@ -67,39 +43,16 @@ internal sealed class PublicationSources(BuildStore store, IYamlParser parser)
             );
         foreach (var server in build.Mcp)
             new McpDeclaration(server.Name, server.Url).Validate($"local build {squad}:{tag}");
-        Descriptor(build.WorkloadKitDirectory);
-        foreach (var kit in build.Kits.Where(kit => kit.IsLocal))
-            Descriptor(kit.Reference);
-        if (build.StateMixinDirectory is { } state)
-            Descriptor(state);
-        Descriptor(
-            build.ConfigurationMixinDirectory
-                ?? throw new AboxException(
-                    $"The local build '{squad}:{tag}' has no squad configuration mixin. Run 'abox build --team {team} --tag {tag}' again before publishing."
-                )
-        );
-        BuildSources.EnsureUnchanged(build);
-        return build;
-    }
-
-    private void ValidateLocalArguments(
-        string directory,
-        IReadOnlyDictionary<string, string> arguments
-    )
-    {
-        var declarations = parser.ReadFile(Descriptor(directory)).GetEntry("args");
-        foreach (var name in arguments.Keys)
-        {
-            var declaration = declarations?.GetEntry(name);
-            if (
-                declaration is null
-                || declaration.GetString("buildArg") is not null
-                || declaration.GetString("buildSecret") is not null
+        if (
+            build.ImageStore is null
+            || !new[] { ComponentNames.Workload, ComponentNames.Configuration }.All(name =>
+                build.Components.Any(component => component.Name == name)
             )
-                throw new AboxException(
-                    $"Kit argument '{name}' is undeclared or build-phase. Publishing supplied build-phase arguments is not supported; only create-phase arguments may be fixed in a set."
-                );
-        }
+        )
+            throw new AboxException(
+                $"The local build '{squad}:{tag}' has no component images (an older build). Run 'abox build --team {team} --tag {tag}' before publishing."
+            );
+        return build;
     }
 
     private static void RejectCaseCollisions(PublishRequest request)
@@ -140,10 +93,4 @@ internal sealed class PublicationSources(BuildStore store, IYamlParser parser)
                 );
         }
     }
-
-    internal string Descriptor(string directory) =>
-        KitDescriptor.Load(directory, parser)?.DescriptorPath
-        ?? throw new AboxException(
-            $"The built kit at '{directory}' has no descriptor. Run 'abox build' again."
-        );
 }

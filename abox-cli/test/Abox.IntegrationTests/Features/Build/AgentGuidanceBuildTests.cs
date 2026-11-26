@@ -45,12 +45,8 @@ public sealed class AgentGuidanceBuildTests
             CancellationToken.None
         );
         var manifest = store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        var snapshot = BuildSources.Snapshot(
-            manifest,
-            root.CreateDirectory("publication-snapshot")
-        );
         var kit = manifest.Kits.Should().ContainSingle().Which;
-        var descriptor = KitDescriptor.Load(snapshot[kit.Reference], new YamlDotNetParser())!;
+        var descriptor = KitDescriptor.Load(kit.Reference, new YamlDotNetParser())!;
         var yaml = new YamlDotNetParser().ReadFile(descriptor.DescriptorPath);
         var context = yaml.GetEntries("capabilities")
             .Should()

@@ -52,15 +52,15 @@ public sealed class PublishServiceTests
             {
                 Name = "remote",
                 Reference = "ghcr.io/example/tool:1",
+                Digest = LocalWorkloadFactory.Digest("ghcr.io/example/tool:1"),
                 Arguments = new() { ["message"] = "quoted: \"hello\"\nnext line" },
             },
         ];
-        build.StateMixinDirectory = local;
         build.State.Add(
             new ManifestState { SandboxPath = "/home/agent/.state", RelativePath = ".state" }
         );
         build.Mcp.Add(new ManifestMcp { Name = "elastic", Url = "https://example.com/mcp" });
-        SaveVerifiedBuild(build);
+        SaveVerifiedBuild(LocalWorkloadFactory.WithImages(Root, build));
 
         // Act
         await Service.PublishAsync(
@@ -73,7 +73,7 @@ public sealed class PublishServiceTests
 
         // Assert
         var pushes = Calls.Where(call => call.Arguments.Contains("--push")).ToList();
-        pushes.Should().HaveCount(5);
+        pushes.Should().ContainSingle("only the set is built");
         pushes.Should().OnlyContain(call => call.Arguments.Contains("custom-builder"));
         pushes.Should().OnlyContain(call => !call.Arguments.Contains("--build-arg"));
         var set = new YamlDotNetParser().Read(Descriptors.Last(), "set");
@@ -82,8 +82,8 @@ public sealed class PublishServiceTests
             .Should()
             .Equal(
                 "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac/components/workload",
-                "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac/components/kit-0",
-                "ghcr.io/example/tool:1",
+                "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac/components/kits/local",
+                "ghcr.io/example/tool",
                 "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac/components/state",
                 "rwest.jfrog.io/mtiae-developer-container-images-local/agentic-box-rwest-sample/ac/components/config"
             );
@@ -153,13 +153,25 @@ public sealed class PublishServiceTests
             .Where(call => call.Arguments.Contains("--tag"))
             .Select(call => call.Arguments[call.Arguments.ToList().IndexOf("--tag") + 1])
             .ToList();
-        tags.Should().HaveCount(8);
-        tags.Take(4)
+        tags.Should().HaveCount(4); // per squad: the set candidate and the promoted tag
+        tags.Take(2)
             .Should()
             .OnlyContain(tag =>
                 tag.StartsWith("rwest.jfrog.io/first-images-local/agentic-box-rwest-sample/ac")
             );
-        tags.Skip(4)
+        Calls
+            .Where(call => call.Arguments.Contains("push"))
+            .Select(call => call.Arguments.Last())
+            .Should()
+            .OnlyContain(reference =>
+                reference.StartsWith(
+                    "rwest.jfrog.io/first-images-local/agentic-box-rwest-sample/ac/components/"
+                )
+                || reference.StartsWith(
+                    "rwest.jfrog.io/second-images-local/agentic-box-rwest-sample/bd/components/"
+                )
+            );
+        tags.Skip(2)
             .Should()
             .OnlyContain(tag =>
                 tag.StartsWith("rwest.jfrog.io/second-images-local/agentic-box-rwest-sample/bd")
@@ -312,7 +324,9 @@ public sealed class PublishServiceTests
         var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        (await action.Should().ThrowAsync<AboxException>()).WithMessage("*has no descriptor*");
+        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
+            "*sources changed*abox build --team sample --tag latest*"
+        );
         Calls.Should().BeEmpty();
     }
 
@@ -365,26 +379,6 @@ public sealed class PublishServiceTests
             .Where(call => call.Arguments.Contains("--push"))
             .Should()
             .OnlyContain(call => !Directory.Exists(call.Arguments.Last()));
-    }
-
-    [Fact]
-    public async Task ComponentTagsAreUniqueAcrossPublishes()
-    {
-        // Arrange
-        SaveBuild("ac");
-        await Service.PublishAsync(Request("ac"), CancellationToken.None);
-        var firstSet = new YamlDotNetParser().Read(Descriptors.Last(), "first set");
-
-        // Act
-        await Service.PublishAsync(Request("ac"), CancellationToken.None);
-
-        // Assert
-        var secondSet = new YamlDotNetParser().Read(Descriptors.Last(), "second set");
-        firstSet
-            .GetEntries("kits")[0]
-            .GetString("ref")
-            .Should()
-            .NotBe(secondSet.GetEntries("kits")[0].GetString("ref"));
     }
 
     [Fact]
@@ -444,9 +438,17 @@ public sealed class PublishServiceTests
 
         // Assert
         result.Should().Be(0);
+        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
+        // The components are pushed unchanged; only the set is built, with buildx.
+        Calls
+            .Where(call => call.Arguments.Contains("push"))
+            .Select(call => call.Arguments.Last())
+            .Should()
+            .Equal(build.Components.Select(component => component.Reference));
         var pushes = Calls.Where(call => call.Arguments.Contains("--push")).ToList();
-        pushes.Should().HaveCount(3); // workload, portable squad configuration, set
+        pushes.Should().ContainSingle();
         pushes.Should().OnlyContain(call => call.FileName == "docker");
+        Calls.Should().NotContain(call => call.Arguments.Contains("--load"));
         Calls
             .Single(call => call.Arguments.Contains("create"))
             .Arguments.Should()
@@ -500,9 +502,15 @@ public sealed class PublishServiceTests
         await Service.PublishAsync(Request("ac"), CancellationToken.None);
 
         // Assert
-        var descriptor = new YamlDotNetParser().Read(Descriptors[^2], "config");
-        descriptor.GetString("schemaVersion").Should().Be("3");
-        descriptor.GetString("kind").Should().Be("mixin");
+        var config = Store
+            .Load(new SquadBuildIdentity("sample", "ac", "latest"))!
+            .Components.Single(component => component.Name == "config");
+        config.Kind.Should().Be("mixin");
+        Calls
+            .Should()
+            .ContainSingle(call =>
+                call.Arguments.Contains("push") && call.Arguments.Last() == config.Reference
+            );
         Configurations.Should().ContainSingle();
     }
 
@@ -589,13 +597,12 @@ public sealed class PublishServiceTests
     }
 
     [Fact]
-    public async Task BuildsWithoutAConfigurationMixinMustBeRebuilt()
+    public async Task BuildsWithoutComponentImagesMustBeRebuilt()
     {
         // Arrange
         SaveBuild("ac");
         var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        build.ConfigurationMixinDirectory = null;
-        build.SourceHashes = BuildSources.Capture(build);
+        build.Components.Clear();
         Store.Save(build);
 
         // Act
@@ -603,7 +610,7 @@ public sealed class PublishServiceTests
 
         // Assert
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*no squad configuration mixin*abox build --team sample --tag latest*"
+            "*no component images*abox build --team sample --tag latest*"
         );
         Calls.Should().BeEmpty();
     }
@@ -675,40 +682,6 @@ public sealed class PublishServiceTests
     }
 
     [Fact]
-    public async Task PublicationUsesSnapshotsNotSourcesChangedAfterValidation()
-    {
-        // Arrange
-        SaveBuild("ac");
-        var path = Path.Combine(
-            Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!.WorkloadKitDirectory,
-            "workload.yaml"
-        );
-        var original = File.ReadAllText(path);
-        Runner
-            .RunAsync(
-                Arg.Is<ProcessRequest>(call => call.Arguments.Contains("version")),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(_ =>
-            {
-                File.WriteAllText(path, original + "description: late change\n");
-                return new ProcessResult(0, "", "");
-            });
-
-        // Act
-        await Service.PublishAsync(Request("ac"), CancellationToken.None);
-
-        // Assert
-        Descriptors[0].Should().Be(original);
-        Calls
-            .Where(call => call.Arguments.Contains("--push"))
-            .Should()
-            .OnlyContain(call =>
-                !call.Arguments.Last().StartsWith(Root.Path, StringComparison.Ordinal)
-            );
-    }
-
-    [Fact]
     public async Task SquadReferencesStayStableWhenAnotherSquadIsAdded()
     {
         // Arrange
@@ -727,8 +700,8 @@ public sealed class PublishServiceTests
             .Should()
             .Be(again[again.ToList().IndexOf("--tag") + 1]);
         Calls
-            .Where(call => call.Arguments.Contains("--push"))
-            .SelectMany(call => call.Arguments)
+            .Where(call => call.Arguments.Contains("push"))
+            .Select(call => call.Arguments.Last())
             .Should()
             .Contain(value => value.Contains("/ac/components/workload:"));
     }
@@ -840,7 +813,7 @@ public sealed class PublishServiceTests
         (await action.Should().ThrowAsync<AboxException>()).WithMessage(
             "*did not retain a valid v3 workload descriptor*"
         );
-        Calls.Count(call => call.Arguments.Contains("--push")).Should().Be(3);
+        Calls.Count(call => call.Arguments.Contains("--push")).Should().Be(1);
         await Runner
             .DidNotReceive()
             .RunAsync(
@@ -915,39 +888,6 @@ public sealed class PublishServiceTests
     }
 
     [Fact]
-    public async Task SuppliedLocalBuildPhaseArgumentsAreRejectedBeforeAnyPush()
-    {
-        // Arrange
-        SaveBuild("ac");
-        var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        var local = Path.Combine(Root.Path, "build-arg-kit");
-        Directory.CreateDirectory(local);
-        File.WriteAllText(
-            Path.Combine(local, "spec.yaml"),
-            "schemaVersion: \"3\"\nkind: mixin\nargs:\n  version:\n    buildArg: VERSION\n"
-        );
-        build.Kits.Add(
-            new ManifestKit
-            {
-                IsLocal = true,
-                Name = "tool",
-                Reference = local,
-                Arguments = new() { ["version"] = "1" },
-            }
-        );
-        SaveVerifiedBuild(build);
-
-        // Act
-        var action = () => Service.PublishAsync(Request("ac"), CancellationToken.None);
-
-        // Assert
-        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-            "*build-phase arguments is not supported*"
-        );
-        Calls.Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task SuppliedRegistryBuildPhaseArgumentsAreRejectedBeforeAnyPush()
     {
         // Arrange
@@ -958,6 +898,7 @@ public sealed class PublishServiceTests
             {
                 Name = "tool",
                 Reference = "ghcr.io/example/tool:1",
+                Digest = LocalWorkloadFactory.Digest("ghcr.io/example/tool:1"),
                 Arguments = new() { ["version"] = "1" },
             }
         );

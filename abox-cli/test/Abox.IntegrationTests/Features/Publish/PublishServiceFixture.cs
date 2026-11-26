@@ -29,8 +29,9 @@ internal sealed class PublishServiceFixture
         Service = new PublishService(
             Store,
             new DockerRegistryPublisher(Programs, Runner),
-            Console,
-            new YamlDotNetParser()
+            new DockerRegistryDigests(Runner),
+            new DockerComponentImages(Programs, Runner),
+            Console
         );
         Programs.Exists("docker").Returns(true);
         Runner
@@ -48,6 +49,16 @@ internal sealed class PublishServiceFixture
                 {
                     Descriptors.Add(File.ReadAllText(arguments[arguments.IndexOf("--file") + 1]));
                     var config = Path.Combine(arguments.Last(), "squad.json");
+                    if (File.Exists(config))
+                        Configurations.Add(File.ReadAllText(config));
+                }
+                // A pushed component carries the files it was built from.
+                if (
+                    arguments.Contains("push")
+                    && LocalWorkloadFactory.BuiltFrom(arguments[^1]) is { } built
+                )
+                {
+                    var config = Path.Combine(built, "squad.json");
                     if (File.Exists(config))
                         Configurations.Add(File.ReadAllText(config));
                 }
@@ -69,14 +80,17 @@ internal sealed class PublishServiceFixture
         var workload = Path.Combine(Store.DirectoryFor(new("sample", squad, "latest")), "workload");
         PublicationBuilds.SaveWorkload(
             Store,
-            new BuildManifest
-            {
-                Squad = squad,
-                Tag = "latest",
-                Reference = "agentic-box-rwest-sample:latest",
-                PublishRepository = repository,
-                WorkloadKitDirectory = workload,
-            },
+            LocalWorkloadFactory.WithImages(
+                Root,
+                new BuildManifest
+                {
+                    Squad = squad,
+                    Tag = "latest",
+                    Reference = "agentic-box-rwest-sample:latest",
+                    PublishRepository = repository,
+                    WorkloadKitDirectory = workload,
+                }
+            ),
             Path.Combine(workload, "workload.yaml"),
             "# syntax=docker/sandbox-kit:3\nschemaVersion: \"3\"\nkind: workload\n"
         );
@@ -89,7 +103,14 @@ internal sealed class PublishServiceFixture
     {
         SaveBuild("ac");
         var build = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        build.Kits.Add(new ManifestKit { Name = "tool", Reference = "ghcr.io/example/tool:1" });
+        build.Kits.Add(
+            new ManifestKit
+            {
+                Name = "tool",
+                Reference = "ghcr.io/example/tool:1",
+                Digest = LocalWorkloadFactory.Digest("ghcr.io/example/tool:1"),
+            }
+        );
         SaveVerifiedBuild(build);
     }
 }

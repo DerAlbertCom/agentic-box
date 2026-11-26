@@ -39,6 +39,11 @@ internal static class PublicationBuilds
                 SquadConfigurationMixin.MixinName
             )
         );
+        // The configuration image of the build bundles the configuration just written.
+        if (
+            manifest.Components.FirstOrDefault(component => component.Name == "config") is { } image
+        )
+            LocalWorkloadFactory.Load(image.Reference, manifest.ConfigurationMixinDirectory);
         manifest.SourceHashes = BuildSources.Capture(manifest);
         store.Save(manifest);
     }

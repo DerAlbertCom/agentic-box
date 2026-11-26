@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Abox.Features.Publish;
 using Abox.Features.Shared.Common;
+using Abox.Features.Shared.Naming;
 using Abox.Infrastructure;
 using NSubstitute;
 
@@ -238,8 +239,17 @@ public sealed class PublishServiceOciTests
         var inspected = Calls
             .Where(call => call.Arguments.Contains("--raw"))
             .Select(call => call.Arguments.Last());
-        inspected.Should().Contain(repository + "/components/workload@" + VerifiedDigest);
-        inspected.Should().Contain(repository + "/components/config@" + VerifiedDigest);
+        // The components are verified at the digests they were built with.
+        foreach (
+            var component in _fixture
+                .Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!
+                .Components
+        )
+        {
+            inspected
+                .Should()
+                .Contain(repository + "/components/" + component.Name + "@" + component.Digest);
+        }
         inspected.Should().Contain(repository + "@" + VerifiedDigest);
         var promotion = Calls.Single(call => call.Arguments.Contains("create"));
         promotion.Arguments.Should().Contain("--prefer-index=false");

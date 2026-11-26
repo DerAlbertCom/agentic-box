@@ -31,13 +31,10 @@ public sealed class PublishServiceTeamTests
     private string ManifestPath(SquadBuildIdentity identity) => _fixture.ManifestPath(identity);
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task PublicationSelectsEachTeamsSharedSquadWithoutChangingPublishedNames(
-        bool reverse,
-        bool metadataOnly
+        bool reverse
     )
     {
         // Arrange
@@ -79,7 +76,7 @@ public sealed class PublishServiceTeamTests
         {
             Descriptors
                 .Should()
-                .Contain(descriptor => descriptor.Contains($"displayName: \"{team}\"\n"));
+                .Contain(descriptor => descriptor.Contains($"\"displayName\": \"{team} / ac\""));
             var configuration = Configurations.Single(text =>
                 JsonNode.Parse(text)!["Team"]!.GetValue<string>() == team
             );

@@ -35,13 +35,19 @@ public sealed class BuiltKitPublicationTests
             .Runner.When(runner =>
                 runner.RunAsync(
                     Arg.Is<ProcessRequest>(request =>
-                        request.Arguments.Contains("--push")
-                        && request.Arguments.Any(argument => argument.Contains("/components/kit-0"))
+                        request.Arguments.Contains("push")
+                        && request.Arguments.Last().Contains("/components/kits/built:")
                     ),
                     Arg.Any<CancellationToken>()
                 )
             )
-            .Do(call => pushedKits.Add(ReadGenerated(call.Arg<ProcessRequest>().Arguments[^1])));
+            .Do(call =>
+                pushedKits.Add(
+                    ReadGenerated(
+                        LocalWorkloadFactory.BuiltFrom(call.Arg<ProcessRequest>().Arguments[^1])!
+                    )
+                )
+            );
 
         // Act
         var exitCode = await _fixture.Service.PublishAsync(

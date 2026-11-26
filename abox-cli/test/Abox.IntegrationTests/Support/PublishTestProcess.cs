@@ -10,20 +10,6 @@ internal static class PublishTestProcess
     public static ProcessResult Run(ProcessRequest request)
     {
         var arguments = request.Arguments.ToList();
-        if (arguments.Contains("--metadata-file"))
-        {
-            var reference = arguments[arguments.IndexOf("--tag") + 1];
-            var digest =
-                "sha256:"
-                + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(reference)));
-            File.WriteAllText(
-                arguments[arguments.IndexOf("--metadata-file") + 1],
-                JsonSerializer.Serialize(
-                    new Dictionary<string, string> { ["containerimage.digest"] = digest }
-                )
-            );
-        }
-
         if (arguments.Contains("--raw"))
         {
             var reference = arguments.Last();
@@ -35,7 +21,7 @@ internal static class PublishTestProcess
             return new ProcessResult(0, Manifest(kind), string.Empty);
         }
 
-        return new ProcessResult(0, string.Empty, string.Empty);
+        return LocalWorkloadFactory.Result(request);
     }
 
     public static string Manifest(string kind, object? args = null) =>

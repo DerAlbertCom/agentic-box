@@ -140,6 +140,9 @@ internal sealed class ManifestKit
     /// <summary>The name of a local kit's component image; null for a registry kit.</summary>
     public string? Component { get; set; }
 
+    /// <summary>A local kit's folder in the repository, which its input hash covers; null for a registry kit.</summary>
+    public string? Source { get; set; }
+
     /// <summary>The values for the kit's arguments.</summary>
     public Dictionary<string, string> Arguments { get; set; } = [];
 }
