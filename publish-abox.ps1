@@ -138,7 +138,29 @@ if ($DryRun) {
     exit 0
 }
 
+# The push reads the service index before it sends the API key, and that read takes
+# credentials only from a NuGet config. NuGet expands the %...% references from the
+# environment, so the token is never written to disk.
+$config = Join-Path $output 'NuGet.Config'
+@"
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="push" value="$source" />
+  </packageSources>
+  <packageSourceCredentials>
+    <push>
+      <add key="Username" value="%JFROG_USER%" />
+      <add key="ClearTextPassword" value="%JFROG_TOKEN%" />
+    </push>
+  </packageSourceCredentials>
+</configuration>
+"@ | Set-Content $config
+
+# --skip-duplicate lets a rerun after an interrupted push finish the missing packages:
+# the pointer package goes last, so the feed still offers the same version again.
 foreach ($package in $packages) {
-    dotnet nuget push $package --source $source --api-key "${user}:$token"
+    dotnet nuget push $package --source push --configfile $config --api-key "${user}:$token" --skip-duplicate
 }
 Write-Host "Published $packageId $version to $source"
