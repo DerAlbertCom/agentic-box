@@ -1,254 +1,217 @@
 # abox
 
 `abox` gives each project folder its own AI agent sandbox, built on
-[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/). Create it from your team's
-**squad** (a shared set of tools and configuration), then open a shell or the Herdr
-desktop app to work in it. You do not need this repository or a local image build
-to use a published squad.
+[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/). You create it from your
+team's **squad** (a shared set of tools and configuration), then open a shell or the
+Herdr desktop app to work in it. To use a published squad you need neither this
+repository nor a local image build.
 
-The sandbox works on your project files: **agent edits to the workspace affect
-the host folder**. Only grant it access to files, services and credentials you
-trust it to use. A sandbox is not a guarantee against data loss or secret exposure.
+The sandbox works on your project files: **agent edits to the workspace change the host
+folder**. Only give it files, services and credentials you trust it to use. A sandbox
+does not protect against data loss or leaked secrets.
 
 ## Before you start
 
-- Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-  to install the tool; it includes the runtime abox needs.
-- Install [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/install/)
-  **0.54.0 or later**, on a host supported by Docker Sandboxes, with `sbx` on `PATH`.
-  abox checks runtime health and sign-in; interactive use can open Docker sign-in.
-  For noninteractive use, run `sbx login` beforehand.
-- For **creation, including published squads**, have host Docker with **Buildx**
-  and a running Docker Engine. Installing sbx alone does not satisfy this requirement.
-- Ask your maintainer for a **published team, squad, tag and pull repository**, plus
-  JFrog read access to the squad and its referenced configuration component.
-  The current registry host is `rwest.jfrog.io`; its availability is not public or
-  guaranteed by this repository.
-- For discovered app forwarding, the squad must already provide `python3` **3.8+**.
-  ASP.NET Core forwarding also needs an existing trusted host development certificate,
-  a compatible installed `dotnet dev-certs` CLI and a supported sandbox CA store.
-  See [HTTPS prerequisites](docs/https-development-certificates.md#prerequisites-and-host-export).
+- The [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), to install the
+  tool.
+- [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/install/) 0.54.0 or
+  later, on `PATH`. abox checks its health and sign-in and can open the Docker sign-in;
+  for noninteractive use run `sbx login` first.
+- Host Docker with Buildx and a running engine. Creating a sandbox needs it, also from a
+  published squad; sbx alone is not enough.
+- From your maintainer: the published **team**, **squad** and **tag**, the pull
+  repository, and JFrog read access. The registry host is `rwest.jfrog.io`.
 
-abox does not install these dependencies. Optional launchers can have additional
-requirements listed below.
+abox installs none of these. App forwarding and Herdr have extra requirements, listed
+in their sections below.
 
 ## Install
 
-The NuGet package is **`RwestAgenticBox.Cli`**; the installed command is **`abox`**.
-It is published to the JFrog NuGet feed `mtiae-cs-nuget-prod`, not to nuget.org.
-If that feed is not yet a NuGet source of yours, add it once with your JFrog user and
-identity token (on Linux/macOS also pass `--store-password-in-clear-text`):
+The NuGet package is `RwestAgenticBox.Cli`; the command is `abox`. It is published to
+the JFrog NuGet feed `mtiae-cs-nuget-prod`, not to nuget.org. Add the feed once with
+your JFrog user and identity token (on Linux/macOS also pass
+`--store-password-in-clear-text`):
 
 ```sh
 dotnet nuget add source https://rwest.jfrog.io/artifactory/api/nuget/v3/mtiae-cs-nuget-prod/index.json --name mtiae-cs-nuget-prod --username <user> --password <identity token>
 ```
 
-Then install it:
+Then install, and later update or remove:
 
 ```sh
 dotnet tool install --global RwestAgenticBox.Cli
-abox --help
-```
-
-Installing needs the .NET 10 SDK or newer; it picks the package built for your platform.
-If installation cannot find the package, ask your maintainer for read access to the
-feed, or use the
-[source-build instructions](docs/development.md#building-and-running-the-command-line).
-Ensure the global tools directory is on `PATH`: `$HOME/.dotnet/tools` on Linux/macOS
-or `%USERPROFILE%\.dotnet\tools` on Windows. The installer reports any setup needed.
-
-```sh
 dotnet tool update --global RwestAgenticBox.Cli
 dotnet tool uninstall --global RwestAgenticBox.Cli
 ```
 
+The global tools directory must be on `PATH`: `$HOME/.dotnet/tools` on Linux/macOS,
+`%USERPROFILE%\.dotnet\tools` on Windows. If the package is not found, ask your
+maintainer for read access to the feed, or
+[build from source](docs/development.md#building-and-running-the-command-line).
+
 ## Quickstart
 
-1. Get the published **team**, **squad** and **tag** from your maintainer.
-   `teams/sample` in this repository is example configuration, not a promise of a
-   published sample. Remote creation cannot discover squads for you.
-2. If the pull repository is not `mtiae-docker-release`, set `pullRepository` in
-   your [user settings](#user-settings) first. It is a repository name, not a URL.
-3. Sign in to the registry on the host:
+1. If your pull repository is not `mtiae-docker-release`, set `pullRepository` in your
+   [user settings](docs/configuration.md#user-settings). It is a repository name, not a
+   URL.
+2. Sign in to the registry:
 
    ```sh
    docker login rwest.jfrog.io
    ```
 
-4. Review any existing `abox.yaml` and `abox.user.yaml` in the project, particularly
-   their [user-secret selections](#copying-net-user-secrets). Then create:
+3. If the project already has an `abox.yaml` or `abox.user.yaml`, read it first,
+   especially its [`userSecrets`](#copying-net-user-secrets) selection. Then create the
+   sandbox:
 
    ```sh
    abox create --team <team> --squad <squad> --tag <tag> --location "/path/to/project"
    ```
 
-   Replace all `<...>` placeholders and the project path before running these
-   commands; on Windows, for example, use `"C:\src\my-project"`. An existing folder
-   `squad` setting must match `--squad`. Creation pulls the published kit set,
-   copies any opted-in user-secrets, and configures discovered app ports/HTTPS.
-   It does **not** start your apps or open a shell. After creation succeeds, open it:
+   This pulls the published kit set, copies selected user-secrets and sets up the
+   discovered app ports. It does not start your apps or open a shell.
+
+4. Open it:
 
    ```sh
    abox run --location "/path/to/project"
    ```
 
-Remote creation may persistently add `rwest.jfrog.io/<pullRepository>/` to sbx's
-allowed kit sources. This trusts that repository, not the whole registry; other
-sbx policies still apply. See [source trust and remote creation](docs/cli-reference.md#remote-only-workflow).
+abox cannot list the squads of a team; you have to know the names. `teams/sample` in
+this repository is example configuration, not a published squad.
 
-**Already have a sandbox for this folder?** `create` asks before replacing it;
-`--yes` skips that question, not the data loss. Replacement deletes sandbox-only
-files, installed changes and worktrees under `~/worktrees`. The host workspace and
-squad-declared persistent state are kept, but that is not a backup of everything
-inside. Save anything else you need before consenting. Updating the CLI or running
-`run` does not refresh a published squad: explicitly recreate to pull its tag again.
+Creating from a published squad adds `rwest.jfrog.io/<pullRepository>/` to sbx's allowed
+kit sources and keeps it there. See
+[published sandboxes](docs/cli-reference.md#creating-local-and-published-sandboxes).
+
+### Replacing a sandbox
+
+When the folder already has a sandbox, `create` asks before it replaces it. `--yes`
+skips the question, not the loss:
+
+- **Lost:** files that exist only in the sandbox, installed changes, and worktrees under
+  `~/worktrees`.
+- **Kept:** the host workspace and the state directories the squad declares.
+
+Updating the CLI or running `abox run` does not refresh a published squad. Create the
+sandbox again to pull its tag again.
 
 ## Everyday use
 
-These commands select `--location`, then the user setting `defaultLocation`, then
-the current folder. Use an explicit location when in doubt.
+Commands work on `--location`, else the user setting `defaultLocation`, else the current
+folder.
 
 | Task | Command |
 |---|---|
-| Open the default shell | `abox run --location "/path/to/project"` |
-| Run a command instead of the shell | `abox run --location "/path/to/project" -- git status` |
-| Open Herdr | `abox run herdr-app --location "/path/to/project"` |
+| Open the default shell | `abox run` |
+| Run a command instead of the shell | `abox run -- git status` |
+| Open Herdr | `abox run herdr-app` |
 | Keep your terminal's colors | `abox run --terminal-theme false` |
-| Inspect required host/proxy credentials | `abox secrets list --location "/path/to/project"` |
-| Enter a requested credential | `abox secrets set --location "/path/to/project" --service <service>` |
-| Resync selected .NET stores | `abox user-secrets --location "/path/to/project"` |
-| Rescan app ports and configure HTTPS | `abox ports --location "/path/to/project"` |
+| List the credentials the squad's kits ask for | `abox secrets list` |
+| Enter one of them | `abox secrets set --service <service>` |
+| Copy the selected .NET user-secrets again | `abox user-secrets` |
+| Scan app ports again and set up HTTPS | `abox ports` |
 
-`run` starts a stopped sandbox but **never creates a missing one**. Ordinary runs
-do not resync user-secrets or redo app setup. For local builds only, `run` can offer
-replacement when a newer build exists; the same replacement warnings apply.
+`run` starts a stopped sandbox but never creates one. It does not copy user-secrets or
+redo the app setup.
 
-The launchers currently supported are `shell` (default) and `herdr-app`. Herdr
-needs `herdr-app`, `hc` and `abox` on the host `PATH`, plus `hc` in the squad's
-sandbox. Install the desktop app from [herdr.dev](https://herdr.dev).
+The launchers are `shell` (default) and `herdr-app`. Herdr needs `herdr-app`, `hc` and
+`abox` on the host `PATH`, and `hc` in the squad's sandbox. Install the desktop app from
+[herdr.dev](https://herdr.dev).
+
+All commands and options are in the [CLI reference](docs/cli-reference.md).
 
 ## Open your apps in a browser
 
-Start the app **inside the sandbox**, using its normal profile. Creation already
-sets up forwarding for explicit .NET and Angular ports. For example, an app on
-`http://localhost:8203` is reachable on the host at **`http://localhost:18203`**
-with the default **10000** offset.
+Start the app inside the sandbox. abox forwards the ports it finds to the host, shifted
+by an offset of 10000: an app on `http://localhost:8203` in the sandbox is
+`http://localhost:18203` on the host. Forwarding binds to host loopback only.
 
-After changing app ports, or to finish failed setup:
+abox finds ports in .NET `Properties/launchSettings.json`, in `angular.json`, and in
+`ng` commands with a literal port in the `start` script of `package.json`. It does not
+find other servers, such as Vite or Next. The squad must provide `python3` 3.8 or later.
+
+After you change app ports, or when setup failed during creation, run:
 
 ```sh
 abox ports --location "/path/to/project"
 ```
 
-Discovery reads .NET `Properties/launchSettings.json`, Angular serve ports in
-`angular.json`, and supported direct `ng` commands with literal ports in
-`package.json`'s `scripts.start`. It does not infer Angular's default 4200, evaluate
-environment variables, or discover arbitrary servers such as Vite/Next.
-Forwarding binds to **host loopback only**. The printed table is a mapping plan,
-not evidence that the app is running.
+Set `portOffset` in the folder configuration for another offset. Mappings stay after the
+command exits, and a new offset does not remove the old ones. See
+[application ports](docs/application-ports.md).
 
-Use folder `portOffset` for a different default, or `abox ports --offset <n>` for
-one invocation. **Mappings persist after the command exits.** Changing the offset
-does not move existing bindings; conflicts require deliberate removal of the exact
-old binding. For a partial failure, retry the printed command with the **same
-offset**, rather than recreating the sandbox. See [ports and offset recovery](docs/application-port-offsets.md).
+For ASP.NET Core, abox copies your trusted host development certificate into the sandbox
+so HTTPS works there. This needs an existing trusted certificate and the `dotnet
+dev-certs` CLI on the host. See
+[development HTTPS](docs/https-development-certificates.md).
 
-For ASP.NET Core, setup exports the existing trusted host dev certificate into
-protected sandbox runtime files and installs its public leaf in sandbox trust.
-It does not create host trust or restart apps/agents; explicit restarts may be
-needed. See [HTTPS setup and recovery](docs/https-development-certificates.md).
+## Configuration
 
-## Configuration and credentials
-
-### Folder configuration
-
-Put shared runtime settings in the project's `abox.yaml`. Put personal overrides
-in `abox.user.yaml` and **add that file to `.gitignore` yourself**:
+Shared settings of a project go in `abox.yaml` in the project folder, personal ones in
+`abox.user.yaml`. Add `abox.user.yaml` to `.gitignore` yourself.
 
 ```yaml
-# abox.yaml — use the squad supplied by your maintainer
+# abox.yaml
 squad: your-squad
 portOffset: 10000
 ```
 
-Both files are optional and accept `squad`, `portOffset`, `terminalTheme`,
-`userSecrets`, `memory` (GB) and `cpus`. Personal values override shared ones; **lists
-replace, not append**. Unknown keys and invalid YAML fail. abox never writes
-`abox.yaml` or `.gitignore`; `abox create --memory <GB> --cpus <n>` saves the sandbox
-size in `abox.user.yaml`, and later creates use it when the options are left out.
-See the [full folder configuration rules](docs/cli-reference.md#folder-configuration).
+Your own defaults, such as `defaultTeam`, `defaultTag` and `pullRepository`, go in the
+user settings file `config.yaml`. Both are described in
+[configuration](docs/configuration.md).
 
-### User settings
+## Credentials
 
-Personal defaults live in `config.yaml`: `$XDG_CONFIG_HOME/abox/config.yaml` when
-`XDG_CONFIG_HOME` is absolute; otherwise `~/.config/abox/config.yaml` on Linux/macOS
-or `<home>\.abox\config\config.yaml` on Windows. `HOME` takes precedence over
-`USERPROFILE`, including in Windows Git Bash.
+abox handles two different things:
 
-```yaml
-# Optional defaults; replace these with your team's values.
-defaultTeam: your-team
-defaultTag: latest
-pullRepository: mtiae-docker-release
-terminalTheme: true
-```
-
-The pull repository defaults to `mtiae-docker-release`, on `rwest.jfrog.io`.
-See [all user settings](docs/cli-reference.md#user-settings), including
-`defaultLocation` and `userSecretsDenyList`.
+- **Secrets** (`abox secrets`) are the host-side credentials a squad's kits declare.
+  They stay on the host; sbx's proxy injects them. Values are global on the host, so
+  removing one affects every sandbox. They are not Docker's registry sign-in.
+- **User-secrets** (`abox user-secrets`) are .NET user-secret stores that abox copies
+  into the sandbox.
 
 ### Copying .NET user secrets
 
-This is **opt-in** and different from `abox secrets`. A `userSecrets` selection
-in the folder configuration copies host .NET stores/keys into the sandbox on
-creation/replacement or an explicit `abox user-secrets` call. Ordinary `run` does
-not copy them. Start without this setting unless your application needs it.
+Copying is opt-in: nothing is copied without a `userSecrets` selection in the folder
+configuration. With one, abox copies when a sandbox is created or replaced and when you
+run `abox user-secrets`.
 
-**Review the current selection before every copy or replacement.** Both folder
-configuration files are writable by the sandbox agent, so an agent edit can change
-which host secrets the next operation reads. There is **no separate host-side
-approval mechanism**. The deny list defaults to empty; it is not production-secret
-detection and cannot make an untrusted workspace safe.
+**Read the selection before every copy or replacement.** The agent in the sandbox can
+edit both folder configuration files, so it can change which host secrets the next copy
+reads. Nothing on the host asks for approval. Copied secrets are readable inside the
+sandbox and not encrypted. Each copy replaces the whole store in the sandbox.
 
-Copying replaces each **entire destination store**, removing old/unselected keys;
-an empty key selection writes `{}`. Copied secrets are readable by the sandbox
-application user/root, not encrypted. Transfers are atomic **per file**, not across
-stores: a later failure can leave earlier stores replaced, with no rollback.
-Review [selection, policy and recovery](docs/cli-reference.md#copying-net-user-secrets)
-before enabling this feature. `--force` only bypasses the configured deny list;
-it is not a general repair flag.
-
-`abox secrets` instead manages host-side kit/proxy credentials. Values are global
-on the host, so removing one can affect other sandboxes. It does not configure
-Docker's registry sign-in. See [credential behavior](docs/implementation.md#abox-secrets-listsetremove---location-path).
+Read [user-secrets](docs/user-secrets.md) before you enable this.
 
 ## Troubleshooting
 
-- **Missing sandbox:** use the printed `abox create` hint; `run`, `ports` and
-  `user-secrets` do not create one.
-- **sbx health/sign-in failure:** follow the diagnostic hint; use `sbx login` if
-  sign-in is needed. A registry pull failure also needs Docker/JFrog credentials
-  and a real published team/squad/tag, not just sbx sign-in.
-- **Creation reports a copy/ports/HTTPS failure:** the new sandbox and record may
-  already exist, with partial setup. Fix the cause and use the printed
-  folder-qualified retry commands: user-secrets first if copying failed, then
-  ports with the original offset. Do not recreate just to retry setup.
-  If replacement creation itself failed after removal, the old sandbox is already
-  gone; save any retained host data and follow the printed create retry.
-- **HTTPS bootstrap mismatch after a CLI upgrade:** run
-  `abox ports --location "/path/to/project" --refresh-https-bootstrap`, then retry
-  the launch. This only repairs the reader, not full HTTPS readiness.
-- **Need more detail:** use `abox <command> --help` or add `--verbose` before any
-  `--` separator. Captured tool output goes to stderr; review it for sensitive
-  data before sharing. User-secret transfer output stays suppressed even then.
+- **No sandbox for the folder:** `run`, `ports` and `user-secrets` never create one. Use
+  the `abox create` command they print.
+- **sbx health or sign-in fails:** follow the printed hint; run `sbx login` if needed.
+- **The pull fails:** check `docker login rwest.jfrog.io`, your JFrog read access, and
+  the team, squad and tag.
+- **Creation reports a failed copy, ports or HTTPS setup:** the new sandbox exists with
+  partial setup. Fix the cause and run the printed retry commands: `abox user-secrets`
+  first if copying failed, then `abox ports` with the same offset. Do not create the
+  sandbox again just to retry setup.
+- **Replacement failed after the old sandbox was removed:** the old sandbox is gone; its
+  state directories are kept. Run the printed `abox create` command again.
+- **More detail:** `abox <command> --help`, or add `--verbose` before any `--`. Read the
+  tool output before you share it; it can contain sensitive data.
 
 ## More documentation
 
-- [CLI reference](docs/cli-reference.md): options, configuration, legacy sandboxes,
-  user-secret selection and detailed recovery.
-- [App setup lifecycle](docs/application-ports-lifecycle.md): creation, partial
-  failure and retries; [HTTPS details](docs/https-development-certificates.md).
-- **For maintainers/contributors:** [development and local builds](docs/development.md),
-  [authoring squads/kits/workloads](docs/authoring.md),
-  [implementation status and code map](docs/implementation.md),
-  [concept and proposals](docs/concept.md), and [coding standards](CODING_STANDARDS.md).
+For users:
+
+- [CLI reference](docs/cli-reference.md) and [configuration](docs/configuration.md)
+- [Application ports](docs/application-ports.md) and
+  [development HTTPS](docs/https-development-certificates.md)
+- [User-secrets](docs/user-secrets.md)
+
+For maintainers and contributors:
+
+- [Authoring squads, kits and workloads](docs/authoring.md)
+- [Development and local builds](docs/development.md)
+- [How abox is built](docs/implementation.md) and the [glossary](GLOSSARY.md)
+- [Coding standards](CODING_STANDARDS.md) and [proposals and open questions](docs/concept.md)

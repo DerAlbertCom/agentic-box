@@ -1,662 +1,292 @@
 # CLI reference
 
-Start with the [README](../README.md) to install abox and use a published squad.
-This reference covers command options, configuration, runtime behavior and recovery.
-For source builds and maintainer workflows, see [development.md](development.md)
-and the [authoring guide](authoring.md).
+Start with the [README](../README.md) to install abox and create your first sandbox.
+This page lists every command and its options. Settings files are described in
+[configuration.md](configuration.md). `abox <command> --help` prints the same options.
 
-## The commands
+## Overview
 
-| Command | What it does |
-|---|---|
-| `abox build --team <name> [--root <dir>] [--tag <tag>] [--rebuild]` | Builds one image per component of every squad (workload, local kits, state and config mixins) into the host image store with Docker Buildx, rebuilding only what changed. `--rebuild` builds every component again. No registry writes. |
-| `abox publish --team <name> [--root <dir>] [--tag <tag>] [--builder <name>]` | Refuses stale builds, pushes the built component images unchanged and builds and pushes the kit set of each squad to `rwest.jfrog.io/<publishRepository>`, configured in each workload. Requires Docker Buildx and host registry sign-in. |
-| `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--memory <GB>] [--cpus <n>] [--yes]` | Pulls a self-contained published squad set, or uses the component images of a local build with `--local`; neither reads team sources. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying; it or `--squad` must name the squad. `--memory` (whole GB) and `--cpus` size the sandbox; see [sandbox size](#sandbox-size). `--yes` confirms replacement. |
-| `abox run [<launcher>] [--location <path>] [--terminal-theme <true\|false>] [-- <argv>...]` | Starts a launcher for the sandbox of a folder. The default launcher is a shell. `--terminal-theme` decides for this run whether the sandbox sets the terminal colors from its theme (see [Terminal colors](#terminal-colors)). |
-| `abox prune [--full] [--sbx]` | Removes the template images of sbx that stopped being used. `--full` reaches for everything sbx holds, `--sbx` stops the running sandboxes first. |
-| `abox secrets list\|set\|remove [--location <path>]` | The host secrets the kits of the folder's existing sandbox ask for, read from inside the sandbox; no team sources needed. `set` and `remove` also accept repeatable `--service <name>`; `list` does not. Values are stored globally on the host. |
-| `abox user-secrets [--location <path>] [--force]` | Copies explicitly selected local .NET user-secret stores into the folder's existing sandbox. |
-| `abox ports [--location <path>] [--offset <n>] [--refresh-https-bootstrap]` | Discovers .NET and Angular app ports and publishes them on host loopback at port + offset (default 10000). The explicit refresh flag repairs only the protected HTTPS bootstrap reader. |
+| Command | What it does | For |
+|---|---|---|
+| [`create`](#abox-create) | Creates or replaces the sandbox of a folder from a squad | users |
+| [`run`](#abox-run) | Starts a launcher (a shell by default) for the sandbox | users |
+| [`ports`](#abox-ports) | Publishes discovered app ports on host loopback | users |
+| [`user-secrets`](#abox-user-secrets) | Copies selected .NET user-secret stores into the sandbox | users |
+| [`secrets`](#abox-secrets) | Manages the host-side secrets the sandbox's kits ask for | users |
+| [`prune`](#abox-prune) | Removes template images sbx no longer uses | users |
+| [`build`](#abox-build) | Builds the component images of a team's squads | maintainers |
+| [`publish`](#abox-publish) | Pushes a team's built kit sets to JFrog | maintainers |
 
-Two more entry points exist, and stay out of the help: `abox pipe <sandbox> -- <command>`
-and `abox exec <sandbox> -- <command>`.
+Two hidden entry points exist for tools such as Herdr and are not in the help:
+`abox exec <sandbox> -- <command>` and `abox pipe <sandbox> -- <command>`.
 
-`create`, `run`, `secrets`, `user-secrets` and `ports` use `--location`, then the user setting `defaultLocation`,
-then the current folder. `create` reads no team sources, with or without `--local`.
-`build` and `publish` are the only commands that read team sources. Their search
-starts at `--root <dir>`, then at the current folder when the team sources are found
-from there, then at the user setting `sourceRoot`. The first interactive `build` or
-`publish` inside the repository offers to save the repository folder as `sourceRoot`.
-When none of them applies, an interactive run asks for the repository folder, checks
-that the team sources are found from it and saves it as `sourceRoot`; a run without a
-terminal fails and names `sourceRoot` and `--root`.
+### Sandbox location
 
-## Reaching sandbox apps over HTTP
+`create`, `run`, `ports`, `user-secrets` and `secrets` work on one sandbox location:
+`--location <path>`, then the user setting `defaultLocation`, then the current folder.
+Only `create` creates a sandbox. The other commands print the `abox create` command to
+run when the folder has none.
 
-Successful local/published `abox create`, explicit replacement, and an accepted
-newer-local-build replacement from `abox run` automatically configure app forwarding
-and applicable .NET HTTPS. No folder configuration or separate setup command is needed. Start
-your apps afterward with their normal profiles (including localhost-only bindings).
-For an existing sandbox, changed project ports, or a setup retry, run:
+### Exit codes
+
+`0` on success, `1` on an abox error, `130` on cancellation. `run` passes through the
+exit code of the shell or command it starts.
+
+### Seeing tool output
+
+Add the global `--verbose` flag to see the complete stdout and stderr of the external
+tools abox runs, such as sbx and Docker, on success and failure:
 
 ```sh
-abox ports --location /path/to/project
-# app/Properties/launchSettings.json declares http://localhost:8203
-# Open http://localhost:18203 on the host after abox exits.
-```
-
-The command reads explicit ports beneath the folder from:
-
-- Every profile's semicolon-separated `applicationUrl` values in
-  `Properties/launchSettings.json`.
-- `angular.json`: every project's `architect.serve` (or `targets.serve`) `options.port`
-  and every named `configurations.<name>.port`, whether currently selected or not.
-- `package.json`: the exact `scripts.start` entry, for direct `ng serve` / `ng s` / `ng dev`
-  commands with one `--port 4200` or `--port=4200`. Literal single/double quoting of
-  the value or argument is supported. No scripts or tooling are executed to scan.
-
-Angular ports must be literal integers; no implicit default 4200, environment-variable
-expansion, wrapper commands (`npx`, `cross-env`, npm scripts), shell operators or
-duplicate `--port` flags are interpreted. A recognized `ng` start script with an
-explicit `--port` in an unsupported/dynamic form fails with a fix hint; put a literal
-serve port in `angular.json` and remove that dynamic flag instead. Non-`ng` start
-commands (including wrappers, Vite, Next and custom Node servers) are ignored even
-when they contain `--port`; configure their Angular port in `angular.json` if needed.
-Runtime environment overrides such as Angular's `PORT` are not evaluated and can
-make the actual listener differ from the static plan. Other scripts/targets are ignored.
-All inputs and mapped ranges are validated **before publishing anything**.
-It prints each source occurrence, warns about duplicates and publishes each distinct
-mapping once. No folder configuration, team sources or build is needed. It never creates or
-replaces a sandbox; a missing sandbox gives a create hint.
-
-sbx publishes **127.0.0.1 only** to a small sandbox-owned TCP relay, because native
-publishing cannot reach sandbox loopback on sbx 0.51.0. **Python 3.8+ must already be
-available as `python3` inside the sandbox**, running as its non-root application user;
-abox checks it and never installs dependencies. No extra host runtime or background
-abox process is needed. The relay uses a separate sandbox port, so it does not
-reserve or change your application's listener, sources, profiles or startup flags.
-
-Subsequent runs reuse matching relays/mappings and preserve unrelated mappings.
-An existing direct native mapping at the requested host port is a conflict **at every
-offset, including 10000**: its matching numbers do not prove abox ownership. abox never
-automatically removes or replaces it. Inspect the full binding and, only if you intend
-to replace it, explicitly remove that exact binding before retrying; see the
-[manual recovery examples](application-port-offsets.md#persistent-mapping-and-ownership-contract).
-Other targets or non-loopback bindings are also conflicts, not overwritten mappings.
-A stopped sandbox is started first and its relays are restored, but **apps are not
-started** by this command. Ports occupied by another service fail with a diagnostic;
-fix the conflict and retry. Failure/cancellation can leave mappings and sandbox
-relays in place; there is no rollback. The table is a plan, not proof the app is running.
-
-This supports .NET/Angular discovery and HTTP reachability with configurable offsets.
-Explicit ASP.NET Core Web SDK / `Microsoft.AspNetCore.App` projects also require the existing trusted host dev
-certificate: abox exports it through a compatible installed dev-certs CLI and
-persists a protected explicit Kestrel default for new apps launched through abox.
-It also installs only that public leaf in the sandbox's existing Debian-style system
-CA store using root exec, and merges it with Node's existing extra-CA roots.
-It never changes host trust or silently substitutes another certificate. Existing
-apps/agent/core parents may need **explicit** restarts; stale recognized parents
-prevent full activation success/new agent launches, never ordinary shell/exec/pipe
-save/recovery access or trigger automatic restarts. See
-[HTTPS prerequisites, launch/recovery contract and verification scope](https-development-certificates.md).
-Invalid/missing Node extra-CA inputs likewise warn without blocking ordinary/recovery
-commands: their original Node setting and protected Kestrel defaults are retained,
-but setup/readiness and new agent launches fail until corrected. Caller CA symlinks
-and non-ASCII comments/Bag Attributes outside certificate PEM blocks are supported;
-original extra-CA bytes are preserved. Damaged protected abox files instead fail
-closed. After upgrading the CLI, a bootstrap hash mismatch can be recovered with
-`abox ports --location "<folder>" --refresh-https-bootstrap`. This explicit reader-only
-refresh preserves private activation, needs no host export, project discovery,
-port changes or root trust, and does **not** claim full HTTPS readiness. Unverified
-installed code is never executed as an upgrade fallback.
-Automatic setup uses the entry-time folder `portOffset` (default **10000**), after
-creation, record save and required user-secret copying. Invalid discoveries or mapped
-ranges fail before creation/replacement changes. Required setup failure retains the
-created sandbox and record, returns **1** (or **130** on cancellation), suppresses
-full-success output and prevents replacement `run` from launching. Partial setup may
-remain; follow the printed `abox ports --location "<folder>" --offset N` retry rather
-than recreating. Ordinary non-replacing `run` does **not** implicitly scan, publish,
-export certificates or resync secrets. See [lifecycle ordering and recovery](application-ports-lifecycle.md).
-See [shared discovery/runtime rules](verification/application-ports.md) and
-[Angular scope, supported forms and verification](verification/angular-application-ports.md).
-
-### Folder and one-run port offsets
-
-The optional [folder configuration](#folder-configuration) can select a default
-without changing `squad` or `userSecrets` behavior:
-
-```yaml
-portOffset: 20000
-```
-
-For sandbox port 8203, `abox ports` now requests host 28203. `abox ports --offset 30000`
-requests 38203 instead. Precedence is **`--offset`, `portOffset` in `abox.user.yaml`, then `abox.yaml`, 10000**;
-there is no global setting, no file is required, and abox never writes `portOffset`.
-Offsets are decimal integers **-65534..65534**; zero keeps the same port number and
-negative offsets subtract. Every resulting host port must still be **1..65535**.
-Fractions, exponent notation, overflow and out-of-range mappings fail before publishing.
-
-**An override does not undo persistent forwarding on exit.** Repeating the same
-offset is safe. Changing it while old abox relay bindings exist fails without
-removing them or adding new bindings. First explicitly remove only the exact old
-bindings, then rerun with the new offset; never clear relay state or unrelated ports.
-After a failure or cancellation, retry with the **same offset** to complete missing
-bindings. See [offset-change and recovery examples](application-port-offsets.md).
-
-## Seeing tool output
-
-Add the global `--verbose` flag to see the complete captured stdout and stderr of
-external tools such as sbx and Docker, on both success and failure:
-
-```powershell
 abox --verbose ports --location "/path/to/project"
 ```
 
-The flag works before or after a command (including `secrets` subcommands), but
-must precede `--` when passing arguments to a launcher or sandbox command. Output
-is shown after each tool exits, grouped by stdout and stderr with its exit code,
-and goes to **abox's stderr** so it does not contaminate stdout. There is no
-truncation; default output remains concise. Interactive tools already inherit the
-terminal and are not captured or printed twice. Diagnostics omit arguments,
-environment settings and stdin, and redact known credential values if a tool
-echoes them. Tool output can still contain other sensitive data; review it before
-sharing.
+The flag works before or after the command name, but must come before a `--`
+separator. Output is printed to abox's stderr after each tool exits, with its exit
+code. Arguments, environment and stdin are not shown, and known credential values are
+redacted. Tool output can still contain other sensitive data; review it before sharing.
 
-`user-secrets` transfers are an exception: their child stdout, stderr and raw
-errors are discarded, **even with `--verbose`**, including scalar fragments.
-Only store IDs, key names/counts and safe recovery messages are reported.
+Output of `user-secrets` transfers is always discarded, even with `--verbose`.
 
-## User settings
-
-Sandbox creation pulls from **`rwest.jfrog.io/mtiae-docker-release`** by default.
-Override the repository in abox's user `config.yaml`, alongside the existing defaults:
-
-```yaml
-defaultTeam: sample
-# defaultLocation: /path/to/project
-# sourceRoot: /path/to/agentic-box
-teamsDirectory: teams
-kitsDirectory: kits
-defaultTag: latest
-pullRepository: mtiae-docker-release
-userSecretsDenyList:
-  - staging.example.internal
-  - production.example.internal
-terminalTheme: true
-```
-
-- `defaultLocation` is unset by default: `create`, `run`, `user-secrets` and `ports` use the current folder unless `--location` is given.
-- `sourceRoot` is unset by default: the repository folder with the team sources that
-  `build` and `publish` use outside the repository. An interactive `build` or `publish`
-  inside the repository offers to save it here; outside it, one asks for it. A saved folder without the team sources is an
-  error, not silently skipped.
-- `teamsDirectory` names the project's teams directory; the default is `teams`.
-- `kitsDirectory` names the kits directory relative to the project root; the default is `kits`.
-- `userSecretsDenyList` is a list of nonempty **literal substrings**, matched
-  case-insensitively against selected original values before rewriting or writes.
-  It defaults to `[]`: there is no built-in staging/production detection. Add your
-  environment markers here; do not put secret values in configuration. This is a
-  policy safeguard, not a detector for arbitrary production credentials.
-- `terminalTheme` (`true` or `false`, default `true`) is your default for
-  [terminal colors](#terminal-colors) in every folder.
-
-The file is at `$XDG_CONFIG_HOME/abox/config.yaml` when `XDG_CONFIG_HOME` is an
-absolute path; otherwise it is `<home>/.config/abox/config.yaml` on Linux/macOS or
-`<home>\.abox\config\config.yaml` on Windows. On every platform, `<home>` is the
-first nonblank value of `HOME`, then `USERPROFILE`, with the CLI installation
-directory as a last resort. In particular, Windows Git Bash's `HOME` takes
-precedence over `USERPROFILE`. `pullRepository` is one
-lowercase JFrog repository name, not a URL, host, path or tag. Omitted or blank
-values use the default. It is independent of each workload's `publishRepository`.
-
-## Folder configuration
-
-The sandbox folder can hold an optional **`abox.yaml`** and an optional
-**`abox.user.yaml`** next to it. Commit `abox.yaml` with the shared settings and
-**add `abox.user.yaml` to `.gitignore`**, so each user can override the shared
-file without editing it. `create`, `run`, `ports` and `user-secrets` all read the
-merged result.
-
-```yaml
-# abox.yaml (committed)
-squad: ac
-portOffset: 20000
-userSecrets: [shared-store]
-```
-
-```yaml
-# abox.user.yaml (git-ignored)
-userSecrets: [shared-store, my-dev-store]
-```
-
-- The keys are `team`, `squad`, `userSecrets`, `portOffset`, `terminalTheme`,
-  `memory` and `cpus`. Every key is allowed in both files.
-- `abox.user.yaml` overrides `abox.yaml`: a value or list in the user file replaces
-  the one in the shared file as a whole (the example selects both stores; it does
-  not append), and keys it does not set keep their shared value. Dictionaries are
-  merged key by key, recursively; the current keys all hold values and lists.
-- Either file may exist alone; with neither, the folder has no folder configuration.
-- Both files are strict YAML: invalid YAML and duplicate keys are errors that name
-  the offending file. The merged result is then validated like a single file, so a
-  value the user file replaces is never checked; an unknown key or an invalid value
-  names the file that supplied it.
-- `abox.json` and `abox.user.json` are no longer read: if either exists, commands
-  fail and ask you to rename it to `abox.yaml` or `abox.user.yaml` (the content is
-  now YAML). `.yml` files are not recognised.
-- abox never writes `abox.yaml` and never touches `.gitignore`. It writes
-  `abox.user.yaml` only after `abox create`, to save the [team and squad](#team-and-squad)
-  and the [sandbox size](#sandbox-size).
-
-## Team and squad
-
-`abox create` takes the team from **`--team`, then `team` in the folder configuration,
-then `defaultTeam`**, and the squad from **`--squad`, then `squad` in the folder
-configuration**. Once the sandbox is created, both are saved in the location's
-`abox.user.yaml` unless the folder configuration already gives them, so the next
-`abox create` in that folder needs neither option. A given `--squad` replaces the squad
-`abox.user.yaml` remembers, but must match a `squad` in `abox.yaml`. `abox run`, which
-replaces a sandbox without anyone choosing a squad, refuses a sandbox whose squad
-differs from the folder's squad in either file. Lines are replaced or added as for the
-[sandbox size](#sandbox-size).
-
-## Sandbox size
-
-`abox create --memory <GB> --cpus <n>` sizes the sandbox: `--memory` is a whole number
-of GB (passed to sbx as `<GB>g`), `--cpus` a whole number of CPUs, both at least 1.
-Precedence for each is **the option, `memory`/`cpus` in `abox.user.yaml`, then
-`abox.yaml`, then the sbx default** (see `sbx create --help`). Without any of them,
-abox passes neither flag. A sandbox that
-`abox run` recreates uses the folder configuration the same way.
-
-```yaml
-# abox.user.yaml
-memory: 16
-cpus: 8
-```
-
-Once the sandbox is created, the values given as options are saved in the location's
-`abox.user.yaml`, so the next create without them uses the same size. Only the top-level
-`memory` and `cpus` lines are replaced or added; the rest of the file, comments
-included, stays. If the file cannot be updated that way (for example a flow-style
-`{...}` document) or written, abox reports it, leaves the file unchanged, and the create
-still completes.
-
-## Terminal colors
-
-While you are in a sandbox, the sandbox recolors your terminal session to its current
-theme (`sbox themes`) and resets the colors when the shell exits; the host terminal's
-configuration is never changed. `abox` itself knows nothing about themes: every
-`abox run`, whatever the launcher, passes `SBOX_TERMINAL_THEME=1` to the sandbox
-(`sbx exec -e SBOX_TERMINAL_THEME=1`) unless you turned it off. With it off, the
-variable is not passed and the terminal is never touched.
-
-Precedence is **`--terminal-theme <true|false>`, `terminalTheme` in `abox.user.yaml`,
-then `abox.yaml`, then in the user `config.yaml`, then `true`**:
+## `abox create`
 
 ```sh
-abox run --terminal-theme false   # keep the host colors for this session
-abox run --terminal-theme true    # try the colors although a configuration turned them off
+abox create --team <team> --squad <squad> [--tag <tag>] [--location <path>]
 ```
 
-`terminalTheme` must be unquoted `true` or `false`; any other value is a configuration
-error. Herdr's panes are started inside the sandbox and do not see the variable yet.
-See the [themes kit](../kits/README.md) and
-[ADR 0002](adr/0002-terminal-colors-from-the-sandbox.md).
+| Option | Meaning | Default |
+|---|---|---|
+| `--team <name>` | Team the squad belongs to | `team` in the folder configuration, then `defaultTeam` |
+| `--squad <name>` | Squad to create the sandbox from. Required here or in the folder configuration | `squad` in the folder configuration |
+| `--location <path>` | The sandbox location | see [sandbox location](#sandbox-location) |
+| `--tag <tag>` | Tag of the published set or local build | `defaultTag`, then `latest` |
+| `--local` | Use the local build of `abox build` instead of pulling | off |
+| `--memory <GB>` | Memory in whole GB, at least 1 | folder configuration, then the sbx default |
+| `--cpus <n>` | Number of CPUs, at least 1 | folder configuration, then the sbx default |
+| `--yes` | Replace an existing sandbox without asking | off |
 
-## Reusing cape-agent-sandbox environments
+After a successful create, abox saves the team, squad and any given size in the
+folder's `abox.user.yaml`; see [configuration.md](configuration.md). It then copies
+the selected [.NET user-secrets](#abox-user-secrets) and sets up
+[app ports and HTTPS](#abox-ports). It does not start your apps or open a shell.
 
-`run`, `user-secrets`, `ports` and create/replacement checks find the sandbox for the
-effective folder (`--location`, then `defaultLocation`, then the current folder).
-They first check the current `<folder>-abox-<hash>` name. Only when it is absent
-do they check the exact historical `<folder>-ai-sbx-<hash>` generated name.
-Runtime/discovery errors stop the command; they are not treated as absence.
+**Replacing a sandbox.** If the folder already has a sandbox, `create` lists what will
+be lost and asks first. `--yes` skips the question, not the loss: files that exist only
+in the sandbox, installed changes and `~/worktrees` are deleted. The host workspace and
+the squad's state directories are kept. Everything that can be checked is checked
+before the old sandbox is removed.
 
-A legacy sandbox is reused **in place**, including when sbx exec needs to start
-it. Probes, launchers and secret copying use its actual name. If both names exist,
-the Agentic Box name wins and the legacy sandbox is left alone. There is no automatic
-rename, recreation, cleanup, adoption record or persistent-state/Herdr migration.
-When exact-name lookup finds neither candidate on Windows, abox can also verify a
-historical generated name against the primary host workspace's recorded spelling
-and real path. It does not adopt arbitrary custom names or workspace matches;
-ambiguous verified matches fail. Unix retains exact historical lookup. See the
-[legacy resolution details](implementation.md#shared-existing-sandbox-resolution-10).
+**If setup fails after creation**, the new sandbox is kept and the command exits with
+`1`. Fix the cause and run the printed `abox user-secrets` or `abox ports` retry
+command. Do not recreate the sandbox to retry setup.
 
-`run` and `user-secrets` still never create a missing sandbox. Normal `create`
-uses current naming when neither candidate exists. Replacing an existing legacy
-sandbox still requires the usual confirmation (or explicit `--yes`), lists the
-same losses, and retains the selected name rather than converting it to Agentic Box
-naming. An accepted newer-build replacement from `run` does the same.
+See [creating local and published sandboxes](#creating-local-and-published-sandboxes)
+for what each source needs. A sandbox created with the older cape-agent-sandbox tool is
+reused in place; see [legacy-sandboxes.md](legacy-sandboxes.md).
 
-On-demand `user-secrets` does **not verify the sandbox's squad** or require an
-Agentic Box record, even when the folder configuration declares a squad. It copies into the resolved
-existing sandbox without creating or changing any record. Create/run replacement
-squad checks remain unchanged. Review the [user-secret safety contract](#copying-net-user-secrets)
-before copying. Historical path spelling and link rules determine the legacy hash;
-this is not a general alias search across all spellings of a folder.
-
-## Copying .NET user secrets
-
-Declare only the intended stores/keys and optionally the creation squad in **the
-sandbox folder's [`abox.yaml` or `abox.user.yaml`](#folder-configuration)** (not a
-squad `.abox` file or the team sources). A `userSecrets` list
-in `abox.user.yaml` replaces the whole list from `abox.yaml`:
-
-```yaml
-squad: ac
-userSecrets:
-  - 5b3e0f6a-1c2d-4e5f-a6b7-c8d9e0f1a2b3
-  - Cape.*
-  - id: my-dev-store
-    keys: ["ConnectionStrings:*", "Feature:Enabled"]
-```
-
-**Trust boundary:** the workspace, including `abox.yaml` and `abox.user.yaml`, is writable by the
-sandbox agent. Changes to these files control which host stores/keys the **next**
-create, replacement or on-demand copy reads. Review and trust their current squad,
-IDs and patterns before those operations, including after agent edits. There is
-no separate host-side approval/authorization mechanism. The global deny list does
-not make an untrusted folder safe or guarantee that production secrets cannot enter.
+## `abox run`
 
 ```sh
-# Initial creation also copies the configured secrets:
-abox create --team sample --location /path/to/project
-# Resync an existing local or published sandbox without recreating it:
-abox user-secrets --location /path/to/project
-# Explicit safety override, only when you have checked the blocked key:
-abox user-secrets --location /path/to/project --force
+abox run [<launcher>] [--location <path>] [--terminal-theme <true|false>] [-- <argv>...]
 ```
 
-### Selection and squad identity
+| Argument or option | Meaning | Default |
+|---|---|---|
+| `<launcher>` | `shell` or `herdr-app` | `shell` |
+| `--location <path>` | The sandbox location | see [sandbox location](#sandbox-location) |
+| `--terminal-theme <true\|false>` | Whether the sandbox sets the terminal colors from its theme, for this run | see [configuration.md](configuration.md) |
+| `-- <argv>...` | Command to run instead of the shell, or in the launcher's first terminal | none |
 
-Plain IDs and objects can be mixed. A plain ID or `{"id":"my-dev-store"}` selects
-the **whole store**. An ID ending in one `*`, such as `Cape.*`, selects every local
-store whose ID starts with the literal prefix `Cape.` (ordinal, case-insensitive).
-Only a safe nonempty literal prefix plus one terminal `*` is supported: no bare
-`*`, paths, recursive lookup or other glob syntax. A prefix with no matches selects
-no stores; an exact ID still selects a store when no host directory exists.
-Copy-only stores require a readable `secrets.json`; missing files may instead use
-matching project appsettings sources as described below. An incomplete matched
-directory is not an unmatched prefix. Unreadable/invalid present files fail, even
-with `--force`. Matches use actual host ID spelling and
-are sorted; overlapping exact/prefix selections copy each store once, unioning
-their key selections (a whole-store selection wins). Repeated identical selection
-strings are still rejected case-insensitively. Matching unsafe host directory names
-or case-colliding IDs fail before any copy, rather than being silently skipped.
+`run` starts a stopped sandbox but never creates one. It does not copy user-secrets or
+set up ports again. For a sandbox created with `--local`, `run` offers to replace it
+when a newer local build exists; the replacement warnings of `create` apply. A sandbox
+pulled from a published squad is never refreshed by `run`: run `abox create` again to
+pull its tag.
 
-A `keys` list selects effective .NET keys, such as
-`ConnectionStrings:Db` for a nested JSON property:
+`herdr-app` needs `herdr-app`, `hc` and `abox` on the host `PATH`, and `hc` in the
+sandbox.
 
-- Matching is full-key, ordinal and case-insensitive. An exact pattern selects
-  only that key; `ConnectionStrings` does not select its descendants.
-- `*` matches zero or more characters, **including `:`**, anywhere in a pattern.
-  `ConnectionStrings:*` includes deeper descendants. Other characters are literal,
-  not regex/glob operators. Overlapping patterns select each key once.
-- `"keys": []` or patterns with no matches select zero keys and **replace that
-  store with `{}`**. They never broaden into a whole-store copy or leave old keys.
-- An absent/empty `userSecrets` array selects no stores and writes nothing.
-  Filtered output uses flat effective keys, preserving array indices and selected
-  values; unfiltered output retains the JSON structure.
+## `abox ports`
 
-IDs must be 1–128 ASCII letters/digits/dots/underscores/hyphens, beginning with a
-letter/digit, without trailing dots or Windows device names. Duplicate IDs and
-duplicate effective .NET keys are rejected case-insensitively, including
-nested/colon-key and array-index collisions, **before filtering**. Invalid patterns
-fail, not widen selection. Folder configuration is strict; store JSON must be a UTF-8 object
-and accepts .NET-style comments/trailing commas. See the
-[full filtering contract](user-secrets-filtering.md) for pattern validation,
-scalar types and empty-container handling.
-
-The optional `squad` selects local or published creation when `--squad` is omitted.
-An explicit option must match case-insensitively; conflicts fail, not override the
-folder. The team still comes from `--team` or `defaultTeam`. With no folder squad,
-existing command selection applies. Accepted `run` replacement requires a known
-matching sandbox record when a folder squad is present; it never silently switches
-an existing sandbox's squad. On-demand `user-secrets` ignores squad identity when
-selecting the existing sandbox: missing, matching or mismatched records do not
-block copying. Folder configuration is still validated. Ordinary `run` (including
-declining replacement) can still open the existing sandbox with a different or
-unknown recorded squad: it copies no secrets and changes no squad.
-
-### Automatic copying and policy
-
-Local/published creation, explicit replacement and an accepted newer-local-build
-replacement from `run` use the **same copy flow** as `abox user-secrets`. Folder
-configuration, project appsettings and all selected host originals are validated **before removal** of
-an existing sandbox. After successful creation, abox saves the truthful new sandbox
-record, then copies secrets and configures app ports/HTTPS **before reporting full
-success or launching**.
-Target-only discovery/transfer failures can therefore occur after creation.
-
-A folder without `abox.yaml` or `abox.user.yaml` performs no user-secret store reads, target discovery
-or writes; creation/replacement still configures app ports/HTTPS. Ordinary `run`, including
-declining a newer-build replacement, does **not** resync secrets. Failed creation,
-declined replacement and cancellation do not start a subsequent copy. Missing or
-invalid folder configuration is an on-demand error. See the
-[lifecycle and recovery details](user-secrets-lifecycle.md).
-
-All selected host originals are snapshotted in memory, parsed and checked against the
-global deny list **before rewriting or any destination write**. Only selected
-scalar values are checked: strings after JSON unescaping, plus number/boolean text;
-null/empty containers have no text. A blocked unmatched value does not prevent a
-safe filtered copy. Appsettings originals that would generate overrides receive
-the same deny check during all-store target preparation, before any destination
-write. A block names the store/key/project, never the value.
-
-`--force` is **on-demand only** and bypasses only matched deny-list policy, not
-invalid configuration/JSON, missing files, policy metadata/destination
-checks, cancellation or transport errors. A warning is reported
-after a successful copy **only if selected original values actually matched**;
-passing `--force` with no match is not an override.
-Automatic copying always enforces the list: `--yes` and replacement consent are
-not force. If validation blocks creation, correct the values/selection. For an
-intentional override, explicitly deselect the blocked stores, create, restore the
-selection, then run `abox user-secrets --force`; restoring selection alone does
-not trigger a copy.
-
-### Appsettings-derived sandbox overrides
-
-Selected stores can also receive sandbox-only endpoint overrides from associated
-projects' appsettings, **without editing project files or requiring a host secrets
-file**. Discovery searches only beneath the selected folder-configuration workspace and
-associates literal `UserSecretsId` declarations without running/evaluating MSBuild.
-Only explicit case-insensitive matches to selected IDs participate. Unrelated,
-computed or import-only IDs do not warn or block generation; their appsettings
-are not read. Explicit matching but conditional, multiple or malformed declarations
-fail safely; see [the association rules](user-secrets-appsettings.md#bounded-discovery-not-application-startup).
-It excludes `.git`, `bin`, `obj`, nCrunch artifacts, escaping directory links and
-cycles. Discovery never selects additional stores; store prefixes still expand
-only existing host directories.
-
-Project-local `appsettings.json` is combined with lowercase
-`appsettings.development.json` (development wins, keys are case-insensitive).
-Selected host keys always win, but still receive eligible endpoint adaptation.
-Existing exact/wildcard/empty key filters apply to copied **and generated** keys.
-Only eligible URL/PostgreSQL/Oracle values needing a host change are generated, not the
-whole appsettings file. A store with no matching project remains copy-only.
-The explicit `Database_Config:Host` + `Database_Config:Port` pair is also supported:
-resolve both keys first and emit only the necessary host override. Unselected
-appsettings port metadata can establish eligibility; filtered-out secrets cannot.
-See [recognized split settings](user-secrets-split-settings.md).
-
-Each create/replacement/explicit copy rebuilds the complete destination, removing
-stale generated entries. Ordinary `run` still performs no copy. Projects sharing a
-store merge compatible generated overrides. A generated key must agree with every
-explicitly associated consumer's required effective value, including remote/unmapped values
-that need no rewrite; conflicts stop all selected stores before any write, with
-value-free store/key/project diagnostics. Supply an authoritative selected host
-key, exclude the key, or use separate stores to resolve a conflict. Unreadable XML
-and unresolved IDs establish no association and do not block generation. Split hosts depending on project port metadata
-also require compatible consumer contexts; an authoritative selected host/port pair
-retains copy-only behavior.
-This bounded discovery does not simulate
-custom providers, environment/CLI overrides or service readiness. See
-[precedence, discovery, refresh and safety details](user-secrets-appsettings.md).
-
-### Paths, transfer and endpoint rewriting
-
-The host store is `<APPDATA>/Microsoft/UserSecrets/<id>/secrets.json` when
-`APPDATA` is set, **including on Unix**, otherwise
-`<HOME>/.microsoft/usersecrets/<id>/secrets.json`. Empty/relative environment roots
-fail; abox does not guess another user's profile. Prefixes enumerate only direct
-store directories in that root, not project files or subdirectories. Only selected
-files are read; host files are never changed. The host user-secrets root itself,
-selected store directories and secret files must not be symbolic links/reparse
-points. Linked ancestors above that trusted root (for example a linked user profile)
-are allowed. The sandbox destination is independently resolved from
-the effective, non-root **default exec application user** and its `APPDATA`/`HOME`,
-using the same precedence. An application launched with a different environment
-must use matching roots. No host paths, local kits or published-source checkout
-are needed inside the sandbox. A stopped sandbox may be started by sbx exec;
-a missing sandbox is never created/replaced by this command.
-
-Copying is runtime-only: payloads and integrity frames travel over UTF-8/no-BOM
-stdin, never process arguments, images, build inputs or published artifacts. This
-does not change the separate proxy/host-secret command `abox secrets`.
-
-**Endpoint rewriting (#8, implemented):** abox discovers
-exact TCP `localhost:<port>` declarations from the sandbox's current runtime
-network policy, whether provisioned at creation or explicitly added later. It
-checks each port's **effective** authorization. No local kit files, build records
-or artifact lookup are involved. Only supported URI
-authorities and database connection-string endpoint fields change loopback to
-`host.docker.internal`, keeping the **same published host port**:
-
-```text
-Server=localhost,8004      -> Server=host.docker.internal,8004
-http://127.0.0.1:8006/path -> http://host.docker.internal:8006/path
+```sh
+abox ports [--location <path>] [--offset <n>]
+abox ports [--location <path>] --refresh-https-bootstrap
 ```
 
-Named hosts (including `host.docker.internal`) retain their names/ports for
-TLS/SNI. URL/PostgreSQL/Oracle rewriting includes IPv4/IPv6 loopback. Oracle Easy
-Connect and structural descriptors work standalone or inside `Data Source`
-connection-string values, preserving credentials, service/SID identifiers and
-options; only eligible hosts within compound destinations change. Undeclared ports and
-unrelated credentials, fields, paths and queries remain unchanged. Recognized
-mapped-local endpoints with unsafe/ambiguous syntax fail before any destination
-write, rather than silently retaining known broken configuration. Arbitrary text
-and unmapped localhost references are not errors. A service published as `8004:5432`
-does **not** imply a `5432 -> 8004` rewrite. Wildcard/global/all-port authorization
-is not rewrite intent; a valid empty inventory means no rewrites. Explicit manual
-declarations must match the supported persistent sandbox-scoped, TCP-only schema;
-unknown lifetime/constraint fields are not inferred. Unavailable/malformed
-required metadata fails before writes, not by guessing. There is no host kit-source,
-`/etc/hosts`, experimental `host-port@1` or `sbx ports` lookup and no policy change.
-Authorization is not proof of service availability or protection against later
-policy changes. The accepted live evidence is **local/nonempty + published/empty
-kit policy**; published/nonempty rewriting remains unverified. See the
-[supported forms and rewrite verification](user-secrets-rewriting.md) and
-[verification record](verification/user-secrets/README.md).
-An explicit `sbx policy allow network --sandbox <sandbox> --protocol tcp localhost:1521`
-can declare a missing host port without kit files or recreation. This is a user
-policy change, never an automatic abox grant; see the
-[scoped-policy contract and QA evidence](verification/user-secrets-scoped-policy.md).
+| Option | Meaning | Default |
+|---|---|---|
+| `--location <path>` | The sandbox location | see [sandbox location](#sandbox-location) |
+| `--offset <n>` | Port offset for this run, `-65534`..`65534` | `portOffset` in the folder configuration, then `10000` |
+| `--refresh-https-bootstrap` | Only refresh the HTTPS reader in the sandbox after a CLI upgrade. Cannot be combined with `--offset` | off |
 
-Transfer serializes selected JSON data, not raw source text: destination JSON
-contains no skipped comments or trailing commas. JSON formatting/escape spelling
-is not preserved; unchanged string contents stay unchanged. Destination checks
-close an empty redirected stdin and cannot forward host stdin.
+`ports` scans the folder for explicit .NET and Angular app ports and publishes each on
+host loopback at port + offset: an app on sandbox port `8203` is reachable at
+`http://localhost:18203`. For ASP.NET Core projects it also sets up the development
+HTTPS certificate. Mappings stay after the command exits, and apps are not started.
 
-Rerunning replaces the **entire** destination store, removing old keys. The fixed
-receiver checks the byte count and SHA-256 frame before a same-directory atomic
-rename; short/corrupt/interrupted input cannot commit a truncated file. Secret
-root/store directories are `0700`, files `0600`; symlinks in destination paths,
-nonregular files, multiply-linked files and wrong ownership are rejected. The
-sandbox needs `sh` and GNU-compatible coreutils (`stat`, `mktemp`, `sha256sum`,
-`mv -T`, etc.). No TTY or root exec is used.
+`create` already runs this setup. Run `ports` after changing app ports or to finish a
+failed setup. See [application-ports.md](application-ports.md) for discovery rules,
+offsets, conflicts and recovery, and
+[https-development-certificates.md](https-development-certificates.md) for HTTPS.
 
-### Recovery and limitations
+## `abox user-secrets`
 
-Validation is all-store, but transfer is atomic **per file**, not a
-cross-store transaction. A later transport failure/cancellation can leave earlier
-stores replaced; even a completed rename can be unconfirmed if its acknowledgement
-is lost. No rollback is claimed. Fix the reported problem and rerun
-`abox user-secrets` for the same folder (and explicitly repeat `--force` if needed).
-Errors exit 1, cancellation exits 130. Cancellation before a complete verified
-frame preserves the previous file; a full frame already committed may remain.
-A forcibly killed receiver may leave a private `.secrets.*` temporary file; it is
-not read by .NET. Sandbox removal/replacement removes these runtime files too.
-Atomic replacement is not crash-durable storage or protection from malicious
-concurrent filesystem changes by the application user/root; sandbox contents and
-memory remain accessible to that user, not encrypted.
+```sh
+abox user-secrets [--location <path>] [--force]
+```
 
-If creation succeeded but required copying failed, the sandbox and its new record
-remain; the command fails without a full-success/open message, and `run` does not
-launch. Fix the problem and retry the folder-qualified on-demand command without
-recreating. Live copy verification used Windows sbx v0.51.0; automated Unix paths
-and representative Unix transfer are not independent Unix-host sbx verification.
+| Option | Meaning | Default |
+|---|---|---|
+| `--location <path>` | The sandbox location | see [sandbox location](#sandbox-location) |
+| `--force` | Copy even when a selected value matches `userSecretsDenyList`. Bypasses nothing else | off |
+
+Copies the .NET user-secret stores selected by `userSecrets` in the folder
+configuration from the host into the existing sandbox. It fails when the folder has no
+folder configuration. Each copy replaces the whole destination store.
+
+The folder configuration is writable by the sandbox agent, so review the selection
+before every copy or create. See [user-secrets.md](user-secrets.md) for selection,
+the deny list, endpoint rewriting and recovery.
+
+## `abox secrets`
+
+```sh
+abox secrets list   [--location <path>]
+abox secrets set    [--location <path>] [--service <name>]...
+abox secrets remove [--location <path>] [--service <name>]...
+```
+
+| Subcommand | What it does |
+|---|---|
+| `list` | Lists the services the sandbox's kits ask for and whether a value is stored |
+| `set` | Asks for the values and stores them on the host |
+| `remove` | Removes the stored values from the host |
+
+`--service <name>` limits `set` and `remove` to the named services and can be repeated.
+
+These are the host-side credentials that sbx's proxy injects, not .NET user-secrets.
+The services are read from the folder's existing sandbox, so no team sources are
+needed. Values are stored globally on the host: removing one affects every sandbox
+that uses it. `secrets` does not configure Docker's registry sign-in.
+
+## `abox prune`
+
+```sh
+abox prune [--full] [--sbx]
+```
+
+| Option | Meaning |
+|---|---|
+| `--full` | Try to remove everything sbx holds, not only stale sets. sbx keeps what a sandbox uses |
+| `--sbx` | Stop the running sandboxes first |
+
+Without options, `prune` removes the template images of sbx that are no longer used and
+keeps the newest kit set and the kit sources it is built from. It never removes
+secrets or images of other repositories.
+
+## `abox build`
+
+```sh
+abox build [--team <name>]... [--root <dir>] [--tag <tag>] [--rebuild]
+```
+
+| Option | Meaning | Default |
+|---|---|---|
+| `--team <name>` | Team to build; can be repeated | `defaultTeam` |
+| `--root <dir>` | Folder to start searching for team sources | see [team sources](#team-sources) |
+| `--tag <tag>` | Tag the build is stored under | `defaultTag`, then `latest` |
+| `--rebuild` | Build every component image again, also unchanged ones | off |
+
+Builds one component image per workload, local kit, state mixin and configuration
+mixin of each squad into the host image store, and rebuilds only what changed. Nothing
+is pushed. Needs host Docker with Buildx. See [development.md](development.md) and
+[authoring.md](authoring.md).
+
+## `abox publish`
+
+```sh
+abox publish [--team <name>]... [--root <dir>] [--tag <tag>] [--builder <name>]
+```
+
+| Option | Meaning | Default |
+|---|---|---|
+| `--team <name>` | Team to publish; can be repeated | `defaultTeam` |
+| `--root <dir>` | Folder to start searching for team sources | see [team sources](#team-sources) |
+| `--tag <tag>` | Tag of the local build and of the published set | `defaultTag`, then `latest` |
+| `--builder <name>` | Buildx builder for the set | Docker's selected builder, including `BUILDX_BUILDER` |
+
+Pushes the component images of the build unchanged and publishes the kit set of each
+squad to `rwest.jfrog.io/<publishRepository>`, the repository named in the squad's
+workload. A stale build is refused; run `abox build` again. **Publishing moves the
+chosen tag**, `latest` by default, so use a dedicated `--tag` for tests. Needs Docker
+with Buildx and `docker login rwest.jfrog.io`; it does not need sbx. See
+[development.md](development.md) and [artifact-format.md](artifact-format.md).
+
+### Team sources
+
+Only `build` and `publish` read team sources (the `teams` and `kits` folders). They
+search from the first of these that applies, upwards through its parent folders:
+
+1. `--root <dir>`
+2. the current folder, when team sources are found from there
+3. the user setting `sourceRoot`
+
+If none applies, an interactive run asks for the repository folder and saves it as
+`sourceRoot`; without a terminal the command fails. Inside the repository, the first
+interactive run offers to save that folder as `sourceRoot`.
 
 ## Creating local and published sandboxes
 
-As a reference-naming example (not a promise that this sample is published),
-`abox create --team sample --squad ac --tag latest` pulls
-`rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac:latest`, validates its
-bundled metadata and creates from its immutable platform digest with `--pull always`.
-`abox create --team sample --squad ac --local` uses the component images of the
-local build, wrapped in thin directory kits, with `--pull never`. It does not
-rerun any recipe of the squad. `--local` needs a matching local build record, not
-team files. State mounts and MCP registration come from the bundled `squad.json`:
-the published set's for remote create, the local config image's for `--local`.
+Both ways need a healthy, signed-in sbx and host Docker with Buildx and a running
+engine. Neither reads team sources.
 
-Local build and creation require host Docker with Buildx and a Docker Engine
-context's **docker-driver** builder. `build` records each component image's
-reference, digest and content ID, and the Docker context. `create --local` checks
-those images before replacing any existing sandbox; builds without component
-images (made by older abox versions) and missing/replaced images require a new
-`abox build`, never a silent rebuild. Keep the recorded Docker context available.
+| | Published squad (default) | Local build (`--local`) |
+|---|---|---|
+| Source | Kit set pulled from `rwest.jfrog.io/<pullRepository>` | Component images of `abox build` in the host image store |
+| Needs | `docker login rwest.jfrog.io` with read access | A matching local build for the team, squad and tag |
+| State and MCP settings | From the published set | From the local build |
+| Refresh | Run `abox create` again | `abox run` offers it after a newer build |
 
-Local create still runs sbx's host builder for the thin directory kits (`FROM
-<image>` for the workload, `COPY --from=<image>` for each mixin), loads/reuses layers
-in sbx's separate image store, and composes mixins and runtime declarations. This
-can take time on the first create. Registry kits are pinned by digest and may still
-be fetched; it is not an offline guarantee.
+For example, `abox create --team sample --squad ac --tag latest` pulls
+`rwest.jfrog.io/mtiae-docker-release/agentic-box-rwest-sample/ac:latest`.
 
-Remote create consumes the **already built and processed published set**, including
-its workload, mixins, arguments and v3 declarations. It does not reapply the team's
-local kit sources or use local component images. User-specific overlays on a
-published set are future work, not part of this lifecycle.
+**Local builds.** `create --local` checks that every component image of the build is
+still in the image store before it replaces a sandbox. If one is missing or replaced,
+or the build was made by an older abox, run `abox build` again; `create` never builds.
+Keep the Docker context that was used for the build available. No recipe of the squad
+runs again, but the first create can take time, and registry kits may still be
+fetched, so `--local` does not work fully offline.
 
-## Remote-only workflow
+### Remote-only workflow
 
-From any directory, with no `teams/`, `kits/`, local build or abox user config:
+A published squad needs no checkout, local build or abox user configuration:
 
 ```sh
+docker login rwest.jfrog.io
 abox create --team <team> --squad <squad> --tag <tag> --location "/path/to/project"
 ```
 
-Replace the placeholders with a published team, squad and tag supplied by your
-maintainer. The checked-in `teams/sample` configuration is an example, not evidence
-of a published artifact. For a first run, follow the [README quickstart](../README.md#quickstart).
+Ask your maintainer for the published team, squad and tag; abox cannot discover them.
+`teams/sample` in this repository is example configuration and may not be published.
+Give `--squad` or set `squad` in the folder configuration.
 
-Remote create needs a healthy, signed-in sbx runtime and host Docker with Buildx
-and a running engine. Sign in with `docker login rwest.jfrog.io`, using read access
-to the set and its referenced configuration component. It only inspects/pulls
-published artifacts: no builds, source preparation, publishing or registry writes.
-The small digest-pinned config mixin is read from a temporary Docker-save archive;
-no container is executed. Its image remains in Docker's normal cache. The processed
-set's layers and security declarations are passed unchanged to sbx. No local
-workload/mixin recipes are run or overlaid.
+Remote create only inspects and pulls: nothing is built or pushed, and no local kits
+are applied on top of the published set. If the set's metadata is missing or invalid,
+creation fails before an existing sandbox is removed, even with `--yes`, and a
+maintainer must build and publish the squad again.
 
-Before registry preparation, remote create automatically adds the configured
-`rwest.jfrog.io/<pullRepository>/` prefix to sbx's `kit.allowedSources` when it is
-not already covered. This is a persistent, **repository-scoped trust addition**;
-existing entries (including an existing `*`) are preserved, and no setting is
-written when the repository is already allowed. It never adds a wildcard or trusts
-the whole JFrog host. `--local` does not read or change source trust. Invalid settings,
-administrator restrictions or an environment-controlled allowlist that excludes
-the repository stop creation before registry preparation or sandbox replacement.
-Signature requirements and other sbx security policies remain unchanged.
-Adding to the default list creates an override, freezing those copied defaults
-across future sbx upgrades. `sbx settings unset kit.allowedSources` restores the
-current defaults and discards the entire list override, including the added
-repository trust; a later remote create may add its configured repository again.
+### Source trust
 
-Give `--squad` explicitly or set `squad` in the folder's `abox.yaml` or `abox.user.yaml`
-(a create saves it there): remote squad discovery is not currently supported.
-Missing/invalid bundled metadata, identity/schema mismatches, unsafe state paths,
-missing host-mount declarations and unavailable MCP registrations fail before
-an existing sandbox is removed, even with `--yes`. Older artifacts without the
-required metadata must be rebuilt and republished by a maintainer; local metadata
-is never substituted. `abox run` does not replace pulled sandboxes with local builds.
+sbx only accepts kits from the sources listed in its `kit.allowedSources` setting.
+Before pulling, remote create adds `rwest.jfrog.io/<pullRepository>/` to that list
+unless an existing entry already covers it.
 
-For local builds and publishing, see the
-[development guide](development.md).
+- The addition is persistent and trusts that one repository, not the whole registry.
+  Existing entries are kept and no wildcard is added.
+- `--local` never reads or changes the setting.
+- If the setting is invalid, restricted by an administrator or fixed by an environment
+  override that excludes the repository, creation stops before any registry work or
+  sandbox replacement.
+- The first addition copies sbx's default list into an override, which then no longer
+  follows sbx upgrades. `sbx settings unset kit.allowedSources` restores the defaults
+  and removes the added trust; a later remote create adds its repository again.
