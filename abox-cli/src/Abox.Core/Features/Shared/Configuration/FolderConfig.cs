@@ -12,7 +12,9 @@ internal sealed class FolderConfig
         string? squad,
         IReadOnlyList<UserSecretSelection> userSecrets,
         int? portOffset,
-        bool? terminalTheme
+        bool? terminalTheme,
+        int? memory,
+        int? cpus
     )
     {
         Location = Path.GetFullPath(location);
@@ -20,12 +22,20 @@ internal sealed class FolderConfig
         UserSecrets = userSecrets;
         PortOffset = portOffset;
         TerminalTheme = terminalTheme;
+        Memory = memory;
+        Cpus = cpus;
     }
 
     public string? Squad { get; }
     public IReadOnlyList<UserSecretSelection> UserSecrets { get; }
     public int? PortOffset { get; }
     public bool? TerminalTheme { get; }
+
+    /// <summary>The memory of the sandbox in GB; null leaves the sbx default.</summary>
+    public int? Memory { get; }
+
+    /// <summary>The CPUs of the sandbox; null leaves the sbx default.</summary>
+    public int? Cpus { get; }
     internal string Location { get; }
 
     /// <summary>Select from the entry-time snapshot; never reread or write folder configuration.</summary>
@@ -88,6 +98,79 @@ internal sealed class FolderConfig
         return merged is null ? null : Decode(location, merged);
     }
 
+    /// <summary>
+    /// Saves the given memory (GB) and CPUs in the folder's abox.user.yaml, so later creates
+    /// use them. Only the top-level <c>memory</c> and <c>cpus</c> lines are replaced or
+    /// added; the rest of the file, comments included, stays as it is. Nothing is written
+    /// unless the result is a valid folder configuration file.
+    /// </summary>
+    public static async Task SaveResourcesAsync(
+        string location,
+        int? memory,
+        int? cpus,
+        IYamlParser parser,
+        CancellationToken cancellationToken
+    )
+    {
+        if (memory is null && cpus is null)
+            return;
+        var path = Path.Combine(location, UserFile);
+        try
+        {
+            var yaml = File.Exists(path)
+                ? await File.ReadAllTextAsync(
+                    path,
+                    new UTF8Encoding(false, true),
+                    cancellationToken
+                )
+                : string.Empty;
+            if (memory is { } gigabytes)
+                yaml = WithTopLevelValue(yaml, MemoryKey, gigabytes);
+            if (cpus is { } count)
+                yaml = WithTopLevelValue(yaml, CpusKey, count);
+            var saved = Decode(location, parser.Read(yaml, path));
+            if (
+                (memory is not null && saved.Memory != memory)
+                || (cpus is not null && saved.Cpus != cpus)
+            )
+                throw new AboxException(
+                    $"Cannot save '{MemoryKey}' and '{CpusKey}' in '{path}'. Set them there by hand."
+                );
+            await File.WriteAllTextAsync(path, yaml, new UTF8Encoding(false), cancellationToken);
+        }
+        catch (DecoderFallbackException)
+        {
+            throw new AboxException($"'{path}' has invalid UTF-8. Fix the folder configuration.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new AboxException(
+                $"Cannot write '{path}'. Check the folder and file permissions."
+            );
+        }
+    }
+
+    private static string WithTopLevelValue(string yaml, string key, int value)
+    {
+        var newLine = yaml.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        List<string> lines = yaml.Length == 0 ? [] : [.. yaml.Split(newLine)];
+        if (lines.Count > 0 && lines[^1].Length == 0)
+            lines.RemoveAt(lines.Count - 1);
+        var entry = $"{key}: {value}";
+        var index = lines.FindIndex(line =>
+            line.StartsWith(key, StringComparison.Ordinal)
+            && line[key.Length..].TrimStart(' ', '\t').StartsWith(':')
+        );
+        if (index >= 0)
+            lines[index] = entry;
+        else
+            lines.Add(entry);
+        return string.Join(newLine, lines) + newLine;
+    }
+
+    public const string MemoryKey = "memory";
+    public const string CpusKey = "cpus";
+
     public const string SharedFile = "abox.yaml";
     public const string UserFile = "abox.user.yaml";
 
@@ -141,7 +224,14 @@ internal sealed class FolderConfig
 
     private static FolderConfig Decode(string location, YamlReader reader)
     {
-        reader.RejectUnknownKeys("squad", "userSecrets", "portOffset", "terminalTheme");
+        reader.RejectUnknownKeys(
+            "squad",
+            "userSecrets",
+            "portOffset",
+            "terminalTheme",
+            MemoryKey,
+            CpusKey
+        );
         var portOffset = reader.GetInteger("portOffset");
         if (portOffset is { } offset)
             ValidatePortOffset(offset, reader.SourceOf("portOffset"));
@@ -150,8 +240,20 @@ internal sealed class FolderConfig
             ReadSquad(reader),
             UserSecretSelection.Parse(reader),
             portOffset,
-            reader.GetBoolean("terminalTheme")
+            reader.GetBoolean("terminalTheme"),
+            ReadPositive(reader, MemoryKey),
+            ReadPositive(reader, CpusKey)
         );
+    }
+
+    private static int? ReadPositive(YamlReader reader, string key)
+    {
+        var value = reader.GetInteger(key);
+        if (value is < 1)
+            throw new AboxException(
+                $"'{reader.SourceOf(key)}': '{key}' must be a whole number of at least 1."
+            );
+        return value;
     }
 
     private static string? ReadSquad(YamlReader reader)

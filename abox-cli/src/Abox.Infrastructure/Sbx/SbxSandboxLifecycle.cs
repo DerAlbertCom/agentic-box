@@ -1,3 +1,4 @@
+using System.Globalization;
 using Abox.Features.Shared.Sandboxes;
 
 namespace Abox.Infrastructure.Sbx;
@@ -63,6 +64,18 @@ internal sealed class SbxSandboxLifecycle(SbxInvoker invoker) : ISandboxLifecycl
         {
             arguments.Add("--mount");
             arguments.Add($"{mount.HostPath}:{mount.SandboxPath}");
+        }
+
+        if (definition.Memory is { } memory)
+        {
+            arguments.Add("--memory");
+            arguments.Add(memory.ToString(CultureInfo.InvariantCulture) + "g");
+        }
+
+        if (definition.Cpus is { } cpus)
+        {
+            arguments.Add("--cpus");
+            arguments.Add(cpus.ToString(CultureInfo.InvariantCulture));
         }
 
         if (definition.StaticMcpServers.Count > 0)

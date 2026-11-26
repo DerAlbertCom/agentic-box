@@ -6,6 +6,7 @@ using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Sandboxes;
 
@@ -18,6 +19,8 @@ namespace Abox.Features.Shared.Sandboxes;
 /// <param name="AssumeYes">Whether the replacement of an existing sandbox is confirmed already.</param>
 /// <param name="Local">Whether to use local kits instead of pulling the published set.</param>
 /// <param name="ExistingSandbox">The actual identity already selected for an accepted run replacement, if any.</param>
+/// <param name="Memory">The memory in GB given for this create; saved in abox.user.yaml once the sandbox is created. Null uses the folder configuration, then the sbx default.</param>
+/// <param name="Cpus">The CPUs given for this create; saved like <paramref name="Memory"/>.</param>
 internal sealed record SandboxCreationRequest(
     SquadResolver.ResolvedTeam Team,
     string? Squad,
@@ -26,7 +29,9 @@ internal sealed record SandboxCreationRequest(
     FolderConfig? FolderConfig,
     bool AssumeYes = false,
     bool Local = false,
-    SandboxInfo? ExistingSandbox = null
+    SandboxInfo? ExistingSandbox = null,
+    int? Memory = null,
+    int? Cpus = null
 );
 
 /// <summary>
@@ -43,7 +48,8 @@ internal sealed class SandboxCreator(
     RemoteSquadSource remote,
     UserSecretsCopy userSecrets,
     AppPorts appPorts,
-    SquadCredentials credentials
+    SquadCredentials credentials,
+    IYamlParser parser
 )
 {
     /// <summary>Creates the sandbox and returns the exit code of the command.</summary>
@@ -131,7 +137,9 @@ internal sealed class SandboxCreator(
                 {
                     streamed = true;
                     console.WriteLine(line.Length > 0 ? "  " + line : line);
-                }
+                },
+                Memory: request.Memory ?? folderConfig?.Memory,
+                Cpus: request.Cpus ?? folderConfig?.Cpus
             ),
             cancellationToken
         );
@@ -165,6 +173,8 @@ internal sealed class SandboxCreator(
             }
         );
 
+        await SaveResourcesAsync(request, location, cancellationToken);
+
         if (folderConfig is not null)
         {
             await CopyUserSecretsAsync(preparedSecrets, preparedPorts, name, cancellationToken);
@@ -175,6 +185,34 @@ internal sealed class SandboxCreator(
         console.WriteLine($"Created sandbox '{name}' for '{location}'.");
         console.WriteLine($"Open it with: abox run --location {location}");
         return 0;
+    }
+
+    /// <summary>
+    /// Saves the memory and CPUs given for this create in abox.user.yaml. The sandbox exists
+    /// already, so a failure is reported and the create goes on.
+    /// </summary>
+    private async Task SaveResourcesAsync(
+        SandboxCreationRequest request,
+        string location,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            await FolderConfig.SaveResourcesAsync(
+                location,
+                request.Memory,
+                request.Cpus,
+                parser,
+                cancellationToken
+            );
+        }
+        catch (AboxException exception)
+        {
+            console.WriteError(
+                $"The sandbox was created, but its memory and CPUs were not saved: {exception.Message}"
+            );
+        }
     }
 
     private async Task CopyUserSecretsAsync(

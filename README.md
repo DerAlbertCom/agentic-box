@@ -171,9 +171,11 @@ squad: your-squad
 portOffset: 10000
 ```
 
-Both files are optional and accept `squad`, `portOffset`, `terminalTheme` and
-`userSecrets`. Personal values override shared ones; **lists replace, not append**.
-Unknown keys and invalid YAML fail. abox never writes these files or `.gitignore`.
+Both files are optional and accept `squad`, `portOffset`, `terminalTheme`,
+`userSecrets`, `memory` (GB) and `cpus`. Personal values override shared ones; **lists
+replace, not append**. Unknown keys and invalid YAML fail. abox never writes
+`abox.yaml` or `.gitignore`; `abox create --memory <GB> --cpus <n>` saves the sandbox
+size in `abox.user.yaml`, and later creates use it when the options are left out.
 See the [full folder configuration rules](docs/cli-reference.md#folder-configuration).
 
 ### User settings

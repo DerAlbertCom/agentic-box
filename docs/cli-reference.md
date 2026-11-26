@@ -12,7 +12,7 @@ and the [authoring guide](authoring.md).
 | `abox build --team <name> [--root <dir>] [--tag <tag>] [--no-verify] [--no-personal]` | Prebuilds reusable local workload images with Docker Buildx and prepares the v3 kits of every squad. No registry writes. |
 | `abox build --team <name> --metadata-only` | Maintainer-only source preparation without image builds. Clears local image selection for this tag; not required for remote create. |
 | `abox publish --team <name> [--root <dir>] [--tag <tag>] [--builder <name>]` | Builds and pushes the local kit sets to `rwest.jfrog.io/<publishRepository>`, configured in each workload. Requires Docker Buildx and host registry sign-in. |
-| `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--root <dir>] [--yes]` | Pulls a self-contained published squad set, or uses a local prebuild with `--local`. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying. Only local create can ask for an otherwise omitted squad; `--root` locates its team sources separately from the sandbox location. `--yes` confirms replacement. |
+| `abox create --team <name> [--squad <name>] [--location <path>] [--tag <tag>] [--local] [--root <dir>] [--memory <GB>] [--cpus <n>] [--yes]` | Pulls a self-contained published squad set, or uses a local prebuild with `--local`. The [folder configuration](#folder-configuration) can select the squad and opt into user-secret copying. Only local create can ask for an otherwise omitted squad; `--root` locates its team sources separately from the sandbox location. `--memory` (whole GB) and `--cpus` size the sandbox; see [sandbox size](#sandbox-size). `--yes` confirms replacement. |
 | `abox run [<launcher>] [--location <path>] [--terminal-theme <true\|false>] [-- <argv>...]` | Starts a launcher for the sandbox of a folder. The default launcher is a shell. `--terminal-theme` decides for this run whether the sandbox sets the terminal colors from its theme (see [Terminal colors](#terminal-colors)). |
 | `abox prune [--full] [--sbx]` | Removes the template images of sbx that stopped being used. `--full` reaches for everything sbx holds, `--sbx` stops the running sandboxes first. |
 | `abox secrets list\|set\|remove [--location <path>]` | The host secrets the kits of the folder's existing sandbox ask for, read from inside the sandbox; no team sources needed. `set` and `remove` also accept repeatable `--service <name>`; `list` does not. Values are stored globally on the host. |
@@ -130,7 +130,7 @@ portOffset: 20000
 
 For sandbox port 8203, `abox ports` now requests host 28203. `abox ports --offset 30000`
 requests 38203 instead. Precedence is **`--offset`, `portOffset` in `abox.user.yaml`, then `abox.yaml`, 10000**;
-there is no global setting, no file is required, and abox never writes configuration.
+there is no global setting, no file is required, and abox never writes `portOffset`.
 Offsets are decimal integers **-65534..65534**; zero keeps the same port number and
 negative offsets subtract. Every resulting host port must still be **1..65535**.
 Fractions, exponent notation, overflow and out-of-range mappings fail before publishing.
@@ -223,7 +223,8 @@ userSecrets: [shared-store]
 userSecrets: [shared-store, my-dev-store]
 ```
 
-- The keys are `squad`, `userSecrets`, `portOffset` and `terminalTheme`. Every key is allowed in both files.
+- The keys are `squad`, `userSecrets`, `portOffset`, `terminalTheme`, `memory` and
+  `cpus`. Every key is allowed in both files.
 - `abox.user.yaml` overrides `abox.yaml`: a value or list in the user file replaces
   the one in the shared file as a whole (the example selects both stores; it does
   not append), and keys it does not set keep their shared value. Dictionaries are
@@ -236,7 +237,30 @@ userSecrets: [shared-store, my-dev-store]
 - `abox.json` and `abox.user.json` are no longer read: if either exists, commands
   fail and ask you to rename it to `abox.yaml` or `abox.user.yaml` (the content is
   now YAML). `.yml` files are not recognised.
-- abox never writes either file and never touches `.gitignore`.
+- abox never writes `abox.yaml` and never touches `.gitignore`. It writes
+  `abox.user.yaml` only to save the [sandbox size](#sandbox-size) given to `abox create`.
+
+## Sandbox size
+
+`abox create --memory <GB> --cpus <n>` sizes the sandbox: `--memory` is a whole number
+of GB (passed to sbx as `<GB>g`), `--cpus` a whole number of CPUs, both at least 1.
+Precedence for each is **the option, `memory`/`cpus` in `abox.user.yaml`, then
+`abox.yaml`, then the sbx default** (see `sbx create --help`). Without any of them,
+abox passes neither flag. A sandbox that
+`abox run` recreates uses the folder configuration the same way.
+
+```yaml
+# abox.user.yaml
+memory: 16
+cpus: 8
+```
+
+Once the sandbox is created, the values given as options are saved in the location's
+`abox.user.yaml`, so the next create without them uses the same size. Only the top-level
+`memory` and `cpus` lines are replaced or added; the rest of the file, comments
+included, stays. If the file cannot be updated that way (for example a flow-style
+`{...}` document) or written, abox reports it, leaves the file unchanged, and the create
+still completes.
 
 ## Terminal colors
 

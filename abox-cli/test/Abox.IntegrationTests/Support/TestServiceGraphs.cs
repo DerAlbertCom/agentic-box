@@ -85,7 +85,8 @@ internal static class TestServiceGraphs
                 secrets ?? HostSecretStore(),
                 approvals ?? Substitute.For<ICredentialApprovals>(),
                 console
-            )
+            ),
+            new YamlDotNetParser()
         );
 
     /// <summary>The credential check of a squad from the personal configurations of the test.</summary>

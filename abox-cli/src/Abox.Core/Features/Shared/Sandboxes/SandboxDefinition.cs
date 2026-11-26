@@ -11,6 +11,8 @@ namespace Abox.Features.Shared.Sandboxes;
 /// <param name="PullPolicy">Whether to refresh registry kits or use only local templates.</param>
 /// <param name="HostImageStore">The host image store holding a prebuilt local workload; the kits are then built on the host.</param>
 /// <param name="Progress">Receives each line the runtime writes while it creates, in arrival order, with known secrets redacted.</param>
+/// <param name="Memory">The memory of the sandbox in GB; null leaves the runtime's default.</param>
+/// <param name="Cpus">The CPUs of the sandbox; null leaves the runtime's default.</param>
 public sealed record SandboxDefinition(
     string KitSource,
     string Location,
@@ -21,5 +23,7 @@ public sealed record SandboxDefinition(
     IReadOnlyList<string> StaticMcpServers,
     PullPolicy PullPolicy = PullPolicy.Never,
     string? HostImageStore = null,
-    Action<string>? Progress = null
+    Action<string>? Progress = null,
+    int? Memory = null,
+    int? Cpus = null
 );
