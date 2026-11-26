@@ -91,12 +91,14 @@ internal static class PublishedRuntimeMetadata
         }
     }
 
+    // A processed descriptor mixes plain capabilities with {"group": {...}} wrappers that have no type of their own.
     private static bool HasHostMount(JsonElement descriptor, string path) =>
         descriptor
             .GetProperty("capabilities")
             .EnumerateArray()
             .Any(capability =>
-                capability.GetProperty("type").GetString() == "com.docker.sandbox/host-mount@1"
+                capability.TryGetProperty("type", out var type)
+                && type.GetString() == "com.docker.sandbox/host-mount@1"
                 && capability.GetProperty("config").GetProperty("path").GetString() == path
             );
 
