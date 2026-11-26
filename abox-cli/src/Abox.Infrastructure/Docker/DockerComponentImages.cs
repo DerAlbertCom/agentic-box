@@ -135,6 +135,19 @@ internal sealed class DockerComponentImages(IHostPrograms programs, IProcessRunn
         return result.Succeeded && ImageReferences.IsDigest(id) ? id : null;
     }
 
+    public async Task SaveAsync(
+        string context,
+        string reference,
+        string archive,
+        CancellationToken cancellationToken
+    ) =>
+        await _docker.RunAsync(
+            ["--context", context, "image", "save", "--output", archive, reference],
+            false,
+            OperationFailure,
+            cancellationToken
+        );
+
     public async Task<string> ImageIdAsync(
         string context,
         string reference,

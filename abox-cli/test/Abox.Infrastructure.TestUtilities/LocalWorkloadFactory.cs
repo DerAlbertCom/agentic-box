@@ -1,8 +1,14 @@
+using System.Collections.Concurrent;
+using System.Formats.Tar;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Common;
+using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.Sandboxes;
 using Abox.Infrastructure;
 using Abox.Infrastructure.Docker;
 using NSubstitute;
@@ -14,6 +20,9 @@ internal static class LocalWorkloadFactory
 {
     /// <summary>The content ID the synthetic image store reports for every image.</summary>
     public static readonly string ImageId = "sha256:" + new string('a', 64);
+
+    // The kit directory each built reference came from, so a saved image carries its files.
+    private static readonly ConcurrentDictionary<string, string> Built = new();
 
     public static IProcessRunner Runner()
     {
@@ -41,17 +50,19 @@ internal static class LocalWorkloadFactory
         var arguments = request.Arguments.ToList();
         if (arguments.Contains("--metadata-file"))
         {
+            var reference = arguments[arguments.IndexOf("--tag") + 1];
+            Built[reference] = arguments[^1];
             File.WriteAllText(
                 arguments[arguments.IndexOf("--metadata-file") + 1],
                 JsonSerializer.Serialize(
-                    new Dictionary<string, string>
-                    {
-                        ["containerimage.digest"] = Digest(
-                            arguments[arguments.IndexOf("--tag") + 1]
-                        ),
-                    }
+                    new Dictionary<string, string> { ["containerimage.digest"] = Digest(reference) }
                 )
             );
+        }
+
+        if (arguments.Contains("save") && arguments.Contains("image"))
+        {
+            SaveImage(arguments[arguments.IndexOf("--output") + 1], arguments[^1]);
         }
 
         return new(
@@ -66,30 +77,123 @@ internal static class LocalWorkloadFactory
         );
     }
 
-    public static LocalWorkloadImages Images(IProcessRunner? runner = null) =>
-        Images(Programs(), runner ?? Runner());
+    /// <summary>The local image store of the synthetic Docker.</summary>
+    public static DockerComponentImages Images(
+        IHostPrograms? programs = null,
+        IProcessRunner? runner = null
+    ) => new(programs ?? Programs(), runner ?? Runner());
 
-    /// <summary>Local workload images backed by the Docker adapter and the given fakes.</summary>
-    public static LocalWorkloadImages Images(IHostPrograms programs, IProcessRunner runner) =>
-        new(new DockerComponentImages(programs, runner));
+    /// <summary>The local squad source on the synthetic Docker, or on the given runner.</summary>
+    public static LocalSquadSource Source(
+        BuildStore store,
+        IProcessRunner? runner = null,
+        IHostPrograms? programs = null,
+        IConsole? console = null
+    ) => new(store, Images(programs, runner), new YamlDotNetParser(), console ?? new TestConsole());
 
-    /// <summary>A prebuilt workload image with its thin runtime kit, as a build records it.</summary>
-    public static LocalWorkloadImage Artifact(TempDirectory root)
+    /// <summary>
+    /// Gives a hand-made build record the component images a build would have made: one per
+    /// local kit, state and configuration, in the synthetic image store, with a configuration
+    /// image that bundles the record's metadata.
+    /// </summary>
+    public static BuildManifest WithImages(TempDirectory root, BuildManifest build)
     {
-        var source = root.File(
-            "source/workload.yaml",
-            "# syntax=docker/sandbox-kit:3\nschemaVersion: \"3\"\nkind: workload\n"
-        );
-        var runtime = Path.Combine(root.Path, "runtime", "workload");
-        const string reference = "rwest.jfrog.io/repo/components/workload:1";
-        LocalWorkloadImages.WriteRuntimeKit(Path.GetDirectoryName(source)!, runtime, reference);
-        return new LocalWorkloadImage
+        if (!ImageName.TryParseTeam(build.Reference, build.Tag, out var team))
+            throw new InvalidOperationException("The build record has no team.");
+        var repository =
+            "rwest.jfrog.io/test-images-local/"
+            + new SquadBuildIdentity(team, build.Squad, build.Tag).Repository
+            + "/components/";
+        // A tag of its own keeps parallel tests with the same squad apart.
+        var tag = Guid.NewGuid().ToString("N");
+        BuildComponent Component(string name, string kind, string descriptor)
         {
-            Reference = reference,
-            ImageId = ImageId,
-            ImageStore = "test-context",
-            RuntimeKitDirectory = runtime,
-            RuntimeKitHash = BuildSources.DirectoryHash(runtime),
-        };
+            var reference = $"{repository}{name}:{tag}";
+            return new BuildComponent
+            {
+                Name = name,
+                Kind = kind,
+                Reference = reference,
+                Digest = Digest(reference),
+                ImageId = ImageId,
+                InputHash = tag,
+                Descriptor = descriptor,
+                DescriptorFile = name.Split('/')[^1] + ".yaml",
+            };
+        }
+
+        // A build always dates its configuration; squad.json without a date is invalid.
+        if (build.CreatedAt == default)
+            build.CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        build.ImageStore = "test-context";
+        build.Components = [Component("workload", ComponentKind.Workload, "kind: workload\n")];
+        foreach (var kit in build.Kits.Where(kit => kit.IsLocal))
+        {
+            kit.Component = ComponentNames.Kit(kit.Name);
+            build.Components.Add(Component(kit.Component, ComponentKind.Mixin, "kind: mixin\n"));
+        }
+        if (build.State.Count > 0)
+        {
+            build.Components.Add(
+                Component(
+                    "state",
+                    ComponentKind.Mixin,
+                    "kind: mixin\ncapabilities:\n"
+                        + string.Concat(
+                            build.State.Select(state =>
+                                "  - type: com.docker.sandbox/host-mount@1\n    config:\n      path: "
+                                + JsonSerializer.Serialize(state.SandboxPath)
+                                + "\n"
+                            )
+                        )
+                )
+            );
+        }
+        var config = Component("config", ComponentKind.Mixin, "kind: mixin\n");
+        build.Components.Add(config);
+        Load(
+            config.Reference,
+            SquadConfigurationMixin.Generate(
+                team,
+                build,
+                [],
+                Path.Combine(root.Path, "images", Guid.NewGuid().ToString("N"), "config")
+            )
+        );
+        return build;
+    }
+
+    /// <summary>Puts an image built from <paramref name="directory"/> into the synthetic image store.</summary>
+    public static void Load(string reference, string directory) => Built[reference] = directory;
+
+    /// <summary>Saves an image as Docker does: one layer with the files of the kit it was built from.</summary>
+    private static void SaveImage(string archive, string reference)
+    {
+        using var layer = new MemoryStream();
+        using (var writer = new TarWriter(layer, leaveOpen: true))
+        {
+            if (
+                Built.TryGetValue(reference, out var directory)
+                && File.Exists(Path.Combine(directory, "squad.json"))
+            )
+            {
+                Write(
+                    writer,
+                    "usr/share/abox/squad.json",
+                    File.ReadAllBytes(Path.Combine(directory, "squad.json"))
+                );
+            }
+        }
+
+        using var file = File.Create(archive);
+        using var outer = new TarWriter(file);
+        Write(outer, "manifest.json", Encoding.UTF8.GetBytes("[{\"Layers\":[\"layer.tar\"]}]"));
+        Write(outer, "layer.tar", layer.ToArray());
+    }
+
+    private static void Write(TarWriter writer, string name, byte[] bytes)
+    {
+        using var data = new MemoryStream(bytes);
+        writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name) { DataStream = data });
     }
 }

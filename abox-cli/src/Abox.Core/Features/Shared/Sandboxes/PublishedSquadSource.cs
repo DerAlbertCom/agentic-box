@@ -83,10 +83,10 @@ internal sealed class PublishedSquadSource(IPublishedImageReader registry, ICons
         );
         var archive = Path.Combine(directory, "config.tar");
         await registry.SaveAsync(config, "linux/" + architecture, archive, cancellationToken);
-        var metadata = PublishedRuntimeMetadata.Read(
-            PublishedConfigArchive.Read(archive),
+        var metadata = PublishedRuntimeMetadata.ReadImage(
+            archive,
             identity,
-            descriptor
+            PublishedRuntimeMetadata.HostMounts(descriptor)
         );
         return new PublishedSquad(pinned, metadata);
     }

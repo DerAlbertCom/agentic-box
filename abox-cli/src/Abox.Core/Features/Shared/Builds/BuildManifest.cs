@@ -29,9 +29,6 @@ internal sealed class BuildManifest
     /// <summary>The directory of the generated workload kit.</summary>
     public string WorkloadKitDirectory { get; set; } = string.Empty;
 
-    /// <summary>The prebuilt workload image and its thin v3 runtime kit; null on older manifests.</summary>
-    public LocalWorkloadImage? LocalWorkload { get; set; }
-
     /// <summary>The directory of the generated mixin that declares the state directories.</summary>
     public string? StateMixinDirectory { get; set; }
 
@@ -83,6 +80,17 @@ internal static class ComponentKind
     public const string Mixin = "mixin";
 }
 
+/// <summary>The names of the components every build has, under the squad's <c>components</c> repository.</summary>
+internal static class ComponentNames
+{
+    public const string Workload = "workload";
+    public const string State = "state";
+    public const string Configuration = "config";
+
+    /// <summary>The component name of a local kit.</summary>
+    public static string Kit(string kit) => "kits/" + kit.ToLowerInvariant();
+}
+
 /// <summary>A component image of a local build, named with its final registry name.</summary>
 internal sealed class BuildComponent
 {
@@ -107,21 +115,11 @@ internal sealed class BuildComponent
     /// <summary>The text of the component's kit descriptor.</summary>
     public string Descriptor { get; set; } = string.Empty;
 
+    /// <summary>The file name of the component's kit descriptor, such as <c>sbox.yaml</c>.</summary>
+    public string DescriptorFile { get; set; } = string.Empty;
+
     /// <summary>The kit directory the image was built from.</summary>
     public string Directory { get; set; } = string.Empty;
-}
-
-/// <summary>A unique local tag guarded by its immutable content ID.</summary>
-internal sealed class LocalWorkloadImage
-{
-    public string Reference { get; set; } = string.Empty;
-    public string ImageId { get; set; } = string.Empty;
-
-    /// <summary>The host image store holding the image; earlier builds recorded it under this name.</summary>
-    [JsonPropertyName("DockerContext")]
-    public string ImageStore { get; set; } = string.Empty;
-    public string RuntimeKitDirectory { get; set; } = string.Empty;
-    public string RuntimeKitHash { get; set; } = string.Empty;
 }
 
 /// <summary>A kit of a local build.</summary>

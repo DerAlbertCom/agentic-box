@@ -6,9 +6,24 @@ using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Shared.Sandboxes;
 
-/// <summary>Decodes authoritative published runtime settings, including legacy schema compatibility.</summary>
+/// <summary>
+/// Decodes the authoritative runtime settings of a squad from its config mixin image, saved
+/// as an archive: the one way published and local builds are read, including legacy schema
+/// compatibility.
+/// </summary>
 internal static class PublishedRuntimeMetadata
 {
+    /// <summary>
+    /// The runtime settings in the <c>squad.json</c> of a saved config mixin image.
+    /// <paramref name="hostMounts"/> are the paths the squad's kits declare host mounts for;
+    /// every state directory needs one.
+    /// </summary>
+    internal static BuildManifest ReadImage(
+        string archive,
+        SquadBuildIdentity expected,
+        IReadOnlyCollection<string> hostMounts
+    ) => Read(PublishedConfigArchive.Read(archive), expected, hostMounts);
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         RespectNullableAnnotations = true,
@@ -17,7 +32,7 @@ internal static class PublishedRuntimeMetadata
     internal static BuildManifest Read(
         string json,
         SquadBuildIdentity expected,
-        JsonElement descriptor
+        IReadOnlyCollection<string> hostMounts
     )
     {
         using var document = JsonDocument.Parse(json);
@@ -36,7 +51,7 @@ internal static class PublishedRuntimeMetadata
             || mcp.Any(item => item is null)
         )
             throw new JsonException("Incomplete runtime metadata.");
-        ValidateState(state, descriptor);
+        ValidateState(state, hostMounts);
         ValidateMcp(mcp);
         return new BuildManifest
         {
@@ -69,7 +84,10 @@ internal static class PublishedRuntimeMetadata
             throw new JsonException("Squad metadata identity mismatch.");
     }
 
-    private static void ValidateState(IReadOnlyList<ManifestState> state, JsonElement descriptor)
+    private static void ValidateState(
+        IReadOnlyList<ManifestState> state,
+        IReadOnlyCollection<string> hostMounts
+    )
     {
         try
         {
@@ -86,21 +104,28 @@ internal static class PublishedRuntimeMetadata
 
         foreach (var entry in state)
         {
-            if (!HasHostMount(descriptor, entry.SandboxPath))
+            if (!hostMounts.Contains(entry.SandboxPath))
                 throw new JsonException("Unsafe state path or missing host-mount declaration.");
         }
     }
 
+    /// <summary>The host-mount paths a processed set descriptor declares.</summary>
     // A processed descriptor mixes plain capabilities with {"group": {...}} wrappers that have no type of their own.
-    private static bool HasHostMount(JsonElement descriptor, string path) =>
+    internal static IReadOnlyCollection<string> HostMounts(JsonElement descriptor) =>
         descriptor
             .GetProperty("capabilities")
             .EnumerateArray()
-            .Any(capability =>
+            .Where(capability =>
                 capability.TryGetProperty("type", out var type)
-                && type.GetString() == "com.docker.sandbox/host-mount@1"
-                && capability.GetProperty("config").GetProperty("path").GetString() == path
-            );
+                && type.GetString() == HostMountCapability
+            )
+            .Select(capability =>
+                capability.GetProperty("config").GetProperty("path").GetString() ?? ""
+            )
+            .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>The capability a kit declares a host mount with.</summary>
+    internal const string HostMountCapability = "com.docker.sandbox/host-mount@1";
 
     private static void ValidateMcp(IReadOnlyList<ManifestMcp> mcp)
     {

@@ -2,6 +2,7 @@ using Abox.Cli;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
@@ -125,9 +126,7 @@ public sealed class CreateCommandTests : IDisposable
         await _lifecycle
             .Received(1)
             .CreateAsync(
-                Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource == Path.Combine(_root.Path, "runtime", "workload")
-                ),
+                Arg.Is<SandboxDefinition>(request => request.KitSource == ThinWorkload),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -164,8 +163,7 @@ public sealed class CreateCommandTests : IDisposable
             .Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource == Path.Combine(_root.Path, "runtime", "workload")
-                    && request.PullPolicy == PullPolicy.Never
+                    request.KitSource == ThinWorkload && request.PullPolicy == PullPolicy.Never
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -362,6 +360,15 @@ public sealed class CreateCommandTests : IDisposable
         }
     }
 
+    private string ThinWorkload =>
+        Path.Combine(
+            new BuildStore(
+                AboxPaths.For(Path.Combine(_root.Path, "config"), Path.Combine(_root.Path, "state"))
+            ).DirectoryFor(new SquadBuildIdentity("sample", "ac", "release")),
+            LocalSquadSource.ThinKitsFolderName,
+            "workload"
+        );
+
     private CliTestApplication Command(string yaml)
     {
         _root.File("teams/sample/ac.abox", "workload: sample\n");
@@ -380,14 +387,16 @@ public sealed class CreateCommandTests : IDisposable
         };
         var store = new BuildStore(paths);
         store.Save(
-            new BuildManifest
-            {
-                Squad = "ac",
-                Tag = "release",
-                Reference = "agentic-box-rwest-sample:release",
-                WorkloadKitDirectory = "/kits/workload",
-                LocalWorkload = LocalWorkloadFactory.Artifact(_root),
-            }
+            LocalWorkloadFactory.WithImages(
+                _root,
+                new BuildManifest
+                {
+                    Squad = "ac",
+                    Tag = "release",
+                    Reference = "agentic-box-rwest-sample:release",
+                    WorkloadKitDirectory = "/kits/workload",
+                }
+            )
         );
         ReadyRuntime();
         var programs = Substitute.For<IHostPrograms>();

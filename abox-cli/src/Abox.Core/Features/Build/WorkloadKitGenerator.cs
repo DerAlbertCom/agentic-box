@@ -15,6 +15,9 @@ internal sealed class WorkloadKitGenerator
     private const string CertificateBundleName = "rwe_inspection_certificate_chain.pem";
     private const string ContainerCertificatesDirectory = "/usr/local/share/ca-certificates/abox";
 
+    /// <summary>The name of the generated workload kit descriptor, without the extension.</summary>
+    public const string KitName = "workload";
+
     /// <summary>The directory the scripts of the workload are copied into.</summary>
     public const string ScriptsDirectoryName = "scripts";
 
@@ -61,7 +64,7 @@ internal sealed class WorkloadKitGenerator
             .ToString();
 
         File.WriteAllText(
-            Path.Combine(targetDirectory, LocalWorkloadImages.WorkloadKitName + ".yaml"),
+            Path.Combine(targetDirectory, KitName + ".yaml"),
             descriptor.ReplaceLineEndings("\n")
         );
     }
@@ -99,7 +102,7 @@ internal sealed class WorkloadKitGenerator
         dockerfile.AppendLine("WORKDIR /home/agent/workspace");
 
         File.WriteAllText(
-            Path.Combine(targetDirectory, LocalWorkloadImages.WorkloadKitName + ".dockerfile"),
+            Path.Combine(targetDirectory, KitName + ".dockerfile"),
             dockerfile.ToString().ReplaceLineEndings("\n")
         );
     }

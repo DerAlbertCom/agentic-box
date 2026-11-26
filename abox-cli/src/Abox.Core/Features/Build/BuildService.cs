@@ -37,9 +37,6 @@ internal sealed class BuildService(
     IConsole console
 )
 {
-    /// <summary>The component name of the workload image.</summary>
-    public const string WorkloadComponent = "workload";
-
     /// <summary>
     /// Builds the squads of the teams and returns the exit code of the command. Every squad
     /// is resolved and checked before Docker is used or a build changes.
@@ -113,18 +110,18 @@ internal sealed class BuildService(
         }
 
         var baseImage = await PinAsync(squad.Workload.Template, cancellationToken);
-        var workloadDirectory = Path.Combine(buildDirectory, LocalWorkloadImages.WorkloadKitName);
+        var workloadDirectory = Path.Combine(buildDirectory, WorkloadKitGenerator.KitName);
         workloadGenerator.Generate(squad.Workload, workloadDirectory, PinnedReference(baseImage));
         var workloadSource = new ComponentSource(
-            WorkloadComponent,
+            ComponentNames.Workload,
             ComponentKind.Workload,
             workloadDirectory,
-            Path.Combine(workloadDirectory, LocalWorkloadImages.WorkloadKitName + ".yaml"),
+            Path.Combine(workloadDirectory, WorkloadKitGenerator.KitName + ".yaml"),
             new Dictionary<string, string>(),
             WithGitHubToken: true
         );
-        var workload = await MakeAsync(
-            WorkloadComponent,
+        await MakeAsync(
+            ComponentNames.Workload,
             workloadSource.InputHash,
             () => Task.FromResult(workloadSource)
         );
@@ -143,9 +140,9 @@ internal sealed class BuildService(
         if (squad.State.Count > 0)
         {
             stateGenerator.Generate(squad.State, stateDirectory);
-            var stateSource = MixinSource(StateMixinGenerator.MixinName, stateDirectory);
+            var stateSource = MixinSource(ComponentNames.State, stateDirectory);
             await MakeAsync(
-                StateMixinGenerator.MixinName,
+                ComponentNames.State,
                 stateSource.InputHash,
                 () => Task.FromResult(stateSource)
             );
@@ -167,7 +164,6 @@ internal sealed class BuildService(
         await ConfigurationAsync(team.Name, squad, manifest, buildDirectory, MakeAsync);
 
         manifest.Components = built;
-        manifest.LocalWorkload = RuntimeKit(workload, imageStore, buildDirectory);
         manifest.SourceHashes = BuildSources.Capture(manifest);
         store.Save(manifest);
 
@@ -190,7 +186,7 @@ internal sealed class BuildService(
         CancellationToken cancellationToken
     )
     {
-        var name = "kits/" + kit.Name.ToLowerInvariant();
+        var name = ComponentNames.Kit(kit.Name);
         if (!RegistryImageName.IsValidRepository(kit.Name.ToLowerInvariant()))
         {
             throw new AboxException(
@@ -262,7 +258,7 @@ internal sealed class BuildService(
         SquadConfigurationMixin.Generate(team, manifest, squad.Secrets, directory);
         var source = MixinSource(SquadConfigurationMixin.MixinName, directory);
         await make(
-            SquadConfigurationMixin.MixinName,
+            ComponentNames.Configuration,
             source.InputHash,
             () =>
             {
@@ -358,33 +354,6 @@ internal sealed class BuildService(
                 );
             }
         }
-    }
-
-    private static LocalWorkloadImage RuntimeKit(
-        BuildComponent workload,
-        string imageStore,
-        string buildDirectory
-    )
-    {
-        var runtimeDirectory = Path.Combine(
-            buildDirectory,
-            "runtime",
-            workload.InputHash,
-            LocalWorkloadImages.WorkloadKitName
-        );
-        LocalWorkloadImages.WriteRuntimeKit(
-            workload.Directory,
-            runtimeDirectory,
-            workload.Reference
-        );
-        return new LocalWorkloadImage
-        {
-            Reference = workload.Reference,
-            ImageId = workload.ImageId,
-            ImageStore = imageStore,
-            RuntimeKitDirectory = runtimeDirectory,
-            RuntimeKitHash = BuildSources.DirectoryHash(runtimeDirectory),
-        };
     }
 
     private static BuildManifest Manifest(

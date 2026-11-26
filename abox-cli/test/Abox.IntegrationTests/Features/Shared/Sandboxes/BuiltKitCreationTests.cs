@@ -1,6 +1,7 @@
 using Abox.Features.Build;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
@@ -52,12 +53,24 @@ public sealed class BuiltKitCreationTests
         // Assert
         exitCode.Should().Be(0);
         mixins.Should().NotContain(Path.Combine(Root.Path, "kits", "built"));
-        mixins
+        var component = Component("kits/built");
+        File.Exists(Path.Combine(component.Directory, "generated.txt")).Should().BeTrue();
+        var kit = mixins
             .Should()
-            .ContainSingle(mixin => Path.GetFileName(mixin) == "built")
-            .Which.Should()
-            .Match(mixin => File.Exists(Path.Combine(mixin, "generated.txt")));
+            .ContainSingle(mixin => Path.GetFileName(mixin) == "kits-built")
+            .Which;
+        File.ReadAllText(Path.Combine(kit, "built.dockerfile"))
+            .Should()
+            .Be($"FROM scratch\nCOPY --from={Pinned(component)} / /\n");
     }
+
+    private BuildComponent Component(string name) =>
+        _fixture
+            .Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!
+            .Components.Single(component => component.Name == name);
+
+    private static string Pinned(BuildComponent component) =>
+        component.Reference[..component.Reference.LastIndexOf(':')] + "@" + component.Digest;
 
     [Fact]
     public async Task LocalCreationPassesTheSquadConfigurationMixinOfTheBuild()
@@ -100,10 +113,11 @@ public sealed class BuiltKitCreationTests
             .Should()
             .ContainSingle(mixin => Path.GetFileName(mixin) == "config")
             .Which;
+        var component = Component("config");
         File.ReadAllText(Path.Combine(config, "config.dockerfile"))
             .Should()
-            .Contain("COPY squad.json /usr/share/abox/squad.json");
-        File.ReadAllText(Path.Combine(config, "squad.json"))
+            .Be($"FROM scratch\nCOPY --from={Pinned(component)} / /\n");
+        File.ReadAllText(Path.Combine(component.Directory, "squad.json"))
             .Should()
             .Contain("\"Service\": \"elastic\"")
             .And.Contain("\"Prompt\": \"The API key\"");

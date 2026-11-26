@@ -40,15 +40,17 @@ internal sealed class AppPortsLifecycleFixture : IDisposable
         var paths = AboxPaths.For(Root.CreateDirectory("config"), Root.CreateDirectory("state"));
         Records = new SandboxRecordStore(paths);
         new BuildStore(paths).Save(
-            new BuildManifest
-            {
-                Squad = "ac",
-                Tag = "latest",
-                RootDirectory = Root.Path,
-                Reference = ImageName.OfTeam("sample", "latest"),
-                CreatedAt = OldBuild.AddDays(1),
-                LocalWorkload = LocalWorkloadFactory.Artifact(Root),
-            }
+            LocalWorkloadFactory.WithImages(
+                Root,
+                new BuildManifest
+                {
+                    Squad = "ac",
+                    Tag = "latest",
+                    RootDirectory = Root.Path,
+                    Reference = ImageName.OfTeam("sample", "latest"),
+                    CreatedAt = OldBuild.AddDays(1),
+                }
+            )
         );
         Lifecycle
             .CreateAsync(Arg.Any<SandboxDefinition>(), Arg.Any<CancellationToken>())

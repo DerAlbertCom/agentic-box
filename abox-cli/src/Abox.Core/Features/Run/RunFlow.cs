@@ -174,7 +174,11 @@ internal sealed class RunFlow(
             console.WriteError(exception.Message);
             return true;
         }
-        if (manifest?.LocalWorkload is null || manifest.CreatedAt <= record.BuildCreatedAt)
+        if (
+            manifest is null
+            || manifest.Components.Count == 0
+            || manifest.CreatedAt <= record.BuildCreatedAt
+        )
         {
             return true;
         }

@@ -161,15 +161,17 @@ public sealed class LegacySandboxCompatibilityTests
         );
         cli.Root.File("teams/sample/ac.abox", "workload: sample\n");
         new BuildStore(paths).Save(
-            new BuildManifest
-            {
-                Squad = "ac",
-                Tag = "latest",
-                RootDirectory = cli.Root.Path,
-                Reference = "agentic-box-rwest-sample:latest",
-                CreatedAt = DateTimeOffset.UtcNow,
-                LocalWorkload = LocalWorkloadFactory.Artifact(cli.Root),
-            }
+            LocalWorkloadFactory.WithImages(
+                cli.Root,
+                new BuildManifest
+                {
+                    Squad = "ac",
+                    Tag = "latest",
+                    RootDirectory = cli.Root.Path,
+                    Reference = "agentic-box-rwest-sample:latest",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                }
+            )
         );
         cli.Services.AddSingleton<IProcessRunner>(LocalWorkloadFactory.Runner());
         cli.Configure("""{"squad":"ac","userSecrets":["sample"]}""");

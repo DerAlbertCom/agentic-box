@@ -46,7 +46,7 @@ internal sealed class RunFlowFixture
             Lifecycle,
             Mcp,
             Console,
-            new LocalSquadSource(Store, LocalWorkloadFactory.Images()),
+            LocalWorkloadFactory.Source(Store, console: Console),
             new RemoteSquadSource(
                 Config,
                 Substitute.For<IKitSourceTrust>(),

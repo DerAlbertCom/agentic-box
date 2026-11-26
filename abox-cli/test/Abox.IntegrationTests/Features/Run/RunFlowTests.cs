@@ -386,16 +386,18 @@ public sealed class RunFlowTests
             }
         );
         Store.Save(
-            new BuildManifest
-            {
-                Squad = "ac",
-                Tag = "latest",
-                RootDirectory = sourceRoot.Path,
-                CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
-                WorkloadKitDirectory = "/kits/workload",
-                Reference = ImageName.OfTeam("sample", "latest"),
-                LocalWorkload = LocalWorkloadFactory.Artifact(Root),
-            }
+            LocalWorkloadFactory.WithImages(
+                Root,
+                new BuildManifest
+                {
+                    Squad = "ac",
+                    Tag = "latest",
+                    RootDirectory = sourceRoot.Path,
+                    CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
+                    WorkloadKitDirectory = "/kits/workload",
+                    Reference = ImageName.OfTeam("sample", "latest"),
+                }
+            )
         );
 
         // Act
@@ -412,7 +414,12 @@ public sealed class RunFlowTests
             .Received(1)
             .CreateAsync(
                 Arg.Is<SandboxDefinition>(request =>
-                    request.KitSource == Path.Combine(Root.Path, "runtime", "workload")
+                    request.KitSource
+                        == Path.Combine(
+                            Store.DirectoryFor(new SquadBuildIdentity("sample", "ac", "latest")),
+                            LocalSquadSource.ThinKitsFolderName,
+                            "workload"
+                        )
                     && request.PullPolicy == PullPolicy.Never
                 ),
                 Arg.Any<CancellationToken>()
@@ -488,7 +495,6 @@ public sealed class RunFlowTests
                 Tag = "latest",
                 Reference = ImageName.OfTeam("sample", "latest"),
                 CreatedAt = DateTimeOffset.Now,
-                LocalWorkload = null,
             }
         );
 
@@ -529,15 +535,17 @@ public sealed class RunFlowTests
             }
         );
         Store.Save(
-            new BuildManifest
-            {
-                Squad = "ac",
-                Tag = "latest",
-                CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
-                WorkloadKitDirectory = "/kits/workload",
-                Reference = ImageName.OfTeam("sample", "latest"),
-                LocalWorkload = LocalWorkloadFactory.Artifact(Root),
-            }
+            LocalWorkloadFactory.WithImages(
+                Root,
+                new BuildManifest
+                {
+                    Squad = "ac",
+                    Tag = "latest",
+                    CreatedAt = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
+                    WorkloadKitDirectory = "/kits/workload",
+                    Reference = ImageName.OfTeam("sample", "latest"),
+                }
+            )
         );
 
         // Act

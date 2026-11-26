@@ -1,8 +1,11 @@
+using System.Text.Json;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Naming;
+using Abox.Features.Shared.Registry;
 using Abox.Features.Shared.Squads;
+using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Sandboxes;
 
@@ -28,11 +31,21 @@ internal interface ISquadSource
 }
 
 /// <summary>
-/// Uses only validated local build metadata and prebuilt workload images. Like a published
-/// set, it needs no team sources: only <c>abox build</c> reads them.
+/// Uses a local build: its build record and the component images <c>abox build</c> made in
+/// the host image store. Like a published set, it needs no team sources and builds no recipe:
+/// it hands sbx thin directory kits that only wrap the images, because sbx resolves OCI kit
+/// references only from the registry.
 /// </summary>
-internal sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages images) : ISquadSource
+internal sealed class LocalSquadSource(
+    BuildStore store,
+    ILocalImageStore images,
+    IYamlParser parser,
+    IConsole console
+) : ISquadSource
 {
+    /// <summary>The folder of a build that holds the thin kits handed to sbx.</summary>
+    public const string ThinKitsFolderName = "create";
+
     public SquadSelection Resolve(SandboxCreationRequest request)
     {
         RegistryImageName.ValidateTag(request.Tag);
@@ -51,33 +64,189 @@ internal sealed class LocalSquadSource(BuildStore store, LocalWorkloadImages ima
     )
     {
         var identity = selection.Identity;
-        var manifest =
+        var rebuild = $"abox build --team {identity.Team} --tag {identity.Tag}";
+        var record =
             store.Load(identity)
             ?? throw new AboxException(
                 $"There is no local build of '{identity.Squad}' with the tag '{identity.Tag}'. "
-                    + $"Prepare it first: abox build --team {identity.Team} --tag {identity.Tag}"
+                    + $"Prepare it first: {rebuild}"
             );
-        var image =
-            manifest.LocalWorkload
-            ?? throw new AboxException(
-                $"This build has no prebuilt local workload (legacy build). Run 'abox build --team {identity.Team} --tag {identity.Tag}' before using --local. Create will not build the workload from sources."
+        if (record.ImageStore is not { } imageStore || record.Components.Count == 0)
+        {
+            throw new AboxException(
+                $"The local build of '{identity.Squad}:{identity.Tag}' has no component images (an older build). Run '{rebuild}' before using --local. Create will not build from sources."
             );
-        await images.EnsureAvailableAsync(image, cancellationToken);
-        var arguments = KitArguments(manifest.Kits);
-        var mixins = manifest.Kits.Select(kit => kit.Reference).ToList();
-        if (manifest.StateMixinDirectory is not null)
-            mixins.Add(manifest.StateMixinDirectory);
-        if (manifest.ConfigurationMixinDirectory is not null)
-            mixins.Add(manifest.ConfigurationMixinDirectory);
+        }
+
+        await EnsureImagesAsync(record, imageStore, rebuild, cancellationToken);
+        var metadata = await ReadMetadataAsync(
+            record,
+            imageStore,
+            identity,
+            rebuild,
+            cancellationToken
+        );
+        var kits = WriteThinKits(
+            record,
+            Path.Combine(store.DirectoryFor(identity), ThinKitsFolderName)
+        );
         return new PreparedSquad(
-            manifest,
-            image.RuntimeKitDirectory,
-            mixins,
-            arguments,
+            metadata,
+            kits[Component(record, ComponentNames.Workload).Name],
+            Mixins(record, kits),
+            KitArguments(record.Kits),
             PullPolicy: PullPolicy.Never,
-            HostImageStore: image.ImageStore
+            HostImageStore: imageStore
         );
     }
+
+    /// <summary>Fails before the sandbox is touched when an image is missing or was replaced.</summary>
+    private async Task EnsureImagesAsync(
+        BuildManifest record,
+        string imageStore,
+        string rebuild,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!images.IsInstalled)
+        {
+            throw new AboxException(
+                $"Local create needs Docker with Buildx on PATH for the component images. Install Docker and run '{rebuild}' again."
+            );
+        }
+
+        await images.RequireHostBuilderAsync(imageStore, cancellationToken);
+        foreach (var component in record.Components)
+        {
+            var imageId = await images.FindImageIdAsync(
+                imageStore,
+                component.Reference,
+                cancellationToken
+            );
+            if (imageId != component.ImageId)
+            {
+                throw new AboxException(
+                    $"The component image '{component.Reference}' is missing or was replaced. Run '{rebuild}' again; create will not use other images."
+                );
+            }
+        }
+    }
+
+    private async Task<BuildManifest> ReadMetadataAsync(
+        BuildManifest record,
+        string imageStore,
+        SquadBuildIdentity identity,
+        string rebuild,
+        CancellationToken cancellationToken
+    )
+    {
+        var config = Component(record, ComponentNames.Configuration);
+        using var temporary = new TemporaryDirectory("abox-local-", "metadata", console);
+        var archive = Path.Combine(temporary.Path, "config.tar");
+        await images.SaveAsync(imageStore, config.Reference, archive, cancellationToken);
+        try
+        {
+            var metadata = PublishedRuntimeMetadata.ReadImage(
+                archive,
+                identity,
+                HostMounts(record)
+            );
+            // The record keeps the squad's canonical spelling, whatever the command line used.
+            metadata.Squad = record.Squad;
+            return metadata;
+        }
+        catch (Exception exception)
+            when (exception
+                    is JsonException
+                        or KeyNotFoundException
+                        or InvalidOperationException
+                        or IOException
+                        or InvalidDataException
+                        or FormatException
+            )
+        {
+            throw new AboxException(
+                $"The configuration image '{config.Reference}' has missing or invalid squad metadata: {(exception.InnerException as AboxException)?.Message ?? exception.Message} Run '{rebuild} --rebuild'. The existing sandbox was not replaced.",
+                exception
+            );
+        }
+    }
+
+    /// <summary>The host-mount paths the state mixin of the build declares.</summary>
+    private HashSet<string> HostMounts(BuildManifest record)
+    {
+        var state = record.Components.FirstOrDefault(component =>
+            component.Name == ComponentNames.State
+        );
+        if (state is null)
+            return [];
+        return parser
+            .Read(state.Descriptor, state.Reference)
+            .GetEntries("capabilities")
+            .Where(capability =>
+                capability.GetString("type") == PublishedRuntimeMetadata.HostMountCapability
+            )
+            .Select(capability => capability.GetEntry("config")?.GetString("path") ?? "")
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Writes one thin kit per component: the workload as <c>FROM</c> its image, and each
+    /// mixin as <c>COPY --from</c> its image, since sbx keeps only the layers a mixin recipe
+    /// adds on top of its <c>FROM</c>. Returns the kit directory of each component.
+    /// </summary>
+    private static Dictionary<string, string> WriteThinKits(BuildManifest record, string directory)
+    {
+        if (Directory.Exists(directory))
+            Directory.Delete(directory, recursive: true);
+
+        var kits = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var component in record.Components)
+        {
+            var kit = Path.Combine(directory, component.Name.Replace('/', '-'));
+            Directory.CreateDirectory(kit);
+            File.WriteAllText(Path.Combine(kit, component.DescriptorFile), component.Descriptor);
+            var image = ImageReferences.Repository(component.Reference) + "@" + component.Digest;
+            File.WriteAllText(
+                Path.Combine(kit, Path.ChangeExtension(component.DescriptorFile, ".dockerfile")),
+                component.Kind == ComponentKind.Workload
+                    ? $"FROM {image}\n"
+                    : $"FROM scratch\nCOPY --from={image} / /\n"
+            );
+            kits[component.Name] = kit;
+        }
+
+        return kits;
+    }
+
+    /// <summary>The mixins in set order: the kits as declared, then state, then configuration.</summary>
+    private static List<string> Mixins(
+        BuildManifest record,
+        IReadOnlyDictionary<string, string> kits
+    )
+    {
+        var mixins = record
+            .Kits.Select(kit =>
+                kit.IsLocal ? kits[kit.Component ?? throw Unusable(kit.Name)]
+                : kit.Digest is { } digest
+                    ? ImageReferences.Repository(kit.Reference) + "@" + digest
+                : kit.Reference
+            )
+            .ToList();
+        if (kits.TryGetValue(ComponentNames.State, out var state))
+            mixins.Add(state);
+        mixins.Add(kits[ComponentNames.Configuration]);
+        return mixins;
+    }
+
+    private static BuildComponent Component(BuildManifest record, string name) =>
+        record.Components.FirstOrDefault(component => component.Name == name)
+        ?? throw Unusable(name);
+
+    private static AboxException Unusable(string name) =>
+        new(
+            $"The local build has no component image for '{name}'. Run 'abox build' again before using --local."
+        );
 
     private static Dictionary<string, string> KitArguments(IReadOnlyList<ManifestKit> kits)
     {

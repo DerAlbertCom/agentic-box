@@ -54,7 +54,7 @@ public sealed class BuildServiceTeamTests
             .Be($"agentic-box-rwest-{second}:latest");
         BuildSources.EnsureUnchanged(firstBuild);
         BuildSources.EnsureUnchanged(secondBuild);
-        secondBuild.LocalWorkload!.Reference.Should().NotBe(firstBuild.LocalWorkload!.Reference);
+        secondBuild.Components[0].Reference.Should().NotBe(firstBuild.Components[0].Reference);
     }
 
     [Theory]
@@ -105,9 +105,6 @@ public sealed class BuildServiceTeamTests
             .And.NotContain(".sample");
         BuildSources.EnsureUnchanged(sample);
         BuildSources.EnsureUnchanged(other);
-        sample.LocalWorkload!.Reference.Should().NotBe(other.LocalWorkload!.Reference);
-        sample
-            .LocalWorkload.RuntimeKitDirectory.Should()
-            .NotBe(other.LocalWorkload.RuntimeKitDirectory);
+        sample.Components[0].Reference.Should().NotBe(other.Components[0].Reference);
     }
 }
