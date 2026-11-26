@@ -73,15 +73,23 @@ internal sealed class SandboxCreator(
         };
         ISquadSource source = request.Local ? local : remote;
         var selection = source.Resolve(request);
+        if (folderConfig is { UserSecrets.Count: > 0 })
+            console.WriteLine("Reading the selected user secrets...");
         var preparedSecrets = await userSecrets.PrepareAsync(
             folderConfig,
             force: false,
             cancellationToken
         );
+        console.WriteLine("Finding the application ports of the folder...");
         var preparedPorts = await AppPorts.PrepareAsync(
             location,
             FolderConfig.SelectPortOffset(folderConfig),
             cancellationToken
+        );
+        console.WriteLine(
+            selection.Reference is { } reference
+                ? $"Reading the published squad set '{reference}'..."
+                : $"Loading the local build of '{selection.Identity.Squad}' with the tag '{selection.Identity.Tag}'..."
         );
         var prepared = await source.LoadAsync(selection, cancellationToken);
         var manifest = prepared.Metadata;
@@ -97,11 +105,14 @@ internal sealed class SandboxCreator(
         StateEntry.EnsureDisjoint(state);
 
         var mcpToRegister = await FindMcpServersToRegisterAsync(manifest, cancellationToken);
+        if (request.ExistingSandbox is null)
+            console.WriteLine("Looking for an existing sandbox of the folder...");
         var existing =
             request.ExistingSandbox ?? await sandboxes.FindAsync(location, cancellationToken);
         var name = existing?.Name ?? SandboxName.For(location);
         var replace = ConfirmReplacement(existing, location, request.AssumeYes);
         cancellationToken.ThrowIfCancellationRequested();
+        console.WriteLine("Checking the credentials of the squad...");
         await credentials.PrepareAsync(
             request.Team.RootDirectory,
             request.Team.Name,
@@ -112,6 +123,7 @@ internal sealed class SandboxCreator(
         cancellationToken.ThrowIfCancellationRequested();
         await RegisterMcpServersAsync(mcpToRegister, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+        console.WriteLine("Preparing the state directories...");
         var mounts = CreateStateDirectories(name, state);
         cancellationToken.ThrowIfCancellationRequested();
         if (replace)
@@ -177,9 +189,11 @@ internal sealed class SandboxCreator(
 
         if (folderConfig is not null)
         {
+            console.WriteLine("Copying the user secrets into the sandbox...");
             await CopyUserSecretsAsync(preparedSecrets, preparedPorts, name, cancellationToken);
         }
 
+        console.WriteLine("Publishing the application ports...");
         await ConfigureApplicationPortsAsync(preparedPorts, name, cancellationToken);
 
         console.WriteLine($"Created sandbox '{name}' for '{location}'.");
@@ -197,6 +211,9 @@ internal sealed class SandboxCreator(
         CancellationToken cancellationToken
     )
     {
+        if (request.Memory is null && request.Cpus is null)
+            return;
+        console.WriteLine($"Saving the sandbox size in {FolderConfig.UserFile}...");
         try
         {
             await FolderConfig.SaveResourcesAsync(
@@ -341,6 +358,7 @@ internal sealed class SandboxCreator(
             return [];
         }
 
+        console.WriteLine("Checking the MCP servers of the squad...");
         foreach (var server in manifest.Mcp)
             new McpDeclaration(server.Name, server.Url).Validate($"squad {manifest.Squad}");
         var registered = (await mcpServers.ListAsync(cancellationToken)).ToHashSet(

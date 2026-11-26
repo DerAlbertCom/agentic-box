@@ -14,7 +14,8 @@ namespace Abox.Features.Create;
 internal sealed class CreateHandler(
     Preflight preflight,
     SquadResolver resolver,
-    SandboxCreator create
+    SandboxCreator create,
+    IConsole console
 ) : ICommandHandler<CreateParameters>
 {
     public async Task<int> HandleAsync(
@@ -48,6 +49,7 @@ internal sealed class CreateHandler(
             Cpus: parameters.Cpus
         );
 
+        console.WriteLine("Checking sbx...");
         if (!await preflight.EnsureReadyAsync(cancellationToken))
         {
             return 1;
