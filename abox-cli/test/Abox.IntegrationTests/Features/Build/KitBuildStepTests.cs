@@ -42,12 +42,14 @@ public sealed class KitBuildStepTests
 
         // Assert
         var kit = Manifest().Kits.Should().ContainSingle(kit => kit.Name == "built").Subject;
-        kit.Reference.Should().NotBe(Path.Combine(Root.Path, "kits", "built"));
-        Path.GetFileName(kit.Reference).Should().Be("built");
-        File.ReadAllText(Path.Combine(kit.Reference, "generated.txt")).Should().Be("generated\n");
-        File.Exists(Path.Combine(kit.Reference, "built.yaml")).Should().BeTrue();
+        kit.Reference.Should().Be(Path.Combine(Root.Path, "kits", "built"));
+        var staged = Staged();
+        staged.Should().NotBe(Path.Combine(Root.Path, "kits", "built"));
+        Path.GetFileName(staged).Should().Be("built");
+        File.ReadAllText(Path.Combine(staged, "generated.txt")).Should().Be("generated\n");
+        File.Exists(Path.Combine(staged, "built.yaml")).Should().BeTrue();
         File.Exists(Path.Combine(Root.Path, "kits", "built", "generated.txt")).Should().BeFalse();
-        BuiltFrom().Should().Contain(kit.Reference);
+        BuiltFrom().Should().Contain(staged);
     }
 
     [Fact]
@@ -58,7 +60,7 @@ public sealed class KitBuildStepTests
         Root.File("kits/built/built.yaml", "schemaVersion: \"3\"\nkind: mixin\n");
         KitBuildScripts.Write(Root, "built", "exit 0\n");
         await Service.BuildAsync(Request(), CancellationToken.None);
-        var staged = Manifest().Kits.Single().Reference;
+        var staged = Staged();
 
         // Act
         await Service.BuildAsync(Request(), CancellationToken.None);
@@ -67,7 +69,7 @@ public sealed class KitBuildStepTests
         await Script
             .Received(1)
             .RunAsync(Arg.Any<KitBuildScriptRun>(), Arg.Any<CancellationToken>());
-        Manifest().Kits.Single().Reference.Should().Be(staged);
+        Staged().Should().Be(staged);
         Directory.Exists(staged).Should().BeTrue();
     }
 
@@ -88,9 +90,7 @@ public sealed class KitBuildStepTests
         await Script
             .Received(2)
             .RunAsync(Arg.Any<KitBuildScriptRun>(), Arg.Any<CancellationToken>());
-        File.Exists(Path.Combine(Manifest().Kits.Single().Reference, "src", "main.ts"))
-            .Should()
-            .BeTrue();
+        File.Exists(Path.Combine(Staged(), "src", "main.ts")).Should().BeTrue();
     }
 
     [Fact]
@@ -106,13 +106,15 @@ public sealed class KitBuildStepTests
 
         // Assert
         var kit = Manifest().Kits.Should().ContainSingle(kit => kit.Name == "built").Subject;
+        kit.Reference.Should().Be(Path.Combine(Root.Path, "kits", "built"));
+        var staged = Staged();
         await Script
             .Received(1)
             .RunAsync(
                 new KitBuildScriptRun(
                     "built",
                     build,
-                    kit.Reference,
+                    staged,
                     Path.Combine(Root.Path, "kits", "built")
                 ),
                 Arg.Any<CancellationToken>()
@@ -196,6 +198,9 @@ public sealed class KitBuildStepTests
 
     private BuildRequest Request() =>
         new([Resolver.ResolveTeam(Root.Path, "sample")], Root.Path, "latest");
+
+    /// <summary>The directory the kit's component image was built from: its staged copy.</summary>
+    private string Staged() => Manifest().Component("kits/built")!.Directory;
 
     private BuildManifest Manifest() =>
         Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;

@@ -43,7 +43,10 @@ build record. Publish pushes those images unchanged; see
    of its parent directories. The start directory is `--root`, else the current
    directory when team sources are found from there, else the user setting
    `sourceRoot`, else an interactive prompt that validates and saves `sourceRoot`.
-   Without a terminal the command fails and names `sourceRoot` and `--root`.
+   Without a terminal the command fails and names `sourceRoot` and `--root`. Inside
+   the repository without a `sourceRoot`, an interactive run offers to save the
+   repository folder as `sourceRoot`. The handler resolves this, not the option
+   binding, because the build is the first point that needs the team sources.
    `--team` can be given more than once; without it the user configuration
    `defaultTeam` is used.
 2. Builds every squad of the team that no other squad of the team names as its `base`
@@ -94,10 +97,13 @@ build record. Publish pushes those images unchanged; see
 12. Writes the build record: `build.json` in the build directory (`BuildManifest` in
    code). Per component it records the name, kind, reference, digest, image ID,
    input hash, descriptor text and file name, and directory. It also records the
-   pinned `Base` and registry kit digests, each local kit's component and source
-   folder, the `ImageStore`, the resolved workload's `publishRepository` and SHA-256
-   fingerprints of the sources (configuration files, the workload file and its
-   scripts, generated kit folders).
+   pinned `Base` and registry kit digests, each local kit's component and repository
+   folder (its `Reference`), the `ImageStore`, the resolved workload's
+   `publishRepository`, the build time (`CreatedAt`, which `squad.json` carries too, so
+   builds and `abox run` compare without reading an image) and SHA-256 fingerprints of
+   the sources (configuration files, the workload file and its scripts, the folders the
+   component images were built from). MCP servers and state are not in the record:
+   `squad.json` in the configuration image is their only place.
 
 Each image is named with its final JFrog name,
 `rwest.jfrog.io/<publishRepository>/agentic-box-rwest-<team>/<squad>/components/<name>:<input hash>`.

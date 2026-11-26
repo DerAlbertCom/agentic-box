@@ -100,7 +100,12 @@ internal static class LocalWorkloadFactory
     /// local kit, state and configuration, in the synthetic image store, with a configuration
     /// image that bundles the record's metadata.
     /// </summary>
-    public static BuildManifest WithImages(TempDirectory root, BuildManifest build)
+    /// <param name="workload">The directory the workload image was built from, if it matters.</param>
+    public static BuildManifest WithImages(
+        TempDirectory root,
+        BuildManifest build,
+        string? workload = null
+    )
     {
         if (!ImageName.TryParseTeam(build.Reference, build.Tag, out var team))
             throw new InvalidOperationException("The build record has no team.");
@@ -131,18 +136,24 @@ internal static class LocalWorkloadFactory
             build.CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         build.ImageStore = "test-context";
         build.Components = [Component("workload", ComponentKind.Workload, "kind: workload\n")];
+        // Like a build, every component image is built from a folder.
+        var images = root.CreateDirectory(Path.Combine("images", tag));
+        build.Components[0].Directory =
+            workload ?? root.CreateDirectory(Path.Combine("images", tag, "workload"));
         foreach (var kit in build.Kits.Where(kit => kit.IsLocal))
         {
             kit.Component = ComponentNames.Kit(kit.Name);
-            kit.Source ??= Directory.Exists(kit.Reference) ? kit.Reference : null;
             var component = Component(kit.Component, ComponentKind.Mixin, "kind: mixin\n");
             // Like a build, the input hash of a local kit covers its folder in the repository.
-            if (kit.Source is { } source)
+            if (Directory.Exists(kit.Reference))
+            {
+                component.Directory = kit.Reference;
                 component.InputHash = BuildSources.InputHash(
                     ComponentKind.Mixin,
-                    source,
+                    kit.Reference,
                     kit.Arguments
                 );
+            }
             build.Components.Add(component);
         }
         if (build.State.Count > 0)
@@ -161,24 +172,44 @@ internal static class LocalWorkloadFactory
                         )
                 )
             );
+            build.Components[^1].Directory = root.CreateDirectory(
+                Path.Combine("images", tag, "state")
+            );
         }
         var config = Component("config", ComponentKind.Mixin, "kind: mixin\n");
         build.Components.Add(config);
-        Load(
-            config.Reference,
-            SquadConfigurationMixin.Generate(
-                team,
-                build,
-                [],
-                Path.Combine(root.Path, "images", Guid.NewGuid().ToString("N"), "config")
-            )
+        config.Directory = SquadConfigurationMixin.Generate(
+            team,
+            build,
+            [],
+            Path.Combine(images, "config")
         );
+        Load(config.Reference, config.Directory);
         return build;
     }
 
     /// <summary>The kit directory a synthetic image was built from, or null when it was not.</summary>
     public static string? BuiltFrom(string reference) =>
         Built.TryGetValue(reference, out var directory) ? directory : null;
+
+    /// <summary>
+    /// The runtime metadata the configuration image of a build bundles, which the build
+    /// record itself does not keep.
+    /// </summary>
+    public static BuildManifest Bundled(BuildManifest build)
+    {
+        using var squad = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(build.ConfigurationMixinDirectory!, "squad.json"))
+        );
+        return new BuildManifest
+        {
+            Squad = build.Squad,
+            Tag = build.Tag,
+            CreatedAt = squad.RootElement.GetProperty("CreatedAt").GetDateTimeOffset(),
+            Mcp = squad.RootElement.GetProperty("Mcp").Deserialize<List<ManifestMcp>>()!,
+            State = squad.RootElement.GetProperty("State").Deserialize<List<ManifestState>>()!,
+        };
+    }
 
     /// <summary>Puts an image built from <paramref name="directory"/> into the synthetic image store.</summary>
     public static void Load(string reference, string directory) => Built[reference] = directory;

@@ -32,9 +32,8 @@ internal sealed class PublicationFreshness(IRegistryDigests digests, ILocalImage
             var component = kit.Component is { } name ? build.Component(name) : null;
             if (
                 component is null
-                || kit.Source is not { } source
-                || !Directory.Exists(source)
-                || BuildSources.InputHash(ComponentKind.Mixin, source, kit.Arguments)
+                || !Directory.Exists(kit.Reference)
+                || BuildSources.InputHash(ComponentKind.Mixin, kit.Reference, kit.Arguments)
                     != component.InputHash
             )
             {

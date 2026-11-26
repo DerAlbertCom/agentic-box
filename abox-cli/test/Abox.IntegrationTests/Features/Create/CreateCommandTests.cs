@@ -394,8 +394,8 @@ public sealed class CreateCommandTests : IDisposable
                     Squad = "ac",
                     Tag = "release",
                     Reference = "agentic-box-rwest-sample:release",
-                    WorkloadKitDirectory = "/kits/workload",
-                }
+                },
+                workload: "/kits/workload"
             )
         );
         ReadyRuntime();

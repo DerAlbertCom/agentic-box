@@ -85,7 +85,9 @@ public sealed class PublishedSquadSourceMcpTests
             new BuildRequest([team], root.Path, "latest"),
             CancellationToken.None
         );
-        var manifest = store.Load(new SquadBuildIdentity("mti-ca", "ac", "latest"))!;
+        var manifest = LocalWorkloadFactory.Bundled(
+            store.Load(new SquadBuildIdentity("mti-ca", "ac", "latest"))!
+        );
         Metadata["Mcp"] = JsonSerializer.SerializeToNode(manifest.Mcp);
         Metadata["State"] = new JsonArray();
         var name = SandboxName.For(root.Path);

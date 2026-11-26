@@ -259,33 +259,6 @@ public sealed class PublishServiceTests
         Calls.Should().BeEmpty();
     }
 
-    [Theory]
-    [InlineData(null, null)]
-    [InlineData("elastic,other", null)]
-    [InlineData("elastic", "file:///local")]
-    [InlineData("elastic", "https://user:password@example.com/mcp")]
-    public async Task EveryBuildIsCheckedBeforeAnythingIsPublished(string? name, string? url)
-    {
-        // Arrange
-        SaveBuild("ac");
-        if (name is not null)
-        {
-            SaveBuild("bd");
-            var build = Store.Load(new SquadBuildIdentity("sample", "bd", "latest"))!;
-            build.Mcp.Add(new ManifestMcp { Name = name, Url = url });
-            Store.Save(build);
-        }
-
-        // Act
-        var action = () => Service.PublishAsync(Request("ac", "bd"), CancellationToken.None);
-
-        // Assert
-        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
-            name is null ? "*abox build --team sample --tag latest*" : "*MCP server*mcp.*not valid*"
-        );
-        Calls.Should().BeEmpty();
-    }
-
     [Fact]
     public async Task ASquadBuildFromAnotherTeamIsNotPublished()
     {

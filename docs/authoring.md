@@ -79,8 +79,9 @@ an explicit team or a default, these commands report the same missing-team error
 `build` and `publish` search for the selected team starting in a start directory
 and continuing through its parents. The start directory is `--root <dir>`, else the
 current directory when the team sources are found from there, else the user setting
-`sourceRoot`. Without any of these they ask for the directory on a terminal and save
-it as `sourceRoot`; without a terminal they fail. `create` reads no team sources, so it has no `--root`. Relative roots are
+`sourceRoot`. Inside the repository without a `sourceRoot`, a run on a terminal offers
+to save the repository folder as `sourceRoot`. Without any of these they ask for the
+directory on a terminal and save it as `sourceRoot`; without a terminal they fail. `create` reads no team sources, so it has no `--root`. Relative roots are
 resolved against the invocation directory before searching parents, just like their
 absolute equivalents; a root need not itself contain the teams folder.
 

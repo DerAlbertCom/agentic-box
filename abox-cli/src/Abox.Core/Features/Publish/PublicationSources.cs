@@ -41,8 +41,6 @@ internal sealed class PublicationSources(BuildStore store)
             throw new AboxException(
                 $"The local build '{squad}:{tag}' has no valid publishRepository. Set 'publishRepository' in its .workload file and run 'abox build --team {team} --tag {tag}' again before publishing."
             );
-        foreach (var server in build.Mcp)
-            new McpDeclaration(server.Name, server.Url).Validate($"local build {squad}:{tag}");
         if (
             build.ImageStore is null
             || build.Component(ComponentNames.Workload) is null

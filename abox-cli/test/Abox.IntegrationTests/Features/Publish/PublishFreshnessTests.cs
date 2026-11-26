@@ -116,12 +116,13 @@ public sealed class PublishFreshnessTests
             new ManifestKit
             {
                 Name = "local",
-                Reference = Path.GetDirectoryName(staged)!,
-                Source = Path.GetDirectoryName(source)!,
+                Reference = Path.GetDirectoryName(source)!,
                 IsLocal = true,
             }
         );
-        _fixture.SaveVerifiedBuild(LocalWorkloadFactory.WithImages(_fixture.Root, build));
+        LocalWorkloadFactory.WithImages(_fixture.Root, build);
+        build.Component("kits/local")!.Directory = Path.GetDirectoryName(staged)!;
+        _fixture.SaveVerifiedBuild(build);
         _fixture.Root.File("kits/local/src/main.ts", "changed\n");
 
         // Act

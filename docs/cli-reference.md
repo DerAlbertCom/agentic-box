@@ -25,10 +25,11 @@ and `abox exec <sandbox> -- <command>`.
 then the current folder. `create` reads no team sources, with or without `--local`.
 `build` and `publish` are the only commands that read team sources. Their search
 starts at `--root <dir>`, then at the current folder when the team sources are found
-from there, then at the user setting `sourceRoot`. When none of them applies, an
-interactive run asks for the repository folder, checks that the team sources are
-found from it and saves it as `sourceRoot`; a run without a terminal fails and names
-`sourceRoot` and `--root`.
+from there, then at the user setting `sourceRoot`. The first interactive `build` or
+`publish` inside the repository offers to save the repository folder as `sourceRoot`.
+When none of them applies, an interactive run asks for the repository folder, checks
+that the team sources are found from it and saves it as `sourceRoot`; a run without a
+terminal fails and names `sourceRoot` and `--root`.
 
 ## Reaching sandbox apps over HTTP
 
@@ -187,7 +188,7 @@ terminalTheme: true
 - `defaultLocation` is unset by default: `create`, `run`, `user-secrets` and `ports` use the current folder unless `--location` is given.
 - `sourceRoot` is unset by default: the repository folder with the team sources that
   `build` and `publish` use outside the repository. An interactive `build` or `publish`
-  asks for it once and saves it here. A saved folder without the team sources is an
+  inside the repository offers to save it here; outside it, one asks for it. A saved folder without the team sources is an
   error, not silently skipped.
 - `teamsDirectory` names the project's teams directory; the default is `teams`.
 - `kitsDirectory` names the kits directory relative to the project root; the default is `kits`.

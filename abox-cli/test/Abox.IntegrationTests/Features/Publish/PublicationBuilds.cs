@@ -30,7 +30,7 @@ internal static class PublicationBuilds
         string team = "sample"
     )
     {
-        manifest.ConfigurationMixinDirectory = SquadConfigurationMixin.Generate(
+        var directory = SquadConfigurationMixin.Generate(
             team,
             manifest,
             secrets ?? [],
@@ -40,10 +40,11 @@ internal static class PublicationBuilds
             )
         );
         // The configuration image of the build bundles the configuration just written.
-        if (
-            manifest.Components.FirstOrDefault(component => component.Name == "config") is { } image
-        )
-            LocalWorkloadFactory.Load(image.Reference, manifest.ConfigurationMixinDirectory);
+        if (manifest.Component("config") is { } image)
+        {
+            image.Directory = directory;
+            LocalWorkloadFactory.Load(image.Reference, directory);
+        }
         manifest.SourceHashes = BuildSources.Capture(manifest);
         store.Save(manifest);
     }
