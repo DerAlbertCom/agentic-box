@@ -237,6 +237,9 @@ public sealed class FolderConfigTests
     [InlineData("abox.yaml", "userSecrets:\n  - keys: []\n", "requires a string 'id'")]
     [InlineData("abox.user.yaml", "userSecrets: [12, [x]]\n", "must be a value or a mapping")]
     [InlineData("abox.yaml", "squad: synthetic-private\n broken: [\n", "not valid YAML")]
+    [InlineData("abox.yaml", "memory: 0\n", "at least 1")]
+    [InlineData("abox.user.yaml", "cpus: -2\n", "at least 1")]
+    [InlineData("abox.user.yaml", "memory: 8g\n", "integer")]
     public async Task StrictDecodingNamesTheOffendingFileWithoutEchoingInput(
         string file,
         string yaml,
@@ -260,5 +263,57 @@ public sealed class FolderConfigTests
             .Contain(path)
             .And.Contain(diagnostic)
             .And.NotContain("synthetic-private");
+    }
+
+    [Fact]
+    public async Task SavedResourcesReplaceOrAddTheirLinesAndKeepTheRestOfTheUserFile()
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        var path = root.File("abox.user.yaml", "# mine\r\nmemory : 4\r\nportOffset: 20000");
+
+        // Act
+        await FolderConfig.SaveResourcesAsync(
+            root.Path,
+            16,
+            6,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
+
+        // Assert
+        File.ReadAllText(path)
+            .Should()
+            .Be("# mine\r\nmemory: 16\r\nportOffset: 20000\r\ncpus: 6\r\n");
+        var snapshot = await FolderConfig.LoadAsync(
+            root.Path,
+            new YamlDotNetParser(),
+            CancellationToken.None
+        );
+        snapshot!.Memory.Should().Be(16);
+        snapshot.Cpus.Should().Be(6);
+    }
+
+    [Fact]
+    public async Task AUserFileThatCannotBeUpdatedLineByLineIsLeftAsItIs()
+    {
+        // Arrange
+        using var root = new TempDirectory();
+        var path = root.File("abox.user.yaml", "{squad: ac}\n");
+
+        // Act
+        var save = () =>
+            FolderConfig.SaveResourcesAsync(
+                root.Path,
+                8,
+                null,
+                new YamlDotNetParser(),
+                CancellationToken.None
+            );
+
+        // Assert
+        var failure = await save.Should().ThrowAsync<AboxException>();
+        failure.Which.Message.Should().Contain(path);
+        File.ReadAllText(path).Should().Be("{squad: ac}\n");
     }
 }

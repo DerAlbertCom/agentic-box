@@ -43,7 +43,9 @@ internal sealed class CreateHandler(
             parameters.Tag,
             folderConfig,
             parameters.AssumeYes,
-            Local: parameters.Local
+            Local: parameters.Local,
+            Memory: parameters.Memory,
+            Cpus: parameters.Cpus
         );
 
         if (!await preflight.EnsureReadyAsync(cancellationToken))

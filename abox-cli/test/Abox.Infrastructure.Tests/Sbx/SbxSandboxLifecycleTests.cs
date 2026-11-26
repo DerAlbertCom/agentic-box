@@ -368,6 +368,59 @@ public sealed class SbxSandboxLifecycleTests
     }
 
     [Fact]
+    public async Task MemoryInGigabytesAndCpusBecomeCreateFlags()
+    {
+        // Arrange
+        _runner
+            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new ProcessResult(0, string.Empty, string.Empty));
+
+        // Act
+        await _lifecycle.CreateAsync(
+            Definition() with
+            {
+                Memory = 12,
+                Cpus = 6,
+            },
+            CancellationToken.None
+        );
+
+        // Assert
+        await _runner
+            .Received(1)
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request =>
+                    request
+                        .Arguments.Skip(8)
+                        .SequenceEqual(new[] { "--memory", "12g", "--cpus", "6" })
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task WithoutMemoryAndCpusSbxKeepsItsDefaults()
+    {
+        // Arrange
+        _runner
+            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new ProcessResult(0, string.Empty, string.Empty));
+
+        // Act
+        await _lifecycle.CreateAsync(Definition(), CancellationToken.None);
+
+        // Assert
+        await _runner
+            .Received(1)
+            .RunAsync(
+                Arg.Is<ProcessRequest>(request =>
+                    !request.Arguments.Contains("--memory") && !request.Arguments.Contains("--cpus")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task ThinLocalKitsUseTheHostBuilderAndRecordedDockerContext()
     {
         // Arrange

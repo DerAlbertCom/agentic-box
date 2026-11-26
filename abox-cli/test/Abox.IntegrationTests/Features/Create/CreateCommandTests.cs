@@ -289,6 +289,94 @@ public sealed class CreateCommandTests : IDisposable
             );
     }
 
+    [Fact]
+    public async Task GivenMemoryAndCpusSizeTheSandboxAndAreSavedInTheUserFile()
+    {
+        // Arrange
+        var command = Command("");
+        _root.File("abox.user.yaml", "# my settings\nsquad: ac\nmemory: 4\n");
+
+        // Act
+        var exitCode = await InvokeAsync(
+            command,
+            ["--tag", "release", "--memory", "8", "--cpus", "4"]
+        );
+
+        // Assert
+        exitCode.Should().Be(0);
+        await _lifecycle
+            .Received(1)
+            .CreateAsync(
+                Arg.Is<SandboxDefinition>(request => request.Memory == 8 && request.Cpus == 4),
+                Arg.Any<CancellationToken>()
+            );
+        File.ReadAllText(Path.Combine(_root.Path, "abox.user.yaml"))
+            .Should()
+            .Be("# my settings\nsquad: ac\nmemory: 8\ncpus: 4\n");
+    }
+
+    [Fact]
+    public async Task WithoutMemoryAndCpusTheFolderConfigurationSizesTheSandbox()
+    {
+        // Arrange
+        var command = Command("");
+        _root.File("abox.yaml", "memory: 16\ncpus: 2\n");
+        _root.File("abox.user.yaml", "cpus: 8\n");
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--squad", "ac", "--tag", "release"]);
+
+        // Assert
+        exitCode.Should().Be(0);
+        await _lifecycle
+            .Received(1)
+            .CreateAsync(
+                Arg.Is<SandboxDefinition>(request => request.Memory == 16 && request.Cpus == 8),
+                Arg.Any<CancellationToken>()
+            );
+        File.ReadAllText(Path.Combine(_root.Path, "abox.user.yaml")).Should().Be("cpus: 8\n");
+    }
+
+    [Fact]
+    public async Task WithoutAnySizeSbxKeepsItsDefaultsAndNoUserFileIsWritten()
+    {
+        // Arrange
+        var command = Command("");
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--squad", "ac", "--tag", "release"]);
+
+        // Assert
+        exitCode.Should().Be(0);
+        await _lifecycle
+            .Received(1)
+            .CreateAsync(
+                Arg.Is<SandboxDefinition>(request =>
+                    request.Memory == null && request.Cpus == null
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        File.Exists(Path.Combine(_root.Path, "abox.user.yaml")).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("--memory")]
+    [InlineData("--cpus")]
+    public async Task ASizeBelowOneIsRejectedBeforeAnySbxCalls(string option)
+    {
+        // Arrange
+        var command = Command("");
+
+        // Act
+        var exitCode = await InvokeAsync(command, ["--squad", "ac", option, "0"]);
+
+        // Assert
+        exitCode.Should().Be(1);
+        _console.Errors.Should().Equal($"error: {option} must be a whole number of at least 1.");
+        _lifecycle.ReceivedCalls().Should().BeEmpty();
+        File.Exists(Path.Combine(_root.Path, "abox.user.yaml")).Should().BeFalse();
+    }
+
     private async Task<int> InvokeAsync(CliTestApplication application, string[] arguments)
     {
         var originalDirectory = Directory.GetCurrentDirectory();

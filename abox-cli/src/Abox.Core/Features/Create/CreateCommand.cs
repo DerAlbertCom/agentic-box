@@ -36,6 +36,16 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
         Description =
             "Use the prebuilt local workload and v3 kits, without pulling a published squad set.",
     };
+    private readonly Option<int?> _memory = new("--memory")
+    {
+        Description =
+            $"The memory of the sandbox in GB. Saved in {FolderConfig.UserFile} of the location; without it, the folder configuration, then the sbx default.",
+    };
+    private readonly Option<int?> _cpus = new("--cpus")
+    {
+        Description =
+            $"The number of CPUs of the sandbox. Saved in {FolderConfig.UserFile} of the location; without it, the folder configuration, then the sbx default.",
+    };
     private readonly Option<bool> _assumeYes = new("--yes")
     {
         Description = "Replace an existing sandbox without asking.",
@@ -54,6 +64,8 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
         Options.Add(_tag);
         Options.Add(_root);
         Options.Add(_local);
+        Options.Add(_memory);
+        Options.Add(_cpus);
         Options.Add(_assumeYes);
     }
 
@@ -72,6 +84,8 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
             );
         }
 
+        var memory = AtLeastOne(parseResult.GetValue(_memory), "--memory");
+        var cpus = AtLeastOne(parseResult.GetValue(_cpus), "--cpus");
         var tag = defaults.Tag(parseResult.GetValue(_tag));
         var team = defaults.Team(parseResult.GetValue(_team));
         var location = await defaults.SandboxLocationAsync(
@@ -86,7 +100,14 @@ internal sealed class CreateCommand : AboxCommand<CreateParameters>
             tag,
             Path.GetFullPath(sourceRoot ?? location.FullPath),
             local,
-            parseResult.GetValue(_assumeYes)
+            parseResult.GetValue(_assumeYes),
+            memory,
+            cpus
         );
     }
+
+    private static int? AtLeastOne(int? value, string option) =>
+        value is < 1
+            ? throw new AboxException($"{option} must be a whole number of at least 1.")
+            : value;
 }
