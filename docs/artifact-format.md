@@ -103,9 +103,10 @@ the manifest of every OCI kit reference from its registry, even with
 Agentic Box therefore uses the supported source-kit host-builder path. `abox build`
 builds every component once with the v3 frontend into host Docker using `--load`.
 `abox create --local` writes thin directory kits into `<build dir>/create/`: the
-workload as its descriptor plus `FROM <ref>@<digest>`, each mixin as its descriptor
-plus `FROM scratch` and `COPY --from=<ref>@<digest> / /`, because sbx keeps only the
-layers a mixin recipe adds on top of its `FROM`. It uses them with sbx's host builder
+workload as its descriptor plus `FROM <ref>:<tag>@<digest>`, each mixin as its descriptor
+plus `FROM scratch` and `COPY --from=<ref>:<tag>@<digest> / /`, because sbx keeps only the
+layers a mixin recipe adds on top of its `FROM`. The tag lets BuildKit find the image
+in the local store; a digest-only reference is looked up in the registry. It uses them with sbx's host builder
 and the recorded docker-driver context, preserving all v3 composition and runtime
 capabilities. No recipe of the squad runs at create. The recorded Docker content
 IDs are checked before replacement; missing or replaced images require a rebuild.

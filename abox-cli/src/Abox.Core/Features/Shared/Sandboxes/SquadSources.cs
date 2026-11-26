@@ -205,7 +205,10 @@ internal sealed class LocalSquadSource(
             var kit = Path.Combine(directory, component.Name.Replace('/', '-'));
             Directory.CreateDirectory(kit);
             File.WriteAllText(Path.Combine(kit, component.DescriptorFile), component.Descriptor);
-            var image = component.Pinned;
+            // Tag and digest: BuildKit finds a local image by its tag; a digest-only
+            // reference it has not resolved before is looked up in the registry, where
+            // an unpublished component does not exist. The digest still pins the image.
+            var image = $"{component.Reference}@{component.Digest}";
             File.WriteAllText(
                 Path.Combine(kit, Path.ChangeExtension(component.DescriptorFile, ".dockerfile")),
                 component.Kind == ComponentKind.Workload

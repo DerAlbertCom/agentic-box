@@ -463,9 +463,11 @@ component image is still in the recorded image store with its recorded content I
 A missing or replaced image, or a record without components (an older build),
 fails with an instruction to run `abox build`. `create` never builds from
 sources. It then writes thin directory kits into `<build dir>/create/<component>`:
-the workload as its descriptor plus `FROM <ref>@<digest>`, each mixin as its
-descriptor plus `FROM scratch` and `COPY --from=<ref>@<digest> / /`, because sbx
-keeps only the layers a mixin recipe adds on top of its `FROM`. Registry kits are
+the workload as its descriptor plus `FROM <ref>:<tag>@<digest>`, each mixin as its
+descriptor plus `FROM scratch` and `COPY --from=<ref>:<tag>@<digest> / /`, because sbx
+keeps only the layers a mixin recipe adds on top of its `FROM`. The tag matters: BuildKit
+finds a local image by its tag, but looks up a digest-only reference it has not
+resolved before in the registry, where an unpublished component does not exist. Registry kits are
 passed pinned by digest. Thin directory kits are needed because sbx resolves OCI
 kit references only from the registry, even with `--pull never`. See
 [ADR 0006](adr/0006-build-produces-images-publish-pushes-them.md).
