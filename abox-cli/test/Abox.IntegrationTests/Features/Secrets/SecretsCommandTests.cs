@@ -162,7 +162,7 @@ public sealed class SecretsCommandTests : IDisposable
 
         // Assert
         exitCode.Should().Be(0, _cli.Console.AllText);
-        Line("rwe-ghec").Should().Contain("not set").And.EndWith("conflicting binding");
+        Line("rwe-ghec").Should().Contain("not set").And.EndWith("conflicts with RWE_GHE_TOKEN");
     }
 
     [Fact]
@@ -232,7 +232,52 @@ public sealed class SecretsCommandTests : IDisposable
         await Secrets("list");
 
         // Assert
-        Line("sample-custom").Should().Contain("not set").And.EndWith("conflicting binding");
+        Line("sample-custom")
+            .Should()
+            .Contain("not set")
+            .And.EndWith("conflicts with OTHER_TOKEN");
+    }
+
+    [Fact]
+    public async Task ListShowsADeclaredCustomSecretNoKitAsksForAsRequired()
+    {
+        // Arrange
+        Sandbox(
+            [Kit("sample-secrets")],
+            SquadJson(
+                """{"Service":"sample-custom","Hosts":["custom.example.invalid"],"Env":"SAMPLE_CUSTOM_TOKEN"}"""
+            )
+        );
+
+        // Act
+        await Secrets("list");
+
+        // Assert
+        Line("sample-custom").Should().MatchRegex(@"^sample-custom\s+-\s+required\s+not set$");
+    }
+
+    [Fact]
+    public async Task ListWidensItsColumnsToTheLongestServiceName()
+    {
+        // Arrange
+        Sandbox(
+            [Kit("sample-secrets")],
+            SquadJson(
+                """{"Service":"sample-custom-with-a-long-name","Hosts":["custom.example.invalid"],"Env":"SAMPLE_CUSTOM_TOKEN"}"""
+            )
+        );
+
+        // Act
+        await Secrets("list");
+
+        // Assert
+        var header = _cli.Console.Output.Single(line =>
+            line.StartsWith("SERVICE", StringComparison.Ordinal)
+        );
+        var row = Line("sample-custom-with-a-long-name");
+        row.IndexOf("required", StringComparison.Ordinal)
+            .Should()
+            .Be(header.IndexOf("NEED", StringComparison.Ordinal));
     }
 
     [Fact]

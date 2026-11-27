@@ -111,8 +111,8 @@ Two cases need attention:
 
 - **Conflicting binding.** A custom secret counts as stored when a stored custom
   secret covers all its hosts with its `env`. If another custom secret uses one of
-  the hosts or the same variable differently, `list` shows `conflicting binding` and
-  `set` does not overwrite it. Another sandbox may need it; review and remove it
+  the hosts or the same variable differently, `list` shows `conflicts with <variable>`
+  and `set` does not overwrite it. Another sandbox may need it; review and remove it
   yourself with `sbx secret`.
 - **Command-backed secrets.** abox never runs a host command that it read from a
   sandbox. For such a secret `set` prints the `sbx secret set-custom` command with

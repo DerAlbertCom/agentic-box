@@ -45,35 +45,49 @@ internal sealed class SecretsService(
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        console.WriteLine(
-            $"{"SERVICE".PadRight(20)} {"KITS".PadRight(20)} {"NEED".PadRight(9)} {"STATE".PadRight(10)} NOTE"
-        );
-
-        foreach (var name in names)
+        var rows = names.Select(name => Row(name, metadata, stored)).ToList();
+        string[] header = ["SERVICE", "KITS", "NEED", "STATE", "NOTE"];
+        var widths = header
+            .Select(
+                (title, column) => rows.Select(row => row[column].Length).Append(title.Length).Max()
+            )
+            .ToArray();
+        foreach (var row in rows.Prepend(header))
         {
-            var asked = metadata.Request(name);
-            var kits = asked is null ? "-" : string.Join(", ", asked.Kits);
-            var need =
-                asked is null ? "-"
-                : asked.Optional ? "optional"
-                : "required";
-            var declaration = metadata.Declaration(name);
-            var state = stored.Holds(declaration ?? new SecretDeclaration(name))
-                ? "stored"
-                : "not set";
-            var note =
-                declaration is null ? "not declared"
-                : stored.ConflictWith(declaration) is not null ? "conflicting binding"
-                : "";
-
             console.WriteLine(
-                $"{name.PadRight(20)} {kits.PadRight(20)} {need.PadRight(9)} {state.PadRight(10)} {note}".TrimEnd()
+                string.Join(' ', row.Select((cell, column) => cell.PadRight(widths[column])))
+                    .TrimEnd()
             );
         }
 
         WriteOlderSandboxHint(metadata);
         return 0;
     }
+
+    /// <summary>
+    /// One row of the list. A custom secret the squad declares is required even when no
+    /// kit asks for it: a kit's setup reads it from its variable.
+    /// </summary>
+    private static string[] Row(string name, SandboxSquadMetadata metadata, HostSecrets stored)
+    {
+        var asked = metadata.Request(name);
+        var declaration = metadata.Declaration(name);
+        var kits = asked is null ? "-" : string.Join(", ", asked.Kits);
+        var need =
+            asked is { Optional: true } ? "optional"
+            : asked is not null || declaration is { IsCustom: true } ? "required"
+            : "-";
+        var state = stored.Holds(declaration ?? new SecretDeclaration(name)) ? "stored" : "not set";
+        var note =
+            declaration is null ? "not declared"
+            : stored.ConflictWith(declaration) is { } conflict ? "conflicts with " + Name(conflict)
+            : "";
+        return [name, kits, need, state, note];
+    }
+
+    /// <summary>How a stored custom secret is named: by its variable, else by its hosts.</summary>
+    private static string Name(CustomSecret secret) =>
+        secret.EnvironmentVariable ?? "the secret for " + string.Join(", ", secret.Targets);
 
     /// <summary>Asks for the values of the services and stores them on the host.</summary>
     public async Task<int> SetAsync(SecretsRequest request, CancellationToken cancellationToken)

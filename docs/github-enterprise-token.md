@@ -80,7 +80,8 @@ next request.
 
 Squads used to store a `gh auth token` as the secret `rwe-ghec`, under the variable
 `RWE_GHE_TOKEN` (`gho_{rand}`). Its hosts are the same as the new secret's, so abox
-reports it as a **conflicting binding** and does not overwrite it.
+lists the new secret with `conflicts with RWE_GHE_TOKEN` and does not overwrite the old
+one.
 
 Remove it before you recreate the sandbox, while the folder's sandbox still comes from
 the old build that declares `rwe-ghec`:
@@ -93,6 +94,14 @@ abox secrets remove --location <folder> --service rwe-ghec
 The stored value serves every sandbox, so this removes it for all of them. Then
 recreate the sandbox with `abox create --local` and store the new token as described
 above.
+
+If the sandbox already comes from the new build, abox no longer knows `rwe-ghec` and
+does not remove a secret it did not declare. Remove it with sbx, choosing the entry
+with `RWE_GHE_TOKEN`:
+
+```sh
+sbx secret rm
+```
 
 ## Not covered
 
