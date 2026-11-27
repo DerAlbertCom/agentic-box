@@ -152,6 +152,7 @@ internal sealed class PublishedSquadSourceFixture
     internal Task<PublishedSquad> LoadAsync() =>
         new PublishedSquadSource(
             new DockerPublishedImageReader(Programs, Runner),
+            RegistrySignInFactory.SignedIn(),
             Console
         ).LoadAsync(
             Reference,

@@ -93,6 +93,8 @@ of the workload's `publishRepository`.
   covers it. It keeps all entries and never adds a wildcard or the whole host. sbx has
   no atomic append, so abox serializes its own updates and checks the value after
   writing. This is a persistent change to the user's sbx settings.
+- **Registry sign-in.** Before the first registry read, create checks Docker's stored
+  sign-in to `rwest.jfrog.io` (see [the registry sign-in](#the-registry-sign-in)).
 - **Squad metadata.** Create resolves the tag with Buildx, selects the host's Linux
   platform manifest, checks its v3 workload descriptor and pulls the digest-pinned
   configuration mixin. It reads `squad.json` from a `docker image save` archive,
@@ -141,6 +143,17 @@ arguments with the same key must have equal values.
   captured output, else from the last `error:` line. abox then says whether the old
   sandbox was already removed (its state directories are kept) and prints the create
   command to retry.
+
+### The registry sign-in
+
+`Registry/RegistrySignIn` runs before `create` reads a published set and before
+`publish` pushes. The Docker adapter (`IRegistryLogin`) runs `docker login
+rwest.jfrog.io` with an empty standard input: Docker then tries only its stored
+credentials and fails when there are none or the registry rejects them. On a terminal,
+abox then runs `docker login rwest.jfrog.io` attached to it, so the user signs in with
+their JFrog user and identity token. Without a terminal, or when that sign-in fails,
+the command stops and names the `docker login` command to run. Docker keeps the
+credentials; abox never sees them.
 
 ### The credential check
 

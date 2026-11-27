@@ -182,6 +182,8 @@ Its legacy `spec.yaml` packager does not understand v3 descriptors. See
 
 `publish` does not call sbx. Docker and Buildx use Docker's host credential store, not
 `abox secrets` or the sbx sign-in. The JFrog identity needs read and write access to
-the target repository. For automation use
+the target repository. Before the first push, publish checks the stored sign-in and
+starts `docker login` on a terminal when it is missing or rejected (see
+[the registry sign-in](create-and-run.md#the-registry-sign-in)). For automation use
 `docker login --username <user> --password-stdin rwest.jfrog.io`. abox never passes
 credentials as process arguments.

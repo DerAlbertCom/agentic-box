@@ -24,6 +24,7 @@ public sealed class PublishServiceRegistryTests
             _registry,
             new DockerRegistryDigests(LocalWorkloadFactory.Runner()),
             LocalWorkloadFactory.Images(),
+            RegistrySignInFactory.SignedIn(),
             _fixture.Console
         );
         _registry.IsInstalled.Returns(true);

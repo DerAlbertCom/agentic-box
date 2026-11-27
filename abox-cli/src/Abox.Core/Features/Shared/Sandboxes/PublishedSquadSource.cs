@@ -21,8 +21,11 @@ internal interface IPublishedSquadSource
 }
 
 /// <summary>Only registry reads: inspect the set, pull its small config mixin, and read its saved layers without executing or extracting them.</summary>
-internal sealed class PublishedSquadSource(IPublishedImageReader registry, IConsole console)
-    : IPublishedSquadSource
+internal sealed class PublishedSquadSource(
+    IPublishedImageReader registry,
+    RegistrySignIn signIn,
+    IConsole console
+) : IPublishedSquadSource
 {
     public async Task<PublishedSquad> LoadAsync(
         string reference,
@@ -34,6 +37,7 @@ internal sealed class PublishedSquadSource(IPublishedImageReader registry, ICons
             throw new AboxException(
                 $"Remote create needs Docker with Buildx to read the published squad metadata. Install Docker and run 'docker login {RegistryImageName.Registry}' with read access; no local build or team sources are needed."
             );
+        await signIn.EnsureAsync(cancellationToken);
 
         using var temporary = new TemporaryDirectory("abox-pull-", "download", console);
         try

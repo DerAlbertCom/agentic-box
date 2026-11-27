@@ -44,6 +44,7 @@ public static class InfrastructureServiceCollection
         services.AddScoped<IRegistryPublisher, DockerRegistryPublisher>();
         services.AddScoped<IRegistryDigests, DockerRegistryDigests>();
         services.AddScoped<IPublishedImageReader, DockerPublishedImageReader>();
+        services.AddScoped<IRegistryLogin, DockerRegistryLogin>();
         services.AddScoped<IHostPrograms, ShellHostPrograms>();
         services.AddScoped<SbxInvoker>();
         services.AddScoped<IApplicationPortPublisher, SbxApplicationPorts>();

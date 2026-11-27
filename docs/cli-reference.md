@@ -219,7 +219,8 @@ Pushes the component images of the build unchanged and publishes the kit set of 
 squad to `rwest.jfrog.io/<publishRepository>`, the repository named in the squad's
 workload. A stale build is refused; run `abox build` again. **Publishing moves the
 chosen tag**, `latest` by default, so use a dedicated `--tag` for tests. Needs Docker
-with Buildx and `docker login rwest.jfrog.io`; it does not need sbx. See
+with Buildx and `docker login rwest.jfrog.io`, which it starts on a terminal when the
+stored sign-in is missing or rejected; it does not need sbx. See
 [development.md](development.md) and [artifact-format.md](artifact-format.md).
 
 ### Team sources
@@ -243,7 +244,7 @@ engine. Neither reads team sources.
 | | Published squad (default) | Local build (`--local`) |
 |---|---|---|
 | Source | Kit set pulled from `rwest.jfrog.io/<pullRepository>` | Component images of `abox build` in the host image store |
-| Needs | `docker login rwest.jfrog.io` with read access | A matching local build for the team, squad and tag |
+| Needs | `docker login rwest.jfrog.io` with read access; started for you when missing | A matching local build for the team, squad and tag |
 | State and MCP settings | From the published set | From the local build |
 | Refresh | Run `abox create` again | `abox run` offers it after a newer build |
 
