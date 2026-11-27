@@ -383,7 +383,7 @@ public sealed class SquadCredentialsTests
             parameters:
               ghe-host: tenant.ghe.com
             secrets:
-              - service: github-enterprise
+              - service: abox-github-enterprise
                 host: ["${{ parameters.ghe-host }}", "api.${{ parameters.ghe-host }}"]
                 env: GHE_TOKEN
                 placeholder: github_pat_{rand}
@@ -396,13 +396,13 @@ public sealed class SquadCredentialsTests
 
         // Assert
         var error = (await act.Should().ThrowAsync<AboxException>()).Which.Message;
-        error.Should().Contain("'github-enterprise' for tenant.ghe.com is not stored");
+        error.Should().Contain("'abox-github-enterprise' for tenant.ghe.com is not stored");
         error.Should().Contain("docs/github-enterprise-token.md");
         console
             .Errors.Should()
             .Contain(line =>
                 line.Contains(
-                    "github-enterprise (secrets, required) for tenant.ghe.com, api.tenant.ghe.com"
+                    "abox-github-enterprise (secrets, required) for tenant.ghe.com, api.tenant.ghe.com"
                 )
             );
     }

@@ -12,7 +12,7 @@ public sealed class GitHubTokenSignInTests : IDisposable
     private const string Token = "github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz";
 
     private static readonly SecretDeclaration Declaration = new(
-        "github-enterprise",
+        "abox-github-enterprise",
         Hosts: ["tenant.ghe.com", "api.tenant.ghe.com", "copilot-api.tenant.ghe.com"],
         EnvironmentVariable: "GHE_TOKEN",
         Placeholder: "github_pat_{rand}"
@@ -50,7 +50,7 @@ public sealed class GitHubTokenSignInTests : IDisposable
         // Assert
         var error = (await act.Should().ThrowAsync<AboxException>()).Which.Message;
         error.Should().Contain("docs/github-enterprise-token.md");
-        error.Should().Contain("abox secrets set --service github-enterprise");
+        error.Should().Contain("abox secrets set --service abox-github-enterprise");
     }
 
     [Fact]

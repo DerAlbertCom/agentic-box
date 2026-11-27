@@ -99,7 +99,7 @@ state:
   - ~/.config/opencode/state
 
 secrets:
-  - service: github
+  - service: abox-github
     prompt: The GitHub token for GitHub Enterprise Cloud
 ```
 

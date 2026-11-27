@@ -16,7 +16,7 @@ public sealed class GitHubTokenExpiriesTests : IDisposable
     public void ATokenThatExpiresWithinAWeekIsWarnedAbout()
     {
         // Arrange
-        Expiries().Record("github-enterprise", "tenant.ghe.com", Today.AddDays(3));
+        Expiries().Record("abox-github-enterprise", "tenant.ghe.com", Today.AddDays(3));
 
         // Act
         Expiries().WarnWhenClose();
@@ -27,16 +27,16 @@ public sealed class GitHubTokenExpiriesTests : IDisposable
             .ContainSingle()
             .Which.Should()
             .Contain(
-                "the token of the secret 'github-enterprise' for tenant.ghe.com expires on 2026-11-30"
+                "the token of the secret 'abox-github-enterprise' for tenant.ghe.com expires on 2026-11-30"
             );
-        _console.Errors[0].Should().Contain("abox secrets set --service github-enterprise");
+        _console.Errors[0].Should().Contain("abox secrets set --service abox-github-enterprise");
     }
 
     [Fact]
     public void AnExpiredTokenIsWarnedAbout()
     {
         // Arrange
-        Expiries().Record("github-enterprise", "tenant.ghe.com", Today.AddDays(-1));
+        Expiries().Record("abox-github-enterprise", "tenant.ghe.com", Today.AddDays(-1));
 
         // Act
         Expiries().WarnWhenClose();
@@ -49,7 +49,7 @@ public sealed class GitHubTokenExpiriesTests : IDisposable
     public void ATokenWithMoreThanAWeekLeftIsNotWarnedAbout()
     {
         // Arrange
-        Expiries().Record("github-enterprise", "tenant.ghe.com", Today.AddDays(8));
+        Expiries().Record("abox-github-enterprise", "tenant.ghe.com", Today.AddDays(8));
 
         // Act
         Expiries().WarnWhenClose();
@@ -62,8 +62,8 @@ public sealed class GitHubTokenExpiriesTests : IDisposable
     public void ANewTokenWithoutExpiryReplacesTheOldOne()
     {
         // Arrange
-        Expiries().Record("github-enterprise", "tenant.ghe.com", Today.AddDays(1));
-        Expiries().Record("github-enterprise", "tenant.ghe.com", expiresAt: null);
+        Expiries().Record("abox-github-enterprise", "tenant.ghe.com", Today.AddDays(1));
+        Expiries().Record("abox-github-enterprise", "tenant.ghe.com", expiresAt: null);
 
         // Act
         Expiries().WarnWhenClose();
@@ -76,8 +76,8 @@ public sealed class GitHubTokenExpiriesTests : IDisposable
     public void AForgottenTokenIsNotWarnedAbout()
     {
         // Arrange
-        Expiries().Record("github-enterprise", "tenant.ghe.com", Today.AddDays(1));
-        Expiries().Forget("github-enterprise");
+        Expiries().Record("abox-github-enterprise", "tenant.ghe.com", Today.AddDays(1));
+        Expiries().Forget("abox-github-enterprise");
 
         // Act
         Expiries().WarnWhenClose();

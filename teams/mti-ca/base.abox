@@ -21,7 +21,7 @@ state:
   - ~/.local/share/powershell/PSReadLine
   - ~/.local/state/sbox
 secrets:
-  - service: github-enterprise
+  - service: abox-github-enterprise
     host:
       - ${{ parameters.ghe-host }}
       - api.${{ parameters.ghe-host }}
@@ -30,7 +30,7 @@ secrets:
     env: GHE_TOKEN
     placeholder: github_pat_{rand}
     prompt: The fine-grained personal access token for GitHub Enterprise
-  - service: azure-devops
+  - service: abox-azure-devops
     inputs:
       - name: username
         prompt: Azure DevOps Basic username (enter pat)

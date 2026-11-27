@@ -18,7 +18,7 @@ internal sealed class GitHubTokenSignIn(
 )
 {
     /// <summary>The service whose value is a fine-grained GitHub token the user creates.</summary>
-    public const string Service = "github-enterprise";
+    public const string Service = "abox-github-enterprise";
 
     /// <summary>Where the user reads how to create the token by hand.</summary>
     public const string SetupDocument = "docs/github-enterprise-token.md";

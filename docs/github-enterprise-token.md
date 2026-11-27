@@ -3,7 +3,7 @@
 The `github-enterprise-auth` kit signs `gh`, git and the Copilot-backed agents
 (OpenCode, pi, Claude, the Copilot CLI) in to one GitHub Enterprise Cloud tenant, such
 as `rwe.ghe.com`. They all use one **fine-grained personal access token**: the
-`github-enterprise` secret. The token stays on the host. sbx's proxy sends it to the
+`abox-github-enterprise` secret. The token stays on the host. sbx's proxy sends it to the
 tenant's hosts, and the sandbox only sees a `github_pat_…` placeholder in `GHE_TOKEN`.
 
 A fine-grained token can push and open pull requests without being allowed to create
@@ -14,7 +14,7 @@ abox refuses it.
 
 You create the token yourself; abox never creates one and never opens a browser. When
 the secret is missing, `abox create --local` and `abox secrets set --service
-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
+abox-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
 
 1. abox prints the permissions below and the prefilled link
    `https://<tenant>/settings/personal-access-tokens/new?…`.
@@ -60,7 +60,7 @@ Choose the organization as the resource owner and all of its repositories. Then 
 the token:
 
 ```sh
-abox secrets set --location <folder> --service github-enterprise
+abox secrets set --location <folder> --service abox-github-enterprise
 ```
 
 Or, without a sandbox, store it with sbx directly. Give the four hosts of the squad's
@@ -77,7 +77,7 @@ sbx secret set-custom \
 abox reads the expiry date from the tenant's answer when it checks the token. From
 seven days before that date, `abox create` and `abox run` warn. To renew, regenerate
 the token on its settings page or create a new one, then store it again with `abox
-secrets set --service github-enterprise`. A running sandbox uses the new value with its
+secrets set --service abox-github-enterprise`. A running sandbox uses the new value with its
 next request.
 
 ## Replacing the old `gh`-based token

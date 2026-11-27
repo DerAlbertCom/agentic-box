@@ -44,11 +44,11 @@ separate.
 
 | Service | What to enter |
 | --- | --- |
-| `azure-devops` | Username `pat`, then the PAT. Stored as `base64("pat:<PAT>")`. Covers `dev.azure.com`, `pkgs.dev.azure.com` and `vssps.dev.azure.com`. |
+| `abox-azure-devops` | Username `pat`, then the PAT. Stored as `base64("pat:<PAT>")`. Covers `dev.azure.com`, `pkgs.dev.azure.com` and `vssps.dev.azure.com`. |
 | JFrog | Username and token. Stored as `base64("<username>:<token>")`. |
 | Elastic | The API key as issued; do not base64-encode it again. MOD and Predictopus keys need `feature_agentBuilder.read`. |
 | Context7 | Optional. |
-| `github-enterprise` | A fine-grained personal access token for `rwe.ghe.com`, see below. |
+| `abox-github-enterprise` | A fine-grained personal access token for `rwe.ghe.com`, see below. |
 
 `AZURE_DEVOPS_EXT_PAT` inside the sandbox is a placeholder, not the stored
 credential.
@@ -56,7 +56,7 @@ credential.
 ### The GitHub Enterprise token
 
 Access to GitHub Enterprise Cloud (`rwe.ghe.com`), including Copilot, uses one
-fine-grained personal access token: the custom secret `github-enterprise`. The base
+fine-grained personal access token: the custom secret `abox-github-enterprise`. The base
 squad sets the tenant as a parameter and declares the secret for its four hosts:
 
 ```yaml
@@ -67,7 +67,7 @@ kits:
     args:
       GHE_HOST: ${{ parameters.ghe-host }}
 secrets:
-  - service: github-enterprise
+  - service: abox-github-enterprise
     host:
       - ${{ parameters.ghe-host }}
       - api.${{ parameters.ghe-host }}
@@ -82,7 +82,7 @@ token in requests to these four hosts. The `github-enterprise-auth` kit fails it
 if the placeholder is missing.
 
 You create the token yourself in the browser. When it is missing, `abox create --local`
-and `abox secrets set --service github-enterprise` print the permissions and the
+and `abox secrets set --service abox-github-enterprise` print the permissions and the
 prefilled link, ask you to paste the token, check it and store it. The host needs no
 `gh`. The permissions, the template link for creating the token by hand, the
 expiry warning and how to remove the old `gh`-based `RWE_GHE_TOKEN` secret are in

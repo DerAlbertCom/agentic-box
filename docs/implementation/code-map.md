@@ -50,7 +50,7 @@ external tools it needs.
 | `Sandboxes` | finding a folder's sandbox, `SandboxCreator`, sandbox records, legacy names, published squad metadata; interfaces for lifecycle, exec, inspection, MCP registration and kit source trust |
 | `Launchers` | `ILauncher`, `LauncherSession`, the launcher registry |
 | `Credentials` | kit credential requests, secret declarations and identity, prompting and storing, the create-time check |
-| `GitHubTokens` | the fine-grained token of the `github-enterprise` secret: the permissions and prefilled link it needs, the check of a pasted token, the expiry warning; `IGitHubTokenCheck` |
+| `GitHubTokens` | the fine-grained token of the `abox-github-enterprise` secret: the permissions and prefilled link it needs, the check of a pasted token, the expiry warning; `IGitHubTokenCheck` |
 | `UserSecrets` | selection, deny list, project discovery, endpoint rewriting, the copy flow |
 | `ApplicationPorts` | static port discovery, the port plan, publishing |
 | `Https` | sandbox HTTPS activation, refresh and launch readiness |

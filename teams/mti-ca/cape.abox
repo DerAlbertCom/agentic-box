@@ -25,11 +25,11 @@ parameters:
   database-url: https://dev.cape.rwe.com/mcp
   elastic-url: https://675962b701c243adb707252f420dc1c2.eu-central-1.aws.cloud.es.io/api/agent_builder/mcp
 secrets:
-  - service: cape-database-mcp
+  - service: abox-cape-database-mcp
     prompt: CAPE database MCP API key
-  - service: cape-elastic
+  - service: abox-cape-elastic
     prompt: CAPE Elastic encoded API key
-  - service: jfrog
+  - service: abox-jfrog
     inputs:
       - name: username
       - name: token

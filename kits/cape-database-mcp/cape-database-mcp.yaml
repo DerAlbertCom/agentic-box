@@ -10,7 +10,7 @@ capabilities:
         allow: [dev.cape.rwe.com]
   - type: com.docker.sandbox/credential@1
     config:
-      service: cape-database-mcp
+      service: abox-cape-database-mcp
       phase: runtime
       apiKey:
         name: CAPE_DATABASE_MCP_API_KEY
