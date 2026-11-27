@@ -70,10 +70,12 @@ internal sealed class SecretValues(
     /// secret is not stored over a conflicting one.
     /// </summary>
     /// <param name="declaration">The secret; a withheld command is never run.</param>
+    /// <param name="domains">The domains the kits send the secret to; empty when no kit asks for it.</param>
     /// <param name="stored">The secrets the host keeps.</param>
     /// <param name="cancellationToken">Cancels the store calls.</param>
     public async Task<SecretSetting> SetAsync(
         SecretDeclaration declaration,
+        IReadOnlyList<string> domains,
         HostSecrets stored,
         CancellationToken cancellationToken
     )
@@ -104,8 +106,8 @@ internal sealed class SecretValues(
             );
         }
 
-        var value = GitHubTokenSignIn.Handles(declaration)
-            ? await gitHubTokens.ObtainAsync(declaration, cancellationToken)
+        var value = GitHubTokenSignIn.Handles(declaration.Service, domains)
+            ? await gitHubTokens.ObtainAsync(domains, cancellationToken)
             : Ask(declaration);
         if (string.IsNullOrEmpty(value))
         {

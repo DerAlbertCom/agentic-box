@@ -137,7 +137,12 @@ internal sealed class SquadCredentials(
                 state.Stored
                 || state.Declaration is { } declaration
                     && console.Confirm($"Set the secret '{name}' now?")
-                    && await SetAsync(declaration, stored, cancellationToken);
+                    && await SetAsync(
+                        declaration,
+                        state.Request.Domains,
+                        stored,
+                        cancellationToken
+                    );
 
             if (!ready)
             {
@@ -163,12 +168,13 @@ internal sealed class SquadCredentials(
 
     private async Task<bool> SetAsync(
         SecretDeclaration declaration,
+        IReadOnlyList<string> domains,
         HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
         var name = declaration.Service;
-        var setting = await values.SetAsync(declaration, stored, cancellationToken);
+        var setting = await values.SetAsync(declaration, domains, stored, cancellationToken);
         switch (setting.Result)
         {
             case SecretSettingResult.Skipped:

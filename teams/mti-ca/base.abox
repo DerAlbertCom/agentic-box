@@ -1,12 +1,8 @@
 workload: mti-ca
-parameters:
-  ghe-host: rwe.ghe.com
 kits:
   - sandbox-agents
   - git-user
-  - name: github-enterprise-auth
-    args:
-      GHE_HOST: ${{ parameters.ghe-host }}
+  - github-enterprise-auth
   - azure-devops
   - sbox
   - themes
@@ -22,13 +18,6 @@ state:
   - ~/.local/state/sbox
 secrets:
   - service: abox-github-enterprise
-    host:
-      - ${{ parameters.ghe-host }}
-      - api.${{ parameters.ghe-host }}
-      - uploads.${{ parameters.ghe-host }}
-      - copilot-api.${{ parameters.ghe-host }}
-    env: GHE_TOKEN
-    placeholder: github_pat_{rand}
     prompt: The fine-grained personal access token for GitHub Enterprise
   - service: abox-azure-devops
     inputs:

@@ -56,37 +56,22 @@ credential.
 ### The GitHub Enterprise token
 
 Access to GitHub Enterprise Cloud (`rwe.ghe.com`), including Copilot, uses one
-fine-grained personal access token: the custom secret `abox-github-enterprise`. The base
-squad sets the tenant as a parameter and declares the secret for its four hosts:
+fine-grained personal access token: the service `abox-github-enterprise`. The
+`github-enterprise-auth` kit asks for it with `credential@1`, for `rwe.ghe.com`,
+`api.rwe.ghe.com`, `uploads.rwe.ghe.com` and `copilot-api.rwe.ghe.com`. Like every abox
+service it is stored by its name, so it never collides with another secret for the
+same hosts, such as the old `gh`-based `RWE_GHE_TOKEN`.
 
-```yaml
-parameters:
-  ghe-host: rwe.ghe.com
-kits:
-  - name: github-enterprise-auth
-    args:
-      GHE_HOST: ${{ parameters.ghe-host }}
-secrets:
-  - service: abox-github-enterprise
-    host:
-      - ${{ parameters.ghe-host }}
-      - api.${{ parameters.ghe-host }}
-      - uploads.${{ parameters.ghe-host }}
-      - copilot-api.${{ parameters.ghe-host }}
-    env: GHE_TOKEN
-    placeholder: github_pat_{rand}
-```
-
-The sandbox sees a placeholder in `GHE_TOKEN`. The proxy replaces it with the real
-token in requests to these four hosts. Without the placeholder the `github-enterprise-auth`
-kit warns and leaves `gh` and git signed out; the sandbox is still created, and what
-needs the tenant fails inside it until the secret is stored and the sandbox recreated.
+The sandbox sees a placeholder in `GHE_TOKEN`, and the proxy sends the real token to
+these four hosts. Without a stored token the kit warns and leaves `gh` and git signed
+out; the sandbox is still created, and what needs the tenant fails inside it until the
+token is stored and the sandbox recreated.
 
 You create the token yourself in the browser. When it is missing, `abox create --local`
 and `abox secrets set --service abox-github-enterprise` print the permissions and the
 prefilled link, ask you to paste the token, check it and store it. The host needs no
 `gh`. The permissions, the template link for creating the token by hand, the
-expiry warning and how to remove the old `gh`-based `RWE_GHE_TOKEN` secret are in
+expiry warning and what to do with the old `gh`-based `RWE_GHE_TOKEN` secret are in
 [docs/github-enterprise-token.md](../../docs/github-enterprise-token.md).
 
 The token cannot create or delete repositories (`gh repo create` fails with 403), and

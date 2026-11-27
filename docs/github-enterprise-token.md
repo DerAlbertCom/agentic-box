@@ -1,10 +1,12 @@
 # The GitHub Enterprise token
 
 The `github-enterprise-auth` kit signs `gh`, git and the Copilot-backed agents
-(OpenCode, pi, Claude, the Copilot CLI) in to one GitHub Enterprise Cloud tenant, such
-as `rwe.ghe.com`. They all use one **fine-grained personal access token**: the
-`abox-github-enterprise` secret. The token stays on the host. sbx's proxy sends it to the
-tenant's hosts, and the sandbox only sees a `github_pat_…` placeholder in `GHE_TOKEN`.
+(OpenCode, pi, Claude, the Copilot CLI) in to the GitHub Enterprise Cloud tenant
+`rwe.ghe.com`. They all use one **fine-grained personal access token**: the service
+`abox-github-enterprise`, which the kit asks for with `credential@1`. The token stays on
+the host and is stored by its service name. sbx's proxy sends it to `rwe.ghe.com`,
+`api.`, `uploads.` and `copilot-api.rwe.ghe.com`; the sandbox only sees a placeholder in
+`GHE_TOKEN`.
 
 A fine-grained token can push and open pull requests without being allowed to create
 or delete repositories. A classic `gh` token (`gho_…`) cannot be limited that way, so
@@ -13,7 +15,7 @@ abox refuses it.
 ## Store it with abox
 
 You create the token yourself; abox never creates one and never opens a browser. When
-the secret is missing, `abox create --local` and `abox secrets set --service
+the token is missing, `abox create --local` and `abox secrets set --service
 abox-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
 
 1. abox prints the permissions below and the prefilled link
@@ -76,28 +78,14 @@ the token on its settings page or create a new one, then store it again with `ab
 secrets set --service abox-github-enterprise`. A running sandbox uses the new value with its
 next request.
 
-## Replacing the old `gh`-based token
+## The old `gh`-based token
 
-Squads used to store a `gh auth token` as the secret `rwe-ghec`, under the variable
-`RWE_GHE_TOKEN` (`gho_{rand}`). Its hosts are the same as the new secret's, so abox
-lists the new secret with `conflicts with RWE_GHE_TOKEN` and does not overwrite the old
-one.
-
-Remove it before you recreate the sandbox, while the folder's sandbox still comes from
-the old build that declares `rwe-ghec`:
-
-```sh
-abox secrets list --location <folder>
-abox secrets remove --location <folder> --service rwe-ghec
-```
-
-The stored value serves every sandbox, so this removes it for all of them. Then
-recreate the sandbox with `abox create --local` and store the new token as described
-above.
-
-If the sandbox already comes from the new build, abox no longer knows `rwe-ghec` and
-does not remove a secret it did not declare. Remove it with sbx, choosing the entry
-with `RWE_GHE_TOKEN`:
+Squads used to store a `gh auth token` as a custom secret under the variable
+`RWE_GHE_TOKEN`. The new token is a service stored by its name, so both live side by
+side: sandboxes from an older build keep using the old secret, and new ones use
+`abox-github-enterprise`. Remove the old secret once no sandbox needs it any more; abox
+does not remove secrets it did not store, so use sbx and choose the entry with
+`RWE_GHE_TOKEN`:
 
 ```sh
 sbx secret rm
@@ -109,6 +97,6 @@ sbx secret rm
   the agents have no wiki write access.
 - **github.com.** Public GitHub stays anonymous: `GH_TOKEN` and `GITHUB_TOKEN` are empty
   in the sandbox, and `gh` and git use the token only for the tenant.
-- **Other tenants.** Kit network rules are static, so every `*.ghe.com` tenant is
-  reachable from the sandbox. The token is only sent to the hosts in the secret's
-  declaration.
+- **Other tenants.** The kit's hosts are fixed to `rwe.ghe.com`, because a kit's
+  `credential@1` domains cannot come from a parameter. Another tenant needs its own copy
+  of the kit.

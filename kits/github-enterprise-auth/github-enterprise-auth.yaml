@@ -3,17 +3,17 @@ schemaVersion: "3"
 kind: mixin
 displayName: GitHub Enterprise Cloud authentication
 description: >
-  gh, git, OpenCode, pi, Claude and the Copilot CLI reach one GitHub Enterprise Cloud
-  tenant (GHE_HOST, a *.ghe.com host) with the fine-grained personal access token of the
-  github-enterprise secret. The token stays on the host; the sandbox only sees the
-  github_pat_ placeholder in GHE_TOKEN. Kit network rules are static, so every *.ghe.com
-  tenant is reachable, but the token is only sent to the hosts the secret declares.
+  gh, git, OpenCode, pi, Claude and the Copilot CLI reach the GitHub Enterprise Cloud
+  tenant rwe.ghe.com with the fine-grained personal access token of the
+  abox-github-enterprise service. The token stays on the host; the sandbox only sees a
+  placeholder in GHE_TOKEN, and the proxy sends the token to the tenant's four hosts.
   Public GitHub stays anonymous.
-version: "2.0.1"
+version: "3.0.0"
 requires: [mti-ca-agents]
 args:
   GHE_HOST:
-    default: ""
+    default: rwe.ghe.com
+    enum: [rwe.ghe.com]
     env: GH_HOST
   GHE_PUBLIC_GH_TOKEN:
     default: ""
@@ -30,29 +30,41 @@ capabilities:
   - type: com.docker.sandbox/network-policy@1
     config:
       install:
-        allow: [ghe.com, "**.ghe.com"]
+        allow: [rwe.ghe.com, api.rwe.ghe.com, uploads.rwe.ghe.com, copilot-api.rwe.ghe.com]
       runtime:
-        allow: [ghe.com, "**.ghe.com", "*.githubcopilot.com"]
+        allow: [rwe.ghe.com, api.rwe.ghe.com, uploads.rwe.ghe.com, copilot-api.rwe.ghe.com, "*.githubcopilot.com"]
+  - type: com.docker.sandbox/credential@1
+    config:
+      service: abox-github-enterprise
+      phase: [install, runtime]
+      apiKey:
+        name: GHE_TOKEN
+        proxyManaged: true
+        inject:
+          - domain: rwe.ghe.com
+            header: Authorization
+            format: Bearer %s
+          - domain: api.rwe.ghe.com
+            header: Authorization
+            format: Bearer %s
+          - domain: uploads.rwe.ghe.com
+            header: Authorization
+            format: Bearer %s
+          - domain: copilot-api.rwe.ghe.com
+            header: Authorization
+            format: Bearer %s
   - type: com.docker.sandbox/lifecycle@1
     config:
       install:
         - command: |
             set -eu
-            case "${GH_HOST:-}" in
-              *[!a-z0-9.-]* | .* | *..* ) echo "GHE_HOST '${GH_HOST:-}' is not a host name." >&2; exit 1 ;;
-              ?*.ghe.com) ;;
-              *) echo "GHE_HOST '${GH_HOST:-}' is not a *.ghe.com host; pass it from the squad's ghe-host parameter." >&2; exit 1 ;;
-            esac
             test -z "${GH_TOKEN:-}" && test -z "${GITHUB_TOKEN:-}"
-            case "${GHE_TOKEN:-}" in
-              github_pat_*)
-                gh config set --host "$GH_HOST" oauth_token "$GHE_TOKEN"
-                gh auth setup-git --hostname "$GH_HOST"
-                ;;
-              *)
-                echo "Warning: GHE_TOKEN holds no github_pat_ placeholder, so gh and git are not signed in to $GH_HOST. Store the abox-github-enterprise secret (docs/github-enterprise-token.md) and recreate the sandbox." >&2
-                ;;
-            esac
+            if [ -n "${GHE_TOKEN:-}" ]; then
+              gh config set --host "$GH_HOST" oauth_token "$GHE_TOKEN"
+              gh auth setup-git --hostname "$GH_HOST"
+            else
+              echo "Warning: GHE_TOKEN is empty, so gh and git are not signed in to $GH_HOST. Store the abox-github-enterprise service (docs/github-enterprise-token.md) and recreate the sandbox." >&2
+            fi
             templates=/opt/github-enterprise-auth/templates
             render() {
               mkdir -p "$(dirname "$2")"
@@ -67,8 +79,8 @@ capabilities:
   - type: com.docker.sandbox/agent-context@2
     config:
       content: |
-        GitHub is the GitHub Enterprise Cloud tenant in GH_HOST. gh and git are signed in
-        to it with a fine-grained token (proxy-managed GHE_TOKEN placeholder): clone, pull,
+        GitHub is the GitHub Enterprise Cloud tenant rwe.ghe.com (GH_HOST). gh and git are
+        signed in to it with a fine-grained token (proxy-managed GHE_TOKEN placeholder): clone, pull,
         push, branches, tags, pull requests, issues, discussions, organization projects,
         workflow dispatch and runs, workflow files and commit statuses. It has no
         administration permission: creating or deleting repositories fails with 403. There

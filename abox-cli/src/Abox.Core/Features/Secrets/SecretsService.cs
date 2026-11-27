@@ -133,6 +133,7 @@ internal sealed class SecretsService(
 
             var setting = await values.SetAsync(
                 declaration ?? new SecretDeclaration(name),
+                asked?.Domains ?? [],
                 stored,
                 cancellationToken
             );

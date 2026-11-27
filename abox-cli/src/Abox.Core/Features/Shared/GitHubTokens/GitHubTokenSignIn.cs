@@ -1,15 +1,14 @@
 using Abox.Features.Shared.Common;
-using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Shared.GitHubTokens;
 
 /// <summary>
-/// Asks for the fine-grained personal access token of the <c>github-enterprise</c> secret:
+/// Asks for the fine-grained personal access token of the <c>abox-github-enterprise</c> service:
 /// abox names the permissions and the prefilled link, the user creates the token and pastes
 /// it, abox asks the host whether it accepts the token and remembers when it expires. abox
 /// never creates a token and never opens a browser. The GitHub CLI is not needed.
-/// The token's tenant is the secret's host without an <c>api.</c>, <c>uploads.</c> or
-/// <c>copilot-api.</c> prefix.
+/// The token's tenant is the domain the kit's credential request names without an
+/// <c>api.</c>, <c>uploads.</c> or <c>copilot-api.</c> prefix.
 /// </summary>
 internal sealed class GitHubTokenSignIn(
     IGitHubTokenCheck check,
@@ -44,24 +43,24 @@ internal sealed class GitHubTokenSignIn(
         ("copilot_requests", "write", "GitHub Copilot"),
     ];
 
-    /// <summary>Whether the secret's value is got through this sign-in.</summary>
-    public static bool Handles(SecretDeclaration declaration) =>
-        declaration.Service == Service && declaration.Host is not null;
+    /// <summary>
+    /// Whether the service's value is got through this sign-in: it is the GitHub token,
+    /// and a kit names the domains it is sent to.
+    /// </summary>
+    public static bool Handles(string service, IReadOnlyList<string> domains) =>
+        service == Service && domains.Count > 0;
 
     /// <summary>The prefixes of a tenant's API hosts.</summary>
     private static readonly string[] ApiHostPrefixes = ["api.", "uploads.", "copilot-api."];
 
     /// <summary>
-    /// The tenant the token belongs to: the first host of the secret that is not one of the
-    /// tenant's API hosts, or its first host when all are.
+    /// The tenant the token belongs to: the first domain that is not one of the tenant's
+    /// API hosts, or the first domain when all are.
     /// </summary>
-    public static string Tenant(SecretDeclaration declaration)
-    {
-        var hosts = declaration.Hosts ?? [];
-        return hosts.FirstOrDefault(host =>
-                !ApiHostPrefixes.Any(prefix => host.StartsWith(prefix, StringComparison.Ordinal))
-            ) ?? hosts[0];
-    }
+    public static string Tenant(IReadOnlyList<string> domains) =>
+        domains.FirstOrDefault(domain =>
+            !ApiHostPrefixes.Any(prefix => domain.StartsWith(prefix, StringComparison.Ordinal))
+        ) ?? domains[0];
 
     /// <summary>The page that creates the token, prefilled with its name and permissions.</summary>
     public static Uri TokenPage(string host)
@@ -81,12 +80,14 @@ internal sealed class GitHubTokenSignIn(
     /// Asks for the token the user created. Returns null when none was given. Without
     /// a terminal it fails with what the user does instead.
     /// </summary>
+    /// <param name="domains">The domains the kit sends the token to.</param>
+    /// <param name="cancellationToken">Cancels the check.</param>
     public async Task<string?> ObtainAsync(
-        SecretDeclaration declaration,
+        IReadOnlyList<string> domains,
         CancellationToken cancellationToken
     )
     {
-        var host = Tenant(declaration);
+        var host = Tenant(domains);
         if (!console.IsInteractive)
         {
             throw MissingWithoutTerminal(host);
@@ -119,11 +120,10 @@ internal sealed class GitHubTokenSignIn(
     }
 
     /// <summary>Why the secret cannot be set without a terminal, and what to do instead.</summary>
-    public static AboxException MissingWithoutTerminal(string host) =>
+    private static AboxException MissingWithoutTerminal(string host) =>
         new(
             $"The secret '{Service}' for {host} is not stored, and its token can only be pasted on a terminal. "
-                + $"Create the token as {SetupDocument} describes, then run 'abox secrets set --service {Service}' on a terminal. "
-                + "If an older secret for the same hosts is still stored, such as an older gh-based token, remove it first as the document describes."
+                + $"Create the token as {SetupDocument} describes, then run 'abox secrets set --service {Service}' on a terminal."
         );
 
     private Task<GitHubTokenCheck> CheckAsync(

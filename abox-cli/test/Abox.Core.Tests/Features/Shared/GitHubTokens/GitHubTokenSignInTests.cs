@@ -11,12 +11,16 @@ public sealed class GitHubTokenSignInTests : IDisposable
 {
     private const string Token = "github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz";
 
-    private static readonly SecretDeclaration Declaration = new(
-        "abox-github-enterprise",
-        Hosts: ["tenant.ghe.com", "api.tenant.ghe.com", "copilot-api.tenant.ghe.com"],
-        EnvironmentVariable: "GHE_TOKEN",
-        Placeholder: "github_pat_{rand}"
-    );
+    private const string Service = "abox-github-enterprise";
+
+    private static readonly SecretDeclaration Declaration = new(Service);
+
+    private static readonly IReadOnlyList<string> Domains =
+    [
+        "tenant.ghe.com",
+        "api.tenant.ghe.com",
+        "copilot-api.tenant.ghe.com",
+    ];
 
     private readonly TempDirectory _state = new();
     private readonly IHostSecretStore _store = Substitute.For<IHostSecretStore>();
@@ -28,11 +32,7 @@ public sealed class GitHubTokenSignInTests : IDisposable
     public GitHubTokenSignInTests()
     {
         _store
-            .SetCustomAsync(
-                Arg.Any<SecretDeclaration>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>()
-            )
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(HostSecretChange.Done);
     }
 
@@ -54,7 +54,7 @@ public sealed class GitHubTokenSignInTests : IDisposable
     }
 
     [Fact]
-    public async Task AnAcceptedTokenFromThePrefilledPageIsStoredUnderTheSecretsHosts()
+    public async Task AnAcceptedTokenFromThePrefilledPageIsStoredUnderTheServiceName()
     {
         // Arrange
         var console = new TestConsole { Answers = { Token } };
@@ -65,29 +65,27 @@ public sealed class GitHubTokenSignInTests : IDisposable
 
         // Assert
         setting.Result.Should().Be(SecretSettingResult.Stored);
-        await _store.Received(1).SetCustomAsync(Declaration, Token, Arg.Any<CancellationToken>());
+        await _store.Received(1).SetAsync(Service, Token, Arg.Any<CancellationToken>());
         console.AllText.Should().NotContain(Token);
     }
 
     [Fact]
-    public async Task TheTenantIsTheHostWithoutAnApiPrefixWhateverTheOrderOfTheHosts()
+    public async Task TheTenantIsTheDomainWithoutAnApiPrefixWhateverTheOrderOfTheDomains()
     {
         // Arrange
         var console = new TestConsole { Answers = { Token } };
         Accept(Token, expiresAt: null);
-        var reordered = Declaration with
-        {
-            Hosts =
-            [
-                "copilot-api.tenant.ghe.com",
-                "api.tenant.ghe.com",
-                "uploads.tenant.ghe.com",
-                "tenant.ghe.com",
-            ],
-        };
+        IReadOnlyList<string> reordered =
+        [
+            "copilot-api.tenant.ghe.com",
+            "api.tenant.ghe.com",
+            "uploads.tenant.ghe.com",
+            "tenant.ghe.com",
+        ];
 
         // Act
         var setting = await new SecretValues(_store, console, SignIn(console)).SetAsync(
+            Declaration,
             reordered,
             new HostSecrets([], []),
             CancellationToken.None
@@ -134,7 +132,7 @@ public sealed class GitHubTokenSignInTests : IDisposable
         // Assert
         setting.Result.Should().Be(SecretSettingResult.Stored);
         console.AllText.Should().Contain("expired or revoked (401)");
-        await _store.Received(1).SetCustomAsync(Declaration, Token, Arg.Any<CancellationToken>());
+        await _store.Received(1).SetAsync(Service, Token, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -154,11 +152,7 @@ public sealed class GitHubTokenSignInTests : IDisposable
             .CheckAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _store
             .DidNotReceive()
-            .SetCustomAsync(
-                Arg.Any<SecretDeclaration>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>()
-            );
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -184,6 +178,26 @@ public sealed class GitHubTokenSignInTests : IDisposable
         console.Output.Should().Contain("How to create it is in docs/github-enterprise-token.md.");
     }
 
+    [Fact]
+    public async Task WithoutAKitThatNamesItsDomainsTheServiceIsAskedForLikeAnyOther()
+    {
+        // Arrange
+        var console = new TestConsole { Answers = { "plain-value" } };
+
+        // Act
+        var setting = await new SecretValues(_store, console, SignIn(console)).SetAsync(
+            Declaration,
+            [],
+            new HostSecrets([], []),
+            CancellationToken.None
+        );
+
+        // Assert
+        setting.Result.Should().Be(SecretSettingResult.Stored);
+        console.Output.Should().NotContain(line => line.StartsWith("This link prefills them"));
+        await _store.Received(1).SetAsync(Service, "plain-value", Arg.Any<CancellationToken>());
+    }
+
     private void Accept(string token, DateTimeOffset? expiresAt) =>
         _check
             .CheckAsync("tenant.ghe.com", token, Arg.Any<CancellationToken>())
@@ -192,6 +206,7 @@ public sealed class GitHubTokenSignInTests : IDisposable
     private Task<SecretSetting> SetAsync(TestConsole console) =>
         new SecretValues(_store, console, SignIn(console)).SetAsync(
             Declaration,
+            Domains,
             new HostSecrets([], []),
             CancellationToken.None
         );

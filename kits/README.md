@@ -11,7 +11,7 @@ here are working examples to copy from:
 | Kit | Shows |
 |---|---|
 | `pi-config`, `opencode-config` | Writing an agent configuration. |
-| `github-enterprise-auth` | A custom secret the kit's setup reads, and agent configs rendered from templates with a kit argument. See [the GitHub Enterprise token](../docs/github-enterprise-token.md). |
+| `github-enterprise-auth` | A `credential@1` service the kit's setup reads, and agent configs rendered from templates. See [the GitHub Enterprise token](../docs/github-enterprise-token.md). |
 | `sample-secrets` | Dummy credentials, to try `abox secrets`. |
 | [`host-access-cape`](host-access-cape/README.md) | Reaching services on the host. |
 | `sbox`, [`themes`](themes/README.md) | A kit build step that bundles TypeScript. |
