@@ -11,7 +11,7 @@
     "github-copilot": {
       "settings": {
         "baseURL": "https://copilot-api.__GHE_HOST__",
-        "apiKey": "{env:GHE_TOKEN}"
+        "apiKey": "{env:GHE_COPILOT_TOKEN}"
       },
       "models": {
         "claude-opus-5.5": {

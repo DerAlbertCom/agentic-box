@@ -3,7 +3,7 @@
   "providers": {
     "github-copilot": {
       "baseUrl": "https://copilot-api.__GHE_HOST__",
-      "apiKey": "$GHE_TOKEN"
+      "apiKey": "$GHE_COPILOT_TOKEN"
     }
   }
 }

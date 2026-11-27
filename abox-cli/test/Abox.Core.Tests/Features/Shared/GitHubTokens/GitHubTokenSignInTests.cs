@@ -177,14 +177,44 @@ public sealed class GitHubTokenSignInTests : IDisposable
                 "  administration: none (the token cannot create or delete repositories)",
                 "  statuses: read (see CI results)"
             );
-        var link = console.Output.Single(line => line.StartsWith("This link prefills them: "))[
-            "This link prefills them: ".Length..
-        ];
-        var page = new Uri(link);
+        var page = Link(console);
         page.Host.Should().Be("tenant.ghe.com");
         page.AbsolutePath.Should().Be("/settings/personal-access-tokens/new");
-        page.Query.Should().Contain("copilot_requests=write").And.NotContain("administration");
+        page.Query.Should()
+            .Contain("workflows=write")
+            .And.NotContain("administration")
+            .And.NotContain("copilot");
         console.Output.Should().Contain("How to create it is in docs/github-enterprise-token.md.");
+    }
+
+    [Fact]
+    public async Task TheLinkNamesTheOrganizationAsResourceOwnerSoItsPermissionsArePrefilled()
+    {
+        // Arrange
+        var console = new TestConsole { Lines = { "my-org" } };
+
+        // Act
+        await SetAsync(console);
+
+        // Assert
+        var query = Link(console).Query;
+        query.Should().Contain("target_name=my-org");
+        query.Should().Contain("organization_projects=write");
+    }
+
+    [Fact]
+    public async Task WithoutAnOrganizationTheLinkLeavesOutItsPermissions()
+    {
+        // Arrange
+        var console = new TestConsole();
+
+        // Act
+        await SetAsync(console);
+
+        // Assert
+        var query = Link(console).Query;
+        query.Should().NotContain("target_name").And.NotContain("organization_projects");
+        query.Should().Contain("contents=write");
     }
 
     [Fact]
@@ -206,6 +236,13 @@ public sealed class GitHubTokenSignInTests : IDisposable
         console.Output.Should().NotContain(line => line.StartsWith("This link prefills them"));
         await _store.Received(1).SetAsync(Service, "plain-value", Arg.Any<CancellationToken>());
     }
+
+    private static Uri Link(TestConsole console) =>
+        new(
+            console.Output.Single(line => line.StartsWith("This link prefills them: "))[
+                "This link prefills them: ".Length..
+            ]
+        );
 
     private void Accept(string token, DateTimeOffset? expiresAt) =>
         _check

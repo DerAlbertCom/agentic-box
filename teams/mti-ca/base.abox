@@ -19,6 +19,8 @@ state:
 secrets:
   - service: abox-github-enterprise
     prompt: The fine-grained personal access token for GitHub Enterprise
+  - service: abox-github-copilot
+    prompt: "The GitHub Copilot token: the output of 'gh auth token --hostname rwe.ghe.com' on this machine"
   - service: abox-azure-devops
     inputs:
       - name: username

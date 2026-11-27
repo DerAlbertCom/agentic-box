@@ -72,7 +72,8 @@ conflicting binding use the resolved hosts. A `command` is used as written.
 The service `abox-github-enterprise` gets its value differently when a kit asks for
 it with `credential@1`. The user creates a fine-grained personal access token; abox
 prints the permissions and the prefilled link for the tenant (the kit's domain without
-`api.`, `uploads.` or `copilot-api.`), checks the pasted token against `api.<tenant>`,
+`api.`, `uploads.` or `copilot-api.`), asks for the organization that owns the token so
+the prefilled link names it as the resource owner, checks the pasted token against `api.<tenant>`,
 stores it under the service name, and warns on `create` and `run` before it expires. See [the GitHub Enterprise token](github-enterprise-token.md).
 
 A service that a kit asks for with `credential@1` is always stored by its name, so it

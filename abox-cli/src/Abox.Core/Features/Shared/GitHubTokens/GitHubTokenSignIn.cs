@@ -28,22 +28,23 @@ internal sealed class GitHubTokenSignIn(
     /// <summary>
     /// The permissions the token gets, as the template link names them, with what each is
     /// for, in the order of GitHub's page: the repository permissions alphabetically, then
-    /// the organization's and the account's. Administration stays at none, so the token
-    /// cannot create or delete repositories.
+    /// the organization's. Administration stays at none, so the token cannot create or
+    /// delete repositories. Copilot is not among them: its endpoint rejects personal access
+    /// tokens and gets the separate <c>abox-github-copilot</c> service. The organization's
+    /// permissions only apply when the organization owns the token.
     /// </summary>
-    private static readonly (string Name, string Level, string Purpose)[] Permissions =
+    private static readonly Permission[] Permissions =
     [
-        ("actions", "write", "dispatch workflows, read runs and logs"),
-        ("administration", "none", "the token cannot create or delete repositories"),
-        ("statuses", "read", "see CI results"),
-        ("contents", "write", "clone, pull, push, branches, tags"),
-        ("discussions", "write", "discussions"),
-        ("issues", "write", "create and update issues"),
-        ("metadata", "read", "mandatory"),
-        ("pull_requests", "write", "open and update pull requests"),
-        ("workflows", "write", "push changes under .github/workflows"),
-        ("organization_projects", "write", "projects of the organization"),
-        ("copilot_requests", "write", "GitHub Copilot"),
+        new("actions", "write", "dispatch workflows, read runs and logs", false),
+        new("administration", "none", "the token cannot create or delete repositories", false),
+        new("statuses", "read", "see CI results", false),
+        new("contents", "write", "clone, pull, push, branches, tags", false),
+        new("discussions", "write", "discussions", false),
+        new("issues", "write", "create and update issues", false),
+        new("metadata", "read", "mandatory", false),
+        new("pull_requests", "write", "open and update pull requests", false),
+        new("workflows", "write", "push changes under .github/workflows", false),
+        new("organization_projects", "write", "projects of the organization", true),
     ];
 
     /// <summary>
@@ -65,15 +66,24 @@ internal sealed class GitHubTokenSignIn(
             !ApiHostPrefixes.Any(prefix => domain.StartsWith(prefix, StringComparison.Ordinal))
         ) ?? domains[0];
 
-    /// <summary>The page that creates the token, prefilled with its name and permissions.</summary>
-    public static Uri TokenPage(string host)
+    /// <summary>
+    /// The page that creates the token, prefilled with its name, its resource owner and
+    /// the permissions that owner can grant.
+    /// </summary>
+    /// <param name="host">The tenant.</param>
+    /// <param name="organization">The organization that owns the token, or null for the user's own account.</param>
+    public static Uri TokenPage(string host, string? organization)
     {
+        string[] owner = organization is null
+            ? []
+            : ["target_name=" + Uri.EscapeDataString(organization)];
         var query = string.Join(
             '&',
             [
                 "name=" + Uri.EscapeDataString("abox sandbox agents"),
                 "description=" + Uri.EscapeDataString("Used by the agents in abox sandboxes"),
-                .. Permissions
+                .. owner,
+                .. Grantable(organization)
                     .Where(permission => permission.Level != "none")
                     .Select(permission => $"{permission.Name}={permission.Level}"),
             ]
@@ -131,6 +141,10 @@ internal sealed class GitHubTokenSignIn(
                 + $"Create the token as {SetupDocument} describes, then run 'abox secrets set --service {Service}' on a terminal."
         );
 
+    /// <summary>The permissions the owner can grant: the organization's only to an organization.</summary>
+    private static IEnumerable<Permission> Grantable(string? organization) =>
+        Permissions.Where(permission => organization is not null || !permission.OfOrganization);
+
     private Task<GitHubTokenCheck> CheckAsync(
         string host,
         string token,
@@ -146,18 +160,25 @@ internal sealed class GitHubTokenSignIn(
 
     private void ShowRequirements(string host)
     {
-        var page = TokenPage(host);
         console.WriteLine(
-            $"The secret '{Service}' is a fine-grained personal access token of {host}. Create it with these permissions:"
+            $"The secret '{Service}' is a fine-grained personal access token of {host}."
         );
-        foreach (var (name, level, purpose) in Permissions)
+        var organization = console
+            .ReadLine("The organization that owns the repositories (empty for your own account): ")
+            ?.Trim();
+        if (string.IsNullOrEmpty(organization))
+        {
+            organization = null;
+        }
+
+        console.WriteLine("Create it with these permissions:");
+        foreach (var (name, level, purpose, _) in Grantable(organization))
         {
             console.WriteLine($"  {name}: {level} ({purpose})");
         }
 
-        console.WriteLine(
-            "Choose your organization as the resource owner, with all of its repositories."
-        );
+        console.WriteLine("Give it access to all repositories of the resource owner.");
+        var page = TokenPage(host, organization);
         console.WriteLine($"This link prefills them: {page}");
         console.WriteLine($"How to create it is in {SetupDocument}.");
     }
@@ -166,4 +187,12 @@ internal sealed class GitHubTokenSignIn(
         expiresAt is { } expiry
             ? $"{host} accepted the token. It expires on {expiry.UtcDateTime:yyyy-MM-dd}."
             : $"{host} accepted the token. It does not expire.";
+
+    /// <summary>A permission the token gets, as the template link names it.</summary>
+    private sealed record Permission(
+        string Name,
+        string Level,
+        string Purpose,
+        bool OfOrganization
+    );
 }

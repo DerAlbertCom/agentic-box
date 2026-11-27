@@ -3,12 +3,13 @@ schemaVersion: "3"
 kind: mixin
 displayName: GitHub Enterprise Cloud authentication
 description: >
-  gh, git, OpenCode, pi, Claude and the Copilot CLI reach the GitHub Enterprise Cloud
-  tenant rwe.ghe.com with the fine-grained personal access token of the
-  abox-github-enterprise service. The token stays on the host; the sandbox only sees a
-  placeholder in GHE_TOKEN, and the proxy sends the token to the tenant's four hosts.
+  gh and git reach the GitHub Enterprise Cloud tenant rwe.ghe.com with the fine-grained
+  personal access token of the abox-github-enterprise service (placeholder GHE_TOKEN).
+  OpenCode, pi, Claude and the Copilot CLI reach the tenant's Copilot endpoint with the
+  gh OAuth token of the abox-github-copilot service (placeholder GHE_COPILOT_TOKEN),
+  which the proxy sends to copilot-api.rwe.ghe.com only. Both tokens stay on the host.
   Public GitHub stays anonymous.
-version: "3.0.0"
+version: "4.0.0"
 requires: [mti-ca-agents]
 args:
   GHE_HOST:
@@ -50,6 +51,16 @@ capabilities:
           - domain: uploads.rwe.ghe.com
             header: Authorization
             format: Bearer %s
+  # Copilot rejects personal access tokens, so its endpoint gets a gh OAuth token. The
+  # proxy sends it nowhere else: its broad repo scope never reaches the tenant's API.
+  - type: com.docker.sandbox/credential@1
+    config:
+      service: abox-github-copilot
+      phase: [runtime]
+      apiKey:
+        name: GHE_COPILOT_TOKEN
+        proxyManaged: true
+        inject:
           - domain: copilot-api.rwe.ghe.com
             header: Authorization
             format: Bearer %s
@@ -60,11 +71,18 @@ capabilities:
             set -eu
             test -z "${GH_TOKEN:-}" && test -z "${GITHUB_TOKEN:-}"
             if [ -n "${GHE_TOKEN:-}" ]; then
-              gh config set --host "$GH_HOST" oauth_token "$GHE_TOKEN"
+              # A real login, not only an oauth_token entry: the Copilot CLI looks up the
+              # account gh names. Only the placeholder is stored.
+              printf '%s' "$GHE_TOKEN" |
+                gh auth login --hostname "$GH_HOST" --with-token --insecure-storage --git-protocol https ||
+                gh config set --host "$GH_HOST" oauth_token "$GHE_TOKEN"
               gh auth setup-git --hostname "$GH_HOST"
             else
               echo "Warning: GHE_TOKEN is empty, so gh and git are not signed in to $GH_HOST. Store the abox-github-enterprise service (docs/github-enterprise-token.md) and recreate the sandbox." >&2
             fi
+            # Interactive shells that are not login shells read it too.
+            profile=/etc/profile.d/github-enterprise-auth.sh
+            grep -qs "$profile" "$HOME/.bashrc" || echo ". $profile" >> "$HOME/.bashrc"
             templates=/opt/github-enterprise-auth/templates
             render() {
               mkdir -p "$(dirname "$2")"
@@ -85,8 +103,8 @@ capabilities:
         workflow dispatch and runs, workflow files and commit statuses. It has no
         administration permission: creating or deleting repositories fails with 403. There
         is no write access to repository wikis. Public GitHub (github.com) is anonymous.
-        OpenCode, pi and Claude use the tenant's Copilot endpoint with the same token;
-        Claude uses Copilot's native Anthropic endpoint: do not run /login. Claude models
+        OpenCode, pi and Claude use the tenant's Copilot endpoint with a separate token
+        (GHE_COPILOT_TOKEN placeholder) that works only there; Claude uses Copilot's native Anthropic endpoint: do not run /login. Claude models
         are claude-opus-5-5, claude-sonnet-5-5 and claude-haiku-4-5; WebSearch is
         unavailable. The standalone Copilot CLI reads COPILOT_GITHUB_TOKEN and GH_HOST from
-        a login shell.
+        the shell.
