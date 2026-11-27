@@ -1,32 +1,77 @@
 # syntax=docker/sandbox-kit:3
 schemaVersion: "3"
 kind: mixin
-displayName: GitHub Enterprise authentication
+displayName: GitHub Enterprise Cloud authentication
 description: >
-  The agents of the sandbox reach GitHub Enterprise Cloud with the credential of the host,
-  so the token never enters the sandbox.
-version: "1.0.0"
-
+  gh, git, OpenCode, pi, Claude and the Copilot CLI reach one GitHub Enterprise Cloud
+  tenant (GHE_HOST, a *.ghe.com host) with the fine-grained personal access token of the
+  github-enterprise secret. The token stays on the host; the sandbox only sees the
+  github_pat_ placeholder in GHE_TOKEN. Kit network rules are static, so every *.ghe.com
+  tenant is reachable, but the token is only sent to the hosts the secret declares.
+  Public GitHub stays anonymous.
+version: "2.0.0"
+requires: [mti-ca-agents]
+args:
+  GHE_HOST:
+    default: ""
+    env: GH_HOST
+  GHE_PUBLIC_GH_TOKEN:
+    default: ""
+    enum: [""]
+    env: GH_TOKEN
+  GHE_PUBLIC_GITHUB_TOKEN:
+    default: ""
+    enum: [""]
+    env: GITHUB_TOKEN
+  GHE_OPENCODE_CONFIG:
+    default: /home/agent/.config/opencode/team.json
+    env: OPENCODE_CONFIG
 capabilities:
-  # The hosts the agents reach with the credential of the host.
   - type: com.docker.sandbox/network-policy@1
     config:
+      install:
+        allow: [ghe.com, "**.ghe.com"]
       runtime:
-        allow:
-          - api.github.com
-          - github.com
-
-  # The credential itself: the host holds the token, the sandbox only sees a sentinel.
-  - type: com.docker.sandbox/credential@1
-    optional: true
-    description: GitHub access for the agents
+        allow: [ghe.com, "**.ghe.com", "*.githubcopilot.com"]
+  - type: com.docker.sandbox/lifecycle@1
     config:
-      service: github
-      phase: runtime
-      apiKey:
-        name: GITHUB_TOKEN
-        proxyManaged: true
-        inject:
-          - domain: api.github.com
-            header: Authorization
-            format: "Bearer %s"
+      install:
+        - command: |
+            set -eu
+            case "${GH_HOST:-}" in
+              *[!a-z0-9.-]* | .* | *..* ) echo "GHE_HOST '${GH_HOST:-}' is not a host name." >&2; exit 1 ;;
+              ?*.ghe.com) ;;
+              *) echo "GHE_HOST '${GH_HOST:-}' is not a *.ghe.com host; pass it from the squad's ghe-host parameter." >&2; exit 1 ;;
+            esac
+            case "${GHE_TOKEN:-}" in
+              github_pat_*) ;;
+              *) echo "GHE_TOKEN holds no github_pat_ placeholder: store the github-enterprise secret, see docs/github-enterprise-token.md." >&2; exit 1 ;;
+            esac
+            test -z "${GH_TOKEN:-}" && test -z "${GITHUB_TOKEN:-}"
+            gh config set --host "$GH_HOST" oauth_token "$GHE_TOKEN"
+            gh auth setup-git --hostname "$GH_HOST"
+            templates=/opt/github-enterprise-auth/templates
+            render() {
+              mkdir -p "$(dirname "$2")"
+              sed "s/__GHE_HOST__/$GH_HOST/g" "$templates/$1" > "$2"
+            }
+            render claude/settings.json "$HOME/.claude/settings.json"
+            render opencode/team.json "$HOME/.config/opencode/team.json"
+            render pi/auth.json "$HOME/.pi/agent/auth.json"
+            render pi/models.json "$HOME/.pi/agent/models.json"
+          user: "1000"
+          env: [GHE_TOKEN, GH_TOKEN, GITHUB_TOKEN, GH_HOST]
+  - type: com.docker.sandbox/agent-context@2
+    config:
+      content: |
+        GitHub is the GitHub Enterprise Cloud tenant in GH_HOST. gh and git are signed in
+        to it with a fine-grained token (proxy-managed GHE_TOKEN placeholder): clone, pull,
+        push, branches, tags, pull requests, issues, discussions, organization projects,
+        workflow dispatch and runs, workflow files and commit statuses. It has no
+        administration permission: creating or deleting repositories fails with 403. There
+        is no write access to repository wikis. Public GitHub (github.com) is anonymous.
+        OpenCode, pi and Claude use the tenant's Copilot endpoint with the same token;
+        Claude uses Copilot's native Anthropic endpoint: do not run /login. Claude models
+        are claude-opus-5-5, claude-sonnet-5-5 and claude-haiku-4-5; WebSearch is
+        unavailable. The standalone Copilot CLI reads COPILOT_GITHUB_TOKEN and GH_HOST from
+        a login shell.

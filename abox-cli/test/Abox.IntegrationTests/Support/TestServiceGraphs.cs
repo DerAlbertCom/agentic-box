@@ -4,6 +4,7 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.GitHubTokens;
 using Abox.Features.Shared.KitBuildScripts;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Sandboxes;
@@ -91,9 +92,30 @@ internal static class TestServiceGraphs
             new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             secrets,
             approvals,
-            new SecretValues(secrets, console),
+            SecretValues(paths, secrets, console),
+            TokenExpiries(paths, console),
             console,
             new YamlDotNetParser()
+        );
+
+    /// <summary>The expiries of the GitHub tokens, in the state directory of the test.</summary>
+    internal static GitHubTokenExpiries TokenExpiries(AboxPaths paths, IConsole console) =>
+        new(paths, TimeProvider.System, console);
+
+    /// <summary>The secret values with a GitHub token sign-in that never reaches a host.</summary>
+    internal static SecretValues SecretValues(
+        AboxPaths paths,
+        IHostSecretStore secrets,
+        IConsole console
+    ) =>
+        new(
+            secrets,
+            console,
+            new GitHubTokenSignIn(
+                Substitute.For<IGitHubTokenCheck>(),
+                TokenExpiries(paths, console),
+                console
+            )
         );
 
     /// <summary>A host secret store that holds nothing and stores and removes every secret.</summary>

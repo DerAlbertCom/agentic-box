@@ -1,6 +1,7 @@
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.GitHubTokens;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
@@ -27,6 +28,7 @@ internal sealed class SecretsService(
     ISandboxSquadFileReader squadFiles,
     IHostSecretStore store,
     SecretValues values,
+    GitHubTokenExpiries tokenExpiries,
     IConsole console,
     IYamlParser parser
 )
@@ -172,6 +174,7 @@ internal sealed class SecretsService(
                 continue;
             }
 
+            tokenExpiries.Forget(name);
             console.WriteLine($"Removed the secret '{name}'.");
         }
 

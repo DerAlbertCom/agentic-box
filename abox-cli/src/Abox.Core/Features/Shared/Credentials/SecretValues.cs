@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Common;
+using Abox.Features.Shared.GitHubTokens;
 using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Shared.Credentials;
@@ -7,7 +8,11 @@ namespace Abox.Features.Shared.Credentials;
 /// The values of the services on the host: asked for as the <c>secrets</c> section of
 /// the squad declares, and kept by the host secret store.
 /// </summary>
-internal sealed class SecretValues(IHostSecretStore store, IConsole console)
+internal sealed class SecretValues(
+    IHostSecretStore store,
+    IConsole console,
+    GitHubTokenSignIn gitHubTokens
+)
 {
     /// <summary>Why a custom secret is not stored over a conflicting one.</summary>
     public static string DescribeConflict(SecretDeclaration declaration, CustomSecret conflict)
@@ -99,7 +104,9 @@ internal sealed class SecretValues(IHostSecretStore store, IConsole console)
             );
         }
 
-        var value = Ask(declaration);
+        var value = GitHubTokenSignIn.Handles(declaration)
+            ? await gitHubTokens.ObtainAsync(declaration, cancellationToken)
+            : Ask(declaration);
         if (string.IsNullOrEmpty(value))
         {
             return SecretSetting.Skipped;

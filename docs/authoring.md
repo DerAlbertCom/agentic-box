@@ -81,7 +81,7 @@ workloads. The user settings `teamsDirectory` (default `teams`) and `kitsDirecto
 base: cape
 
 kits:
-  - github-enterprise-auth                   # a local kit in the kits folder
+  - git-user                                 # a local kit in the kits folder
   - docker.io/acme/elastic-auth:1.0          # a registry kit
   - name: elastic-auth                       # a kit with arguments
     args:
@@ -108,7 +108,7 @@ secrets:
 | `base` | The squad this one inherits from. Chains are allowed, cycles are errors. |
 | `workload` | The name of a `.workload` file. Only the root squad (the one without `base`) declares it. |
 | `kits` | The kits of the squad. See [Kits](authoring-kits.md). |
-| `parameters` | Named values. Kit arguments and MCP URLs read them with `${{ parameters.NAME }}`. |
+| `parameters` | Named values. Kit arguments, MCP URLs and the `prompt`, `host`, `env` and `placeholder` of secrets read them with `${{ parameters.NAME }}`. |
 | `mcp` | The MCP servers every agent gets. See [MCP servers](#mcp-servers). |
 | `state` | Sandbox directories that survive a replacement. See [State](#state). |
 | `secrets` | How the credentials the kits ask for are obtained. See [Secrets](authoring-secrets.md). |

@@ -50,8 +50,9 @@ abox looks for `<directory-name>.yaml`, then `spec.yaml`, then the first `*.yaml
 the directory. Use `<directory-name>.yaml`.
 
 The kits in [`kits/`](../kits/README.md) are working examples: `pi-config` writes an
-agent configuration, `github-enterprise-auth` reaches a host with a credential the
-host holds, `sbox` and `themes` use a build step.
+agent configuration, `github-enterprise-auth` sets up `gh`, git and the agents with a
+custom secret and renders their configs for the tenant host from a kit argument, and
+`sbox` and `themes` use a build step.
 
 ## Kit arguments
 

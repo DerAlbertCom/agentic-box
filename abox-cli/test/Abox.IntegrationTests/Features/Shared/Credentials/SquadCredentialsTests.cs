@@ -356,7 +356,12 @@ public sealed class SquadCredentialsTests
             new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             _secrets,
             _approvals,
-            new SecretValues(_secrets, console),
+            TestServiceGraphs.SecretValues(
+                AboxPaths.For(_root.Path, _root.Path),
+                _secrets,
+                console
+            ),
+            TestServiceGraphs.TokenExpiries(AboxPaths.For(_root.Path, _root.Path), console),
             console,
             new YamlDotNetParser()
         );
@@ -366,6 +371,41 @@ public sealed class SquadCredentialsTests
 
     private void StoreValue() =>
         _secrets.ListAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets(["github"], []));
+
+    [Fact]
+    public async Task WithoutATerminalAMissingGitHubTokenWithParameterHostsStopsTheCreate()
+    {
+        // Arrange
+        _root.File(
+            "teams/sample/ac.abox",
+            """
+            workload: mti-ca-dotnet
+            parameters:
+              ghe-host: tenant.ghe.com
+            secrets:
+              - service: github-enterprise
+                host: ["${{ parameters.ghe-host }}", "api.${{ parameters.ghe-host }}"]
+                env: GHE_TOKEN
+                placeholder: github_pat_{rand}
+            """
+        );
+        var console = new TestConsole(interactive: false);
+
+        // Act
+        var act = () => Prepare(console);
+
+        // Assert
+        var error = (await act.Should().ThrowAsync<AboxException>()).Which.Message;
+        error.Should().Contain("'github-enterprise' for tenant.ghe.com is not stored");
+        error.Should().Contain("docs/github-enterprise-token.md");
+        console
+            .Errors.Should()
+            .Contain(line =>
+                line.Contains(
+                    "github-enterprise (secrets, required) for tenant.ghe.com, api.tenant.ghe.com"
+                )
+            );
+    }
 
     private void WriteCommandSecretSquad() =>
         _root.File(

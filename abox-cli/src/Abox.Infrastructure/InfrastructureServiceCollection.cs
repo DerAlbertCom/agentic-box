@@ -2,6 +2,7 @@ using Abox.Features.Shared.ApplicationPorts;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.GitHubTokens;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.KitBuildScripts;
 using Abox.Features.Shared.Launchers;
@@ -13,6 +14,7 @@ using Abox.Features.Shared.UserSecrets;
 using Abox.Features.Shared.Yaml;
 using Abox.Infrastructure.Docker;
 using Abox.Infrastructure.Dotnet;
+using Abox.Infrastructure.GitHub;
 using Abox.Infrastructure.Herdr;
 using Abox.Infrastructure.Sbx;
 using Abox.Infrastructure.Shell;
@@ -53,6 +55,9 @@ public static class InfrastructureServiceCollection
         services.AddScoped<IHostUserSecretStores>(_ => DotnetUserSecretStores.Create());
         services.AddScoped<ISandboxUserSecrets, SbxUserSecrets>();
         services.AddScoped<IHostSecretStore, SbxHostSecretStore>();
+        services.AddScoped<IGitHubTokenCheck>(_ => new GitHubApiTokenCheck(
+            new HttpClient { Timeout = TimeSpan.FromSeconds(30) }
+        ));
         services.AddScoped<ISandboxSquadFileReader, SbxSandboxSquadFileReader>();
         services.AddScoped<ISandboxLifecycle, SbxSandboxLifecycle>();
         services.AddScoped<IMcpServerRegistry, SbxMcpServerRegistry>();

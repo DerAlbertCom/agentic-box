@@ -4,7 +4,7 @@ using Abox.Features.Shared.Common;
 namespace Abox.Features.Shared.Squads;
 
 /// <summary>
-/// The <c>${{ parameters.NAME }}</c> references a kit or an MCP declaration may use.
+/// The <c>${{ parameters.NAME }}</c> references a kit, an MCP declaration or a secret may use.
 /// </summary>
 internal static partial class ParameterReference
 {

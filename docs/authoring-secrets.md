@@ -40,11 +40,20 @@ secrets:
     env: ELASTIC_API_KEY
     prompt: The API key for Elastic
 
-  - service: rwe-ghec                        # a custom secret from a host command
-    host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com, rwe.ghe.com, uploads.rwe.ghe.com]
-    env: RWE_GHE_TOKEN
-    command: gh auth token -h rwe.ghe.com
-    placeholder: gho_{rand}
+  - service: build-cache                     # a custom secret from a host command
+    host: cache.example.com
+    env: CACHE_TOKEN
+    command: cache-cli token
+    placeholder: cache_{rand}
+
+  - service: github-enterprise               # a fine-grained GitHub token, hosts from a parameter
+    host:
+      - ${{ parameters.ghe-host }}
+      - api.${{ parameters.ghe-host }}
+      - uploads.${{ parameters.ghe-host }}
+      - copilot-api.${{ parameters.ghe-host }}
+    env: GHE_TOKEN
+    placeholder: github_pat_{rand}
 ```
 
 | Key | Meaning |
@@ -57,6 +66,16 @@ secrets:
 | `host`, `env` | Make it a **custom secret**: the variable `env` holds a placeholder in the sandbox, and the proxy replaces it in requests to `host`. `host` can be a list. |
 | `command` | A host command that prints the value, instead of `prompt` or `inputs`. Needs `host`. |
 | `placeholder` | The value the sandbox sees for a custom secret; `{rand}` is a random part. Needs `host`. |
+
+`prompt`, `host`, `env` and `placeholder` can use `${{ parameters.NAME }}`, like kit
+arguments. The build resolves them, so `squad.json` and the check for a stored or
+conflicting binding use the resolved hosts. A `command` is used as written.
+
+The service `github-enterprise` gets its value differently. The user creates a
+fine-grained personal access token; abox prints the permissions and the prefilled link
+for the secret's tenant (its host without `api.`, `uploads.` or `copilot-api.`), checks
+the pasted token against `api.<tenant>`, and warns on `create` and `run` before it
+expires. See [the GitHub Enterprise token](github-enterprise-token.md).
 
 A service that a kit asks for with `credential@1` is always stored by its name, so it
 works without a declaration; the declaration only improves the prompt. A custom secret

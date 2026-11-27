@@ -1,4 +1,5 @@
 using Abox.Features.Shared.Common;
+using Abox.Features.Shared.GitHubTokens;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.Yaml;
 
@@ -16,13 +17,15 @@ internal sealed class SquadCredentials(
     IHostSecretStore secrets,
     ICredentialApprovals approvals,
     SecretValues values,
+    GitHubTokenExpiries tokenExpiries,
     IConsole console,
     IYamlParser parser
 )
 {
     /// <summary>
     /// Checks that every credential has a stored value and an approval. On a terminal it
-    /// asks for what is missing; without one it warns. It never fails the create: sbx
+    /// asks for what is missing; without one it warns. It fails the create only for a
+    /// missing GitHub token without a terminal, whose kit cannot be set up without it: sbx
     /// starts without an optional credential and rejects a required one itself.
     /// </summary>
     /// <param name="rootDirectory">The project that holds the squad's sources; null skips the check.</param>
@@ -37,11 +40,13 @@ internal sealed class SquadCredentials(
         CancellationToken cancellationToken
     )
     {
+        tokenExpiries.WarnWhenClose();
         if (string.IsNullOrWhiteSpace(rootDirectory))
         {
             return;
         }
 
+        SecretDeclaration? missingToken = null;
         try
         {
             var resolved = resolver.Resolve(rootDirectory, team, squad);
@@ -75,6 +80,7 @@ internal sealed class SquadCredentials(
             else
             {
                 Warn(missing, location);
+                missingToken = MissingGitHubToken(missing);
             }
         }
         catch (AboxException exception)
@@ -83,7 +89,21 @@ internal sealed class SquadCredentials(
                 $"Warning: the credentials of the squad '{squad}' were not checked: {exception.Message}"
             );
         }
+
+        if (missingToken is not null)
+        {
+            throw GitHubTokenSignIn.MissingWithoutTerminal(GitHubTokenSignIn.Tenant(missingToken));
+        }
     }
+
+    /// <summary>The GitHub token among the missing values; its kit cannot be set up without it.</summary>
+    private static SecretDeclaration? MissingGitHubToken(IReadOnlyList<CredentialState> missing) =>
+        missing
+            .Where(state => !state.Stored)
+            .Select(state => state.Declaration)
+            .FirstOrDefault(declaration =>
+                declaration is not null && GitHubTokenSignIn.Handles(declaration)
+            );
 
     private CredentialState Check(
         CredentialRequest request,

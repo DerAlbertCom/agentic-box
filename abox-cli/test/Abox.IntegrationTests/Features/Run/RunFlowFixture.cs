@@ -70,6 +70,7 @@ internal sealed class RunFlowFixture
             SandboxFactory.Resolver(Lifecycle, SandboxFactory.Hints(Config, Store, Records)),
             SandboxFactory.Hints(Config, Store, Records),
             hostPrograms,
+            TestServiceGraphs.TokenExpiries(Paths, Console),
             Console
         );
         Inspection

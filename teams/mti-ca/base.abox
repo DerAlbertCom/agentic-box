@@ -1,8 +1,12 @@
 workload: mti-ca
+parameters:
+  ghe-host: rwe.ghe.com
 kits:
   - sandbox-agents
   - git-user
-  - rwe-ghec
+  - name: github-enterprise-auth
+    args:
+      GHE_HOST: ${{ parameters.ghe-host }}
   - azure-devops
   - sbox
   - themes
@@ -17,11 +21,15 @@ state:
   - ~/.local/share/powershell/PSReadLine
   - ~/.local/state/sbox
 secrets:
-  - service: rwe-ghec
-    host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com, rwe.ghe.com, uploads.rwe.ghe.com]
-    env: RWE_GHE_TOKEN
-    command: gh auth token -h rwe.ghe.com
-    placeholder: gho_{rand}
+  - service: github-enterprise
+    host:
+      - ${{ parameters.ghe-host }}
+      - api.${{ parameters.ghe-host }}
+      - uploads.${{ parameters.ghe-host }}
+      - copilot-api.${{ parameters.ghe-host }}
+    env: GHE_TOKEN
+    placeholder: github_pat_{rand}
+    prompt: The fine-grained personal access token for GitHub Enterprise
   - service: azure-devops
     inputs:
       - name: username

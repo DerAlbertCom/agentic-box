@@ -2,8 +2,8 @@
   "$schema": "https://pi.dev/schemas/models.json",
   "providers": {
     "github-copilot": {
-      "baseUrl": "https://copilot-api.rwe.ghe.com",
-      "apiKey": "$RWE_GHE_TOKEN"
+      "baseUrl": "https://copilot-api.__GHE_HOST__",
+      "apiKey": "$GHE_TOKEN"
     }
   }
 }
