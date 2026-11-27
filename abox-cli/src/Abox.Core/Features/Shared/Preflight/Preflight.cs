@@ -90,6 +90,14 @@ internal sealed class Preflight(IConsole console, IPreflightChecks checks)
             report = await checks.DiagnoseAsync(cancellationToken);
         }
 
+        foreach (var check in report.TimedOut)
+        {
+            console.WriteError(
+                $"Warning: sbx check '{check.Name}' did not finish: {check.Message}"
+            );
+            WriteErrorIfPresent(check.Detail);
+        }
+
         var failures = report.Failures;
         if (failures.Count == 0)
         {

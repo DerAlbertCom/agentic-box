@@ -112,6 +112,43 @@ public sealed class PreflightTests
     }
 
     [Fact]
+    public async Task ACheckThatTimedOutIsAWarningAndTheCommandGoesOn()
+    {
+        // Arrange
+        _checks
+            .DiagnoseAsync(Arg.Any<CancellationToken>())
+            .Returns(
+                new DiagnoseReport(
+                    [
+                        new DiagnosticCheck("Daemon", false, "healthy", "", ""),
+                        new DiagnosticCheck(
+                            "Daemon diagnostics",
+                            true,
+                            "check timed out",
+                            "This check did not complete within 5s",
+                            "",
+                            TimedOut: true
+                        ),
+                    ],
+                    SignedOut: false
+                )
+            );
+        var preflight = new Preflight(_console, _checks);
+
+        // Act
+        var ready = await preflight.EnsureReadyAsync(CancellationToken.None);
+
+        // Assert
+        ready.Should().BeTrue();
+        _console
+            .Errors.Should()
+            .Equal(
+                "Warning: sbx check 'Daemon diagnostics' did not finish: check timed out",
+                "This check did not complete within 5s"
+            );
+    }
+
+    [Fact]
     public async Task AHealthySbxLetsTheCommandGoOn()
     {
         // Arrange

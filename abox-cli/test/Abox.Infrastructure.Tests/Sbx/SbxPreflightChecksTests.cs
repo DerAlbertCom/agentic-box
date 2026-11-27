@@ -217,6 +217,42 @@ public sealed class SbxPreflightChecksTests
     }
 
     [Fact]
+    public async Task ACheckSbxTimedOutIsReadAsTimedOutAndNotAsAFailure()
+    {
+        // Arrange
+        _runner
+            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new ProcessResult(
+                    1,
+                    """
+                    {
+                      "version": "1.1",
+                      "checks": [
+                        {
+                          "id": "daemon-diagnostics",
+                          "name": "Daemon diagnostics",
+                          "status": "fail",
+                          "message": "check timed out",
+                          "detail": "This check did not complete within 5s",
+                          "hint": ""
+                        }
+                      ]
+                    }
+                    """,
+                    string.Empty
+                )
+            );
+
+        // Act
+        var report = await _checks.DiagnoseAsync(CancellationToken.None);
+
+        // Assert
+        report.Failures.Should().BeEmpty();
+        report.TimedOut.Should().ContainSingle().Which.Name.Should().Be("Daemon diagnostics");
+    }
+
+    [Fact]
     public async Task ANonZeroExitWithoutAReportIsAnErrorThatNamesTheCommand()
     {
         // Arrange

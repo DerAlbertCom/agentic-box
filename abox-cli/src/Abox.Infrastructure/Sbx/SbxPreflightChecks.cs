@@ -10,6 +10,9 @@ internal sealed class SbxPreflightChecks(SbxInvoker invoker, IHostPrograms progr
     private const string AuthenticationCheck = "Authentication";
     private const string DiagnoseCommand = "sbx diagnose";
 
+    /// <summary>The message of a check sbx gave up on, such as a slow daemon diagnostics collection.</summary>
+    private const string TimedOutMessage = "check timed out";
+
     public bool IsInstalled() => invoker.IsOnPath(programs);
 
     public async Task<RuntimeVersion> CheckVersionAsync(CancellationToken cancellationToken) =>
@@ -30,16 +33,30 @@ internal sealed class SbxPreflightChecks(SbxInvoker invoker, IHostPrograms progr
 
         var report = SbxInvoker.Deserialize<SbxDiagnose>(result.StandardOutput, DiagnoseCommand);
         var checks = report
-            .Checks.Select(check => new DiagnosticCheck(
-                check.Name ?? string.Empty,
-                (check.Status ?? string.Empty).Equals("fail", StringComparison.OrdinalIgnoreCase),
-                check.Message ?? string.Empty,
-                check.Detail ?? string.Empty,
-                check.Hint ?? string.Empty
-            ))
+            .Checks.Select(check =>
+            {
+                var failed = (check.Status ?? string.Empty).Equals(
+                    "fail",
+                    StringComparison.OrdinalIgnoreCase
+                );
+                return new DiagnosticCheck(
+                    check.Name ?? string.Empty,
+                    failed,
+                    check.Message ?? string.Empty,
+                    check.Detail ?? string.Empty,
+                    check.Hint ?? string.Empty,
+                    failed
+                        && string.Equals(
+                            check.Message,
+                            TimedOutMessage,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                );
+            })
             .ToList();
         var signedOut = checks.Any(check =>
             check.Failed
+            && !check.TimedOut
             && check.Name.Equals(AuthenticationCheck, StringComparison.OrdinalIgnoreCase)
         );
         return new DiagnoseReport(checks, signedOut);

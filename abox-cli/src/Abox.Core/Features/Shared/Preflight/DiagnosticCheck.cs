@@ -6,10 +6,14 @@ namespace Abox.Features.Shared.Preflight;
 /// <param name="Message">What the check found.</param>
 /// <param name="Detail">The particulars behind the message, such as the underlying error.</param>
 /// <param name="Hint">What to do about it, when the check failed.</param>
+/// <param name="TimedOut">
+/// The runtime gave up on the check before it finished, so it found nothing either way.
+/// </param>
 public sealed record DiagnosticCheck(
     string Name,
     bool Failed,
     string Message,
     string Detail,
-    string Hint
+    string Hint,
+    bool TimedOut = false
 );
