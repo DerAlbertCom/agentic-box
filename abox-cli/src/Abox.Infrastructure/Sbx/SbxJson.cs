@@ -40,6 +40,9 @@ internal sealed class SbxCheck
     [JsonPropertyName("message")]
     public string? Message { get; set; }
 
+    [JsonPropertyName("detail")]
+    public string? Detail { get; set; }
+
     [JsonPropertyName("hint")]
     public string? Hint { get; set; }
 }

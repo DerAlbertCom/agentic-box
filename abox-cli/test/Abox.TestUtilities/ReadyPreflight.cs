@@ -14,8 +14,8 @@ internal static class ReadyPreflight
     public static DiagnoseReport Healthy =>
         new(
             [
-                new DiagnosticCheck("Authentication", false, "authenticated", ""),
-                new DiagnosticCheck("Daemon", false, "healthy", ""),
+                new DiagnosticCheck("Authentication", false, "authenticated", "", ""),
+                new DiagnosticCheck("Daemon", false, "healthy", "", ""),
             ],
             SignedOut: false
         );

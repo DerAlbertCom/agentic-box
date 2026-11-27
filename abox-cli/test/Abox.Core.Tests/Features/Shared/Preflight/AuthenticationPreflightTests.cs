@@ -94,7 +94,7 @@ public sealed class AuthenticationPreflightTests
             .Returns(
                 PreflightScenario.SignedOut(),
                 new DiagnoseReport(
-                    [new DiagnosticCheck(check, true, message, hint)],
+                    [new DiagnosticCheck(check, true, message, "", hint)],
                     SignedOut: check == "Authentication"
                 )
             );
