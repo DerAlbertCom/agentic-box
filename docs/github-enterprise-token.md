@@ -34,30 +34,32 @@ against the tenant until you store the token and recreate the sandbox.
 
 ## Permissions
 
+In the order of GitHub's page: the repository permissions alphabetically, then the
+organization's and the account's.
+
 | Permission | Level | For |
 |---|---|---|
-| Metadata | read | mandatory |
-| Contents | read and write | clone, pull, push, branches, tags |
-| Pull requests | read and write | open and update pull requests |
-| Issues | read and write | create and update issues |
 | Actions | read and write | `workflow_dispatch`, read runs and logs |
-| Workflows | read and write | push changes under `.github/workflows` |
+| **Administration** | **none** | no repository creation or deletion |
 | Commit statuses | read | see CI results |
+| Contents | read and write | clone, pull, push, branches, tags |
 | Discussions | read and write | |
+| Issues | read and write | create and update issues |
+| Metadata | read | mandatory |
+| Pull requests | read and write | open and update pull requests |
+| Workflows | read and write | push changes under `.github/workflows` |
 | Projects (organization) | read and write | |
 | Copilot requests (account) | write | Copilot for OpenCode, pi, Claude and the Copilot CLI |
-| **Administration** | **none** | no repository creation or deletion |
 
 Fine-grained tokens cannot use the Checks API, so there is no Checks permission. CI
 results show through commit statuses and Actions runs.
 
 ## Create it by hand
 
-Open the template link below, with your tenant in place of `<tenant>`. It prefills the
-name and every permission in the table:
+Open the template link below. It prefills the name and every permission in the table:
 
 ```text
-https://<tenant>/settings/personal-access-tokens/new?name=abox%20sandbox%20agents&description=Used%20by%20the%20agents%20in%20abox%20sandboxes&metadata=read&contents=write&pull_requests=write&issues=write&actions=write&workflows=write&statuses=read&discussions=write&organization_projects=write&copilot_requests=write
+https://rwe.ghe.com/settings/personal-access-tokens/new?name=abox%20sandbox%20agents&description=Used%20by%20the%20agents%20in%20abox%20sandboxes&actions=write&statuses=read&contents=write&discussions=write&issues=write&metadata=read&pull_requests=write&workflows=write&organization_projects=write&copilot_requests=write
 ```
 
 Choose the organization as the resource owner and all of its repositories. Then store

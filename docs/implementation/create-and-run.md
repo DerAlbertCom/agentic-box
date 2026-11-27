@@ -157,8 +157,9 @@ credentials; abox never sees them.
 
 ### The credential check
 
-When the squad's local sources are available, create checks every `credential@1`
-request with an `apiKey` mechanism of a local kit:
+Create checks every `credential@1` request with an `apiKey` mechanism that the build
+recorded in `squad.json` (`BuildManifest.Credentials`, from the squad's local kits),
+together with the recorded secret declarations:
 
 - the stored value, with the identity rules of `abox secrets list`;
 - the approval in sbx's `credentials.yaml` (`ICredentialApprovals`), which must cover

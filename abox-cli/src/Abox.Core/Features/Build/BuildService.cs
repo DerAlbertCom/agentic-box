@@ -1,5 +1,6 @@
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Registry;
 using Abox.Features.Shared.Squads;
@@ -254,7 +255,13 @@ internal sealed class BuildService(
     )
     {
         var directory = Path.Combine(buildDirectory, SquadConfigurationMixin.MixinName);
-        SquadConfigurationMixin.Generate(team, manifest, squad.Secrets, directory);
+        SquadConfigurationMixin.Generate(
+            team,
+            manifest,
+            squad.Secrets,
+            directory,
+            CredentialRequest.Of(squad, parser)
+        );
         var source = MixinSource(SquadConfigurationMixin.MixinName, directory);
         await make(
             ComponentNames.Configuration,
@@ -263,7 +270,13 @@ internal sealed class BuildService(
             {
                 // squad.json records when its content last changed.
                 manifest.CreatedAt = DateTimeOffset.Now;
-                SquadConfigurationMixin.Generate(team, manifest, squad.Secrets, directory);
+                SquadConfigurationMixin.Generate(
+                    team,
+                    manifest,
+                    squad.Secrets,
+                    directory,
+                    CredentialRequest.Of(squad, parser)
+                );
                 return Task.FromResult(MixinSource(SquadConfigurationMixin.MixinName, directory));
             }
         );

@@ -131,8 +131,10 @@ bindings:
                 - api.github.com
 ```
 
-`abox create --local` checks values and approvals before it replaces a sandbox, for
-the credentials of the squad's local kits and for its declared custom secrets.
+`abox create` checks values and approvals before it replaces a sandbox, for the
+credentials the squad's local kits ask for and for its declared custom secrets. It
+reads both from the build's `squad.json`, so it needs no team sources; a build from an
+older abox records no requests, and create then checks nothing.
 
 - On a terminal it asks to set each missing value, as `abox secrets set` does, and
   runs the `command` of a command-backed secret through sbx. For each missing approval

@@ -81,7 +81,7 @@ internal static class TestServiceGraphs
             new YamlDotNetParser()
         );
 
-    /// <summary>The credential check of a squad from the personal configurations of the test.</summary>
+    /// <summary>The credential check of a squad, with the stores of the test.</summary>
     internal static SquadCredentials Credentials(
         AboxPaths paths,
         IHostSecretStore secrets,
@@ -89,13 +89,11 @@ internal static class TestServiceGraphs
         IConsole console
     ) =>
         new(
-            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             secrets,
             approvals,
             SecretValues(paths, secrets, console),
             TokenExpiries(paths, console),
-            console,
-            new YamlDotNetParser()
+            console
         );
 
     /// <summary>The expiries of the GitHub tokens, in the state directory of the test.</summary>

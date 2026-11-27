@@ -27,18 +27,21 @@ internal sealed class GitHubTokenSignIn(
 
     /// <summary>
     /// The permissions the token gets, as the template link names them, with what each is
-    /// for. Administration stays out, so the token cannot create or delete repositories.
+    /// for, in the order of GitHub's page: the repository permissions alphabetically, then
+    /// the organization's and the account's. Administration stays at none, so the token
+    /// cannot create or delete repositories.
     /// </summary>
     private static readonly (string Name, string Level, string Purpose)[] Permissions =
     [
-        ("metadata", "read", "mandatory"),
-        ("contents", "write", "clone, pull, push, branches, tags"),
-        ("pull_requests", "write", "open and update pull requests"),
-        ("issues", "write", "create and update issues"),
         ("actions", "write", "dispatch workflows, read runs and logs"),
-        ("workflows", "write", "push changes under .github/workflows"),
+        ("administration", "none", "the token cannot create or delete repositories"),
         ("statuses", "read", "see CI results"),
+        ("contents", "write", "clone, pull, push, branches, tags"),
         ("discussions", "write", "discussions"),
+        ("issues", "write", "create and update issues"),
+        ("metadata", "read", "mandatory"),
+        ("pull_requests", "write", "open and update pull requests"),
+        ("workflows", "write", "push changes under .github/workflows"),
         ("organization_projects", "write", "projects of the organization"),
         ("copilot_requests", "write", "GitHub Copilot"),
     ];
@@ -70,7 +73,9 @@ internal sealed class GitHubTokenSignIn(
             [
                 "name=" + Uri.EscapeDataString("abox sandbox agents"),
                 "description=" + Uri.EscapeDataString("Used by the agents in abox sandboxes"),
-                .. Permissions.Select(permission => $"{permission.Name}={permission.Level}"),
+                .. Permissions
+                    .Where(permission => permission.Level != "none")
+                    .Select(permission => $"{permission.Name}={permission.Level}"),
             ]
         );
         return new Uri($"https://{host}/settings/personal-access-tokens/new?{query}");
@@ -150,9 +155,6 @@ internal sealed class GitHubTokenSignIn(
             console.WriteLine($"  {name}: {level} ({purpose})");
         }
 
-        console.WriteLine(
-            "  administration: none, so the token cannot create or delete repositories"
-        );
         console.WriteLine(
             "Choose your organization as the resource owner, with all of its repositories."
         );

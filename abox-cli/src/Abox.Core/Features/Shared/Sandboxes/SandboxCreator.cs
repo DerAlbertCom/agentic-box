@@ -209,8 +209,8 @@ internal sealed class SandboxCreator(
     {
         console.WriteLine("Checking the credentials of the squad...");
         await credentials.PrepareAsync(
-            plan.Request.Team.RootDirectory,
-            plan.Request.Team.Name,
+            plan.Manifest.Credentials,
+            plan.Manifest.Secrets,
             plan.Selection.Identity.Squad,
             plan.Location,
             cancellationToken

@@ -45,14 +45,13 @@ public sealed class SquadCredentialsTests
     private string Location => Path.Combine(_root.Path, "my folder");
 
     [Fact]
-    public async Task WithoutLocalSourcesNothingIsChecked()
+    public async Task WithoutRecordedCredentialsNothingIsChecked()
     {
         // Arrange
         var console = new TestConsole();
 
         // Act
-        await Credentials(console)
-            .PrepareAsync(null, "sample", "ac", Location, CancellationToken.None);
+        await Credentials(console).PrepareAsync([], [], "ac", Location, CancellationToken.None);
 
         // Assert
         _secrets.ReceivedCalls().Should().BeEmpty();
@@ -347,13 +346,23 @@ public sealed class SquadCredentialsTests
             );
     }
 
-    private Task Prepare(TestConsole console) =>
-        Credentials(console)
-            .PrepareAsync(_root.Path, "sample", "ac", Location, CancellationToken.None);
+    /// <summary>Checks what a build of the sample squad would record.</summary>
+    private Task Prepare(TestConsole console)
+    {
+        var parser = new YamlDotNetParser();
+        var squad = new SquadResolver(new AboxConfig(), parser).Resolve(_root.Path, "sample", "ac");
+        return Credentials(console)
+            .PrepareAsync(
+                CredentialRequest.Of(squad, parser),
+                squad.Secrets,
+                "ac",
+                Location,
+                CancellationToken.None
+            );
+    }
 
     private SquadCredentials Credentials(TestConsole console) =>
         new(
-            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             _secrets,
             _approvals,
             TestServiceGraphs.SecretValues(
@@ -362,8 +371,7 @@ public sealed class SquadCredentialsTests
                 console
             ),
             TestServiceGraphs.TokenExpiries(AboxPaths.For(_root.Path, _root.Path), console),
-            console,
-            new YamlDotNetParser()
+            console
         );
 
     private static IReadOnlyList<string> Domains(params string[] domains) =>

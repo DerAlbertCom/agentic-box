@@ -168,6 +168,15 @@ public sealed class GitHubTokenSignInTests : IDisposable
         setting.Result.Should().Be(SecretSettingResult.Skipped);
         console.Output.Should().Contain("  contents: write (clone, pull, push, branches, tags)");
         console.Output.Should().Contain(line => line.StartsWith("  administration: none"));
+        console
+            .Output.Where(line => line.StartsWith("  ", StringComparison.Ordinal))
+            .Take(3)
+            .Should()
+            .Equal(
+                "  actions: write (dispatch workflows, read runs and logs)",
+                "  administration: none (the token cannot create or delete repositories)",
+                "  statuses: read (see CI results)"
+            );
         var link = console.Output.Single(line => line.StartsWith("This link prefills them: "))[
             "This link prefills them: ".Length..
         ];
