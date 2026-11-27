@@ -26,7 +26,9 @@ abox-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
 5. abox stores it in the host's secret store. The value never goes into process
    arguments or logs.
 
-Without a terminal, `abox create` stops with a pointer to this page.
+Without a terminal, `abox create` warns and names the command to run. A sandbox
+created without the token still starts: `gh`, git and the Copilot-backed agents fail
+against the tenant until you store the token and recreate the sandbox.
 
 ## Permissions
 

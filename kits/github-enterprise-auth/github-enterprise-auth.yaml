@@ -9,7 +9,7 @@ description: >
   github_pat_ placeholder in GHE_TOKEN. Kit network rules are static, so every *.ghe.com
   tenant is reachable, but the token is only sent to the hosts the secret declares.
   Public GitHub stays anonymous.
-version: "2.0.0"
+version: "2.0.1"
 requires: [mti-ca-agents]
 args:
   GHE_HOST:
@@ -43,13 +43,16 @@ capabilities:
               ?*.ghe.com) ;;
               *) echo "GHE_HOST '${GH_HOST:-}' is not a *.ghe.com host; pass it from the squad's ghe-host parameter." >&2; exit 1 ;;
             esac
-            case "${GHE_TOKEN:-}" in
-              github_pat_*) ;;
-              *) echo "GHE_TOKEN holds no github_pat_ placeholder: store the github-enterprise secret, see docs/github-enterprise-token.md." >&2; exit 1 ;;
-            esac
             test -z "${GH_TOKEN:-}" && test -z "${GITHUB_TOKEN:-}"
-            gh config set --host "$GH_HOST" oauth_token "$GHE_TOKEN"
-            gh auth setup-git --hostname "$GH_HOST"
+            case "${GHE_TOKEN:-}" in
+              github_pat_*)
+                gh config set --host "$GH_HOST" oauth_token "$GHE_TOKEN"
+                gh auth setup-git --hostname "$GH_HOST"
+                ;;
+              *)
+                echo "Warning: GHE_TOKEN holds no github_pat_ placeholder, so gh and git are not signed in to $GH_HOST. Store the abox-github-enterprise secret (docs/github-enterprise-token.md) and recreate the sandbox." >&2
+                ;;
+            esac
             templates=/opt/github-enterprise-auth/templates
             render() {
               mkdir -p "$(dirname "$2")"

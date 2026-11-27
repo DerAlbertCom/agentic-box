@@ -373,7 +373,7 @@ public sealed class SquadCredentialsTests
         _secrets.ListAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets(["github"], []));
 
     [Fact]
-    public async Task WithoutATerminalAMissingGitHubTokenWithParameterHostsStopsTheCreate()
+    public async Task WithoutATerminalAMissingGitHubTokenWithParameterHostsIsOnlyWarnedAbout()
     {
         // Arrange
         _root.File(
@@ -392,12 +392,9 @@ public sealed class SquadCredentialsTests
         var console = new TestConsole(interactive: false);
 
         // Act
-        var act = () => Prepare(console);
+        await Prepare(console);
 
         // Assert
-        var error = (await act.Should().ThrowAsync<AboxException>()).Which.Message;
-        error.Should().Contain("'abox-github-enterprise' for tenant.ghe.com is not stored");
-        error.Should().Contain("docs/github-enterprise-token.md");
         console
             .Errors.Should()
             .Contain(line =>

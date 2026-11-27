@@ -78,8 +78,9 @@ secrets:
 ```
 
 The sandbox sees a placeholder in `GHE_TOKEN`. The proxy replaces it with the real
-token in requests to these four hosts. The `github-enterprise-auth` kit fails its setup
-if the placeholder is missing.
+token in requests to these four hosts. Without the placeholder the `github-enterprise-auth`
+kit warns and leaves `gh` and git signed out; the sandbox is still created, and what
+needs the tenant fails inside it until the secret is stored and the sandbox recreated.
 
 You create the token yourself in the browser. When it is missing, `abox create --local`
 and `abox secrets set --service abox-github-enterprise` print the permissions and the
