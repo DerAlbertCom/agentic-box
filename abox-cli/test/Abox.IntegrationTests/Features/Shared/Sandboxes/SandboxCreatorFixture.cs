@@ -78,7 +78,12 @@ internal sealed class SandboxCreatorFixture
     /// Saves a local build of squad <c>ac</c>: its record and, in the synthetic image store,
     /// its component images, with a configuration image that bundles the record's metadata.
     /// </summary>
-    internal BuildManifest SaveBuild(List<ManifestMcp>? mcp = null, string? reference = null)
+    internal BuildManifest SaveBuild(
+        List<ManifestMcp>? mcp = null,
+        string? reference = null,
+        List<CredentialRequest>? credentials = null,
+        List<SecretDeclaration>? secrets = null
+    )
     {
         var build = new BuildManifest
         {
@@ -106,6 +111,8 @@ internal sealed class SandboxCreatorFixture
                 },
             ],
             Mcp = mcp ?? [],
+            Credentials = credentials ?? [],
+            Secrets = secrets ?? [],
         };
         LocalWorkloadFactory.WithImages(Root, build);
         Store.Save(build);

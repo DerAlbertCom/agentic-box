@@ -18,10 +18,10 @@ parameters:
   jfrog-feed: metsca-nuget-prod
   elastic-url: https://689203ce69c64beab0a2be1c0829117e.eu-central-1.aws.cloud.es.io/api/agent_builder/mcp
 secrets:
-  - service: jfrog
+  - service: abox-jfrog
     inputs:
       - name: username
       - name: token
     encoding: base64
-  - service: predictopus-elastic
+  - service: abox-predictopus-elastic
     prompt: Predictopus encoded Elastic API key (feature_agentBuilder.read)

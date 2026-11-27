@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Abox.Features.Shared.Builds;
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Build;
@@ -16,18 +17,23 @@ internal static class SquadConfigurationMixin
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    /// <summary>Writes the mixin into a directory and returns the directory.</summary>
+    /// <summary>
+    /// Writes the mixin into a directory and returns the directory. The credentials the
+    /// kits ask for go into <c>squad.json</c>, so <c>create</c> can check them from a build
+    /// or a publication without the team's sources.
+    /// </summary>
     public static string Generate(
         string team,
         BuildManifest build,
         IReadOnlyList<SecretDeclaration> secrets,
-        string targetDirectory
+        string targetDirectory,
+        IReadOnlyList<CredentialRequest>? credentials = null
     )
     {
         Directory.CreateDirectory(targetDirectory);
         File.WriteAllText(
             Path.Combine(targetDirectory, "squad.json"),
-            JsonSerializer.Serialize(Metadata(team, build, secrets), JsonOptions)
+            JsonSerializer.Serialize(Metadata(team, build, secrets, credentials ?? []), JsonOptions)
         );
         File.WriteAllText(
             Path.Combine(targetDirectory, MixinName + ".yaml"),
@@ -43,7 +49,8 @@ internal static class SquadConfigurationMixin
     private static SquadMetadata Metadata(
         string team,
         BuildManifest build,
-        IReadOnlyList<SecretDeclaration> secrets
+        IReadOnlyList<SecretDeclaration> secrets,
+        IReadOnlyList<CredentialRequest> credentials
     ) =>
         new()
         {
@@ -60,6 +67,14 @@ internal static class SquadConfigurationMixin
                 .ToList(),
             Kits = build.Kits.Select(kit => new SquadMetadataKit(kit.Name, kit.Arguments)).ToList(),
             Secrets = secrets.Select(SquadMetadataSecret.From).ToList(),
+            Credentials = credentials
+                .Select(request => new SquadMetadataCredential(
+                    request.Service,
+                    request.Kits,
+                    request.Domains,
+                    request.Optional
+                ))
+                .ToList(),
         };
 
     /// <summary>The public squad.json allowlist, deliberately independent of local build provenance.</summary>
@@ -74,6 +89,7 @@ internal static class SquadConfigurationMixin
         public required IReadOnlyList<SquadMetadataState> State { get; init; }
         public required IReadOnlyList<SquadMetadataKit> Kits { get; init; }
         public required IReadOnlyList<SquadMetadataSecret> Secrets { get; init; }
+        public required IReadOnlyList<SquadMetadataCredential> Credentials { get; init; }
     }
 
     private sealed record SquadMetadataMcp(string Name, string? Url);

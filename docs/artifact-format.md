@@ -56,8 +56,9 @@ descriptors.
 ## squad.json
 
 The configuration mixin installs `/usr/share/abox/squad.json` in every sandbox, local
-or published. `abox create` reads state and MCP settings from it, and `abox secrets`
-reads the secret declarations from it. This is why neither needs the team sources.
+or published. `abox create` reads state, MCP settings, the secret declarations and the
+kits' credential requests from it, and `abox secrets` reads the secret declarations
+from it. This is why neither needs the team sources.
 
 | Field | Content |
 |---|---|
@@ -68,6 +69,7 @@ reads the secret declarations from it. This is why neither needs the team source
 | `Mcp` | The MCP server names and resolved URLs. |
 | `State` | The state directories, as canonical sandbox paths with their host mapping. |
 | `Secrets` | Optional. The resolved [secret declarations](authoring-secrets.md): `Service`, `Prompt`, `Hosts`, `Env`, `Inputs`, `Separator`, `Encoding`, `Placeholder`, `FromCommand`. |
+| `Credentials` | Optional. The `credential@1` requests of the squad's local kits at build time: `Service`, `Kits`, `Domains`, `Optional`. `abox create` checks values and approvals from it. |
 
 It holds no secret values, no host commands (`FromCommand` only marks that there is
 one), no host paths and no raw `.abox` files. Everyone who can read the set can read

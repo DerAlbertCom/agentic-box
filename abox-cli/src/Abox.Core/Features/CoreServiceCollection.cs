@@ -12,6 +12,7 @@ using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
+using Abox.Features.Shared.GitHubTokens;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Preflight;
 using Abox.Features.Shared.Registry;
@@ -79,6 +80,9 @@ public static class CoreServiceCollection
         services.AddScoped<Preflight>();
         services.AddScoped<SquadResolver>();
         services.AddScoped<SecretValues>();
+        services.AddScoped(_ => TimeProvider.System);
+        services.AddScoped<GitHubTokenExpiries>();
+        services.AddScoped<GitHubTokenSignIn>();
         services.AddScoped<SquadCredentials>();
         services.AddScoped<BuildStore>();
         services.AddScoped<SandboxRecordStore>();

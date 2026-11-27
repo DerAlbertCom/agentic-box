@@ -50,6 +50,7 @@ external tools it needs.
 | `Sandboxes` | finding a folder's sandbox, `SandboxCreator`, sandbox records, legacy names, published squad metadata; interfaces for lifecycle, exec, inspection, MCP registration and kit source trust |
 | `Launchers` | `ILauncher`, `LauncherSession`, the launcher registry |
 | `Credentials` | kit credential requests, secret declarations and identity, prompting and storing, the create-time check |
+| `GitHubTokens` | the fine-grained token of the `abox-github-enterprise` service: the permissions and prefilled link it needs, the check of a pasted token, the expiry warning; `IGitHubTokenCheck` |
 | `UserSecrets` | selection, deny list, project discovery, endpoint rewriting, the copy flow |
 | `ApplicationPorts` | static port discovery, the port plan, publishing |
 | `Https` | sandbox HTTPS activation, refresh and launch readiness |
@@ -66,6 +67,7 @@ external tools it needs.
 | `Docker` | every `docker` call: Buildx builds, image store, registry digests, push, published image reading |
 | `Dotnet` | `dotnet dev-certs` export and the host's .NET user-secrets store layout |
 | `Shell` | kit `build` scripts, a folder's real path, programs on `PATH` |
+| `GitHub` | the GitHub REST API: checking a token with `GET /user` and reading its expiry |
 | `Herdr` | the `herdr-app` launcher |
 
 The project root holds the generic helpers: `ProcessRunner` (processes from argument

@@ -10,7 +10,7 @@ capabilities:
         allow: [675962b701c243adb707252f420dc1c2.eu-central-1.aws.cloud.es.io]
   - type: com.docker.sandbox/credential@1
     config:
-      service: cape-elastic
+      service: abox-cape-elastic
       phase: runtime
       apiKey:
         name: ELASTIC_TOKEN

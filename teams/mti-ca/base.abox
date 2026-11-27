@@ -2,7 +2,7 @@ workload: mti-ca
 kits:
   - sandbox-agents
   - git-user
-  - rwe-ghec
+  - github-enterprise-auth
   - azure-devops
   - sbox
   - themes
@@ -17,12 +17,11 @@ state:
   - ~/.local/share/powershell/PSReadLine
   - ~/.local/state/sbox
 secrets:
-  - service: rwe-ghec
-    host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com, rwe.ghe.com, uploads.rwe.ghe.com]
-    env: RWE_GHE_TOKEN
-    command: gh auth token -h rwe.ghe.com
-    placeholder: gho_{rand}
-  - service: azure-devops
+  - service: abox-github-enterprise
+    prompt: The fine-grained personal access token for GitHub Enterprise
+  - service: abox-github-copilot
+    prompt: "The GitHub Copilot token: the output of 'gh auth token --hostname rwe.ghe.com' on this machine"
+  - service: abox-azure-devops
     inputs:
       - name: username
         prompt: Azure DevOps Basic username (enter pat)

@@ -44,60 +44,46 @@ separate.
 
 | Service | What to enter |
 | --- | --- |
-| `azure-devops` | Username `pat`, then the PAT. Stored as `base64("pat:<PAT>")`. Covers `dev.azure.com`, `pkgs.dev.azure.com` and `vssps.dev.azure.com`. |
+| `abox-azure-devops` | Username `pat`, then the PAT. Stored as `base64("pat:<PAT>")`. Covers `dev.azure.com`, `pkgs.dev.azure.com` and `vssps.dev.azure.com`. |
 | JFrog | Username and token. Stored as `base64("<username>:<token>")`. |
 | Elastic | The API key as issued; do not base64-encode it again. MOD and Predictopus keys need `feature_agentBuilder.read`. |
 | Context7 | Optional. |
-| `rwe-ghec` | Nothing; it comes from a host command, see below. |
+| `abox-github-enterprise` | A fine-grained personal access token for `rwe.ghe.com`, see below. |
+| `abox-github-copilot` | The output of `gh auth token --hostname rwe.ghe.com` on the host, for Copilot, see below. |
 
 `AZURE_DEVOPS_EXT_PAT` inside the sandbox is a placeholder, not the stored
 credential.
 
-### The RWE_GHE_TOKEN binding
+### The GitHub Enterprise tokens
 
-Access to GitHub Enterprise Cloud (`rwe.ghe.com`), including Copilot, uses a custom
-secret that takes its value from the host's `gh`. The base squad declares it:
+Access to GitHub Enterprise Cloud (`rwe.ghe.com`) uses two services, which the
+`github-enterprise-auth` kit asks for with `credential@1`:
 
-```yaml
-secrets:
-  - service: rwe-ghec
-    host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com, rwe.ghe.com, uploads.rwe.ghe.com]
-    env: RWE_GHE_TOKEN
-    command: gh auth token -h rwe.ghe.com
-    placeholder: gho_{rand}
-```
+- `abox-github-enterprise`, a fine-grained personal access token for `rwe.ghe.com`,
+  `api.rwe.ghe.com` and `uploads.rwe.ghe.com`. `gh` and git use it through the
+  placeholder `GHE_TOKEN`.
+- `abox-github-copilot`, the host's `gh` OAuth token, for `copilot-api.rwe.ghe.com`
+  only. OpenCode, pi, Claude and the Copilot CLI use it through the placeholder
+  `GHE_COPILOT_TOKEN`. Copilot rejects personal access tokens; the proxy keeps this
+  broader token away from the tenant's API.
 
-The sandbox sees a placeholder in `RWE_GHE_TOKEN`. The proxy replaces it with the real
-token in requests to these four hosts. The `rwe-ghec` kit fails its setup if the
-placeholder is missing.
+Like every abox service they are stored by name, so they never collide with another
+secret for the same hosts, such as the old `gh`-based `RWE_GHE_TOKEN`. Without a stored
+token the sandbox is still created, and what needs it fails inside until the token is
+stored and the sandbox recreated.
 
-To set it up:
+You create the personal access token yourself in the browser. When it is missing,
+`abox create --local` and `abox secrets set --service abox-github-enterprise` ask for
+your organization, print the permissions and the prefilled link, ask you to paste the
+token, check it and store it. The host needs no
+`gh` for it; the Copilot token needs `gh` on the host. The permissions, the template
+link for creating the token by hand, the expiry warning and what to do with the old `gh`-based `RWE_GHE_TOKEN` secret are in
+[docs/github-enterprise-token.md](../../docs/github-enterprise-token.md).
 
-1. Sign in on the host: `gh auth login -h rwe.ghe.com`, with the scopes you need
-   (`workflow` to change workflows).
-2. `abox create --local` offers to store the binding when it is missing. For a
-   published squad, or to do it by hand, run:
-
-   ```sh
-   sbx secret set-custom \
-     --host copilot-api.rwe.ghe.com --host api.rwe.ghe.com \
-     --host rwe.ghe.com --host uploads.rwe.ghe.com \
-     --env RWE_GHE_TOKEN --command 'gh auth token -h rwe.ghe.com' \
-     --placeholder 'gho_{rand}'
-   ```
-
-3. Check with `abox secrets list --location <folder>`.
-
-sbx runs the command when it stores the secret, so a host `gh` that is not signed in
-fails right away.
-
-abox treats the binding as present when one custom secret covers all four hosts with
-`RWE_GHE_TOKEN`. A custom secret that uses one of the hosts or the variable in another
-way is reported as a conflicting binding and not replaced. Review it yourself before
-removing it; another sandbox may use it.
-
-The standalone Copilot CLI still needs its own `/login` inside the sandbox.
-`GH_TOKEN` and `GITHUB_TOKEN` stay empty.
+The token cannot create or delete repositories (`gh repo create` fails with 403), and
+there is no wiki write access. `GH_TOKEN` and `GITHUB_TOKEN` stay empty, so github.com
+is anonymous. The standalone Copilot CLI uses the Copilot token through
+`COPILOT_GITHUB_TOKEN` and `GH_HOST` in every shell.
 
 ## MCP servers
 

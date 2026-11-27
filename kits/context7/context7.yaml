@@ -11,7 +11,7 @@ capabilities:
   - type: com.docker.sandbox/credential@1
     optional: true
     config:
-      service: context7
+      service: abox-context7
       phase: runtime
       apiKey:
         name: CONTEXT7_API_KEY

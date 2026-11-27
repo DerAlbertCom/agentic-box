@@ -17,7 +17,7 @@ capabilities:
     optional: true
     description: Elastic access for the agents
     config:
-      service: elastic
+      service: abox-elastic
       phase: runtime
       apiKey:
         name: ELASTIC_API_KEY

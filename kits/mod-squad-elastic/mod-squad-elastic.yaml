@@ -10,7 +10,7 @@ capabilities:
         allow: [mti-am-nprod.kb.eu-central-1.aws.cloud.es.io, mti-am.kb.eu-central-1.aws.cloud.es.io]
   - type: com.docker.sandbox/credential@1
     config:
-      service: mod-elastic-nprod
+      service: abox-mod-elastic-nprod
       phase: runtime
       apiKey:
         name: ELASTIC_NPROD_TOKEN
@@ -21,7 +21,7 @@ capabilities:
             format: ApiKey %s
   - type: com.docker.sandbox/credential@1
     config:
-      service: mod-elastic-prod
+      service: abox-mod-elastic-prod
       phase: runtime
       apiKey:
         name: ELASTIC_PROD_TOKEN

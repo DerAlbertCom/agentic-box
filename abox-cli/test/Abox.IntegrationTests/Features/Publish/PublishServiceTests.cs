@@ -515,7 +515,8 @@ public sealed class PublishServiceTests
               "Mcp": [{"Name": "host-server", "Url": null}],
               "State": [],
               "Kits": [{"Name": "tool", "Arguments": {}}],
-              "Secrets": []
+              "Secrets": [],
+              "Credentials": []
             }
             """
         );

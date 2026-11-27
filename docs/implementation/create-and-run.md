@@ -157,8 +157,9 @@ credentials; abox never sees them.
 
 ### The credential check
 
-When the squad's local sources are available, create checks every `credential@1`
-request with an `apiKey` mechanism of a local kit:
+Create checks every `credential@1` request with an `apiKey` mechanism that the build
+recorded in `squad.json` (`BuildManifest.Credentials`, from the squad's local kits),
+together with the recorded secret declarations:
 
 - the stored value, with the identity rules of `abox secrets list`;
 - the approval in sbx's `credentials.yaml` (`ICredentialApprovals`), which must cover
@@ -229,7 +230,7 @@ holds only `FromCommand`. `set` does not run anything for it: it prints the
 **Identity** (`Credentials/SecretIdentity`). A service secret is matched by name. A
 custom secret with hosts is matched when a stored custom secret is sent to all its
 hosts; one with only `env` by that variable. `list` marks a stored custom secret that
-shares a host or variable without being the binding as `conflicting binding`, and
+shares a host or variable without being the binding as `conflicts with <variable>`, and
 `set` refuses to store over one.
 
 - `list` shows requested and declared services, the kits asking, whether each is

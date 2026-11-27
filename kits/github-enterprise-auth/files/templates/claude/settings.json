@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "apiKeyHelper": "printf %s \"$RWE_GHE_TOKEN\"",
+  "apiKeyHelper": "printf %s \"$GHE_COPILOT_TOKEN\"",
   "model": "claude-opus-5-5",
   "skipWebFetchPreflight": true,
   "worktree": { "location": "~/worktrees" },
@@ -31,7 +31,7 @@
     ]
   },
   "env": {
-    "ANTHROPIC_BASE_URL": "https://copilot-api.rwe.ghe.com",
+    "ANTHROPIC_BASE_URL": "https://copilot-api.__GHE_HOST__",
     "ANTHROPIC_CUSTOM_HEADERS": "Copilot-Integration-Id: vscode-chat",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5-5",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5-5",

@@ -185,6 +185,7 @@ public sealed class RunFlowTests
             SandboxFactory.Resolver(Lifecycle, SandboxFactory.Hints(config, Store, Records)),
             SandboxFactory.Hints(config, Store, Records),
             Substitute.For<IHostPrograms>(),
+            TestServiceGraphs.TokenExpiries(_fixture.Paths, Console),
             Console
         );
 
@@ -321,6 +322,7 @@ public sealed class RunFlowTests
             ),
             SandboxFactory.Hints(new AboxConfig(), Store, Records),
             Substitute.For<IHostPrograms>(),
+            TestServiceGraphs.TokenExpiries(_fixture.Paths, Console),
             Console
         );
 

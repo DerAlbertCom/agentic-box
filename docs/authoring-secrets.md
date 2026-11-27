@@ -21,12 +21,12 @@ Declare each service once in the `secrets` list of a squad in the `base` chain.
 
 ```yaml
 secrets:
-  - github                                   # shorthand for "service: github"
+  - abox-github                              # shorthand for "service: abox-github"
 
-  - service: azure-devops                    # a service a kit asks for with credential@1
+  - service: abox-azure-devops               # a service a kit asks for with credential@1
     prompt: The Azure DevOps personal access token
 
-  - service: registry                        # a value built from parts
+  - service: abox-registry                   # a value built from parts
     inputs:
       - name: username
         prompt: The user name
@@ -35,21 +35,24 @@ secrets:
     separator: ":"
     encoding: base64
 
-  - service: elastic                         # a custom secret: no credential@1 needed
+  - service: abox-elastic                    # a custom secret: no credential@1 needed
     host: api.elastic.co
     env: ELASTIC_API_KEY
     prompt: The API key for Elastic
 
-  - service: rwe-ghec                        # a custom secret from a host command
-    host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com, rwe.ghe.com, uploads.rwe.ghe.com]
-    env: RWE_GHE_TOKEN
-    command: gh auth token -h rwe.ghe.com
-    placeholder: gho_{rand}
+  - service: abox-build-cache                # a custom secret from a host command
+    host: cache.example.com
+    env: CACHE_TOKEN
+    command: cache-cli token
+    placeholder: cache_{rand}
+
+  - service: abox-github-enterprise          # a fine-grained GitHub token a kit asks for
+    prompt: The fine-grained personal access token for GitHub Enterprise
 ```
 
 | Key | Meaning |
 |---|---|
-| `service` | The name the value is stored under. A kit's `credential@1` names the same service. |
+| `service` | The name the value is stored under. A kit's `credential@1` names the same service. Start it with `abox-`. |
 | `prompt` | What the user is asked. Without it a generic prompt names the service. |
 | `inputs` | The parts a value is built from, each with `name` and `prompt`. Without them one value is asked for. |
 | `separator` | Joins the inputs. Default `:`. |
@@ -57,6 +60,21 @@ secrets:
 | `host`, `env` | Make it a **custom secret**: the variable `env` holds a placeholder in the sandbox, and the proxy replaces it in requests to `host`. `host` can be a list. |
 | `command` | A host command that prints the value, instead of `prompt` or `inputs`. Needs `host`. |
 | `placeholder` | The value the sandbox sees for a custom secret; `{rand}` is a random part. Needs `host`. |
+
+Every service name starts with `abox-`, in the `secrets` list and in the kits'
+`credential@1`. The prefix keeps abox's values apart from the services sbx or another
+tool configures, so a sandbox only gets the secrets abox stored.
+
+`prompt`, `host`, `env` and `placeholder` can use `${{ parameters.NAME }}`, like kit
+arguments. The build resolves them, so `squad.json` and the check for a stored or
+conflicting binding use the resolved hosts. A `command` is used as written.
+
+The service `abox-github-enterprise` gets its value differently when a kit asks for
+it with `credential@1`. The user creates a fine-grained personal access token; abox
+prints the permissions and the prefilled link for the tenant (the kit's domain without
+`api.`, `uploads.` or `copilot-api.`), asks for the organization that owns the token so
+the prefilled link names it as the resource owner, checks the pasted token against `api.<tenant>`,
+stores it under the service name, and warns on `create` and `run` before it expires. See [the GitHub Enterprise token](github-enterprise-token.md).
 
 A service that a kit asks for with `credential@1` is always stored by its name, so it
 works without a declaration; the declaration only improves the prompt. A custom secret
@@ -88,8 +106,8 @@ Two cases need attention:
 
 - **Conflicting binding.** A custom secret counts as stored when a stored custom
   secret covers all its hosts with its `env`. If another custom secret uses one of
-  the hosts or the same variable differently, `list` shows `conflicting binding` and
-  `set` does not overwrite it. Another sandbox may need it; review and remove it
+  the hosts or the same variable differently, `list` shows `conflicts with <variable>`
+  and `set` does not overwrite it. Another sandbox may need it; review and remove it
   yourself with `sbx secret`.
 - **Command-backed secrets.** abox never runs a host command that it read from a
   sandbox. For such a secret `set` prints the `sbx secret set-custom` command with
@@ -108,14 +126,16 @@ bindings in `credentials.yaml` in its config directory (`~/.config/sbx`, or
 
 ```yaml
 bindings:
-    github:
+    abox-github:
         apiKey:
             domains:
                 - api.github.com
 ```
 
-`abox create --local` checks values and approvals before it replaces a sandbox, for
-the credentials of the squad's local kits and for its declared custom secrets.
+`abox create` checks values and approvals before it replaces a sandbox, for the
+credentials the squad's local kits ask for and for its declared custom secrets. It
+reads both from the build's `squad.json`, so it needs no team sources; a build from an
+older abox records no requests, and create then checks nothing.
 
 - On a terminal it asks to set each missing value, as `abox secrets set` does, and
   runs the `command` of a command-backed secret through sbx. For each missing approval

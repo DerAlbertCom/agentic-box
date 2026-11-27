@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Registry;
+using Abox.Features.Shared.Squads;
 
 namespace Abox.Features.Shared.Builds;
 
@@ -57,6 +59,20 @@ internal sealed class BuildManifest
     /// </summary>
     [JsonIgnore]
     public List<ManifestState> State { get; set; } = [];
+
+    /// <summary>
+    /// How the squad declares its secrets. Like <see cref="Mcp"/>, kept only in squad.json in
+    /// the configuration image; empty for a build that does not record them.
+    /// </summary>
+    [JsonIgnore]
+    public List<SecretDeclaration> Secrets { get; set; } = [];
+
+    /// <summary>
+    /// The credentials the squad's local kits ask for, recorded at build time in squad.json so
+    /// a create can check them without the team's sources; empty for an older build.
+    /// </summary>
+    [JsonIgnore]
+    public List<CredentialRequest> Credentials { get; set; } = [];
 
     /// <summary>The configuration files the squad is made of.</summary>
     public List<string> ConfigFiles { get; set; } = [];

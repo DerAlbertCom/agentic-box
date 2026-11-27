@@ -45,14 +45,13 @@ public sealed class SquadCredentialsTests
     private string Location => Path.Combine(_root.Path, "my folder");
 
     [Fact]
-    public async Task WithoutLocalSourcesNothingIsChecked()
+    public async Task WithoutRecordedCredentialsNothingIsChecked()
     {
         // Arrange
         var console = new TestConsole();
 
         // Act
-        await Credentials(console)
-            .PrepareAsync(null, "sample", "ac", Location, CancellationToken.None);
+        await Credentials(console).PrepareAsync([], [], "ac", Location, CancellationToken.None);
 
         // Assert
         _secrets.ReceivedCalls().Should().BeEmpty();
@@ -347,18 +346,32 @@ public sealed class SquadCredentialsTests
             );
     }
 
-    private Task Prepare(TestConsole console) =>
-        Credentials(console)
-            .PrepareAsync(_root.Path, "sample", "ac", Location, CancellationToken.None);
+    /// <summary>Checks what a build of the sample squad would record.</summary>
+    private Task Prepare(TestConsole console)
+    {
+        var parser = new YamlDotNetParser();
+        var squad = new SquadResolver(new AboxConfig(), parser).Resolve(_root.Path, "sample", "ac");
+        return Credentials(console)
+            .PrepareAsync(
+                CredentialRequest.Of(squad, parser),
+                squad.Secrets,
+                "ac",
+                Location,
+                CancellationToken.None
+            );
+    }
 
     private SquadCredentials Credentials(TestConsole console) =>
         new(
-            new SquadResolver(new AboxConfig(), new YamlDotNetParser()),
             _secrets,
             _approvals,
-            new SecretValues(_secrets, console),
-            console,
-            new YamlDotNetParser()
+            TestServiceGraphs.SecretValues(
+                AboxPaths.For(_root.Path, _root.Path),
+                _secrets,
+                console
+            ),
+            TestServiceGraphs.TokenExpiries(AboxPaths.For(_root.Path, _root.Path), console),
+            console
         );
 
     private static IReadOnlyList<string> Domains(params string[] domains) =>
@@ -366,6 +379,38 @@ public sealed class SquadCredentialsTests
 
     private void StoreValue() =>
         _secrets.ListAsync(Arg.Any<CancellationToken>()).Returns(new HostSecrets(["github"], []));
+
+    [Fact]
+    public async Task WithoutATerminalAMissingGitHubTokenWithParameterHostsIsOnlyWarnedAbout()
+    {
+        // Arrange
+        _root.File(
+            "teams/sample/ac.abox",
+            """
+            workload: mti-ca-dotnet
+            parameters:
+              ghe-host: tenant.ghe.com
+            secrets:
+              - service: abox-github-enterprise
+                host: ["${{ parameters.ghe-host }}", "api.${{ parameters.ghe-host }}"]
+                env: GHE_TOKEN
+                placeholder: github_pat_{rand}
+            """
+        );
+        var console = new TestConsole(interactive: false);
+
+        // Act
+        await Prepare(console);
+
+        // Assert
+        console
+            .Errors.Should()
+            .Contain(line =>
+                line.Contains(
+                    "abox-github-enterprise (secrets, required) for tenant.ghe.com, api.tenant.ghe.com"
+                )
+            );
+    }
 
     private void WriteCommandSecretSquad() =>
         _root.File(

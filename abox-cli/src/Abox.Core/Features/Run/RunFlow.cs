@@ -2,6 +2,7 @@ using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.CommandLine;
 using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Configuration;
+using Abox.Features.Shared.GitHubTokens;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Launchers;
 using Abox.Features.Shared.Naming;
@@ -39,6 +40,7 @@ internal sealed class RunFlow(
     FolderSandbox sandboxes,
     CreateRecoveryHints recoveryHints,
     IHostPrograms hostPrograms,
+    GitHubTokenExpiries tokenExpiries,
     IConsole console
 )
 {
@@ -93,6 +95,8 @@ internal sealed class RunFlow(
         {
             return 1;
         }
+
+        tokenExpiries.WarnWhenClose();
 
         foreach (var program in launcher.SandboxRequirements)
         {

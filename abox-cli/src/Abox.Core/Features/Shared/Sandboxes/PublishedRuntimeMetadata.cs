@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Abox.Features.Shared.Builds;
 using Abox.Features.Shared.Common;
+using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Naming;
 using Abox.Features.Shared.Squads;
 
@@ -60,7 +61,26 @@ internal static class PublishedRuntimeMetadata
             CreatedAt = createdAt,
             State = state,
             Mcp = mcp,
+            Secrets = Optional<SquadMetadataSecret>(root, "Secrets")
+                .Select(secret => secret.ToDeclaration())
+                .ToList(),
+            Credentials = Optional<SquadMetadataCredential>(root, "Credentials")
+                .Select(credential => credential.ToRequest())
+                .ToList(),
         };
+    }
+
+    /// <summary>A list a build of an older abox does not write; missing or null is empty.</summary>
+    private static List<T> Optional<T>(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var element) || element.ValueKind == JsonValueKind.Null)
+            return [];
+        var entries =
+            element.Deserialize<List<T?>>(JsonOptions)
+            ?? throw new JsonException($"{name} is not a list.");
+        return entries
+            .Select(entry => entry ?? throw new JsonException($"An entry of {name} is null."))
+            .ToList();
     }
 
     private static void ValidateIdentity(JsonElement root, SquadBuildIdentity expected)

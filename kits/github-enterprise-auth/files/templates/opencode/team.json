@@ -10,13 +10,13 @@
   "providers": {
     "github-copilot": {
       "settings": {
-        "baseURL": "https://copilot-api.rwe.ghe.com",
-        "apiKey": "{env:RWE_GHE_TOKEN}"
+        "baseURL": "https://copilot-api.__GHE_HOST__",
+        "apiKey": "{env:GHE_COPILOT_TOKEN}"
       },
       "models": {
         "claude-opus-5.5": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -27,7 +27,7 @@
         },
         "claude-sonnet-5.5": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -38,7 +38,7 @@
         },
         "claude-haiku-5.5": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -49,7 +49,7 @@
         },
         "claude-opus-5": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -60,7 +60,7 @@
         },
         "claude-sonnet-5": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -71,7 +71,7 @@
         },
         "claude-fable-5.1": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -82,7 +82,7 @@
         },
         "claude-fable-5": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -93,7 +93,7 @@
         },
         "claude-opus-4.8": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -104,7 +104,7 @@
         },
         "claude-opus-4.8-fast": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"
@@ -115,7 +115,7 @@
         },
         "claude-haiku-4.5": {
           "settings": {
-            "baseURL": "https://copilot-api.rwe.ghe.com/v1"
+            "baseURL": "https://copilot-api.__GHE_HOST__/v1"
           },
           "headers": {
             "Copilot-Integration-Id": "vscode-chat"

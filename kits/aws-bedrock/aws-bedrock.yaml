@@ -16,7 +16,7 @@ capabilities:
         allow: [bedrock-runtime.eu-central-1.amazonaws.com]
   - type: com.docker.sandbox/credential@1
     config:
-      service: aws-bedrock
+      service: abox-aws-bedrock
       phase: runtime
       apiKey:
         name: AWS_BEARER_TOKEN_BEDROCK

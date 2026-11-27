@@ -32,9 +32,9 @@ parameters:
   elastic-nprod-url: https://mti-am-nprod.kb.eu-central-1.aws.cloud.es.io/api/agent_builder/mcp
   elastic-prod-url: https://mti-am.kb.eu-central-1.aws.cloud.es.io/api/agent_builder/mcp
 secrets:
-  - service: context7
+  - service: abox-context7
     prompt: Optional Context7 API key
-  - service: mod-elastic-nprod
+  - service: abox-mod-elastic-nprod
     prompt: MOD nonproduction encoded Elastic API key (feature_agentBuilder.read)
-  - service: mod-elastic-prod
+  - service: abox-mod-elastic-prod
     prompt: MOD production encoded Elastic API key (feature_agentBuilder.read)

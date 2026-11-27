@@ -181,8 +181,9 @@ internal static class LocalWorkloadFactory
         config.Directory = SquadConfigurationMixin.Generate(
             team,
             build,
-            [],
-            Path.Combine(images, "config")
+            build.Secrets,
+            Path.Combine(images, "config"),
+            build.Credentials
         );
         Load(config.Reference, config.Directory);
         return build;

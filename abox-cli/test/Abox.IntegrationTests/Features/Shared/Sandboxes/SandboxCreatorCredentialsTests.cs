@@ -14,30 +14,12 @@ public sealed class SandboxCreatorCredentialsTests
 
     public SandboxCreatorCredentialsTests()
     {
-        _fixture.SaveBuild();
-        _fixture.Root.File(
-            "teams/sample/ac.abox",
-            "workload: mti-ca-dotnet\nkits:\n  - github-auth\nsecrets:\n  - service: github\n"
-        );
-        _fixture.Root.File(
-            "teams/sample/mti-ca-dotnet.workload",
-            "template: docker.io/sbx/shell-docker-image\npublishRepository: test-images-local\n"
-        );
-        _fixture.Root.File(
-            "kits/github-auth/github-auth.yaml",
-            """
-            schemaVersion: "3"
-            kind: mixin
-            capabilities:
-              - type: com.docker.sandbox/credential@1
-                optional: true
-                config:
-                  service: github
-                  apiKey:
-                    name: GITHUB_TOKEN
-                    inject:
-                      - domain: api.github.com
-            """
+        _fixture.SaveBuild(
+            credentials:
+            [
+                new CredentialRequest("github", ["github-auth"], ["api.github.com"], true),
+            ],
+            secrets: [new SecretDeclaration("github")]
         );
     }
 
@@ -121,16 +103,5 @@ public sealed class SandboxCreatorCredentialsTests
         _fixture.Console.Output.Should().NotContain("Creating sandbox...");
     }
 
-    private SandboxCreationRequest Request() =>
-        _fixture.Request() with
-        {
-            Team = new SquadResolver.ResolvedTeam(
-                "sample",
-                Path.Combine(_fixture.Root.Path, "teams", "sample"),
-                ["ac"]
-            )
-            {
-                RootDirectory = _fixture.Root.Path,
-            },
-        };
+    private SandboxCreationRequest Request() => _fixture.Request();
 }

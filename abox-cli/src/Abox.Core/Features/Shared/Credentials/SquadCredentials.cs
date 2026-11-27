@@ -1,54 +1,48 @@
 using Abox.Features.Shared.Common;
+using Abox.Features.Shared.GitHubTokens;
 using Abox.Features.Shared.Squads;
-using Abox.Features.Shared.Yaml;
 
 namespace Abox.Features.Shared.Credentials;
 
 /// <summary>
-/// Gets the credentials the local kits of a squad ask for ready before a sandbox is
-/// created: abox asks for missing values and approvals itself, so sbx never has to.
+/// Gets the credentials the kits of a squad ask for ready before a sandbox is created,
+/// from what the build recorded in <c>squad.json</c>, so no team sources are needed: abox
+/// asks for missing values and approvals itself, so sbx never has to.
 /// Of the kits' requests only the <c>apiKey</c> mechanism is checked; sbx notes the others
 /// itself. The custom secrets the squad declares are checked too, so a kit's setup that
 /// reads one from its variable does not fail on a value that was never set.
 /// </summary>
 internal sealed class SquadCredentials(
-    SquadResolver resolver,
     IHostSecretStore secrets,
     ICredentialApprovals approvals,
     SecretValues values,
-    IConsole console,
-    IYamlParser parser
+    GitHubTokenExpiries tokenExpiries,
+    IConsole console
 )
 {
     /// <summary>
     /// Checks that every credential has a stored value and an approval. On a terminal it
-    /// asks for what is missing; without one it warns. It never fails the create: sbx
-    /// starts without an optional credential and rejects a required one itself.
+    /// asks for what is missing; without one it warns. It never fails the create: the
+    /// sandbox starts without what is missing, and what needs it fails inside the sandbox.
     /// </summary>
-    /// <param name="rootDirectory">The project that holds the squad's sources; null skips the check.</param>
-    /// <param name="team">The team the squad belongs to.</param>
+    /// <param name="requested">The credentials the squad's kits ask for, as the build recorded them.</param>
+    /// <param name="declared">How the squad declares its secrets.</param>
     /// <param name="squad">The squad the sandbox is created from.</param>
     /// <param name="location">The folder the sandbox is created for.</param>
     public async Task PrepareAsync(
-        string? rootDirectory,
-        string team,
+        IReadOnlyList<CredentialRequest> requested,
+        IReadOnlyList<SecretDeclaration> declared,
         string squad,
         string location,
         CancellationToken cancellationToken
     )
     {
-        if (string.IsNullOrWhiteSpace(rootDirectory))
-        {
-            return;
-        }
-
+        tokenExpiries.WarnWhenClose();
         try
         {
-            var resolved = resolver.Resolve(rootDirectory, team, squad);
-            var requested = CredentialRequest.Of(resolved, parser);
             var requests = requested.Where(request => request.Domains.Count > 0).ToList();
-            var custom = resolved
-                .Secrets.Where(secret =>
+            var custom = declared
+                .Where(secret =>
                     secret.IsCustom && requested.All(request => request.Service != secret.Service)
                 )
                 .ToList();
@@ -59,7 +53,7 @@ internal sealed class SquadCredentials(
 
             var stored = await secrets.ListAsync(cancellationToken);
             var missing = requests
-                .Select(request => Check(request, resolved.Secrets, stored))
+                .Select(request => Check(request, declared, stored))
                 .Concat(custom.Select(secret => CheckCustom(secret, stored)))
                 .Where(state => !state.Stored || !state.Approved)
                 .ToList();
@@ -134,7 +128,12 @@ internal sealed class SquadCredentials(
                 state.Stored
                 || state.Declaration is { } declaration
                     && console.Confirm($"Set the secret '{name}' now?")
-                    && await SetAsync(declaration, stored, cancellationToken);
+                    && await SetAsync(
+                        declaration,
+                        state.Request.Domains,
+                        stored,
+                        cancellationToken
+                    );
 
             if (!ready)
             {
@@ -160,12 +159,13 @@ internal sealed class SquadCredentials(
 
     private async Task<bool> SetAsync(
         SecretDeclaration declaration,
+        IReadOnlyList<string> domains,
         HostSecrets stored,
         CancellationToken cancellationToken
     )
     {
         var name = declaration.Service;
-        var setting = await values.SetAsync(declaration, stored, cancellationToken);
+        var setting = await values.SetAsync(declaration, domains, stored, cancellationToken);
         switch (setting.Result)
         {
             case SecretSettingResult.Skipped:

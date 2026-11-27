@@ -13,7 +13,7 @@ capabilities:
         allow: [dev.azure.com, pkgs.dev.azure.com, vssps.dev.azure.com, "*.blob.core.windows.net", "*.vsblob.core.windows.net"]
   - type: com.docker.sandbox/credential@1
     config:
-      service: azure-devops
+      service: abox-azure-devops
       phase: [install, runtime]
       apiKey:
         name: AZURE_DEVOPS_EXT_PAT
