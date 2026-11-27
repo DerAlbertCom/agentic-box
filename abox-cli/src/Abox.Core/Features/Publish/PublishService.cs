@@ -25,6 +25,7 @@ internal sealed class PublishService(
     IRegistryPublisher registry,
     IRegistryDigests digests,
     ILocalImageStore images,
+    RegistrySignIn signIn,
     IConsole console
 )
 {
@@ -42,6 +43,7 @@ internal sealed class PublishService(
             throw new AboxException(
                 "Publishing v3 kits needs Docker with the Buildx plugin on PATH. Install it and configure a BuildKit builder; see docs/implementation.md."
             );
+        await signIn.EnsureAsync(cancellationToken);
 
         var publisher = new VerifiedPublicationRegistry(registry, console, request.Builder);
         await publisher.RequireBuildxAsync(cancellationToken);

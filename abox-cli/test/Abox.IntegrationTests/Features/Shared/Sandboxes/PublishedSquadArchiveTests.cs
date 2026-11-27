@@ -244,6 +244,7 @@ internal sealed class PublishedArchiveScenario
             .Returns(call => Respond(call.Arg<ProcessRequest>(), archive));
         _source = new PublishedSquadSource(
             new DockerPublishedImageReader(programs, runner),
+            RegistrySignInFactory.SignedIn(),
             new TestConsole()
         );
     }

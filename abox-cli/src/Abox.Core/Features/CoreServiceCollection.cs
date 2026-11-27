@@ -14,6 +14,7 @@ using Abox.Features.Shared.Configuration;
 using Abox.Features.Shared.Credentials;
 using Abox.Features.Shared.Https;
 using Abox.Features.Shared.Preflight;
+using Abox.Features.Shared.Registry;
 using Abox.Features.Shared.Sandboxes;
 using Abox.Features.Shared.Squads;
 using Abox.Features.Shared.UserSecrets;
@@ -87,6 +88,7 @@ public static class CoreServiceCollection
         services.AddScoped<LocalSquadSource>();
         services.AddScoped<RemoteSquadSource>();
         services.AddScoped<IPublishedSquadSource, PublishedSquadSource>();
+        services.AddScoped<RegistrySignIn>();
         return services;
     }
 }

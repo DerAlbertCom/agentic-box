@@ -28,7 +28,11 @@ public sealed class PublishedSquadSourceMcpTests
         new(
             config,
             kitSources,
-            new PublishedSquadSource(new DockerPublishedImageReader(Programs, Runner), Console)
+            new PublishedSquadSource(
+                new DockerPublishedImageReader(Programs, Runner),
+                RegistrySignInFactory.SignedIn(),
+                Console
+            )
         );
 
     [Theory]

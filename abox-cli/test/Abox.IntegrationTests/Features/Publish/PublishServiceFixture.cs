@@ -31,6 +31,7 @@ internal sealed class PublishServiceFixture
             new DockerRegistryPublisher(Programs, Runner),
             new DockerRegistryDigests(Runner),
             new DockerComponentImages(Programs, Runner),
+            RegistrySignInFactory.SignedIn(),
             Console
         );
         Programs.Exists("docker").Returns(true);

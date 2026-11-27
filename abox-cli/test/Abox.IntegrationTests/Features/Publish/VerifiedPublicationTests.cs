@@ -269,6 +269,7 @@ public sealed class VerifiedPublicationTests
                 new DockerRegistryPublisher(programs, Runner),
                 new DockerRegistryDigests(Runner),
                 new DockerComponentImages(programs, Runner),
+                RegistrySignInFactory.SignedIn(),
                 Console
             );
             Runner

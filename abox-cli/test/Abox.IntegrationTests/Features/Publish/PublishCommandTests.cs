@@ -200,6 +200,7 @@ public sealed class PublishCommandTests
                 new DockerRegistryPublisher(_programs, _runner),
                 new DockerRegistryDigests(_runner),
                 new DockerComponentImages(_programs, _runner),
+                RegistrySignInFactory.SignedIn(),
                 _console
             )
         );

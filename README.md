@@ -54,7 +54,8 @@ maintainer for read access to the feed, or
 1. If your pull repository is not `mtiae-docker-release`, set `pullRepository` in your
    [user settings](docs/configuration.md#user-settings). It is a repository name, not a
    URL.
-2. Sign in to the registry:
+2. Sign in to the registry with your JFrog user and identity token. If you skip this,
+   `abox create` starts the sign-in for you on a terminal.
 
    ```sh
    docker login rwest.jfrog.io
