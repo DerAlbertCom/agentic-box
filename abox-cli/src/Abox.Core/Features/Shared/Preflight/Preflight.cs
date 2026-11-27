@@ -99,13 +99,19 @@ internal sealed class Preflight(IConsole console, IPreflightChecks checks)
         foreach (var failure in failures)
         {
             console.WriteError($"sbx check '{failure.Name}' failed: {failure.Message}");
-            if (!string.IsNullOrWhiteSpace(failure.Hint))
-            {
-                console.WriteError(failure.Hint);
-            }
+            WriteErrorIfPresent(failure.Detail);
+            WriteErrorIfPresent(failure.Hint);
         }
 
         return false;
+    }
+
+    private void WriteErrorIfPresent(string text)
+    {
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            console.WriteError(text);
+        }
     }
 
     private async Task<bool> SignInAsync(CancellationToken cancellationToken)

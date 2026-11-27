@@ -106,7 +106,7 @@ public sealed class PrunePreflightTests
             .Returns(
                 PreflightScenario.SignedOut(),
                 new DiagnoseReport(
-                    [new DiagnosticCheck(check, true, "not ready", hint)],
+                    [new DiagnosticCheck(check, true, "not ready", "", hint)],
                     SignedOut: check == "Authentication"
                 )
             );

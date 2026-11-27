@@ -144,11 +144,93 @@ public sealed class SbxPreflightChecksTests
         report.SignedOut.Should().BeFalse();
         report
             .Failures.Should()
-            .Equal(new DiagnosticCheck("Daemon", true, "not healthy", "start the daemon"));
+            .Equal(
+                new DiagnosticCheck("Daemon", true, "not healthy", "no answer", "start the daemon")
+            );
         report
             .Checks.Select(check => check.Name)
             .Should()
             .Equal("Authentication", "Daemon", "Network");
+    }
+
+    [Fact]
+    public async Task AFailedCheckMakesDiagnoseExitNonZeroButItsReportIsStillRead()
+    {
+        // Arrange
+        _runner
+            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new ProcessResult(
+                    1,
+                    """
+                    {
+                      "version": "1.1",
+                      "checks": [
+                        {
+                          "id": "binary-version",
+                          "name": "Binary version",
+                          "status": "warn",
+                          "message": "update available",
+                          "detail": "https://example.invalid/release",
+                          "hint": "Download the latest release"
+                        },
+                        {
+                          "id": "daemon",
+                          "name": "Daemon",
+                          "status": "fail",
+                          "message": "not reachable",
+                          "detail": "health endpoint: connection refused",
+                          "hint": "Run: sbx daemon start"
+                        },
+                        {
+                          "id": "authentication",
+                          "name": "Authentication",
+                          "status": "skip",
+                          "message": "Skipped: Daemon failed",
+                          "detail": "",
+                          "hint": ""
+                        }
+                      ],
+                      "summary": { "pass": 0, "warn": 1, "fail": 1, "skip": 1 }
+                    }
+                    """,
+                    string.Empty
+                )
+            );
+
+        // Act
+        var report = await _checks.DiagnoseAsync(CancellationToken.None);
+
+        // Assert
+        report.SignedOut.Should().BeFalse();
+        report
+            .Failures.Should()
+            .Equal(
+                new DiagnosticCheck(
+                    "Daemon",
+                    true,
+                    "not reachable",
+                    "health endpoint: connection refused",
+                    "Run: sbx daemon start"
+                )
+            );
+    }
+
+    [Fact]
+    public async Task ANonZeroExitWithoutAReportIsAnErrorThatNamesTheCommand()
+    {
+        // Arrange
+        _runner
+            .RunAsync(Arg.Any<ProcessRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new ProcessResult(2, string.Empty, "unknown flag: --json"));
+
+        // Act
+        var action = () => _checks.DiagnoseAsync(CancellationToken.None);
+
+        // Assert
+        (await action.Should().ThrowAsync<AboxException>()).WithMessage(
+            "'sbx diagnose' failed: unknown flag: --json"
+        );
     }
 
     [Theory]

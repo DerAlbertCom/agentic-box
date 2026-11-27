@@ -1,3 +1,4 @@
+using Abox.Features.Shared.Common;
 using Abox.Features.Shared.Preflight;
 
 namespace Abox.Infrastructure.Sbx;
@@ -7,6 +8,7 @@ internal sealed class SbxPreflightChecks(SbxInvoker invoker, IHostPrograms progr
     : IPreflightChecks
 {
     private const string AuthenticationCheck = "Authentication";
+    private const string DiagnoseCommand = "sbx diagnose";
 
     public bool IsInstalled() => invoker.IsOnPath(programs);
 
@@ -15,16 +17,24 @@ internal sealed class SbxPreflightChecks(SbxInvoker invoker, IHostPrograms progr
 
     public async Task<DiagnoseReport> DiagnoseAsync(CancellationToken cancellationToken)
     {
-        var report = await invoker.RunJsonAsync<SbxDiagnose>(
-            ["diagnose", "--json"],
-            "sbx diagnose",
+        // sbx diagnose exits non-zero when a check fails and still writes the whole
+        // report, so only a failure without a report is an error.
+        var result = await invoker.RunAsync(
+            invoker.Call(["diagnose", "--json"]),
             cancellationToken
         );
+        if (!result.Succeeded && string.IsNullOrWhiteSpace(result.StandardOutput))
+        {
+            throw new AboxException($"'{DiagnoseCommand}' failed: {SbxInvoker.Describe(result)}");
+        }
+
+        var report = SbxInvoker.Deserialize<SbxDiagnose>(result.StandardOutput, DiagnoseCommand);
         var checks = report
             .Checks.Select(check => new DiagnosticCheck(
                 check.Name ?? string.Empty,
                 (check.Status ?? string.Empty).Equals("fail", StringComparison.OrdinalIgnoreCase),
                 check.Message ?? string.Empty,
+                check.Detail ?? string.Empty,
                 check.Hint ?? string.Empty
             ))
             .ToList();

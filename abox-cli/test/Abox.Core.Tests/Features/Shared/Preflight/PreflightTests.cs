@@ -82,8 +82,14 @@ public sealed class PreflightTests
             .Returns(
                 new DiagnoseReport(
                     [
-                        new DiagnosticCheck("Authentication", false, "authenticated", ""),
-                        new DiagnosticCheck("Daemon", true, "not healthy", "start the daemon"),
+                        new DiagnosticCheck("Authentication", false, "authenticated", "", ""),
+                        new DiagnosticCheck(
+                            "Daemon",
+                            true,
+                            "not reachable",
+                            "health endpoint: connection refused",
+                            "Run: sbx daemon start"
+                        ),
                     ],
                     SignedOut: false
                 )
@@ -97,7 +103,11 @@ public sealed class PreflightTests
         ready.Should().BeFalse();
         _console
             .Errors.Should()
-            .Equal("sbx check 'Daemon' failed: not healthy", "start the daemon");
+            .Equal(
+                "sbx check 'Daemon' failed: not reachable",
+                "health endpoint: connection refused",
+                "Run: sbx daemon start"
+            );
         await _checks.DidNotReceive().SignInAsync(Arg.Any<CancellationToken>());
     }
 

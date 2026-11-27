@@ -36,6 +36,7 @@ internal sealed class PreflightScenario
                     "Authentication",
                     true,
                     "credential-sentinel: expired synthetic credential",
+                    "credential-sentinel: synthetic detail",
                     "credential-sentinel: raw authentication diagnostic"
                 ),
             ],
