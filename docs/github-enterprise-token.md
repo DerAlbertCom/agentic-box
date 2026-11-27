@@ -23,8 +23,8 @@ abox-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
 3. Paste the token into abox. It is not shown.
 4. abox checks it with `GET https://api.<tenant>/user`. If the tenant rejects it, abox
    says why and you can paste another one.
-5. abox stores it with `sbx secret set-custom`. The value goes through standard input,
-   never into process arguments or logs.
+5. abox stores it in the host's secret store. The value never goes into process
+   arguments or logs.
 
 Without a terminal, `abox create` stops with a pointer to this page.
 
@@ -63,14 +63,8 @@ the token:
 abox secrets set --location <folder> --service abox-github-enterprise
 ```
 
-Or, without a sandbox, store it with sbx directly. Give the four hosts of the squad's
-declaration:
-
-```sh
-sbx secret set-custom \
-  --host <tenant> --host api.<tenant> --host uploads.<tenant> --host copilot-api.<tenant> \
-  --env GHE_TOKEN --placeholder 'github_pat_{rand}' --value-stdin
-```
+For a folder without a sandbox yet, `abox create --local` asks for the token before
+it creates one.
 
 ## Expiry and renewal
 
@@ -82,16 +76,21 @@ next request.
 
 ## Replacing the old `gh`-based token
 
-Squads used to store a `gh auth token` under the variable `RWE_GHE_TOKEN`
-(`gho_{rand}`). Its hosts are the same as the new secret's, so abox reports it as a
-**conflicting binding** and does not overwrite it. Remove it first:
+Squads used to store a `gh auth token` as the secret `rwe-ghec`, under the variable
+`RWE_GHE_TOKEN` (`gho_{rand}`). Its hosts are the same as the new secret's, so abox
+reports it as a **conflicting binding** and does not overwrite it.
+
+Remove it before you recreate the sandbox, while the folder's sandbox still comes from
+the old build that declares `rwe-ghec`:
 
 ```sh
-sbx secret ls
-sbx secret rm --host copilot-api.rwe.ghe.com --force
+abox secrets list --location <folder>
+abox secrets remove --location <folder> --service rwe-ghec
 ```
 
-Then store the new token as described above.
+The stored value serves every sandbox, so this removes it for all of them. Then
+recreate the sandbox with `abox create --local` and store the new token as described
+above.
 
 ## Not covered
 
