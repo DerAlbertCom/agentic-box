@@ -48,8 +48,22 @@ BASH
 
 pwsh -NoLogo -NoProfile -Command '
   $ErrorActionPreference = "Stop"
-  Install-PSResource -Name CompletionPredictor -Version "[0.1.1]" -Scope CurrentUser -TrustRepository
-  Install-PSResource -Name powershell-yaml -Version "[0.4.12]" -Scope CurrentUser -TrustRepository
-  Install-PSResource -Name Pester -Version "[6.2.0]" -Scope CurrentUser -TrustRepository
+  # The PowerShell Gallery sometimes answers "Not Found" for a package it has; retry before failing the build.
+  function Install-ModuleWithRetry([string] $Name, [string] $Version) {
+    for ($attempt = 1; ; $attempt++) {
+      try {
+        Install-PSResource -Name $Name -Version "[$Version]" -Scope CurrentUser -TrustRepository
+        return
+      }
+      catch {
+        if ($attempt -ge 3) { throw }
+        Write-Warning "Installing $Name $Version failed (attempt $attempt): $($_.Exception.Message)"
+        Start-Sleep -Seconds (5 * $attempt)
+      }
+    }
+  }
+  Install-ModuleWithRetry CompletionPredictor 0.1.1
+  Install-ModuleWithRetry powershell-yaml 0.4.12
+  Install-ModuleWithRetry Pester 6.2.0
 '
 rm -rf "$HOME/.cache/mise" "$HOME/.local/share/mise/downloads"
