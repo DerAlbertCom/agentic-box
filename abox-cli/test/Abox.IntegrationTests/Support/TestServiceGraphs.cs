@@ -118,7 +118,8 @@ internal static class TestServiceGraphs
                 TokenExpiries(paths, console),
                 console
             ),
-            new RememberedInputs(paths, console)
+            new RememberedInputs(paths, console),
+            Substitute.For<IHostCommands>()
         );
 
     /// <summary>A host secret store that holds nothing and stores and removes every secret.</summary>

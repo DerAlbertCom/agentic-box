@@ -72,7 +72,8 @@ every squad that uses the kit gets the same prompts. The file holds a list:
 | `separator` | Joins the inputs. Default `:`. |
 | `encoding` | `plain` (default) or `base64`, applied to the joined value. |
 | `host`, `env` | Make it a **custom secret**: the variable `env` holds a placeholder in the sandbox, and the proxy replaces it in requests to `host`. `host` can be a list. |
-| `command` | A host command that prints the value, instead of `prompt` or `inputs`. Needs `host`. |
+| `valueCommand` | A host command whose output is the value, instead of `prompt` or `inputs`. `secrets init`, `update` and `set` run it with `sh -c` (on Windows the `sh` of Git for Windows), take its output without surrounding white space, never show it, and say that they did. A failing or silent command stores nothing. Unlike `command`, it needs no `host`, and sbx keeps the value, not the command. |
+| `command` | A host command that sbx runs whenever it needs the value of a custom secret, instead of `prompt` or `inputs`. Needs `host`. |
 | `placeholder` | The value the sandbox sees for a custom secret; `{rand}` is a random part. Needs `host`. |
 
 The description lives in the kit descriptor's own `description` field of the capability,

@@ -58,7 +58,7 @@ Registry sign-in (`docker login`) is separate. The kits declare their secrets in
 | Elastic | The API key as issued; do not base64-encode it again. MOD and Predictopus keys need `feature_agentBuilder.read`. |
 | Context7 | Optional. |
 | `abox-github-enterprise` | A fine-grained personal access token for `rwe.ghe.com`, see below. |
-| `abox-github-copilot` | The output of `gh auth token --hostname rwe.ghe.com` on the host, for Copilot, see below. |
+| `abox-github-copilot` | Taken from `gh auth token --hostname rwe.ghe.com` on the host, without asking; for Copilot, see below. |
 
 `AZURE_DEVOPS_EXT_PAT` inside the sandbox is a placeholder, not the stored
 credential.

@@ -566,7 +566,8 @@ public sealed class PublishServiceTests
               "Placeholder": null,
               "FromCommand": false,
               "Description": null,
-              "Docs": null
+              "Docs": null,
+              "ValueCommand": null
             }]
             """
         );

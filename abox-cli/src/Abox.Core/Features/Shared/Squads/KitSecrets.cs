@@ -27,6 +27,7 @@ internal static class KitSecrets
         "env",
         "command",
         "placeholder",
+        "valueCommand",
     ];
 
     /// <summary>
@@ -162,7 +163,16 @@ internal static class KitSecrets
             );
         }
 
-        if (command is not null && (entry.Has("inputs") || entry.Has("prompt")))
+        var valueCommand = entry.GetString("valueCommand");
+        var asked = entry.Has("inputs") || entry.Has("prompt");
+        if (valueCommand is not null && (asked || command is not null))
+        {
+            throw new AboxException(
+                $"'{source}': the secret '{service}' takes its value from the output of its 'valueCommand', so it has no 'prompt', 'inputs' or 'command'."
+            );
+        }
+
+        if (command is not null && asked)
         {
             throw new AboxException(
                 $"'{source}': the secret '{service}' takes its value from its 'command', so it has no 'prompt' or 'inputs'."
@@ -180,7 +190,8 @@ internal static class KitSecrets
             command is null ? null : new HostCommand(command),
             placeholder,
             entry.GetString("description"),
-            entry.GetString("docs")
+            entry.GetString("docs"),
+            valueCommand
         );
     }
 

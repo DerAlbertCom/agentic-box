@@ -88,7 +88,8 @@ public sealed class GitHubTokenSignInTests : IDisposable
             _store,
             console,
             SignIn(console),
-            Remembered(console)
+            Remembered(console),
+            Substitute.For<IHostCommands>()
         ).SetAsync(Declaration, reordered, new HostSecrets([], []), CancellationToken.None);
 
         // Assert
@@ -228,7 +229,8 @@ public sealed class GitHubTokenSignInTests : IDisposable
             _store,
             console,
             SignIn(console),
-            Remembered(console)
+            Remembered(console),
+            Substitute.For<IHostCommands>()
         ).SetAsync(Declaration, [], new HostSecrets([], []), CancellationToken.None);
 
         // Assert
@@ -250,12 +252,13 @@ public sealed class GitHubTokenSignInTests : IDisposable
             .Returns(GitHubTokenCheck.Accept(expiresAt));
 
     private Task<SecretSetting> SetAsync(TestConsole console) =>
-        new SecretValues(_store, console, SignIn(console), Remembered(console)).SetAsync(
-            Declaration,
-            Domains,
-            new HostSecrets([], []),
-            CancellationToken.None
-        );
+        new SecretValues(
+            _store,
+            console,
+            SignIn(console),
+            Remembered(console),
+            Substitute.For<IHostCommands>()
+        ).SetAsync(Declaration, Domains, new HostSecrets([], []), CancellationToken.None);
 
     private RememberedInputs Remembered(IConsole console) =>
         new(AboxPaths.For(_state.Path, _state.Path), console);

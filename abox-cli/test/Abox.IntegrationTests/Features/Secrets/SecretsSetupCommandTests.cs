@@ -19,6 +19,7 @@ public sealed class SecretsSetupCommandTests : IDisposable
 {
     private const string Jfrog = "abox-jfrog";
     private const string Context7 = "abox-context7";
+    private const string TokenCommand = "gh auth token --hostname rwe.ghe.com";
 
     private readonly UserSecretsCliHarness _cli;
     private readonly IPublishedSquadSource _published = Substitute.For<IPublishedSquadSource>();
@@ -153,6 +154,86 @@ public sealed class SecretsSetupCommandTests : IDisposable
                     + "and no value is fixed or remembered. Build or publish the squad again with this abox."
             );
         _cli.Console.Echoes.Should().Equal("******", "***");
+    }
+
+    [Fact]
+    public async Task InitTakesTheValueOfASecretWithAValueCommandFromItsOutputWithoutAsking()
+    {
+        // Arrange
+        Published([Context7Request], [new SecretDeclaration(Context7, ValueCommand: TokenCommand)]);
+        _cli.HostCommands.RunAsync(TokenCommand, Arg.Any<CancellationToken>())
+            .Returns(new HostCommandResult(0, "gho_synthetic\n"));
+        _cli.Console.Answer = true;
+
+        // Act
+        var exitCode = await Init();
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        await _cli
+            .HostSecrets.Received(1)
+            .SetAsync(Context7, "gho_synthetic", Arg.Any<CancellationToken>());
+        _cli.Console.AllText.Should()
+            .Contain(
+                $"Took the value of '{Context7}' from the output of the host command: {TokenCommand}"
+            )
+            .And.NotContain("gho_synthetic");
+        _cli.Console.Echoes.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(1, "", "failed with exit code 1")]
+    [InlineData(0, " \n", "printed nothing")]
+    public async Task AValueCommandThatFailsOrPrintsNothingStoresNothing(
+        int exitCode,
+        string output,
+        string reason
+    )
+    {
+        // Arrange
+        Published([JfrogRequest], [new SecretDeclaration(Jfrog, ValueCommand: TokenCommand)]);
+        _cli.HostCommands.RunAsync(TokenCommand, Arg.Any<CancellationToken>())
+            .Returns(new HostCommandResult(exitCode, output));
+
+        // Act
+        var result = await Init();
+
+        // Assert
+        result.Should().Be(1, _cli.Console.AllText);
+        await _cli
+            .HostSecrets.DidNotReceive()
+            .SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        _cli.Console.AllText.Should()
+            .Contain(
+                $"The secret '{Jfrog}' was not stored: the host command '{TokenCommand}' {reason}"
+            );
+    }
+
+    [Fact]
+    public async Task SetTakesTheValueFromTheValueCommandToo()
+    {
+        // Arrange
+        SandboxWith(new SecretDeclaration(Context7, ValueCommand: TokenCommand));
+        _cli.HostCommands.RunAsync(TokenCommand, Arg.Any<CancellationToken>())
+            .Returns(new HostCommandResult(0, "gho_synthetic\n"));
+
+        // Act
+        var exitCode = await _cli.Invoke([
+            "secrets",
+            "set",
+            "--location",
+            _cli.Location,
+            "--service",
+            Context7,
+        ]);
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        await _cli
+            .HostSecrets.Received(1)
+            .SetAsync(Context7, "gho_synthetic", Arg.Any<CancellationToken>());
+        _cli.Console.AllText.Should()
+            .Contain($"Took the value of '{Context7}' from the output of the host command");
     }
 
     [Fact]

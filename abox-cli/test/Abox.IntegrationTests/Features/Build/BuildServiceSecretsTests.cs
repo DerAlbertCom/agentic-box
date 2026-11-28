@@ -77,12 +77,12 @@ public sealed class BuildServiceSecretsTests
                   {"Name": "token", "Prompt": null, "Secret": true, "Value": null}
                 ],
                 "Separator": ":", "Encoding": "base64", "Placeholder": null, "FromCommand": false,
-                "Description": "JFrog Artifactory token for the NuGet feeds", "Docs": "docs/secrets/jfrog.md"
+                "Description": "JFrog Artifactory token for the NuGet feeds", "Docs": "docs/secrets/jfrog.md", "ValueCommand": null
               },
               {
                 "Service": "abox-tools", "Prompt": null, "Hosts": ["api.tools.example.invalid"], "Env": "TOOLS_TOKEN",
                 "Inputs": [], "Separator": ":", "Encoding": "plain", "Placeholder": null, "FromCommand": true,
-                "Description": "The token the setup of the tools reads", "Docs": null
+                "Description": "The token the setup of the tools reads", "Docs": null, "ValueCommand": null
               },
               {
                 "Service": "abox-ado", "Prompt": null, "Hosts": [], "Env": "ADO_TOKEN",
@@ -91,7 +91,7 @@ public sealed class BuildServiceSecretsTests
                   {"Name": "pat", "Prompt": null, "Secret": true, "Value": null}
                 ],
                 "Separator": ":", "Encoding": "plain", "Placeholder": null, "FromCommand": false,
-                "Description": null, "Docs": null
+                "Description": null, "Docs": null, "ValueCommand": null
               }
             ]
             """
@@ -188,6 +188,56 @@ public sealed class BuildServiceSecretsTests
 
         // Assert
         await build.Should().ThrowAsync<AboxException>().WithMessage("*fixed 'value'*");
+    }
+
+    [Fact]
+    public async Task AValueCommandGoesIntoSquadJsonSoTheSetupCanRunIt()
+    {
+        // Arrange
+        Squad("jfrog");
+        Root.File("kits/jfrog/jfrog.yaml", JfrogKit);
+        Root.File(
+            "kits/jfrog/secrets.yaml",
+            "- service: abox-jfrog\n  valueCommand: gh auth token --hostname rwe.ghe.com\n"
+        );
+
+        // Act
+        await Build();
+
+        // Assert
+        var secret = Secrets()[0];
+        secret
+            .GetProperty("ValueCommand")
+            .GetString()
+            .Should()
+            .Be("gh auth token --hostname rwe.ghe.com");
+        secret.GetProperty("FromCommand").GetBoolean().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("  prompt: Your token\n")]
+    [InlineData("  inputs:\n    - name: token\n")]
+    [InlineData("  host: api.example.invalid\n  command: print-token\n")]
+    public async Task AValueCommandWithAPromptInputsOrACommandFailsTheBuild(string other)
+    {
+        // Arrange
+        Squad("jfrog");
+        Root.File("kits/jfrog/jfrog.yaml", JfrogKit);
+        Root.File(
+            "kits/jfrog/secrets.yaml",
+            "- service: abox-jfrog\n  valueCommand: gh auth token\n" + other
+        );
+
+        // Act
+        var build = Build;
+
+        // Assert
+        await build
+            .Should()
+            .ThrowAsync<AboxException>()
+            .WithMessage(
+                "*the secret 'abox-jfrog' takes its value from the output of its 'valueCommand', so it has no 'prompt', 'inputs' or 'command'*"
+            );
     }
 
     [Fact]

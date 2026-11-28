@@ -5,13 +5,15 @@ OpenCode, pi, Claude and the Copilot CLI use it through the placeholder
 `GHE_COPILOT_TOKEN`.
 
 Copilot rejects personal access tokens, so the value is the OAuth token of `gh` on this
-machine. Sign in once and print it:
+machine. Sign in once:
 
 ```sh
 gh auth login --hostname rwe.ghe.com
-gh auth token --hostname rwe.ghe.com
 ```
 
-Paste the output when the guided secrets setup asks for it. The proxy keeps this broader
+The guided secrets setup and `abox secrets set` then run
+`gh auth token --hostname rwe.ghe.com` themselves and store its output; nothing is asked.
+After a new `gh auth login`, store the new token with
+`abox secrets update --service abox-github-copilot`. The proxy keeps this broader
 token away from the tenant's API; `gh` and git inside the sandbox use the separate
 [fine-grained token](../github-enterprise-token.md).

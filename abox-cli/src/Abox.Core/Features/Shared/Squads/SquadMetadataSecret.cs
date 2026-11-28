@@ -21,7 +21,8 @@ internal sealed record SquadMetadataSecret(
     string? Placeholder,
     bool FromCommand,
     string? Description = null,
-    string? Docs = null
+    string? Docs = null,
+    string? ValueCommand = null
 )
 {
     /// <summary>The entry of a declaration; its host command stays out.</summary>
@@ -44,7 +45,8 @@ internal sealed record SquadMetadataSecret(
             declaration.Placeholder,
             declaration.Command is not null,
             declaration.Description,
-            declaration.Docs
+            declaration.Docs,
+            declaration.ValueCommand
         );
 
     /// <summary>
@@ -91,6 +93,7 @@ internal sealed record SquadMetadataSecret(
             string.IsNullOrWhiteSpace(Placeholder) ? null : Placeholder,
             string.IsNullOrWhiteSpace(Description) ? null : Description,
             string.IsNullOrWhiteSpace(Docs) ? null : Docs,
+            string.IsNullOrWhiteSpace(ValueCommand) ? null : ValueCommand,
             (Inputs ?? []).Any(input => input is { Secret: null })
         );
     }

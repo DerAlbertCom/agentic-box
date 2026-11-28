@@ -34,6 +34,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public IApplicationPortPublisher Publisher => _application.Publisher;
     public ISandboxDevelopmentCertificates Certificates => _application.Certificates;
     public IHostSecretStore HostSecrets => _application.HostSecrets;
+    public IHostCommands HostCommands => _application.HostCommands;
     public ICredentialApprovals Approvals => _application.Approvals;
     public ISandboxSquadFileReader SquadFiles => _application.SquadFiles;
     public IServiceProvider Provider => _application.Provider;

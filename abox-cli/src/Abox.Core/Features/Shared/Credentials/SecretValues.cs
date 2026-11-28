@@ -12,7 +12,8 @@ internal sealed class SecretValues(
     IHostSecretStore store,
     IConsole console,
     GitHubTokenSignIn gitHubTokens,
-    RememberedInputs remembered
+    RememberedInputs remembered,
+    IHostCommands commands
 )
 {
     /// <summary>Why a custom secret is not stored over a conflicting one.</summary>
@@ -97,12 +98,50 @@ internal sealed class SecretValues(
             parts.Add(part);
         }
 
-        var joined = string.Join(declaration.Separator, parts);
-        var value =
-            declaration.Encoding == SecretEncoding.Base64
-                ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(joined))
-                : joined;
-        return new SecretAnswer(value, remember);
+        return new SecretAnswer(
+            Encode(declaration, string.Join(declaration.Separator, parts)),
+            remember
+        );
+    }
+
+    private static string Encode(SecretDeclaration declaration, string value) =>
+        declaration.Encoding == SecretEncoding.Base64
+            ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(value))
+            : value;
+
+    /// <summary>
+    /// Runs the value command of a secret on the host and takes its output, without its
+    /// surrounding white space, as the value. Never shows the output. Returns why there is no
+    /// value when the command fails or prints nothing.
+    /// </summary>
+    private async Task<(SecretAnswer? Answer, string? Failure)> RunValueCommandAsync(
+        SecretDeclaration declaration,
+        string valueCommand,
+        CancellationToken cancellationToken
+    )
+    {
+        var result = await commands.RunAsync(valueCommand, cancellationToken);
+        if (!result.Succeeded)
+        {
+            return (
+                null,
+                $"the host command '{valueCommand}' failed with exit code {result.ExitCode}."
+            );
+        }
+
+        var value = result.Output.Trim();
+        if (value.Length == 0)
+        {
+            return (null, $"the host command '{valueCommand}' printed nothing.");
+        }
+
+        console.WriteLine(
+            $"Took the value of '{declaration.Service}' from the output of the host command: {valueCommand}"
+        );
+        return (
+            new SecretAnswer(Encode(declaration, value), new Dictionary<string, string>()),
+            null
+        );
     }
 
     private string? ReadSecret(string prompt)
@@ -158,6 +197,11 @@ internal sealed class SecretValues(
             );
         }
 
+        if (declaration.ValueCommand is { } valueCommand)
+        {
+            return await SetFromValueCommandAsync(declaration, valueCommand, cancellationToken);
+        }
+
         var answer = GitHubTokenSignIn.Handles(declaration.Service, domains)
             ? await gitHubTokens.ObtainAsync(domains, cancellationToken) is { Length: > 0 } token
                 ? new SecretAnswer(token, new Dictionary<string, string>())
@@ -168,6 +212,33 @@ internal sealed class SecretValues(
             return SecretSetting.Skipped;
         }
 
+        return await StoreAsync(declaration, answer, cancellationToken);
+    }
+
+    /// <summary>Stores the output of the value command; stores nothing when it fails or prints nothing.</summary>
+    private async Task<SecretSetting> SetFromValueCommandAsync(
+        SecretDeclaration declaration,
+        string valueCommand,
+        CancellationToken cancellationToken
+    )
+    {
+        var (answer, failure) = await RunValueCommandAsync(
+            declaration,
+            valueCommand,
+            cancellationToken
+        );
+        return failure is not null
+            ? new SecretSetting(SecretSettingResult.Failed, failure)
+            : await StoreAsync(declaration, answer!, cancellationToken);
+    }
+
+    /// <summary>Stores the value, and remembers its inputs once the store succeeded.</summary>
+    private async Task<SecretSetting> StoreAsync(
+        SecretDeclaration declaration,
+        SecretAnswer answer,
+        CancellationToken cancellationToken
+    )
+    {
         var outcome = declaration.IsCustom
             ? await store.SetCustomAsync(declaration, answer.Value, cancellationToken)
             : await store.SetAsync(declaration.Service, answer.Value, cancellationToken);
