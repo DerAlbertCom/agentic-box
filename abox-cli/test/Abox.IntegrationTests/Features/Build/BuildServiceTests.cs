@@ -69,7 +69,7 @@ public sealed class BuildServiceTests
         // Arrange: the fixture supplies a publishable workload and bundled assets.
         await Service.BuildAsync(Request(), CancellationToken.None);
         var manifest = Store.Load(new SquadBuildIdentity("sample", "ac", "latest"))!;
-        var asset = Path.Combine("certificates", "rwe_inspection_certificate_chain.pem");
+        var asset = Path.Combine("certificates", "rwe-private-root-ca-r1.crt");
 
         File.AppendAllText(Path.Combine(manifest.WorkloadKitDirectory, asset), "\n# changed\n");
         // Act

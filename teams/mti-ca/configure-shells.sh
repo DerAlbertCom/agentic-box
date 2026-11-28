@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-export AWS_CA_BUNDLE="$REQUESTS_CA_BUNDLE" UV_SYSTEM_CERTS=true
 mise settings set auto_update_check_duration 365d
 mise settings set use_versions_host false
 mise reshim
@@ -25,8 +23,6 @@ cat >> "$HOME/.bashrc" <<'BASH'
 
 export LANG=C.UTF-8 LC_ALL=C.UTF-8 EDITOR=edit VISUAL=edit
 export STARSHIP_LOG=error CARAPACE_MATCH=2
-export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-export AWS_CA_BUNDLE="$REQUESTS_CA_BUNDLE" UV_SYSTEM_CERTS=true
 . /opt/sandbox/startup/dotnet-env.sh
 command -v mise >/dev/null 2>&1 && eval "$(mise activate bash)"
 command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"
@@ -52,8 +48,10 @@ BASH
 
 pwsh -NoLogo -NoProfile -Command '
   $ErrorActionPreference = "Stop"
-  Install-PSResource -Name CompletionPredictor -Version "[0.1.1]" -Scope CurrentUser -TrustRepository
-  Install-PSResource -Name powershell-yaml -Version "[0.4.12]" -Scope CurrentUser -TrustRepository
-  Install-PSResource -Name Pester -Version "[6.2.0]" -Scope CurrentUser -TrustRepository
+  # PSResourceGet 1.3 (PowerShell 7.7) also registers MicrosoftArtifactRegistry ahead of PSGallery,
+  # and its "Not Found" fails the install instead of falling through, so name the gallery.
+  Install-PSResource -Name CompletionPredictor -Version "[0.1.1]" -Repository PSGallery -Scope CurrentUser -TrustRepository
+  Install-PSResource -Name powershell-yaml -Version "[0.4.12]" -Repository PSGallery -Scope CurrentUser -TrustRepository
+  Install-PSResource -Name Pester -Version "[6.2.0]" -Repository PSGallery -Scope CurrentUser -TrustRepository
 '
 rm -rf "$HOME/.cache/mise" "$HOME/.local/share/mise/downloads"

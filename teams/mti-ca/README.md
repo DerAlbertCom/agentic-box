@@ -31,9 +31,8 @@ Notes on the workload (`mti-ca.workload`):
   passwordless sudo, which the setup scripts need.
 - All mise tools are pinned to exact versions. Some entries use mise's
   `--tool-option` and `--postinstall` flags.
-- .NET is not installed by mise but by `install-dotnet.sh` through dotnetup, with a
-  pinned manager version and pinned SDK versions. Review these pins when a new .NET
-  release should be picked up.
+- .NET SDKs are installed by mise into `~/.local/share/mise/dotnet-root`. The
+  `sandbox-agents` kit sets `DOTNET_ROOT` to that path, so built apps find the runtime.
 
 ## Host credentials
 

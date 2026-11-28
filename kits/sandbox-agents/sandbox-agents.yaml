@@ -18,26 +18,14 @@ args:
     default: C.UTF-8
     env: LC_ALL
   SANDBOX_DOTNET_ROOT:
-    default: /home/agent/.local/share/dotnetup/dotnet
+    default: /home/agent/.local/share/mise/dotnet-root
     env: DOTNET_ROOT
-  SANDBOX_DOTNET_DATA:
-    default: /home/agent/.local/share/dotnetup
-    env: DOTNET_DOTNETUP_DATA_DIR
   SANDBOX_DOTNET_NOLOGO:
     default: "1"
     env: DOTNET_NOLOGO
   SANDBOX_DOTNET_TELEMETRY:
     default: "1"
     env: DOTNET_CLI_TELEMETRY_OPTOUT
-  SANDBOX_REQUESTS_CA:
-    default: /etc/ssl/certs/ca-certificates.crt
-    env: REQUESTS_CA_BUNDLE
-  SANDBOX_AWS_CA:
-    default: /etc/ssl/certs/ca-certificates.crt
-    env: AWS_CA_BUNDLE
-  SANDBOX_UV_CA:
-    default: "true"
-    env: UV_SYSTEM_CERTS
 capabilities:
   - type: com.docker.sandbox/network-policy@1
     config:
@@ -63,9 +51,9 @@ capabilities:
       filename: AGENTS.md
       content: |
         Tools include OpenCode, pi, Claude Code, Copilot, gh, .NET SDKs 10/11,
-        dotnetup, Node/npm/pnpm, Python/uv, Nx, MongoDB tools, az devops, AWS,
+        Node/npm/pnpm, Python/uv, Nx, MongoDB tools, az devops, AWS,
         Terraform/tfswitch, Helm, k9s, Herdr/hc, hunk, tuicr and codeburn.
-        Use mise for tool updates and dotnetup for .NET SDK channels 10/11.
+        Use mise for tool and .NET SDK updates.
         Tool updates and worktrees under ~/worktrees are lost on recreation.
         The workspace is $WORKSPACE_DIR; do not assume ~/workspace.
         Bash uses starship/carapace/fzf; PowerShell uses oh-my-posh and
