@@ -52,7 +52,7 @@ internal sealed class SquadResolver(AboxConfig config, IYamlParser parser)
         var kits = MergeKits(files, parameters, team.RootDirectory);
         var mcp = MergeMcp(files, parameters);
         var state = MergeState(files);
-        var secrets = MergeSecrets(files, parameters);
+        var secrets = KitSecrets.Collect(kits, parser);
 
         // The name of the configuration file is the name of the squad, however it was spelled.
         var name = Path.GetFileNameWithoutExtension(files[^1].Path);
@@ -163,48 +163,6 @@ internal sealed class SquadResolver(AboxConfig config, IYamlParser parser)
         }
 
         return servers;
-    }
-
-    private static IReadOnlyList<SecretDeclaration> MergeSecrets(
-        IReadOnlyList<AboxFile> files,
-        IReadOnlyDictionary<string, string> parameters
-    )
-    {
-        var secrets = new List<SecretDeclaration>();
-        var origins = new DeclarationOrigins("A secret is declared once.");
-
-        foreach (var file in files)
-        {
-            foreach (var secret in file.Secrets)
-            {
-                origins.Add(secret.Service, file.Path, $"secret '{secret.Service}'");
-                secrets.Add(ExpandSecret(secret, parameters, file.Path));
-            }
-        }
-
-        return secrets;
-    }
-
-    /// <summary>
-    /// Replaces the parameter references in what a secret tells the user and the proxy:
-    /// its prompt, hosts, variable and placeholder. Its host command stays as written.
-    /// </summary>
-    private static SecretDeclaration ExpandSecret(
-        SecretDeclaration secret,
-        IReadOnlyDictionary<string, string> parameters,
-        string source
-    )
-    {
-        string? Expand(string? value) =>
-            value is null ? null : ParameterReference.Expand(value, parameters, source);
-
-        return secret with
-        {
-            Prompt = Expand(secret.Prompt),
-            Hosts = secret.Hosts?.Select(host => Expand(host)!).ToList(),
-            EnvironmentVariable = Expand(secret.EnvironmentVariable),
-            Placeholder = Expand(secret.Placeholder),
-        };
     }
 
     private static IReadOnlyList<StateEntry> MergeState(IReadOnlyList<AboxFile> files)

@@ -28,10 +28,7 @@ internal sealed class SourceProjectFixture : IDisposable
         Workspace = Root.CreateDirectory("workspace");
         ProjectKit = Path.GetFullPath(Root.CreateDirectory($"project/{kits}/project-kit"));
         Root.File($"project/{teams}/sample/ac.abox", "base: cape\nkits: [project-kit]\n");
-        Root.File(
-            $"project/{teams}/sample/cape.abox",
-            "workload: shared\nsecrets: [{service: github}]\n"
-        );
+        Root.File($"project/{teams}/sample/cape.abox", "workload: shared\n");
         Root.File(
             $"project/{kits}/shared.workload",
             "template: example.com/base:1\npublishRepository: source-images-local\nscripts: [setup.sh]\n"
@@ -44,11 +41,13 @@ internal sealed class SourceProjectFixture : IDisposable
             kind: mixin
             capabilities:
               - type: com.docker.sandbox/credential@1
+                optional: true
                 config:
                   service: github
                   phase: runtime
             """
         );
+        Root.File($"project/{kits}/project-kit/secrets.yaml", "- service: github\n");
         var paths = AboxPaths.For(
             Path.Combine(Root.Path, "user-config"),
             Path.Combine(Root.Path, "user-state")

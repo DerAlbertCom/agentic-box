@@ -10,11 +10,13 @@ namespace Abox.Features.Shared.Credentials;
 /// <param name="Kits">The kits that ask for it.</param>
 /// <param name="Domains">The domains its API key is sent to; empty without an <c>apiKey</c> mechanism.</param>
 /// <param name="Optional">Whether every kit that asks starts without it.</param>
+/// <param name="Description">What the credential is for, from the first kit that describes it.</param>
 internal sealed record CredentialRequest(
     string Service,
     IReadOnlyList<string> Kits,
     IReadOnlyList<string> Domains,
-    bool Optional
+    bool Optional,
+    string? Description = null
 )
 {
     /// <summary>
@@ -52,7 +54,8 @@ internal sealed record CredentialRequest(
                             service.Service,
                             [kit],
                             service.Domains,
-                            service.Optional
+                            service.Optional,
+                            service.Description
                         )
                     );
                     continue;
@@ -64,6 +67,7 @@ internal sealed record CredentialRequest(
                     Kits = known.Kits.Contains(kit) ? known.Kits : [.. known.Kits, kit],
                     Domains = known.Domains.Union(service.Domains).ToList(),
                     Optional = known.Optional && service.Optional,
+                    Description = known.Description ?? service.Description,
                 };
             }
         }

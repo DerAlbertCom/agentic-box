@@ -49,6 +49,12 @@ capabilities:
 abox looks for `<directory-name>.yaml`, then `spec.yaml`, then the first `*.yaml` in
 the directory. Use `<directory-name>.yaml`.
 
+A kit that asks for credentials with `credential@1` describes each in the capability's
+`description` and declares how its values are obtained in a `secrets.yaml` next to the
+descriptor: prompts, user names that are echoed, fixed parts and a documentation page.
+Every squad that uses the kit gets the same guided secrets setup. See
+[authoring secrets](authoring-secrets.md).
+
 The kits in [`kits/`](../kits/README.md) are working examples: `pi-config` writes an
 agent configuration, `github-enterprise-auth` sets up `gh`, git and the agents with a
 custom secret and renders their configs for the tenant host from a kit argument, and

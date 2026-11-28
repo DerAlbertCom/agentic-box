@@ -23,8 +23,8 @@ abox refuses it.
 ## Store the personal access token with abox
 
 You create the token yourself; abox never creates one and never opens a browser. When
-the token is missing, `abox create --local` and `abox secrets set --service
-abox-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
+the token is missing, the guided secrets setup (`abox secrets init`, `abox secrets
+update`, `abox create`) and `abox secrets set --service abox-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
 
 1. abox asks for the organization that owns the repositories, then prints the
    permissions below and the prefilled link

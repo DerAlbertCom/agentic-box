@@ -40,6 +40,7 @@ terminalTheme: true
 | `kitsDirectory` | Kits directory, relative to the source repository root | `kits` |
 | `userSecretsDenyList` | Literal substrings, matched case-insensitively against selected user-secret values; a match blocks the copy. See [user-secrets.md](user-secrets.md) | `[]` |
 | `terminalTheme` | Your default for [terminal colors](#terminal-colors) | `true` |
+| `docsBaseUrl` | Where the documentation pages of the secrets are read. The guided secrets setup joins a kit's `docs` path with it when it shows the link, so the pages can move without a rebuild of published sets | `https://github.com/DerAlbertCom/agentic-box/blob/main/` |
 
 The deny list is empty by default: abox does not detect production secrets by itself.
 Put environment markers such as host names in it, never secret values.

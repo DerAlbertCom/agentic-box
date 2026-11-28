@@ -11,7 +11,8 @@ namespace Abox.Features.Shared.Credentials;
 internal sealed class SecretValues(
     IHostSecretStore store,
     IConsole console,
-    GitHubTokenSignIn gitHubTokens
+    GitHubTokenSignIn gitHubTokens,
+    RememberedInputs remembered
 )
 {
     /// <summary>Why a custom secret is not stored over a conflicting one.</summary>
@@ -24,44 +25,95 @@ internal sealed class SecretValues(
     }
 
     /// <summary>
-    /// Asks for the value of a secret: one value, or the parts it is built from. Returns
-    /// null when there is nothing to read.
+    /// A secret from a host command that the declaration withholds: abox never runs a
+    /// command it would take from a sandbox or a published set, so it tells the user how to
+    /// store the secret with sbx. Returns whether the secret is stored already.
     /// </summary>
-    public string? Ask(SecretDeclaration declaration)
+    public bool ReportWithheldCommand(SecretDeclaration declaration, HostSecrets stored)
     {
-        var parts = new List<string>();
-
-        if (declaration.Inputs is { Count: > 0 })
+        var name = declaration.Service;
+        if (stored.Holds(declaration))
         {
-            foreach (var input in declaration.Inputs)
-            {
-                var prompt = input.Prompt ?? $"The {input.Name} of '{declaration.Service}'";
-                var part = console.ReadSecret($"{prompt}: ");
-                if (part is null)
-                {
-                    return null;
-                }
-
-                parts.Add(part);
-            }
+            console.WriteLine($"The secret '{name}' is stored; it comes from a host command.");
+            return true;
         }
-        else
+
+        if (stored.ConflictWith(declaration) is { } conflict)
         {
-            var prompt = declaration.Prompt ?? $"The secret '{declaration.Service}'";
-            var value = console.ReadSecret($"{prompt}: ");
-            if (value is null)
+            console.WriteError(
+                $"The secret '{name}' was not stored: {DescribeConflict(declaration, conflict)}"
+            );
+            return false;
+        }
+
+        console.WriteError(
+            $"The secret '{name}' comes from a host command, which abox never takes from a sandbox. "
+                + "Store it with sbx, replacing <host command> with the 'command' of its entry in the kit's 'secrets.yaml' "
+                + "(in the team's sources) or the command the team's README gives:"
+        );
+        console.WriteError(
+            "  " + store.ManualCustomSecretInstruction(declaration, "<host command>")
+        );
+        return false;
+    }
+
+    /// <summary>
+    /// Asks for the value of a secret: one value, or the parts it is built from. A fixed
+    /// part is never asked; a part that is not secret is echoed with its remembered value as
+    /// the default; a secret part is masked and its length confirmed. Returns null when an
+    /// asked part is empty or there is nothing to read, so nothing incomplete is stored.
+    /// </summary>
+    private SecretAnswer? Ask(SecretDeclaration declaration)
+    {
+        var service = declaration.Service;
+        IReadOnlyList<SecretInput> inputs = declaration.Inputs is { Count: > 0 } declared
+            ? declared
+            : [new SecretInput("value", declaration.Prompt ?? $"The secret '{service}'")];
+        var parts = new List<string>();
+        var remember = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var input in inputs)
+        {
+            if (input.Value is { } fixedValue)
+            {
+                parts.Add(fixedValue);
+                continue;
+            }
+
+            var prompt = $"{input.Prompt ?? $"The {input.Name} of '{service}'"}: ";
+            var part = input.Secret
+                ? ReadSecret(prompt)
+                : console.ReadText(prompt, remembered.Get(service, input.Name));
+            if (string.IsNullOrEmpty(part))
             {
                 return null;
             }
 
-            parts.Add(value);
+            if (!input.Secret)
+            {
+                remember[input.Name] = part;
+            }
+
+            parts.Add(part);
         }
 
         var joined = string.Join(declaration.Separator, parts);
+        var value =
+            declaration.Encoding == SecretEncoding.Base64
+                ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(joined))
+                : joined;
+        return new SecretAnswer(value, remember);
+    }
 
-        return declaration.Encoding == SecretEncoding.Base64
-            ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(joined))
-            : joined;
+    private string? ReadSecret(string prompt)
+    {
+        var value = console.ReadSecret(prompt);
+        if (!string.IsNullOrEmpty(value))
+        {
+            console.WriteLine($"Received {value.Length} characters.");
+        }
+
+        return value;
     }
 
     /// <summary>
@@ -106,20 +158,30 @@ internal sealed class SecretValues(
             );
         }
 
-        var value = GitHubTokenSignIn.Handles(declaration.Service, domains)
-            ? await gitHubTokens.ObtainAsync(domains, cancellationToken)
+        var answer = GitHubTokenSignIn.Handles(declaration.Service, domains)
+            ? await gitHubTokens.ObtainAsync(domains, cancellationToken) is { Length: > 0 } token
+                ? new SecretAnswer(token, new Dictionary<string, string>())
+                : null
             : Ask(declaration);
-        if (string.IsNullOrEmpty(value))
+        if (answer is null || answer.Value.Length == 0)
         {
             return SecretSetting.Skipped;
         }
 
         var outcome = declaration.IsCustom
-            ? await store.SetCustomAsync(declaration, value, cancellationToken)
-            : await store.SetAsync(declaration.Service, value, cancellationToken);
+            ? await store.SetCustomAsync(declaration, answer.Value, cancellationToken)
+            : await store.SetAsync(declaration.Service, answer.Value, cancellationToken);
+        if (outcome.Succeeded)
+        {
+            remembered.Save(declaration.Service, answer.Remember);
+        }
+
         return SecretSetting.From(outcome);
     }
 }
+
+/// <summary>The value of a secret as the user gave it, and its inputs to remember.</summary>
+internal sealed record SecretAnswer(string Value, IReadOnlyDictionary<string, string> Remember);
 
 /// <summary>How setting a secret ended.</summary>
 internal enum SecretSettingResult

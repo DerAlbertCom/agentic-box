@@ -12,7 +12,10 @@ internal static class SecretsFeature
     public static IServiceCollection AddSecretsFeature(this IServiceCollection services)
     {
         services.AddScoped<SecretsService>();
+        services.AddScoped<SquadSecretsReader>();
         services.AddScoped<Command, SecretsCommand>();
+        services.AddScoped<ICommandHandler<SecretsInitParameters>, SecretsInitHandler>();
+        services.AddScoped<ICommandHandler<SecretsUpdateParameters>, SecretsUpdateHandler>();
         services.AddScoped<ICommandHandler<SecretsListParameters>, SecretsListHandler>();
         services.AddScoped<ICommandHandler<SecretsSetParameters>, SecretsSetHandler>();
         services.AddScoped<ICommandHandler<SecretsRemoveParameters>, SecretsRemoveHandler>();

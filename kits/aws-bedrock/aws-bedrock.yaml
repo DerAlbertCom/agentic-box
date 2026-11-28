@@ -15,6 +15,7 @@ capabilities:
       runtime:
         allow: [bedrock-runtime.eu-central-1.amazonaws.com]
   - type: com.docker.sandbox/credential@1
+    description: Amazon Bedrock runtime API key (not an IAM access key)
     config:
       service: abox-aws-bedrock
       phase: runtime

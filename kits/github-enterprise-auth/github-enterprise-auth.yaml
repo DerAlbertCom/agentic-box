@@ -35,6 +35,7 @@ capabilities:
       runtime:
         allow: [rwe.ghe.com, api.rwe.ghe.com, uploads.rwe.ghe.com, copilot-api.rwe.ghe.com, "*.githubcopilot.com"]
   - type: com.docker.sandbox/credential@1
+    description: Fine-grained personal access token of GitHub Enterprise (rwe.ghe.com) for gh and git
     config:
       service: abox-github-enterprise
       phase: [install, runtime]
@@ -54,6 +55,7 @@ capabilities:
   # Copilot rejects personal access tokens, so its endpoint gets a gh OAuth token. The
   # proxy sends it nowhere else: its broad repo scope never reaches the tenant's API.
   - type: com.docker.sandbox/credential@1
+    description: GitHub Copilot token of rwe.ghe.com for the agents, the gh OAuth token of this machine
     config:
       service: abox-github-copilot
       phase: [runtime]

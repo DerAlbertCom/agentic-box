@@ -17,6 +17,7 @@ capabilities:
       runtime:
         allow: [rwest.jfrog.io]
   - type: com.docker.sandbox/credential@1
+    description: JFrog Artifactory user name and token for the NuGet feeds
     config:
       service: abox-jfrog
       phase: [install, runtime]

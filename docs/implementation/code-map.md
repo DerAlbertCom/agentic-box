@@ -25,7 +25,7 @@ command uses.
 | `Publish` | `abox publish`: freshness checks, pushes, the set and its promotion |
 | `Create` | `abox create` |
 | `Run` | `abox run` and the `shell` launcher |
-| `Secrets` | `abox secrets list`, `set`, `remove` |
+| `Secrets` | `abox secrets init`, `update`, `list`, `set`, `remove`; reading a squad's secrets without a sandbox |
 | `UserSecrets` | `abox user-secrets` |
 | `Ports` | `abox ports` |
 | `Prune` | `abox prune` |
@@ -43,13 +43,13 @@ external tools it needs.
 | `CommandLine` | how a command runs: binding, `CommandRunner`, exit codes, `--location`, arguments after `--` |
 | `Configuration` | abox directories, the user configuration, the folder configuration (`FolderConfig`) |
 | `Yaml` | `IYamlParser`, the strict reader of abox's own files, the merge of `abox.yaml` and `abox.user.yaml` |
-| `Squads` | `.abox` and `.workload` files, the `base` chain, squad and source-root resolution, state path rules |
+| `Squads` | `.abox` and `.workload` files, the `base` chain, squad and source-root resolution, state path rules, kit descriptors and their `secrets.yaml` |
 | `Builds` | the build record and build store; interfaces for building, inspecting and saving local images |
 | `KitBuildScripts` | `IKitBuildScript`: runs a local kit's `build` file |
 | `Registry` | interfaces for pushing, tagging and reading registry images; image reference rules |
 | `Sandboxes` | finding a folder's sandbox, `SandboxCreator`, sandbox records, legacy names, published squad metadata; interfaces for lifecycle, exec, inspection, MCP registration and kit source trust |
 | `Launchers` | `ILauncher`, `LauncherSession`, the launcher registry |
-| `Credentials` | kit credential requests, secret declarations and identity, prompting and storing, the create-time check |
+| `Credentials` | kit credential requests, a squad's secrets (`SquadSecrets`), identity, the input rules and remembered inputs, the guided secrets setup and the create-time check |
 | `GitHubTokens` | the fine-grained token of the `abox-github-enterprise` service: the permissions and prefilled link it needs, the check of a pasted token, the expiry warning; `IGitHubTokenCheck` |
 | `UserSecrets` | selection, deny list, project discovery, endpoint rewriting, the copy flow |
 | `ApplicationPorts` | static port discovery, the port plan, publishing |
@@ -72,7 +72,8 @@ external tools it needs.
 
 The project root holds the generic helpers: `ProcessRunner` (processes from argument
 lists), `ProcessOutput` (verbose diagnostics and the sensitive output policy),
-`SecretRedactor`, `ProtectedTemporaryDirectory`, `YamlDotNetParser` and `SystemConsole`.
+`SecretRedactor`, `ProtectedTemporaryDirectory`, `YamlDotNetParser`, `SystemConsole` and
+its key-by-key input (`TerminalInput`, `MultiSelection`).
 `InfrastructureServiceCollection.cs` registers all adapters.
 
 ## `abox-cli/test`

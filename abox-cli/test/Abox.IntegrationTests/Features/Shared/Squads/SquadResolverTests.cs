@@ -436,19 +436,16 @@ public sealed class SquadResolverTests : IDisposable
     }
 
     [Fact]
-    public void ACommandBackedCustomSecretDeclaresSeveralHostsItsVariableAndAPlaceholder()
+    public void ACommandBackedCustomSecretOfAKitDeclaresSeveralHostsItsVariableAndAPlaceholder()
     {
         // Arrange
-        _root.File(
-            "teams/sample/ac.abox",
+        KitWithSecrets(
             """
-            workload: mti-ca-dotnet
-            secrets:
-              - service: rwe-ghec
-                host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com]
-                env: RWE_GHE_TOKEN
-                command: gh auth token -h rwe.ghe.com
-                placeholder: gho_{rand}
+            - service: rwe-ghec
+              host: [copilot-api.rwe.ghe.com, api.rwe.ghe.com]
+              env: RWE_GHE_TOKEN
+              command: gh auth token -h rwe.ghe.com
+              placeholder: gho_{rand}
             """
         );
 
@@ -465,19 +462,16 @@ public sealed class SquadResolverTests : IDisposable
     }
 
     [Fact]
-    public void AnExistingSecretDeclarationKeepsItsMeaning()
+    public void AKitSecretOfAServiceTakesTheDescriptionOfItsCapability()
     {
         // Arrange
-        _root.File(
-            "teams/sample/ac.abox",
+        KitWithSecrets(
             """
-            workload: mti-ca-dotnet
-            secrets:
-              - github
-              - service: elastic
-                prompt: The API key for Elastic
-                host: elastic.example.com
-                env: ELASTIC_API_KEY
+            - github
+            - service: elastic
+              prompt: The API key for Elastic
+              host: elastic.example.com
+              env: ELASTIC_API_KEY
             """
         );
 
@@ -486,7 +480,10 @@ public sealed class SquadResolverTests : IDisposable
 
         // Assert
         squad.Secrets.Should().HaveCount(2);
-        squad.Secrets[0].Should().Be(new SecretDeclaration("github"));
+        squad
+            .Secrets[0]
+            .Should()
+            .Be(new SecretDeclaration("github", Description: "The GitHub token"));
         var elastic = squad.Secrets[1];
         elastic.Hosts.Should().Equal("elastic.example.com");
         elastic.Prompt.Should().Be("The API key for Elastic");
@@ -495,24 +492,39 @@ public sealed class SquadResolverTests : IDisposable
     }
 
     [Theory]
-    [InlineData("    command: gh auth token\n", "*needs a 'host'*")]
+    [InlineData("  command: gh auth token\n", "*needs a 'host'*")]
     [InlineData(
-        "    host: rwe.ghe.com\n    command: gh auth token\n    prompt: Token\n",
+        "  host: rwe.ghe.com\n  command: gh auth token\n  prompt: Token\n",
         "*no 'prompt' or 'inputs'*"
     )]
-    [InlineData("    host: rwe.ghe.com\n    commands: gh auth token\n", "*commands*")]
+    [InlineData("  host: rwe.ghe.com\n  commands: gh auth token\n", "*commands*")]
     public void AnInvalidCommandBackedSecretIsAnError(string entry, string message)
     {
         // Arrange
-        _root.File(
-            "teams/sample/ac.abox",
-            "workload: mti-ca-dotnet\nsecrets:\n  - service: rwe-ghec\n" + entry
-        );
+        KitWithSecrets("- service: rwe-ghec\n" + entry);
 
         // Act
         var action = () => _resolver.Resolve(_root.Path, "sample", "ac");
 
         // Assert
         action.Should().Throw<AboxException>().WithMessage(message);
+    }
+
+    private void KitWithSecrets(string secrets)
+    {
+        _root.File("teams/sample/ac.abox", "workload: mti-ca-dotnet\nkits: [tools]\n");
+        _root.File(
+            "kits/tools/tools.yaml",
+            """
+            schemaVersion: "3"
+            kind: mixin
+            capabilities:
+              - type: com.docker.sandbox/credential@1
+                description: The GitHub token
+                config:
+                  service: github
+            """
+        );
+        _root.File("kits/tools/secrets.yaml", secrets);
     }
 }

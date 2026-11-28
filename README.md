@@ -108,7 +108,9 @@ folder.
 | Run a command instead of the shell | `abox run -- git status` |
 | Open Herdr | `abox run herdr-app` |
 | Keep your terminal's colors | `abox run --terminal-theme false` |
+| Set up the credentials of a squad before the first create | `abox secrets init --squad <squad>` |
 | List the credentials the squad's kits ask for | `abox secrets list` |
+| Pick credentials to change from a list | `abox secrets update` |
 | Enter one of them | `abox secrets set --service <service>` |
 | Copy the selected .NET user-secrets again | `abox user-secrets` |
 | Scan app ports again and set up HTTPS | `abox ports` |

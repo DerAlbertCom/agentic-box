@@ -33,6 +33,8 @@ public sealed class ArchitectureTests
     private static readonly string[] GenericHelpers =
     [
         "SystemConsole",
+        "TerminalInput",
+        "MultiSelection",
         "IProcessRunner",
         "ProcessRunner",
         "ProcessRequest",

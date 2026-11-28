@@ -564,7 +564,9 @@ public sealed class PublishServiceTests
               "Separator": ":",
               "Encoding": "plain",
               "Placeholder": null,
-              "FromCommand": false
+              "FromCommand": false,
+              "Description": null,
+              "Docs": null
             }]
             """
         );

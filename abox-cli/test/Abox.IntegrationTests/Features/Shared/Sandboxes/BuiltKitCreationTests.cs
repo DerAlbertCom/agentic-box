@@ -76,10 +76,13 @@ public sealed class BuiltKitCreationTests
     public async Task LocalCreationPassesTheSquadConfigurationMixinOfTheBuild()
     {
         // Arrange
+        Root.File("teams/sample/ac.abox", "workload: sample\nkits: [elastic]\n");
         Root.File(
-            "teams/sample/ac.abox",
-            "workload: sample\nsecrets:\n  - service: elastic\n    prompt: The API key\n"
+            "kits/elastic/elastic.yaml",
+            "schemaVersion: \"3\"\nkind: mixin\ncapabilities:\n  - type: com.docker.sandbox/credential@1\n    config:\n      service: elastic\n"
         );
+        Root.File("kits/elastic/secrets.yaml", "- service: elastic\n  prompt: The API key\n");
+        _fixture.Console.Answers.Add("the-api-key");
         Root.File(
             "teams/sample/sample.workload",
             "template: example.com/sample:1\npublishRepository: test-images-local\n"

@@ -38,8 +38,8 @@ can use them. All files are YAML, and an unknown key is an error.
 
 ```sh
 abox build --team sample
+abox secrets init --team sample --squad ac --local --location <folder>
 abox create --team sample --squad ac --local --location <folder>
-abox secrets set --location <folder>
 abox run --location <folder>
 ```
 
@@ -52,7 +52,9 @@ abox run --location <folder>
 - `create --local` creates the sandbox of a folder from the local build. Without
   `--local` it pulls the published kit set. It asks before it replaces an existing
   sandbox.
-- `secrets set` stores the credentials the sandbox's kits ask for on the host.
+- `secrets init` walks through the credentials the squad's kits ask for and stores them
+  on the host, before the sandbox exists. `create` opens the same guided setup when
+  something is still missing.
 - `run` opens the sandbox. If the squad has a newer local build than the sandbox was
   created from, it offers to replace the sandbox first.
 
@@ -99,10 +101,6 @@ mcp:
 
 state:
   - ~/.config/opencode/state
-
-secrets:
-  - service: abox-github
-    prompt: The GitHub token for GitHub Enterprise Cloud
 ```
 
 | Key | Meaning |
@@ -110,10 +108,9 @@ secrets:
 | `base` | The squad this one inherits from. Chains are allowed, cycles are errors. |
 | `workload` | The name of a `.workload` file. Only the root squad (the one without `base`) declares it. |
 | `kits` | The kits of the squad. See [Kits](authoring-kits.md). |
-| `parameters` | Named values. Kit arguments, MCP URLs and the `prompt`, `host`, `env` and `placeholder` of secrets read them with `${{ parameters.NAME }}`. |
+| `parameters` | Named values. Kit arguments and MCP URLs read them with `${{ parameters.NAME }}`. |
 | `mcp` | The MCP servers every agent gets. See [MCP servers](#mcp-servers). |
 | `state` | Sandbox directories that survive a replacement. See [State](#state). |
-| `secrets` | How the credentials the kits ask for are obtained. See [Secrets](authoring-secrets.md). |
 
 References never carry a file extension.
 
@@ -127,7 +124,8 @@ anything. Across the whole chain everything is declared once. These are errors:
 
 - two kits of one repository, even with different tags;
 - two MCP servers or two parameters of one name;
-- two secrets of one service;
+- `secrets`: a squad no longer declares them. Each kit declares its own in a
+  `secrets.yaml`; see [Secrets](authoring-secrets.md);
 - duplicate or overlapping state directories;
 - a parameter that is used but not declared.
 

@@ -83,7 +83,9 @@ public static class CoreServiceCollection
         services.AddScoped(_ => TimeProvider.System);
         services.AddScoped<GitHubTokenExpiries>();
         services.AddScoped<GitHubTokenSignIn>();
-        services.AddScoped<SquadCredentials>();
+        services.AddScoped<RememberedInputs>();
+        services.AddScoped<SecretsSetup>();
+        services.AddScoped<CreateSecretsCheck>();
         services.AddScoped<BuildStore>();
         services.AddScoped<SandboxRecordStore>();
         services.AddScoped<CreateRecoveryHints>();

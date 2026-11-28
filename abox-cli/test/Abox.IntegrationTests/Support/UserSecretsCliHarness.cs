@@ -19,7 +19,7 @@ namespace Abox.Tests;
 internal sealed class UserSecretsCliHarness : IDisposable
 {
     public TempDirectory Root { get; } = new();
-    public TestConsole Console { get; } = new();
+    public TestConsole Console { get; }
     public IPreflightChecks Preflight { get; } = ReadyPreflight.Checks();
     public ISandboxExec Exec { get; } = SandboxFactory.Exec();
     public ISandboxUserSecrets UserSecrets { get; } = Substitute.For<ISandboxUserSecrets>();
@@ -34,6 +34,7 @@ internal sealed class UserSecretsCliHarness : IDisposable
     public IApplicationPortPublisher Publisher => _application.Publisher;
     public ISandboxDevelopmentCertificates Certificates => _application.Certificates;
     public IHostSecretStore HostSecrets => _application.HostSecrets;
+    public ICredentialApprovals Approvals => _application.Approvals;
     public ISandboxSquadFileReader SquadFiles => _application.SquadFiles;
     public IServiceProvider Provider => _application.Provider;
 
@@ -41,9 +42,11 @@ internal sealed class UserSecretsCliHarness : IDisposable
         AboxConfig? config = null,
         bool unix = false,
         string? configYaml = null,
-        bool existingSandbox = true
+        bool existingSandbox = true,
+        bool interactive = true
     )
     {
+        Console = new TestConsole(interactive);
         Location = Root.CreateDirectory("folder");
         var programs = Substitute.For<IHostPrograms>();
         programs.Exists(Arg.Any<string>()).Returns(true);

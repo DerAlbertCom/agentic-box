@@ -68,8 +68,8 @@ The real path comes through `IFolderRealPath`, so the naming code stays pure.
    declarations.
 5. **Find an existing sandbox** and ask before replacing it, listing what is lost. A
    refusal changes nothing.
-6. **Check credentials** (local sources only), register missing MCP servers and prepare
-   the host state directories.
+6. **Check the secrets** (local and published sources), register missing MCP servers
+   and prepare the host state directories.
 7. **Create the sandbox** with `sbx create`, after removing the old one.
 8. **Save the sandbox record** in `<state dir>/sandboxes/<sandbox>.json`: team, squad,
    build time and the pulled reference. Team and squad are also saved to
@@ -155,19 +155,25 @@ their JFrog user and identity token. Without a terminal, or when that sign-in fa
 the command stops and names the `docker login` command to run. Docker keeps the
 credentials; abox never sees them.
 
-### The credential check
+### The secrets check
 
-Create checks every `credential@1` request with an `apiKey` mechanism that the build
-recorded in `squad.json` (`BuildManifest.Credentials`, from the squad's local kits),
-together with the recorded secret declarations:
+Create checks every service the build recorded in `squad.json`: the `credential@1`
+requests of the squad's local kits (`BuildManifest.Credentials`) and the declarations
+collected from their `secrets.yaml` (`BuildManifest.Secrets`). `CreateSecretsCheck`
+reads where each stands (`SecretsSetup.InspectAsync`):
 
 - the stored value, with the identity rules of `abox secrets list`;
 - the approval in sbx's `credentials.yaml` (`ICredentialApprovals`), which must cover
   every `apiKey.inject[].domain`.
 
-On a terminal it asks for a missing value and for each missing approval; an approval
-merges the domains into the file and keeps every other entry. Without a terminal it
-warns and prints the `abox secrets set` commands. The check never fails a create.
+A service needs something when a kit sends it to domains or a kit declares it, and its
+value or approval is missing. When nothing is missing create asks nothing. On a terminal
+it runs the guided secrets setup (`SecretsSetup.RunAsync`) once for all of them, with a
+header; a required secret that is still missing afterwards stops the create with an
+`AboxException`, before step 7 removes an old sandbox. Without a terminal a missing
+required secret stops the create the same way, naming `abox secrets init --location
+<path>`; missing optional ones are one warning. A store that cannot be read is a
+warning, not a failure.
 
 ## Run
 
@@ -213,33 +219,60 @@ ways untouched. Neither is listed in `--help`.
 
 ## Secrets
 
-`abox secrets list|set|remove` manages the host-side values the kits of an existing
-sandbox ask for. It needs no team sources.
+`abox secrets` sets up and manages the host-side values the kits of a squad ask for. It
+needs no team sources.
 
-**What it reads.** One `sbx exec` returns every `/usr/share/sandbox/kit/*/kit.yaml` and
-`/usr/share/abox/squad.json` (`ISandboxSquadFileReader`). Each file travels base64 on
-its own line, so no content can break the framing. The descriptors give the
-`credential@1` requests; `Secrets` in `squad.json` gives the declarations. Both are
-parsed with the code that build and the create-time check use. A sandbox without
-`squad.json` or `Secrets` has no declarations.
+**The guided secrets setup** (`Credentials/SecretsSetup`) is the one module that asks.
+Given a squad's `SquadSecrets` (requests and declarations) and the services to set up,
+it prints each service with its kits, need, description, domains and documentation
+link, stores the value through `SecretValues`, asks for a missing approval and ends
+with the `list` table (`SecretsTable`). `init`, `update` and the create-time check call
+it; only they decide which services to pass and what the header says.
+
+- `init` resolves the squad like `create` and reads its `squad.json` without a sandbox
+  (`Secrets/SquadSecretsReader`): from the configuration mixin folder of the local build
+  with `--local`, otherwise from the published set through `IPublishedSquadSource` (set
+  inspection and the configuration mixin, no workload or kit layers). It passes the
+  services that need something, or all with `--all`.
+- `update` reads the folder's sandbox, or the squad of the folder configuration from its
+  published set when there is none, and passes the services picked with
+  `IConsole.ChooseMany` or named with `--service`. Stored values are asked again.
+- Without a terminal both fail before asking and print the `abox secrets set` commands.
+
+**Inputs** (`SecretValues`). A fixed input (`value`) is never asked. An input with
+`secret: false` is read with `IConsole.ReadText`, its remembered value as the default;
+a secret input with `IConsole.ReadSecret`, which prints one `*` per character on a
+terminal (`TerminalInput`), and the length is confirmed. An empty answer skips the
+secret. After a successful store the non-secret inputs are saved in
+`<state dir>/secret-inputs.json` (`RememberedInputs`); `remove` forgets them.
+
+**What it reads from a sandbox.** One `sbx exec` returns every
+`/usr/share/sandbox/kit/*/kit.yaml` and `/usr/share/abox/squad.json`
+(`ISandboxSquadFileReader`). Each file travels base64 on its own line, so no content
+can break the framing. The descriptors give the `credential@1` requests and their
+descriptions; `Secrets` in `squad.json` gives the declarations. Both are parsed by
+`SquadSecrets`, which also reads a local build's `squad.json`. A sandbox without
+`squad.json` or `Secrets` has no declarations; an older `Secrets` entry without the new
+fields has secret inputs, no description and no link.
 
 **Declarations never carry a host command.** For a command-backed secret, `squad.json`
-holds only `FromCommand`. `set` does not run anything for it: it prints the
-`sbx secret set-custom` command line to run by hand and says where to find the command.
+holds only `FromCommand`. Neither `set` nor the guided setup runs anything for it: they
+print the `sbx secret set-custom` command line to run by hand and say where to find the
+command.
 
 **Identity** (`Credentials/SecretIdentity`). A service secret is matched by name. A
 custom secret with hosts is matched when a stored custom secret is sent to all its
 hosts; one with only `env` by that variable. `list` marks a stored custom secret that
 shares a host or variable without being the binding as `conflicts with <variable>`, and
-`set` refuses to store over one.
+`set` and the guided setup refuse to store over one.
 
 - `list` shows requested and declared services, the kits asking, whether each is
   required, and whether a value is stored.
 - `set` asks for the declared or named services. A service a kit asks for can be
   stored without a declaration, with a default prompt. A custom service (`host`/`env`)
   that is not declared is refused, because nothing else tells abox it exists.
-- `remove` takes values off the host. Values are global on the host, so this affects
-  other sandboxes.
+- `remove` takes values off the host and forgets their remembered inputs. Values are
+  global on the host, so this affects other sandboxes.
 
 The value goes to sbx on standard input as UTF-8 without a BOM or newline. It never
 appears in process arguments, the environment or shell history.

@@ -72,7 +72,7 @@ public sealed class SandboxSquadMetadataTests : IDisposable
         );
 
         // Act
-        var staged = SandboxSquadMetadata.Read(
+        var staged = SquadSecrets.Read(
             "sample-sandbox",
             new SandboxSquadFiles(
                 [
@@ -101,5 +101,42 @@ public sealed class SandboxSquadMetadataTests : IDisposable
                 },
                 options => options.WithStrictOrdering()
             );
+    }
+
+    [Fact]
+    public void AnOlderSquadJsonWithoutTheNewFieldsReadsAsSecretInputsWithoutDescriptionOrDocs()
+    {
+        // Arrange
+        const string json = """
+            {"Secrets":[{"Service":"abox-jfrog","Prompt":null,"Hosts":[],"Env":null,"Inputs":[{"Name":"username","Prompt":"User"},{"Name":"token","Prompt":null}],"Separator":":","Encoding":"base64","Placeholder":null,"FromCommand":false}]}
+            """;
+
+        // Act
+        var squad = SquadSecrets.Read(
+            "older-sandbox",
+            new SandboxSquadFiles([], json),
+            new YamlDotNetParser()
+        );
+
+        // Assert
+        squad
+            .Secrets.Should()
+            .BeEquivalentTo(
+                new[]
+                {
+                    new SecretDeclaration(
+                        "abox-jfrog",
+                        Inputs:
+                        [
+                            new SecretInput("username", "User"),
+                            new SecretInput("token", null),
+                        ],
+                        Encoding: SecretEncoding.Base64
+                    ),
+                }
+            );
+        squad.Secrets[0].Inputs!.Should().OnlyContain(input => input.Secret && input.Value == null);
+        squad.Secrets[0].Description.Should().BeNull();
+        squad.Secrets[0].Docs.Should().BeNull();
     }
 }

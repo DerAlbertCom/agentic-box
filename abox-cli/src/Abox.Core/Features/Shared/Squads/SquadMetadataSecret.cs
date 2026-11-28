@@ -7,6 +7,8 @@ namespace Abox.Features.Shared.Squads;
 /// ask for a service's value, never a value or a host command; a command-backed secret is
 /// only marked. The build writes it and <c>abox secrets</c> reads it back from a sandbox,
 /// so the fields are nullable for reading and checked by <see cref="ToDeclaration"/>.
+/// An older <c>squad.json</c> has no description, no documentation path and no input flags:
+/// its inputs are secret.
 /// </summary>
 internal sealed record SquadMetadataSecret(
     string? Service,
@@ -17,7 +19,9 @@ internal sealed record SquadMetadataSecret(
     string? Separator,
     string? Encoding,
     string? Placeholder,
-    bool FromCommand
+    bool FromCommand,
+    string? Description = null,
+    string? Docs = null
 )
 {
     /// <summary>The entry of a declaration; its host command stays out.</summary>
@@ -28,12 +32,19 @@ internal sealed record SquadMetadataSecret(
             declaration.Hosts ?? [],
             declaration.EnvironmentVariable,
             (declaration.Inputs ?? [])
-                .Select(input => new SquadMetadataSecretInput(input.Name, input.Prompt))
+                .Select(input => new SquadMetadataSecretInput(
+                    input.Name,
+                    input.Prompt,
+                    input.Secret,
+                    input.Value
+                ))
                 .ToList(),
             declaration.Separator,
             declaration.Encoding.ToString().ToLowerInvariant(),
             declaration.Placeholder,
-            declaration.Command is not null
+            declaration.Command is not null,
+            declaration.Description,
+            declaration.Docs
         );
 
     /// <summary>
@@ -51,7 +62,7 @@ internal sealed record SquadMetadataSecret(
             .Select(input =>
                 input is null || string.IsNullOrWhiteSpace(input.Name)
                     ? throw new AboxException($"an input of the secret '{Service}' needs a 'Name'")
-                    : new SecretInput(input.Name, input.Prompt)
+                    : new SecretInput(input.Name, input.Prompt, input.Secret ?? true, input.Value)
             )
             .ToList();
         var hosts = (Hosts ?? [])
@@ -77,10 +88,19 @@ internal sealed record SquadMetadataSecret(
             hosts.Count > 0 ? hosts : null,
             string.IsNullOrWhiteSpace(Env) ? null : Env,
             FromCommand ? HostCommand.Withheld : null,
-            string.IsNullOrWhiteSpace(Placeholder) ? null : Placeholder
+            string.IsNullOrWhiteSpace(Placeholder) ? null : Placeholder,
+            string.IsNullOrWhiteSpace(Description) ? null : Description,
+            string.IsNullOrWhiteSpace(Docs) ? null : Docs
         );
     }
 }
 
-/// <summary>A part of a secret as <c>squad.json</c> holds it.</summary>
-internal sealed record SquadMetadataSecretInput(string? Name, string? Prompt);
+/// <summary>
+/// A part of a secret as <c>squad.json</c> holds it. A missing <c>Secret</c> means secret.
+/// </summary>
+internal sealed record SquadMetadataSecretInput(
+    string? Name,
+    string? Prompt,
+    bool? Secret = null,
+    string? Value = null
+);
