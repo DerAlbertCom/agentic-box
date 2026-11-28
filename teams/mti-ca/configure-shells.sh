@@ -48,22 +48,10 @@ BASH
 
 pwsh -NoLogo -NoProfile -Command '
   $ErrorActionPreference = "Stop"
-  # The PowerShell Gallery sometimes answers "Not Found" for a package it has; retry before failing the build.
-  function Install-ModuleWithRetry([string] $Name, [string] $Version) {
-    for ($attempt = 1; ; $attempt++) {
-      try {
-        Install-PSResource -Name $Name -Version "[$Version]" -Scope CurrentUser -TrustRepository
-        return
-      }
-      catch {
-        if ($attempt -ge 3) { throw }
-        Write-Warning "Installing $Name $Version failed (attempt $attempt): $($_.Exception.Message)"
-        Start-Sleep -Seconds (5 * $attempt)
-      }
-    }
-  }
-  Install-ModuleWithRetry CompletionPredictor 0.1.1
-  Install-ModuleWithRetry powershell-yaml 0.4.12
-  Install-ModuleWithRetry Pester 6.2.0
+  # PSResourceGet 1.3 (PowerShell 7.7) also registers MicrosoftArtifactRegistry ahead of PSGallery,
+  # and its "Not Found" fails the install instead of falling through, so name the gallery.
+  Install-PSResource -Name CompletionPredictor -Version "[0.1.1]" -Repository PSGallery -Scope CurrentUser -TrustRepository
+  Install-PSResource -Name powershell-yaml -Version "[0.4.12]" -Repository PSGallery -Scope CurrentUser -TrustRepository
+  Install-PSResource -Name Pester -Version "[6.2.0]" -Repository PSGallery -Scope CurrentUser -TrustRepository
 '
 rm -rf "$HOME/.cache/mise" "$HOME/.local/share/mise/downloads"
