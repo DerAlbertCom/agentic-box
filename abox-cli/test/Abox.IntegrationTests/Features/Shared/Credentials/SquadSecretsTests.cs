@@ -131,7 +131,8 @@ public sealed class SquadSecretsTests : IDisposable
                             new SecretInput("username", "User"),
                             new SecretInput("token", null),
                         ],
-                        Encoding: SecretEncoding.Base64
+                        Encoding: SecretEncoding.Base64,
+                        OlderBuild: true
                     ),
                 }
             );

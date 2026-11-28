@@ -126,6 +126,36 @@ public sealed class SecretsSetupCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task InitOfASquadFromAnOlderBuildSaysToRepublishItBeforeAskingEveryPartAsSecret()
+    {
+        // Arrange
+        Published(
+            [JfrogRequest],
+            [
+                JfrogSecret with
+                {
+                    Inputs = [new SecretInput("username", "User"), new SecretInput("token", null)],
+                    OlderBuild = true,
+                },
+            ]
+        );
+        _cli.Console.Answers.Add("albert");
+        _cli.Console.Answers.Add("tok");
+
+        // Act
+        var exitCode = await Init();
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        _cli.Console.AllText.Should()
+            .Contain(
+                "  The squad was built by an older abox, so every part of this secret is asked as a secret "
+                    + "and no value is fixed or remembered. Build or publish the squad again with this abox."
+            );
+        _cli.Console.Echoes.Should().Equal("******", "***");
+    }
+
+    [Fact]
     public async Task InitTakesTheTeamAndSquadFromTheFolderConfiguration()
     {
         // Arrange
@@ -432,6 +462,30 @@ public sealed class SecretsSetupCommandTests : IDisposable
         await _cli
             .HostSecrets.Received(1)
             .SetAsync(Context7, "ctx-key", Arg.Any<CancellationToken>());
+        await _cli
+            .SquadFiles.DidNotReceive()
+            .ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateLocalReadsTheLocalBuildOfTheFolderSquadEvenWithASandbox()
+    {
+        // Arrange
+        _cli.Configure("team: sample\nsquad: ac\n");
+        SandboxWith(new SecretDeclaration(Context7));
+        LocalBuild([JfrogRequest], [JfrogSecret]);
+        _cli.Console.Selections.Add([0]);
+        _cli.Console.Texts.Add("albert");
+        _cli.Console.Answers.Add("tok");
+
+        // Act
+        var exitCode = await Update("--local");
+
+        // Assert
+        exitCode.Should().Be(0, _cli.Console.AllText);
+        await _cli
+            .HostSecrets.Received(1)
+            .SetAsync(Jfrog, Base64("albert:tok"), Arg.Any<CancellationToken>());
         await _cli
             .SquadFiles.DidNotReceive()
             .ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());

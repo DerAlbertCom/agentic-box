@@ -33,7 +33,7 @@ internal sealed class SbxHostSecretStore(SbxInvoker invoker) : IHostSecretStore
         CancellationToken cancellationToken
     ) =>
         RunAsync(
-            invoker.Call(["secret", "set", service]) with
+            invoker.Call(["secret", "set", service, "--force"]) with
             {
                 StandardInput = value,
                 UseUtf8StandardInput = true,

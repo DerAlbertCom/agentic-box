@@ -79,6 +79,11 @@ internal sealed class SecretsUpdateHandler(
         CancellationToken cancellationToken
     )
     {
+        if (parameters.Local)
+        {
+            return reader.ReadLocal(FolderSquad(parameters, folderConfig));
+        }
+
         var sandbox = await sandboxes.FindAsync(parameters.Location.FullPath, cancellationToken);
         if (sandbox is not null)
         {
@@ -86,20 +91,35 @@ internal sealed class SecretsUpdateHandler(
             return SquadSecrets.Read(sandbox.Name, files, parser);
         }
 
+        return await reader.ReadPublishedAsync(
+            FolderSquad(parameters, folderConfig),
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// The squad the folder configuration names, with the team and tag of the parameters:
+    /// read without a sandbox, or with <c>--local</c>.
+    /// </summary>
+    private static SquadBuildIdentity FolderSquad(
+        SecretsUpdateParameters parameters,
+        FolderConfig? folderConfig
+    )
+    {
+        var source = parameters.Local
+            ? "The local build is read"
+            : $"There is no sandbox for '{parameters.Location.FullPath}'";
         var team =
             parameters.Team
             ?? throw new AboxException(
-                $"There is no sandbox for '{parameters.Location.FullPath}', and no team names its squad. Set 'team' in {FolderConfig.FileNames} or 'defaultTeam' in the user configuration, or run abox secrets init --team <team> --squad <squad>."
+                $"{source}, and no team names its squad. Set 'team' in {FolderConfig.FileNames} or 'defaultTeam' in the user configuration, or run abox secrets init --team <team> --squad <squad>."
             );
         var squad =
             folderConfig?.SelectSquad(null)
             ?? throw new AboxException(
-                $"There is no sandbox for '{parameters.Location.FullPath}', and {FolderConfig.FileNames} names no squad. Run abox secrets init --squad <squad> instead."
+                $"{source}, and {FolderConfig.FileNames} names no squad. Run abox secrets init --squad <squad> instead."
             );
-        return await reader.ReadPublishedAsync(
-            new SquadBuildIdentity(team, squad, parameters.Tag),
-            cancellationToken
-        );
+        return new SquadBuildIdentity(team, squad, parameters.Tag);
     }
 
     /// <summary>The named services, or null after reporting one the squad does not know.</summary>

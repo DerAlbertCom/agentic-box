@@ -56,6 +56,10 @@ public sealed record SecretInput(
 /// <param name="Placeholder">The value the agents see instead of the secret, for a service sbx does not know.</param>
 /// <param name="Description">What the secret is for, from the kit's credential capability or, for a custom secret, its declaration.</param>
 /// <param name="Docs">The repository-relative path of the page that tells how to obtain the value.</param>
+/// <param name="OlderBuild">
+/// Whether the declaration comes from the squad metadata of an older abox, which does not
+/// record which inputs are secret or fixed, so every input is asked as a secret.
+/// </param>
 public sealed record SecretDeclaration(
     string Service,
     string? Prompt = null,
@@ -67,7 +71,8 @@ public sealed record SecretDeclaration(
     HostCommand? Command = null,
     string? Placeholder = null,
     string? Description = null,
-    string? Docs = null
+    string? Docs = null,
+    bool OlderBuild = false
 )
 {
     /// <summary>The first host of a service sbx does not know; it names the secret.</summary>

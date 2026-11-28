@@ -173,6 +173,14 @@ internal sealed class SecretsSetup(
         {
             console.WriteLine($"  Documentation: {link}");
         }
+
+        if (state.Declaration is { OlderBuild: true })
+        {
+            console.WriteLine(
+                "  The squad was built by an older abox, so every part of this secret is asked as a secret "
+                    + "and no value is fixed or remembered. Build or publish the squad again with this abox."
+            );
+        }
     }
 
     /// <summary>The documentation page of a repository-relative path, under the configured base.</summary>

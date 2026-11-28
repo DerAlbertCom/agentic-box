@@ -98,6 +98,11 @@ internal sealed class SecretsCommand : Command
     {
         private readonly LocationOption _location = new();
         private readonly Option<string[]> _services = ServiceOption();
+        private readonly Option<bool> _local = new("--local")
+        {
+            Description =
+                "Read the folder's squad from the local build of 'abox build' instead of the sandbox or the published set, such as before a new build replaces the sandbox.",
+        };
 
         public UpdateCommand(CommandRunner runner)
             : base(
@@ -108,6 +113,7 @@ internal sealed class SecretsCommand : Command
         {
             Options.Add(_location);
             Options.Add(_services);
+            Options.Add(_local);
         }
 
         internal override async Task<SecretsUpdateParameters> BindAsync(
@@ -126,7 +132,8 @@ internal sealed class SecretsCommand : Command
                 location,
                 parseResult.GetValue(_services) ?? [],
                 defaults.TeamOrNone(folderConfig?.Team),
-                defaults.Tag(null)
+                defaults.Tag(null),
+                parseResult.GetValue(_local)
             );
         }
     }

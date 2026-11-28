@@ -161,7 +161,7 @@ the deny list, endpoint rewriting and recovery.
 
 ```sh
 abox secrets init   [--location <path>] [--team <team>] [--squad <squad>] [--local] [--tag <tag>] [--all]
-abox secrets update [--location <path>] [--service <name>]...
+abox secrets update [--location <path>] [--service <name>]... [--local]
 abox secrets list   [--location <path>]
 abox secrets set    [--location <path>] [--service <name>]...
 abox secrets remove [--location <path>] [--service <name>]...
@@ -180,7 +180,7 @@ abox secrets remove [--location <path>] [--service <name>]...
 | `--location <path>` | The sandbox location | see [sandbox location](#sandbox-location) |
 | `--team <name>` | `init`: team of the squad | `team` in the folder configuration, then `defaultTeam` |
 | `--squad <name>` | `init`: the squad whose secrets are set up | `squad` in the folder configuration |
-| `--local` | `init`: read the squad from the local build instead of the published set | off |
+| `--local` | `init`: read the squad from the local build instead of the published set; `update`: read the folder's squad from the local build instead of the sandbox or the published set | off |
 | `--tag <tag>` | `init`: tag of the published set or local build | `defaultTag`, then `latest` |
 | `--all` | `init`: ask for every secret again, also the stored ones | off |
 | `--service <name>` | `update`, `set`, `remove`: the services to act on; repeatable | `update`: a list to pick from; `set` and `remove`: all declared |
@@ -197,7 +197,10 @@ input is never asked, and an empty answer skips the secret. It asks for missing
 approvals and ends with the `list` table. `init` needs no sandbox and no team sources: it
 reads the local build with `--local`, otherwise the published set's bundled metadata.
 `update` reads the folder's sandbox, or the squad of the folder configuration when there
-is none. Without a terminal both fail and print the `abox secrets set --service <name>`
+is none; with `--local` it reads the local build of that squad even when a sandbox exists,
+so the secrets of a new build are ready before `create` replaces the sandbox. A squad
+built or published by an older abox does not record which inputs are user names or fixed
+values, so every part is asked as a secret and the setup says to build or publish it again. Without a terminal both fail and print the `abox secrets set --service <name>`
 commands. Details are in [authoring-secrets.md](authoring-secrets.md).
 
 `list`, `set` and `remove` read the services from the folder's existing sandbox, so no

@@ -90,7 +90,8 @@ internal sealed record SquadMetadataSecret(
             FromCommand ? HostCommand.Withheld : null,
             string.IsNullOrWhiteSpace(Placeholder) ? null : Placeholder,
             string.IsNullOrWhiteSpace(Description) ? null : Description,
-            string.IsNullOrWhiteSpace(Docs) ? null : Docs
+            string.IsNullOrWhiteSpace(Docs) ? null : Docs,
+            (Inputs ?? []).Any(input => input is { Secret: null })
         );
     }
 }
