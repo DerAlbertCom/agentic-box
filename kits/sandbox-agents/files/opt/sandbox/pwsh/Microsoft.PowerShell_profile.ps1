@@ -7,14 +7,11 @@
 
 # Environment restoration is safe without a console and lets SSH/Herdr commands
 # and generated apphosts work even when Docker's environment was not inherited.
-if (-not $env:DOTNET_DOTNETUP_DATA_DIR) { $env:DOTNET_DOTNETUP_DATA_DIR = "$HOME/.local/share/dotnetup" }
-if (-not $env:DOTNET_ROOT) { $env:DOTNET_ROOT = "$env:DOTNET_DOTNETUP_DATA_DIR/dotnet" }
+if (-not $env:DOTNET_ROOT) { $env:DOTNET_ROOT = "$HOME/.local/share/mise/dotnet-root" }
 if (-not $env:DOTNET_NOLOGO) { $env:DOTNET_NOLOGO = '1' }
 if (-not $env:DOTNET_CLI_TELEMETRY_OPTOUT) { $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1' }
-foreach ($dotnetPath in @($env:DOTNET_ROOT, "$HOME/.dotnetup")) {
-    if (($env:PATH -split [IO.Path]::PathSeparator) -notcontains $dotnetPath) {
-        $env:PATH = $dotnetPath + [IO.Path]::PathSeparator + $env:PATH
-    }
+if (($env:PATH -split [IO.Path]::PathSeparator) -notcontains $env:DOTNET_ROOT) {
+    $env:PATH = $env:DOTNET_ROOT + [IO.Path]::PathSeparator + $env:PATH
 }
 
 # Terminal UX is not useful without a console, and two parts are actively harmful without one:

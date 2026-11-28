@@ -29,7 +29,7 @@ capabilities:
               dotnet nuget add source "https://pkgs.dev.azure.com/$ADO_ORGANIZATION/_packaging/$ADO_NUGET_FEED/nuget/v3/index.json" --name "$ADO_NUGET_FEED"
             fi
           user: "1000"
-          env: [ADO_ORGANIZATION, ADO_PROJECT, ADO_NUGET_FEED, AZURE_DEVOPS_EXT_PAT, DOTNET_ROOT, DOTNET_DOTNETUP_DATA_DIR, REQUESTS_CA_BUNDLE]
+          env: [ADO_ORGANIZATION, ADO_PROJECT, ADO_NUGET_FEED, AZURE_DEVOPS_EXT_PAT, DOTNET_ROOT, REQUESTS_CA_BUNDLE]
   - type: com.docker.sandbox/agent-context@2
     config:
       content: |

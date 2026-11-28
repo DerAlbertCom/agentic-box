@@ -18,11 +18,8 @@ args:
     default: C.UTF-8
     env: LC_ALL
   SANDBOX_DOTNET_ROOT:
-    default: /home/agent/.local/share/dotnetup/dotnet
+    default: /home/agent/.local/share/mise/dotnet-root
     env: DOTNET_ROOT
-  SANDBOX_DOTNET_DATA:
-    default: /home/agent/.local/share/dotnetup
-    env: DOTNET_DOTNETUP_DATA_DIR
   SANDBOX_DOTNET_NOLOGO:
     default: "1"
     env: DOTNET_NOLOGO
@@ -54,9 +51,9 @@ capabilities:
       filename: AGENTS.md
       content: |
         Tools include OpenCode, pi, Claude Code, Copilot, gh, .NET SDKs 10/11,
-        dotnetup, Node/npm/pnpm, Python/uv, Nx, MongoDB tools, az devops, AWS,
+        Node/npm/pnpm, Python/uv, Nx, MongoDB tools, az devops, AWS,
         Terraform/tfswitch, Helm, k9s, Herdr/hc, hunk, tuicr and codeburn.
-        Use mise for tool updates and dotnetup for .NET SDK channels 10/11.
+        Use mise for tool and .NET SDK updates.
         Tool updates and worktrees under ~/worktrees are lost on recreation.
         The workspace is $WORKSPACE_DIR; do not assume ~/workspace.
         Bash uses starship/carapace/fzf; PowerShell uses oh-my-posh and

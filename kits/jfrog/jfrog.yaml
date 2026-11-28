@@ -32,7 +32,7 @@ capabilities:
       install:
         - command: dotnet nuget add source "https://rwest.jfrog.io/artifactory/api/nuget/v3/$JFROG_FEED" --name Artifactory
           user: "1000"
-          env: [JFROG_FEED, DOTNET_ROOT, DOTNET_DOTNETUP_DATA_DIR]
+          env: [JFROG_FEED, DOTNET_ROOT]
   - type: com.docker.sandbox/agent-context@2
     config:
       content: |
