@@ -37,7 +37,7 @@ internal sealed record SecretState(
     /// <summary>Whether the value is stored and, where needed, approved.</summary>
     public bool Ready => Stored && Approved;
 
-    /// <summary>What it is for: the description of the kit's capability, else of the declaration.</summary>
+    /// <summary>What it is for: the description of the declaration (the build copies the capability's into it), else of the kit's request.</summary>
     public string? Description => Declaration?.Description ?? Request?.Description;
 
     /// <summary>The state as the list of <c>abox secrets update</c> shows it.</summary>

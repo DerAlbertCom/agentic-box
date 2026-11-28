@@ -7,7 +7,7 @@ using Abox.Infrastructure;
 
 namespace Abox.Tests;
 
-public sealed class SandboxSquadMetadataTests : IDisposable
+public sealed class SquadSecretsTests : IDisposable
 {
     private readonly TempDirectory _root = new();
 

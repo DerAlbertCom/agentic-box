@@ -9,8 +9,6 @@ public sealed class RepositorySquadSecretsTests
 {
     private static readonly string Root = FindRepository();
 
-    private readonly SquadResolver _resolver = new(new AboxConfig(), new YamlDotNetParser());
-
     public static TheoryData<string, string> Squads()
     {
         var data = new TheoryData<string, string>();
@@ -31,8 +29,11 @@ public sealed class RepositorySquadSecretsTests
     [MemberData(nameof(Squads))]
     public void EverySquadOfTheRepositoryResolvesItsSecretsFromItsKits(string team, string squad)
     {
+        // Arrange
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
+
         // Act
-        var resolved = _resolver.Resolve(Root, team, squad);
+        var resolved = resolver.Resolve(Root, team, squad);
 
         // Assert
         resolved.Secrets.Should().OnlyHaveUniqueItems(secret => secret.Service);
@@ -45,8 +46,11 @@ public sealed class RepositorySquadSecretsTests
     [Fact]
     public void TheAzureDevOpsUserNameIsFixedAndTheJfrogUserNameIsEchoed()
     {
+        // Arrange
+        var resolver = new SquadResolver(new AboxConfig(), new YamlDotNetParser());
+
         // Act
-        var cape = _resolver.Resolve(Root, "mti-ca", "cape");
+        var cape = resolver.Resolve(Root, "mti-ca", "cape");
 
         // Assert
         var ado = cape.Secrets.Single(secret => secret.Service == "abox-azure-devops");
