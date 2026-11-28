@@ -24,14 +24,14 @@ apt:
 
 # abox installs the tools in this order: runtimes come before the tools that need them.
 mise:
-  - nodejs@24.22.2
-  - bun@1.4.4
-  - npm:@anthropic-ai/claude-code[allow_builds=true]@2.1.326
-  - npm:@github/copilot[allow_builds=true]@1.0.112
-  - npm:@earendil-works/pi-coding-agent[allow_builds=true]@1.5.2
-  - npm:@opencode/cli[allow_builds=true]@2.3.0
-  - dotnet@9.0.303
-  - dotnet@10.0.403
+  - nodejs@24.22.3
+  - bun@1.4.5
+  - npm:@anthropic-ai/claude-code[allow_builds=true]@2.1.332
+  - npm:@github/copilot[allow_builds=true]@1.0.116
+  - npm:@earendil-works/pi-coding-agent[allow_builds=true]@1.6.1
+  - npm:@opencode/cli[allow_builds=true]@2.4.2
+  - dotnet@9.0.321
+  - dotnet@10.0.404
 
 scripts:
   - enable-fzf.sh

@@ -22,19 +22,19 @@ apt:
 mise:
   # Runtimes
   - node@26.13.1
-  - npm:npm@12.2.2
-  - bun@1.4.4 # JS runtime and package manager, https://bun.sh
-  - pnpm@12.21.0
+  - npm:npm@12.2.3
+  - bun@1.4.5 # JS runtime and package manager, https://bun.sh
+  - pnpm@12.24.0
   - python@3.14.10
-  - uv@0.13.8 # Python package manager, https://docs.astral.sh/uv
-  - powershell@7.6.10
+  - uv@0.13.10 # Python package manager, https://docs.astral.sh/uv
+  - powershell@7.7.0
   - dotnet@10.0.404
   - dotnet@11.0.100
 
   # Shell improvements
   - starship@1.27.0 # shell prompt, https://starship.rs
   - fzf@0.75.0 # fuzzy finder, https://github.com/junegunn/fzf
-  - carapace@1.8.2 # shell completions, https://github.com/carapace-sh/carapace-bin
+  - carapace@1.8.5 # shell completions, https://github.com/carapace-sh/carapace-bin
   - bat@0.26.1 # cat with highlighting, https://github.com/sharkdp/bat
   - edit@2.0.0 # Microsoft Edit, terminal editor, https://github.com/microsoft/edit
   - yazi@26.9.1 # terminal file manager, https://github.com/sxyazi/yazi
@@ -52,9 +52,9 @@ mise:
     github:jonas/tig@2.6.1
 
   # Frontend Toolings
-  - npm:nx@24.0.6 # monorepo build tool, https://nx.dev
-  - npm:@angular/cli@22.2.7
-  - npm:@azure-devops/mcp[allow_builds=true]@2.11.0 # Azure DevOps MCP server, https://github.com/microsoft/azure-devops-mcp
+  - npm:nx@24.1.0 # monorepo build tool, https://nx.dev
+  - npm:@angular/cli@22.3.0
+  - npm:@azure-devops/mcp[allow_builds=true]@2.11.1 # Azure DevOps MCP server, https://github.com/microsoft/azure-devops-mcp
 
   # Dev Tools
   # mongodump, mongorestore and more: https://www.mongodb.com/docs/database-tools
@@ -66,29 +66,34 @@ mise:
   - >-
     --tool-option 'strip_components=1' --tool-option 'bin_path=bin'
     --tool-option 'platforms={ linux-x64 = { asset_pattern = "mongosh-{{ version }}-linux-x64-openssl3.tgz" }, linux-arm64 = { asset_pattern = "mongosh-{{ version }}-linux-arm64-openssl3.tgz" } }'
-    mongosh@2.14.2
-  - gh@2.104.0
+    mongosh@2.14.3
+  - gh@2.106.0
+  # gh stack, stacked pull requests, registered as a gh extension: https://github.com/github/gh-stack
+  - >-
+    --tool-option 'bin=gh-stack'
+    --postinstall 'mkdir -p "$HOME/.local/share/gh/extensions/gh-stack" && ln -sf "$MISE_TOOL_INSTALL_PATH/gh-stack" "$HOME/.local/share/gh/extensions/gh-stack/gh-stack"'
+    github:github/gh-stack@0.3.0
   - k9s@0.51.0 # Kubernetes TUI, https://k9scli.io
   - helm@4.3.2
   - terraform@1.17.2
   - github:warrensbox/terraform-switcher@1.20.0 # tfswitch, Terraform version switcher, https://github.com/warrensbox/terraform-switcher
   - azure-cli@2.93.0
-  - aws-cli@2.40.4
-  - aqua:ByteNess/aws-vault@7.18.0 # AWS credential store, https://github.com/ByteNess/aws-vault
+  - aws-cli@2.42.4
+  - aqua:ByteNess/aws-vault@7.19.1 # AWS credential store, https://github.com/ByteNess/aws-vault
 
   # Agentic Workflows
   - github:agavra/tuicr@0.29.0 # TUI code review, https://github.com/agavra/tuicr
   - npm:hunkdiff[allow_builds=true]@0.25.0 # diff viewer, https://www.npmjs.com/package/hunkdiff
   # herdr core, with an hc alias: https://herdr.dev
   - >-
-    --tool-option 'platforms={ linux-x64 = { url = "https://releases.herdr.dev/core/{{ version }}/herdr-core-linux-x86_64.tar.gz", checksum = "sha256:78424755c10a40dde38a0bdb55c20ac19706e9ae05ed68fc2acf1fcff0d941c1" }, linux-arm64 = { url = "https://releases.herdr.dev/core/{{ version }}/herdr-core-linux-aarch64.tar.gz", checksum = "sha256:e844a2bfab48a226097679d076bc83042fe57fccef5387ef802e5b24e78b529a" } }'
+    --tool-option 'platforms={ linux-x64 = { url = "https://releases.herdr.dev/core/{{ version }}/herdr-core-linux-x86_64.tar.gz", checksum = "sha256:3054ec3992ce80c5715d721caa9dcefa6056721d15dc113f4750afce763ba5df" }, linux-arm64 = { url = "https://releases.herdr.dev/core/{{ version }}/herdr-core-linux-aarch64.tar.gz", checksum = "sha256:98757985245d45f8d73dd85e68b139b7f167c28488bb89edd9834c3f5a5cf4cf" } }'
     --postinstall 'ln -sf herdr-core "$MISE_TOOL_INSTALL_PATH/hc"'
-    http:herdr-core@0.1.21
+    http:herdr-core@0.1.22
   - npm:codeburn@0.9.28 # AI agent usage and cost, https://www.npmjs.com/package/codeburn
-  - npm:@anthropic-ai/claude-code[allow_builds=true]@2.1.326
-  - npm:@github/copilot[allow_builds=true]@1.0.112
-  - npm:@earendil-works/pi-coding-agent[allow_builds=true]@1.5.2 # pi coding agent, https://www.npmjs.com/package/@earendil-works/pi-coding-agent
-  - npm:@opencode/cli[allow_builds=true]@2.3.0 # OpenCode coding agent, https://opencode.ai
+  - npm:@anthropic-ai/claude-code[allow_builds=true]@2.1.332
+  - npm:@github/copilot[allow_builds=true]@1.0.116
+  - npm:@earendil-works/pi-coding-agent[allow_builds=true]@1.6.1 # pi coding agent, https://www.npmjs.com/package/@earendil-works/pi-coding-agent
+  - npm:@opencode/cli[allow_builds=true]@2.4.2 # OpenCode coding agent, https://opencode.ai
   - npm:@fission-ai/openspec@1.17.0 # spec-driven development, https://github.com/Fission-AI/OpenSpec
 
 scripts:
