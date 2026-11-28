@@ -12,6 +12,7 @@ capabilities:
       runtime:
         allow: [dev.azure.com, pkgs.dev.azure.com, vssps.dev.azure.com, "*.blob.core.windows.net", "*.vsblob.core.windows.net"]
   - type: com.docker.sandbox/credential@1
+    description: Azure DevOps personal access token for git, the NuGet feeds and the Azure DevOps CLI
     config:
       service: abox-azure-devops
       phase: [install, runtime]

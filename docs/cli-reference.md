@@ -12,7 +12,7 @@ This page lists every command and its options. Settings files are described in
 | [`run`](#abox-run) | Starts a launcher (a shell by default) for the sandbox | users |
 | [`ports`](#abox-ports) | Publishes discovered app ports on host loopback | users |
 | [`user-secrets`](#abox-user-secrets) | Copies selected .NET user-secret stores into the sandbox | users |
-| [`secrets`](#abox-secrets) | Manages the host-side secrets the sandbox's kits ask for | users |
+| [`secrets`](#abox-secrets) | Sets up and manages the host-side secrets a squad's kits ask for | users |
 | [`prune`](#abox-prune) | Removes template images sbx no longer uses | users |
 | [`build`](#abox-build) | Builds the component images of a team's squads | maintainers |
 | [`publish`](#abox-publish) | Pushes a team's built kit sets to JFrog | maintainers |
@@ -25,7 +25,8 @@ Two hidden entry points exist for tools such as Herdr and are not in the help:
 `create`, `run`, `ports`, `user-secrets` and `secrets` work on one sandbox location:
 `--location <path>`, then the user setting `defaultLocation`, then the current folder.
 Only `create` creates a sandbox. The other commands print the `abox create` command to
-run when the folder has none.
+run when the folder has none, except `secrets init`, which needs no sandbox, and
+`secrets update`, which then reads the squad of the folder configuration.
 
 ### Exit codes
 
@@ -64,6 +65,14 @@ abox create --team <team> --squad <squad> [--tag <tag>] [--location <path>]
 | `--memory <GB>` | Memory in whole GB, at least 1 | folder configuration, then the sbx default |
 | `--cpus <n>` | Number of CPUs, at least 1 | folder configuration, then the sbx default |
 | `--yes` | Replace an existing sandbox without asking | off |
+
+**Secrets.** After all checks and the replacement question, and before the sandbox is
+created, `create` checks that every secret the squad's kits ask for is stored and
+approved. When something is missing it opens the
+[guided secrets setup](#abox-secrets) once; skipping a required secret stops the create
+before an existing sandbox is replaced. Without a terminal a missing required secret
+stops the create with exit code `1` and names `abox secrets init --location <path>`; a
+missing optional one is a warning.
 
 After a successful create, abox saves the team, squad and any given size in the
 folder's `abox.user.yaml`; see [configuration.md](configuration.md). It then copies
@@ -151,6 +160,8 @@ the deny list, endpoint rewriting and recovery.
 ## `abox secrets`
 
 ```sh
+abox secrets init   [--location <path>] [--team <team>] [--squad <squad>] [--local] [--tag <tag>] [--all]
+abox secrets update [--location <path>] [--service <name>]... [--local]
 abox secrets list   [--location <path>]
 abox secrets set    [--location <path>] [--service <name>]...
 abox secrets remove [--location <path>] [--service <name>]...
@@ -158,16 +169,42 @@ abox secrets remove [--location <path>] [--service <name>]...
 
 | Subcommand | What it does |
 |---|---|
+| `init` | The guided secrets setup for a squad, before a sandbox exists: asks for the values that are not stored and the missing approvals |
+| `update` | The guided secrets setup for the services picked from a list with their state, or named with `--service` |
 | `list` | Lists the services the sandbox's kits ask for and whether a value is stored |
 | `set` | Asks for the values and stores them on the host |
-| `remove` | Removes the stored values from the host |
+| `remove` | Removes the stored values from the host and forgets their remembered inputs |
 
-`--service <name>` limits `set` and `remove` to the named services and can be repeated.
+| Option | Meaning | Default |
+|---|---|---|
+| `--location <path>` | The sandbox location | see [sandbox location](#sandbox-location) |
+| `--team <name>` | `init`: team of the squad | `team` in the folder configuration, then `defaultTeam` |
+| `--squad <name>` | `init`: the squad whose secrets are set up | `squad` in the folder configuration |
+| `--local` | `init`: read the squad from the local build instead of the published set; `update`: read the folder's squad from the local build instead of the sandbox or the published set | off |
+| `--tag <tag>` | `init`: tag of the published set or local build | `defaultTag`, then `latest` |
+| `--all` | `init`: ask for every secret again, also the stored ones | off |
+| `--service <name>` | `update`, `set`, `remove`: the services to act on; repeatable | `update`: a list to pick from; `set` and `remove`: all declared |
 
 These are the host-side credentials that sbx's proxy injects, not .NET user-secrets.
-The services are read from the folder's existing sandbox, so no team sources are
-needed. Values are stored globally on the host: removing one affects every sandbox
-that uses it. `secrets` does not configure Docker's registry sign-in.
+Values are stored globally on the host: removing one affects every sandbox that uses
+it. `secrets` does not configure Docker's registry sign-in.
+
+**The guided secrets setup** (`init`, `update`, and `create` when something is missing)
+shows each service with the kits that ask for it, whether it is required, its
+description and its documentation link. A user name is echoed with its last value as the
+default, a secret input shows one `*` per character and its length is confirmed, a fixed
+input is never asked, and an empty answer skips the secret. It asks for missing
+approvals and ends with the `list` table. `init` needs no sandbox and no team sources: it
+reads the local build with `--local`, otherwise the published set's bundled metadata.
+`update` reads the folder's sandbox, or the squad of the folder configuration when there
+is none; with `--local` it reads the local build of that squad even when a sandbox exists,
+so the secrets of a new build are ready before `create` replaces the sandbox. A squad
+built or published by an older abox does not record which inputs are user names or fixed
+values, so every part is asked as a secret and the setup says to build or publish it again. Without a terminal both fail and print the `abox secrets set --service <name>`
+commands. Details are in [authoring-secrets.md](authoring-secrets.md).
+
+`list`, `set` and `remove` read the services from the folder's existing sandbox, so no
+team sources are needed.
 
 ## `abox prune`
 

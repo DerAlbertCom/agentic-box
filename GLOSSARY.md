@@ -12,7 +12,7 @@ A named configuration of a team that a sandbox is created from; it publishes as 
 _Avoid_: profile, flavour
 
 **Squad configuration**:
-An `.abox` file: composes a squad from its `base`, `workload`, `kits`, `parameters`, `mcp`, `state` and `secrets`.
+An `.abox` file: composes a squad from its `base`, `workload`, `kits`, `parameters`, `mcp` and `state`.
 _Avoid_: config, abox file
 
 **Workload**:
@@ -73,7 +73,11 @@ _Avoid_: abox JSON, folder config, local config
 ## Credentials
 
 **Secrets**:
-The host-side credentials that a squad's kits declare and sbx's proxy injects; distinct from user-secrets.
+The host-side credentials that a squad's kits declare, each kit in the `secrets.yaml` next to its descriptor, and sbx's proxy injects; distinct from user-secrets.
+
+**Guided secrets setup**:
+The one flow that asks for a squad's secrets and their approvals, service by service with description and documentation link, and ends with the `abox secrets list` table; reached through `abox secrets init`, `abox secrets update` and `abox create` when something is missing.
+_Avoid_: credential check, secrets wizard
 
 **User-secrets**:
 .NET user-secret stores that are copied from the host into a sandbox, explicitly selected per sandbox location.

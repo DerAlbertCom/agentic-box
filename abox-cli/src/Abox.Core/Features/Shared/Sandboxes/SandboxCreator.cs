@@ -48,7 +48,7 @@ internal sealed class SandboxCreator(
     RemoteSquadSource remote,
     UserSecretsCopy userSecrets,
     AppPorts appPorts,
-    SquadCredentials credentials,
+    CreateSecretsCheck secrets,
     IYamlParser parser
 )
 {
@@ -199,7 +199,7 @@ internal sealed class SandboxCreator(
         return await sandboxes.FindAsync(location, cancellationToken);
     }
 
-    /// <summary>Prepares what the sandbox needs on the host: credentials, MCP servers and state directories.</summary>
+    /// <summary>Prepares what the sandbox needs on the host: secrets, MCP servers and state directories.</summary>
     private async Task<IReadOnlyList<SandboxMount>> PrepareHostAsync(
         CreationPlan plan,
         IReadOnlyList<ManifestMcp> mcpToRegister,
@@ -207,10 +207,9 @@ internal sealed class SandboxCreator(
         CancellationToken cancellationToken
     )
     {
-        console.WriteLine("Checking the credentials of the squad...");
-        await credentials.PrepareAsync(
-            plan.Manifest.Credentials,
-            plan.Manifest.Secrets,
+        console.WriteLine("Checking the secrets of the squad...");
+        await secrets.PrepareAsync(
+            new SquadSecrets(plan.Manifest.Credentials, plan.Manifest.Secrets),
             plan.Selection.Identity.Squad,
             plan.Location,
             cancellationToken

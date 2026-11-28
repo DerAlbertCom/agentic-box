@@ -33,6 +33,16 @@ internal sealed class AboxConfig
     /// <summary>Case-insensitive literal substrings forbidden in selected original user-secret values.</summary>
     public IReadOnlyList<string> UserSecretsDenyList { get; init; } = [];
 
+    /// <summary>The built-in documentation address: the web view of this repository's main branch.</summary>
+    public const string DefaultDocsBaseUrl =
+        "https://github.com/DerAlbertCom/agentic-box/blob/main/";
+
+    /// <summary>
+    /// The address the repository-relative documentation paths of the secrets are joined
+    /// with, so the pages can move without a rebuild of published sets.
+    /// </summary>
+    public string DocsBaseUrl { get; init; } = DefaultDocsBaseUrl;
+
     /// <summary>Whether <c>abox run</c> lets the sandbox recolor the terminal, unless the folder or the command line says otherwise.</summary>
     public bool TerminalTheme { get; init; } = true;
 }

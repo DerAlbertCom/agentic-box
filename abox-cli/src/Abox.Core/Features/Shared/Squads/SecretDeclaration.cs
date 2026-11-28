@@ -30,7 +30,17 @@ public sealed record HostCommand(string? Line)
 /// </summary>
 /// <param name="Name">The name of the part.</param>
 /// <param name="Prompt">What the user is asked for.</param>
-public sealed record SecretInput(string Name, string? Prompt);
+/// <param name="Secret">
+/// Whether the part is secret: it is masked while typed and never remembered. A part that is
+/// not secret, such as a user name, is echoed and offered as the default the next time.
+/// </param>
+/// <param name="Value">A fixed value of the part; the user is never asked for it.</param>
+public sealed record SecretInput(
+    string Name,
+    string? Prompt,
+    bool Secret = true,
+    string? Value = null
+);
 
 /// <summary>
 /// A secret of the host, as a configuration declares it.
@@ -44,6 +54,16 @@ public sealed record SecretInput(string Name, string? Prompt);
 /// <param name="EnvironmentVariable">The variable the agents read, for a service sbx does not know.</param>
 /// <param name="Command">The host command whose output is the value; nobody is asked for it.</param>
 /// <param name="Placeholder">The value the agents see instead of the secret, for a service sbx does not know.</param>
+/// <param name="Description">What the secret is for, from the kit's credential capability or, for a custom secret, its declaration.</param>
+/// <param name="Docs">The repository-relative path of the page that tells how to obtain the value.</param>
+/// <param name="ValueCommand">
+/// A host command whose output abox takes as the value when the secret is set up, such as
+/// <c>gh auth token --hostname rwe.ghe.com</c>; nobody is asked for it.
+/// </param>
+/// <param name="OlderBuild">
+/// Whether the declaration comes from the squad metadata of an older abox, which does not
+/// record which inputs are secret or fixed, so every input is asked as a secret.
+/// </param>
 public sealed record SecretDeclaration(
     string Service,
     string? Prompt = null,
@@ -53,7 +73,11 @@ public sealed record SecretDeclaration(
     IReadOnlyList<string>? Hosts = null,
     string? EnvironmentVariable = null,
     HostCommand? Command = null,
-    string? Placeholder = null
+    string? Placeholder = null,
+    string? Description = null,
+    string? Docs = null,
+    string? ValueCommand = null,
+    bool OlderBuild = false
 )
 {
     /// <summary>The first host of a service sbx does not know; it names the secret.</summary>

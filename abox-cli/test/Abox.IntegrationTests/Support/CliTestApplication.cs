@@ -24,6 +24,7 @@ internal sealed class CliTestApplication : IDisposable
         Services.AddSingleton(Publisher);
         Services.AddSingleton(Certificates);
         Services.AddSingleton(HostSecrets);
+        Services.AddSingleton(HostCommands);
         Services.AddSingleton(SquadFiles);
         Services.AddSingleton(Approvals);
     }
@@ -32,6 +33,7 @@ internal sealed class CliTestApplication : IDisposable
     internal IApplicationPortPublisher Publisher { get; } =
         Substitute.For<IApplicationPortPublisher>();
     internal IHostSecretStore HostSecrets { get; } = TestServiceGraphs.HostSecretStore();
+    internal IHostCommands HostCommands { get; } = Substitute.For<IHostCommands>();
     internal ISandboxSquadFileReader SquadFiles { get; } =
         Substitute.For<ISandboxSquadFileReader>();
     internal ICredentialApprovals Approvals { get; } = Substitute.For<ICredentialApprovals>();

@@ -50,6 +50,9 @@ internal sealed class InvocationDefaults(
             "No team is given. Give --team <name> or set 'defaultTeam' in the user configuration."
         );
 
+    /// <summary>The given team, otherwise <c>defaultTeam</c>; null when neither names one.</summary>
+    public string? TeamOrNone(string? team) => team ?? configuration.Value.DefaultTeam;
+
     /// <summary>Every given team, otherwise the required <c>defaultTeam</c>.</summary>
     public IReadOnlyList<string> Teams(IReadOnlyList<string>? teams) =>
         teams is { Count: > 0 } ? teams : [Team(null)];

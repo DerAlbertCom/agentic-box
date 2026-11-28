@@ -9,6 +9,7 @@ capabilities:
       runtime:
         allow: [mcp.context7.com]
   - type: com.docker.sandbox/credential@1
+    description: Context7 API key; optional, without it Context7 is used anonymously
     optional: true
     config:
       service: abox-context7

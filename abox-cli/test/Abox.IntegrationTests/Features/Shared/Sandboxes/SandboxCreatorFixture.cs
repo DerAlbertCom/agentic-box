@@ -14,7 +14,7 @@ namespace Abox.Tests;
 internal sealed class SandboxCreatorFixture
 {
     internal TempDirectory Root { get; } = new();
-    internal TestConsole Console { get; } = new();
+    internal TestConsole Console { get; }
     internal IHostSecretStore HostSecrets { get; } = TestServiceGraphs.HostSecretStore();
     internal ICredentialApprovals Approvals { get; } = Substitute.For<ICredentialApprovals>();
     internal ISandboxLifecycle Lifecycle { get; } = Substitute.For<ISandboxLifecycle>();
@@ -26,8 +26,9 @@ internal sealed class SandboxCreatorFixture
     internal SandboxRecordStore Records { get; }
     internal SandboxCreator Service { get; }
 
-    internal SandboxCreatorFixture()
+    internal SandboxCreatorFixture(bool interactive = true)
     {
+        Console = new TestConsole(interactive);
         Paths = AboxPaths.For(Path.Combine(Root.Path, "config"), Path.Combine(Root.Path, "state"));
         Store = new BuildStore(Paths);
         Records = new SandboxRecordStore(Paths);

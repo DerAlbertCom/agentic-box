@@ -15,8 +15,7 @@ internal sealed class AboxFile
         IReadOnlyList<KitDeclaration> kits,
         IReadOnlyDictionary<string, string> parameters,
         IReadOnlyList<McpDeclaration> mcp,
-        IReadOnlyList<string> state,
-        IReadOnlyList<SecretDeclaration> secrets
+        IReadOnlyList<string> state
     )
     {
         Path = path;
@@ -26,7 +25,6 @@ internal sealed class AboxFile
         Parameters = parameters;
         Mcp = mcp;
         State = state;
-        Secrets = secrets;
     }
 
     /// <summary>The file this configuration was read from.</summary>
@@ -53,22 +51,20 @@ internal sealed class AboxFile
     /// <summary>The sandbox directories this configuration keeps across a replacement.</summary>
     public IReadOnlyList<string> State { get; }
 
-    /// <summary>The secrets this configuration declares.</summary>
-    public IReadOnlyList<SecretDeclaration> Secrets { get; }
-
     /// <summary>Reads a <c>.abox</c> file.</summary>
     public static AboxFile Load(string path, IYamlParser parser)
     {
         var reader = parser.ReadFile(path);
-        reader.RejectUnknownKeys(
-            "base",
-            "workload",
-            "kits",
-            "parameters",
-            "mcp",
-            "state",
-            "secrets"
-        );
+        if (reader.Has("secrets"))
+        {
+            throw new AboxException(
+                $"'{path}': a squad configuration no longer declares 'secrets'. "
+                    + $"Move each entry into the '{KitSecrets.FileName}' next to the descriptor of the kit that asks for the service; "
+                    + "a custom secret goes to the kit whose setup reads it (see docs/authoring-secrets.md)."
+            );
+        }
+
+        reader.RejectUnknownKeys("base", "workload", "kits", "parameters", "mcp", "state");
 
         return new AboxFile(
             path,
@@ -77,8 +73,7 @@ internal sealed class AboxFile
             ReadKits(reader),
             reader.GetStringMap("parameters"),
             ReadMcp(reader),
-            reader.GetStringList("state"),
-            ReadSecrets(reader)
+            reader.GetStringList("state")
         );
     }
 
@@ -102,88 +97,6 @@ internal sealed class AboxFile
         }
 
         return kits;
-    }
-
-    private static IReadOnlyList<SecretDeclaration> ReadSecrets(YamlReader reader)
-    {
-        var secrets = new List<SecretDeclaration>();
-
-        foreach (var entry in reader.GetEntries("secrets"))
-        {
-            if (entry.IsScalar)
-            {
-                secrets.Add(new SecretDeclaration(entry.ScalarValue));
-                continue;
-            }
-
-            entry.RejectUnknownKeys(
-                "service",
-                "prompt",
-                "inputs",
-                "separator",
-                "encoding",
-                "host",
-                "env",
-                "command",
-                "placeholder"
-            );
-
-            var service =
-                entry.GetString("service")
-                ?? throw new AboxException($"'{reader.Source}': a secret entry needs a 'service'.");
-            var hosts = entry.GetStrings("host");
-            var command = entry.GetString("command");
-            var placeholder = entry.GetString("placeholder");
-            if ((command is not null || placeholder is not null) && hosts.Count == 0)
-            {
-                throw new AboxException(
-                    $"'{reader.Source}': the secret '{service}' needs a 'host' for its 'command' or 'placeholder'."
-                );
-            }
-
-            if (command is not null && (entry.Has("inputs") || entry.Has("prompt")))
-            {
-                throw new AboxException(
-                    $"'{reader.Source}': the secret '{service}' takes its value from its 'command', so it has no 'prompt' or 'inputs'."
-                );
-            }
-
-            var inputs = entry
-                .GetEntries("inputs")
-                .Select(input =>
-                {
-                    input.RejectUnknownKeys("name", "prompt");
-                    var name =
-                        input.GetString("name")
-                        ?? throw new AboxException(
-                            $"'{reader.Source}': a secret input needs a 'name'."
-                        );
-
-                    return new SecretInput(name, input.GetString("prompt"));
-                })
-                .ToList();
-
-            var encoding = SecretDeclaration.ParseEncoding(
-                entry.GetString("encoding"),
-                reader.Source
-            );
-
-            secrets.Add(
-                new SecretDeclaration(
-                    service,
-                    entry.GetString("prompt"),
-                    inputs,
-                    entry.GetString("separator") ?? ":",
-                    encoding,
-                    hosts.Count > 0 ? hosts : null,
-                    entry.GetString("env"),
-                    command is null ? null : new HostCommand(command),
-                    placeholder
-                )
-            );
-        }
-
-        return secrets;
     }
 
     private static IReadOnlyList<McpDeclaration> ReadMcp(YamlReader reader)

@@ -37,18 +37,28 @@ Notes on the workload (`mti-ca.workload`):
 ## Host credentials
 
 Real credentials never belong in kit arguments, kit files or the folder configuration
-(`abox.yaml`, `abox.user.yaml`). Store them on the host with `abox secrets set`; the
-proxy injects them for the hosts each kit names. Registry sign-in (`docker login`) is
-separate.
+(`abox.yaml`, `abox.user.yaml`). Store them on the host with the guided secrets setup,
+before the first create and without a checkout of this repository:
+
+```sh
+abox secrets init --team mti-ca --squad <squad> --location <folder>
+```
+
+It shows each secret with what it is for and a link to its page in
+[docs/secrets](../../docs/secrets/README.md), asks only for what is not stored yet, and
+`abox create` asks for anything still missing. `abox secrets update --location <folder>`
+picks secrets to change later. The proxy injects them for the hosts each kit names.
+Registry sign-in (`docker login`) is separate. The kits declare their secrets in their
+`secrets.yaml`, so every squad that uses a kit asks the same way.
 
 | Service | What to enter |
 | --- | --- |
-| `abox-azure-devops` | Username `pat`, then the PAT. Stored as `base64("pat:<PAT>")`. Covers `dev.azure.com`, `pkgs.dev.azure.com` and `vssps.dev.azure.com`. |
-| JFrog | Username and token. Stored as `base64("<username>:<token>")`. |
+| `abox-azure-devops` | The PAT; the user name `pat` is fixed and never asked. Stored as `base64("pat:<PAT>")`. Covers `dev.azure.com`, `pkgs.dev.azure.com` and `vssps.dev.azure.com`. |
+| JFrog | User name, echoed and offered as the default next time, then the token. Stored as `base64("<username>:<token>")`. |
 | Elastic | The API key as issued; do not base64-encode it again. MOD and Predictopus keys need `feature_agentBuilder.read`. |
 | Context7 | Optional. |
 | `abox-github-enterprise` | A fine-grained personal access token for `rwe.ghe.com`, see below. |
-| `abox-github-copilot` | The output of `gh auth token --hostname rwe.ghe.com` on the host, for Copilot, see below. |
+| `abox-github-copilot` | Taken from `gh auth token --hostname rwe.ghe.com` on the host, without asking; for Copilot, see below. |
 
 `AZURE_DEVOPS_EXT_PAT` inside the sandbox is a placeholder, not the stored
 credential.
@@ -72,7 +82,8 @@ token the sandbox is still created, and what needs it fails inside until the tok
 stored and the sandbox recreated.
 
 You create the personal access token yourself in the browser. When it is missing,
-`abox create --local` and `abox secrets set --service abox-github-enterprise` ask for
+the guided secrets setup (`abox secrets init`, `abox create`) and
+`abox secrets set --service abox-github-enterprise` ask for
 your organization, print the permissions and the prefilled link, ask you to paste the
 token, check it and store it. The host needs no
 `gh` for it; the Copilot token needs `gh` on the host. The permissions, the template

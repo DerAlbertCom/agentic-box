@@ -84,12 +84,13 @@ public sealed class GitHubTokenSignInTests : IDisposable
         ];
 
         // Act
-        var setting = await new SecretValues(_store, console, SignIn(console)).SetAsync(
-            Declaration,
-            reordered,
-            new HostSecrets([], []),
-            CancellationToken.None
-        );
+        var setting = await new SecretValues(
+            _store,
+            console,
+            SignIn(console),
+            Remembered(console),
+            Substitute.For<IHostCommands>()
+        ).SetAsync(Declaration, reordered, new HostSecrets([], []), CancellationToken.None);
 
         // Assert
         setting.Result.Should().Be(SecretSettingResult.Stored);
@@ -224,12 +225,13 @@ public sealed class GitHubTokenSignInTests : IDisposable
         var console = new TestConsole { Answers = { "plain-value" } };
 
         // Act
-        var setting = await new SecretValues(_store, console, SignIn(console)).SetAsync(
-            Declaration,
-            [],
-            new HostSecrets([], []),
-            CancellationToken.None
-        );
+        var setting = await new SecretValues(
+            _store,
+            console,
+            SignIn(console),
+            Remembered(console),
+            Substitute.For<IHostCommands>()
+        ).SetAsync(Declaration, [], new HostSecrets([], []), CancellationToken.None);
 
         // Assert
         setting.Result.Should().Be(SecretSettingResult.Stored);
@@ -250,12 +252,16 @@ public sealed class GitHubTokenSignInTests : IDisposable
             .Returns(GitHubTokenCheck.Accept(expiresAt));
 
     private Task<SecretSetting> SetAsync(TestConsole console) =>
-        new SecretValues(_store, console, SignIn(console)).SetAsync(
-            Declaration,
-            Domains,
-            new HostSecrets([], []),
-            CancellationToken.None
-        );
+        new SecretValues(
+            _store,
+            console,
+            SignIn(console),
+            Remembered(console),
+            Substitute.For<IHostCommands>()
+        ).SetAsync(Declaration, Domains, new HostSecrets([], []), CancellationToken.None);
+
+    private RememberedInputs Remembered(IConsole console) =>
+        new(AboxPaths.For(_state.Path, _state.Path), console);
 
     private GitHubTokenSignIn SignIn(IConsole console) => new(_check, Expiries(console), console);
 

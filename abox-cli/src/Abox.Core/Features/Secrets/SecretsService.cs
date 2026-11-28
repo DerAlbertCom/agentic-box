@@ -29,6 +29,7 @@ internal sealed class SecretsService(
     IHostSecretStore store,
     SecretValues values,
     GitHubTokenExpiries tokenExpiries,
+    RememberedInputs remembered,
     IConsole console,
     IYamlParser parser
 )
@@ -37,57 +38,10 @@ internal sealed class SecretsService(
     public async Task<int> ListAsync(SecretsRequest request, CancellationToken cancellationToken)
     {
         var metadata = await ReadAsync(request, cancellationToken);
-        var stored = await store.ListAsync(cancellationToken);
-
-        var names = metadata
-            .Requests.Select(service => service.Service)
-            .Union(metadata.Secrets.Select(secret => secret.Service))
-            .Order(StringComparer.Ordinal)
-            .ToList();
-
-        var rows = names.Select(name => Row(name, metadata, stored)).ToList();
-        string[] header = ["SERVICE", "KITS", "NEED", "STATE", "NOTE"];
-        var widths = header
-            .Select(
-                (title, column) => rows.Select(row => row[column].Length).Append(title.Length).Max()
-            )
-            .ToArray();
-        foreach (var row in rows.Prepend(header))
-        {
-            console.WriteLine(
-                string.Join(' ', row.Select((cell, column) => cell.PadRight(widths[column])))
-                    .TrimEnd()
-            );
-        }
-
+        SecretsTable.Write(console, metadata, await store.ListAsync(cancellationToken));
         WriteOlderSandboxHint(metadata);
         return 0;
     }
-
-    /// <summary>
-    /// One row of the list. A custom secret the squad declares is required even when no
-    /// kit asks for it: a kit's setup reads it from its variable.
-    /// </summary>
-    private static string[] Row(string name, SandboxSquadMetadata metadata, HostSecrets stored)
-    {
-        var asked = metadata.Request(name);
-        var declaration = metadata.Declaration(name);
-        var kits = asked is null ? "-" : string.Join(", ", asked.Kits);
-        var need =
-            asked is { Optional: true } ? "optional"
-            : asked is not null || declaration is { IsCustom: true } ? "required"
-            : "-";
-        var state = stored.Holds(declaration ?? new SecretDeclaration(name)) ? "stored" : "not set";
-        var note =
-            declaration is null ? "not declared"
-            : stored.ConflictWith(declaration) is { } conflict ? "conflicts with " + Name(conflict)
-            : "";
-        return [name, kits, need, state, note];
-    }
-
-    /// <summary>How a stored custom secret is named: by its variable, else by its hosts.</summary>
-    private static string Name(CustomSecret secret) =>
-        secret.EnvironmentVariable ?? "the secret for " + string.Join(", ", secret.Targets);
 
     /// <summary>Asks for the values of the services and stores them on the host.</summary>
     public async Task<int> SetAsync(SecretsRequest request, CancellationToken cancellationToken)
@@ -127,7 +81,7 @@ internal sealed class SecretsService(
 
             if (declaration?.Command is { Line: null })
             {
-                failed |= !ReportCommandSecret(declaration, stored);
+                failed |= !values.ReportWithheldCommand(declaration, stored);
                 continue;
             }
 
@@ -190,53 +144,19 @@ internal sealed class SecretsService(
             }
 
             tokenExpiries.Forget(name);
+            remembered.Forget(name);
             console.WriteLine($"Removed the secret '{name}'.");
         }
 
         return failed ? 1 : 0;
     }
 
-    /// <summary>
-    /// A secret from a host command: abox never runs a command it would take from a sandbox,
-    /// so it tells the user how to store the secret with sbx.
-    /// </summary>
-    private bool ReportCommandSecret(SecretDeclaration declaration, HostSecrets stored)
-    {
-        var name = declaration.Service;
-        if (stored.Holds(declaration))
-        {
-            console.WriteLine($"The secret '{name}' is stored; it comes from a host command.");
-            return true;
-        }
-
-        if (stored.ConflictWith(declaration) is { } conflict)
-        {
-            console.WriteError(
-                $"The secret '{name}' was not stored: {SecretValues.DescribeConflict(declaration, conflict)}"
-            );
-            return false;
-        }
-
-        console.WriteError(
-            $"The secret '{name}' comes from a host command, which abox never takes from a sandbox. "
-                + "Store it with sbx, replacing <host command> with the 'command' of its entry in the squad's 'secrets' "
-                + "(in the team's sources) or the command the team's README gives:"
-        );
-        console.WriteError(
-            "  " + store.ManualCustomSecretInstruction(declaration, "<host command>")
-        );
-        return false;
-    }
-
-    private static IReadOnlyList<string> Wanted(
-        SecretsRequest request,
-        SandboxSquadMetadata metadata
-    ) =>
+    private static IReadOnlyList<string> Wanted(SecretsRequest request, SquadSecrets metadata) =>
         request.Services.Count > 0
             ? request.Services.Distinct(StringComparer.Ordinal).ToList()
             : metadata.Secrets.Select(secret => secret.Service).ToList();
 
-    private async Task<SandboxSquadMetadata> ReadAsync(
+    private async Task<SquadSecrets> ReadAsync(
         SecretsRequest request,
         CancellationToken cancellationToken
     )
@@ -248,10 +168,10 @@ internal sealed class SecretsService(
             cancellationToken
         );
         var files = await squadFiles.ReadAsync(sandbox.Name, cancellationToken);
-        return SandboxSquadMetadata.Read(sandbox.Name, files, parser);
+        return SquadSecrets.Read(sandbox.Name, files, parser);
     }
 
-    private void WriteOlderSandboxHint(SandboxSquadMetadata metadata)
+    private void WriteOlderSandboxHint(SquadSecrets metadata)
     {
         if (metadata.HasDeclarations)
         {

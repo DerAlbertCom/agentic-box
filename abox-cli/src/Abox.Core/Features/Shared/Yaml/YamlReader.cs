@@ -110,6 +110,21 @@ internal static class YamlParserReading
     /// <summary>Reads a YAML file.</summary>
     public static YamlReader ReadFile(this IYamlParser parser, string path) =>
         YamlReader.Read(parser.LoadFile(path));
+
+    /// <summary>
+    /// Reads a YAML file that holds a list at the top level; an empty file is an empty list.
+    /// </summary>
+    public static IReadOnlyList<YamlEntry> ReadListFile(this IYamlParser parser, string path) =>
+        parser.LoadFile(path) switch
+        {
+            YamlSequence sequence => sequence
+                .Items.Select(item => new YamlEntry(item, null))
+                .ToList(),
+            YamlValue { Value: "" } => [],
+            var root => throw new AboxException(
+                $"'{root.Source}' must contain a list at the top level."
+            ),
+        };
 }
 
 /// <summary>

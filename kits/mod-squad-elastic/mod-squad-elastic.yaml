@@ -9,6 +9,7 @@ capabilities:
       runtime:
         allow: [mti-am-nprod.kb.eu-central-1.aws.cloud.es.io, mti-am.kb.eu-central-1.aws.cloud.es.io]
   - type: com.docker.sandbox/credential@1
+    description: Encoded Elastic API key of the MOD nonproduction deployment (feature_agentBuilder.read)
     config:
       service: abox-mod-elastic-nprod
       phase: runtime
@@ -20,6 +21,7 @@ capabilities:
             header: Authorization
             format: ApiKey %s
   - type: com.docker.sandbox/credential@1
+    description: Encoded Elastic API key of the MOD production deployment (feature_agentBuilder.read)
     config:
       service: abox-mod-elastic-prod
       phase: runtime

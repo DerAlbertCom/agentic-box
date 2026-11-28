@@ -72,7 +72,8 @@ internal static class SquadConfigurationMixin
                     request.Service,
                     request.Kits,
                     request.Domains,
-                    request.Optional
+                    request.Optional,
+                    request.Description
                 ))
                 .ToList(),
         };

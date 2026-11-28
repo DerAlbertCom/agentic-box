@@ -63,9 +63,48 @@ public sealed class TestConsole : IConsole
         return _line < Lines.Count ? Lines[_line++] : null;
     }
 
+    /// <summary>
+    /// The clear-text answers the test hands out, in order; an empty one takes the default.
+    /// Without one left, the answer is empty.
+    /// </summary>
+    public List<string> Texts { get; } = [];
+
+    private int _text;
+
+    /// <summary>The picks of the multi-selects the test hands out, one per question, in order.</summary>
+    public List<int[]> Selections { get; } = [];
+
+    private int _selection;
+
+    /// <summary>
+    /// What the terminal echoed of the answers: the clear text of a text input and one
+    /// <c>*</c> per character of a secret.
+    /// </summary>
+    public List<string> Echoes { get; } = [];
+
+    public IReadOnlyList<int>? ChooseMany(string question, IReadOnlyList<string> choices)
+    {
+        _output.Add(question);
+        _output.AddRange(choices.Select(choice => "  [ ] " + choice));
+        return _selection < Selections.Count ? Selections[_selection++] : null;
+    }
+
+    public string? ReadText(string prompt, string? defaultValue)
+    {
+        _output.Add(
+            string.IsNullOrEmpty(defaultValue) ? prompt : $"{prompt.TrimEnd()} [{defaultValue}] "
+        );
+        var answer = _text < Texts.Count ? Texts[_text++] : string.Empty;
+        var value = answer.Length == 0 && defaultValue is not null ? defaultValue : answer;
+        Echoes.Add(answer);
+        return value;
+    }
+
     public string? ReadSecret(string prompt)
     {
         _output.Add(prompt);
-        return _next < Answers.Count ? Answers[_next++] : string.Empty;
+        var answer = _next < Answers.Count ? Answers[_next++] : string.Empty;
+        Echoes.Add(new string('*', answer.Length));
+        return answer;
     }
 }

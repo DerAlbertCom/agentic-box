@@ -124,7 +124,7 @@ public sealed class SbxSecretInputTests
                             "SYNTHETIC_TOKEN",
                             "--value-stdin",
                         ]
-                        : ["secret", "set", "synthetic"]
+                        : ["secret", "set", "synthetic", "--force"]
                 );
             emitted.Environment.Should().BeNull();
             emitted.ToString().Should().NotContain(value);

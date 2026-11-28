@@ -9,6 +9,7 @@ capabilities:
       runtime:
         allow: [689203ce69c64beab0a2be1c0829117e.eu-central-1.aws.cloud.es.io]
   - type: com.docker.sandbox/credential@1
+    description: Encoded Elastic API key of the Predictopus deployment (feature_agentBuilder.read)
     config:
       service: abox-predictopus-elastic
       phase: runtime

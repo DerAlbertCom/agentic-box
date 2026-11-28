@@ -72,7 +72,7 @@ internal static class TestServiceGraphs
             remote,
             copy,
             SandboxFactory.Ports(Substitute.For<IApplicationPortPublisher>(), console),
-            Credentials(
+            SecretsCheck(
                 paths,
                 secrets ?? HostSecretStore(),
                 approvals ?? Substitute.For<ICredentialApprovals>(),
@@ -81,17 +81,21 @@ internal static class TestServiceGraphs
             new YamlDotNetParser()
         );
 
-    /// <summary>The credential check of a squad, with the stores of the test.</summary>
-    internal static SquadCredentials Credentials(
+    /// <summary>The create-time secrets check of a squad, with the stores of the test.</summary>
+    internal static CreateSecretsCheck SecretsCheck(
         AboxPaths paths,
         IHostSecretStore secrets,
         ICredentialApprovals approvals,
         IConsole console
     ) =>
         new(
-            secrets,
-            approvals,
-            SecretValues(paths, secrets, console),
+            new SecretsSetup(
+                secrets,
+                approvals,
+                SecretValues(paths, secrets, console),
+                new AboxConfig(),
+                console
+            ),
             TokenExpiries(paths, console),
             console
         );
@@ -113,7 +117,9 @@ internal static class TestServiceGraphs
                 Substitute.For<IGitHubTokenCheck>(),
                 TokenExpiries(paths, console),
                 console
-            )
+            ),
+            new RememberedInputs(paths, console),
+            Substitute.For<IHostCommands>()
         );
 
     /// <summary>A host secret store that holds nothing and stores and removes every secret.</summary>

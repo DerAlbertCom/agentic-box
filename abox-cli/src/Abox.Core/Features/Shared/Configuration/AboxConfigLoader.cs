@@ -20,6 +20,7 @@ internal static class AboxConfigLoader
         "userSecretsDenyList",
         "terminalTheme",
         "sourceRoot",
+        "docsBaseUrl",
     ];
 
     public static AboxConfig Load(AboxPaths paths, IYamlParser parser)
@@ -54,6 +55,7 @@ internal static class AboxConfigLoader
             PullRepository = pullRepository,
             UserSecretsDenyList = reader.GetStringList("userSecretsDenyList"),
             TerminalTheme = reader.GetBoolean("terminalTheme") ?? defaults.TerminalTheme,
+            DocsBaseUrl = Or(reader.GetString("docsBaseUrl"), defaults.DocsBaseUrl),
         };
     }
 

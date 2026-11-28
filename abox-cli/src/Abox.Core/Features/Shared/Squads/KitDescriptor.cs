@@ -77,7 +77,9 @@ internal sealed class KitDescriptor
                 StringComparison.OrdinalIgnoreCase
             );
 
-            services.Add(new KitService(service, domains, optional));
+            services.Add(
+                new KitService(service, domains, optional, capability.GetString("description"))
+            );
         }
 
         return new KitDescriptor(source, services);
@@ -116,8 +118,10 @@ internal sealed class KitDescriptor
 /// <param name="Service">The name of the service in the host credential store.</param>
 /// <param name="Domains">The domains the API key is sent to; empty without an <c>apiKey</c> mechanism.</param>
 /// <param name="Optional">Whether the sandbox starts without the credential.</param>
+/// <param name="Description">The <c>description</c> of the capability: what the credential is for.</param>
 internal sealed record KitService(
     string Service,
     IReadOnlyList<string> Domains,
-    bool Optional = false
+    bool Optional = false,
+    string? Description = null
 );

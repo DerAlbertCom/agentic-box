@@ -55,6 +55,7 @@ public static class InfrastructureServiceCollection
         services.AddScoped<IHostUserSecretStores>(_ => DotnetUserSecretStores.Create());
         services.AddScoped<ISandboxUserSecrets, SbxUserSecrets>();
         services.AddScoped<IHostSecretStore, SbxHostSecretStore>();
+        services.AddScoped<IHostCommands, ShellHostCommands>();
         services.AddScoped<IGitHubTokenCheck>(_ => new GitHubApiTokenCheck(
             new HttpClient { Timeout = TimeSpan.FromSeconds(30) }
         ));

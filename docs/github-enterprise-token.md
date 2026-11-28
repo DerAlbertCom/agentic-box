@@ -23,8 +23,8 @@ abox refuses it.
 ## Store the personal access token with abox
 
 You create the token yourself; abox never creates one and never opens a browser. When
-the token is missing, `abox create --local` and `abox secrets set --service
-abox-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
+the token is missing, the guided secrets setup (`abox secrets init`, `abox secrets
+update`, `abox create`) and `abox secrets set --service abox-github-enterprise` ask for it. You need a terminal; the host needs no `gh`.
 
 1. abox asks for the organization that owns the repositories, then prints the
    permissions below and the prefilled link
@@ -45,15 +45,16 @@ store the token and recreate the sandbox.
 
 ## Store the Copilot token
 
-On the host, sign `gh` in to the tenant once and print its token:
+On the host, sign `gh` in to the tenant once:
 
 ```sh
 gh auth login --hostname rwe.ghe.com
-gh auth token --hostname rwe.ghe.com
 ```
 
-When the service is missing, `abox create --local` asks for it; paste the `gho_…`
-token. Or store it at any time with:
+abox takes the token itself: the kit declares `gh auth token --hostname rwe.ghe.com` as
+the `valueCommand` of the service, so the guided secrets setup (`abox secrets init`,
+`abox secrets update` and `abox create` when it is missing) and `abox secrets set` run it
+and store its output without asking. Store it again at any time with:
 
 ```sh
 abox secrets set --location <folder> --service abox-github-copilot
