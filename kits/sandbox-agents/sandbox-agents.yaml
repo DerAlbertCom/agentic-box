@@ -29,15 +29,6 @@ args:
   SANDBOX_DOTNET_TELEMETRY:
     default: "1"
     env: DOTNET_CLI_TELEMETRY_OPTOUT
-  SANDBOX_REQUESTS_CA:
-    default: /etc/ssl/certs/ca-certificates.crt
-    env: REQUESTS_CA_BUNDLE
-  SANDBOX_AWS_CA:
-    default: /etc/ssl/certs/ca-certificates.crt
-    env: AWS_CA_BUNDLE
-  SANDBOX_UV_CA:
-    default: "true"
-    env: UV_SYSTEM_CERTS
 capabilities:
   - type: com.docker.sandbox/network-policy@1
     config:

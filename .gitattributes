@@ -1,4 +1,4 @@
-abox-cli/src/Abox.Core/Features/Build/Assets/rwe_inspection_certificate_chain.pem -text
+abox-cli/src/Abox.Core/Features/Build/Assets/certificates/*.crt text eol=lf
 kits/**/files/** text eol=lf
 kits/**/profiles/** text eol=lf
 teams/mti-ca/*.sh text eol=lf

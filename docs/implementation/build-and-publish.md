@@ -66,11 +66,12 @@ rwest.jfrog.io/<publishRepository>/agentic-box-rwest-<team>/<squad>/components/<
 
 The workload generator turns a `.workload` into a Dockerfile:
 
-- The bundled RWE inspection CA certificates are installed first, before any download,
-  into `/usr/local/share/ca-certificates/abox/`. The bundle is embedded in `Abox.Core`
-  (`Features/Build/Assets`), so an installed tool does not need the repository.
-  `MISE_EXTRA_CA_CERTS` and `NODE_EXTRA_CA_CERTS` add the same bundle without replacing
-  default roots. The template must provide `update-ca-certificates` and `curl`.
+- The bundled RWE CA certificates are installed first, before any download, into
+  `/usr/local/share/ca-certificates/abox/`. They are embedded in `Abox.Core`
+  (`Features/Build/Assets/certificates`), so an installed tool does not need the
+  repository. `ENV` lines point the tools that ignore the system store at it. Both are
+  described in [Corporate CA certificates](../corporate-certificates.md). The template
+  must provide `update-ca-certificates` and `curl`.
 - `apt` packages are installed in one step, as root, with `--no-install-recommends`.
 - mise is installed as `agent` when tools or scripts are requested. The installer is
   downloaded before it is executed, so a failed download fails that step.

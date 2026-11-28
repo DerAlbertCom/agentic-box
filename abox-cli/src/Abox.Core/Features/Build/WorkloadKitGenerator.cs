@@ -12,8 +12,20 @@ namespace Abox.Features.Build;
 internal sealed class WorkloadKitGenerator
 {
     private const string CertificatesDirectoryName = "certificates";
-    private const string CertificateBundleName = "rwe_inspection_certificate_chain.pem";
+    private const string CertificateResourcePrefix = "Abox.Features.Build.Assets.certificates.";
     private const string ContainerCertificatesDirectory = "/usr/local/share/ca-certificates/abox";
+    private const string SystemCertificateBundle = "/etc/ssl/certs/ca-certificates.crt";
+
+    // Tools that ignore the system store, pointed at it once for the build and the sandbox.
+    // docs/corporate-certificates.md lists why each one is here.
+    private static readonly (string Name, string Value)[] TrustEnvironment =
+    [
+        ("MISE_EXTRA_CA_CERTS", SystemCertificateBundle),
+        ("NODE_EXTRA_CA_CERTS", SystemCertificateBundle),
+        ("REQUESTS_CA_BUNDLE", SystemCertificateBundle),
+        ("AWS_CA_BUNDLE", SystemCertificateBundle),
+        ("UV_SYSTEM_CERTS", "true"),
+    ];
 
     /// <summary>The name of the generated workload kit descriptor, without the extension.</summary>
     public const string KitName = "workload";
@@ -82,18 +94,15 @@ internal sealed class WorkloadKitGenerator
             )
             .AppendLine($"FROM {baseImage}")
             .AppendLine()
-            .AppendLine("# Trust the bundled RWE inspection CAs before any network downloads.")
+            .AppendLine("# Trust the bundled RWE CAs before any network downloads.")
             .AppendLine("USER root")
             .AppendLine($"COPY {CertificatesDirectoryName}/ {ContainerCertificatesDirectory}/")
-            .AppendLine("RUN update-ca-certificates")
-            .AppendLine(
-                $"ENV MISE_EXTRA_CA_CERTS=\"{ContainerCertificatesDirectory}/{CertificateBundleName}\""
-            )
-            .AppendLine(
-                $"ENV NODE_EXTRA_CA_CERTS=\"{ContainerCertificatesDirectory}/{CertificateBundleName}\""
-            )
-            .AppendLine("USER agent")
-            .AppendLine();
+            .AppendLine("RUN update-ca-certificates");
+        foreach (var (name, value) in TrustEnvironment)
+        {
+            dockerfile.AppendLine($"ENV {name}=\"{value}\"");
+        }
+        dockerfile.AppendLine("USER agent").AppendLine();
 
         AppendAptPackages(dockerfile, workload);
         AppendMiseBootstrap(dockerfile, workload);
@@ -300,29 +309,29 @@ internal sealed class WorkloadKitGenerator
         }
         Directory.CreateDirectory(directory);
 
-        // Embed the approved bundle so an installed tool never needs the repository or host trust store.
-        using var resource =
-            typeof(WorkloadKitGenerator).Assembly.GetManifestResourceStream(
-                "Abox.Features.Build.Assets." + CertificateBundleName
-            )
-            ?? throw new InvalidOperationException("The bundled RWE CA certificates are missing.");
-        var bundlePath = Path.Combine(directory, CertificateBundleName);
-        using (var output = File.Create(bundlePath))
+        // The CAs are embedded so an installed tool never needs the repository or host trust store.
+        // Each file holds one CA, as update-ca-certificates expects; public roots come from the template.
+        foreach (var (fileName, resourceName) in BundledCertificates())
         {
+            using var resource = typeof(WorkloadKitGenerator).Assembly.GetManifestResourceStream(
+                resourceName
+            )!;
+            using var output = File.Create(Path.Combine(directory, fileName));
             resource.CopyTo(output);
         }
+    }
 
-        // update-ca-certificates only processes .crt files containing one certificate each.
-        var certificates = Regex.Matches(
-            File.ReadAllText(bundlePath),
-            @"-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----"
-        );
-        for (var index = 0; index < certificates.Count; index++)
-        {
-            File.WriteAllText(
-                Path.Combine(directory, $"rwe-inspection-{index + 1:D3}.crt"),
-                certificates[index].Value.ReplaceLineEndings("\n") + "\n"
-            );
-        }
+    /// <summary>The bundled CA certificates as output file name and resource name, in name order.</summary>
+    internal static IReadOnlyList<(string FileName, string ResourceName)> BundledCertificates()
+    {
+        var certificates = typeof(WorkloadKitGenerator)
+            .Assembly.GetManifestResourceNames()
+            .Where(name => name.StartsWith(CertificateResourcePrefix, StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .Select(name => (name[CertificateResourcePrefix.Length..], name))
+            .ToList();
+        return certificates.Count > 0
+            ? certificates
+            : throw new InvalidOperationException("The bundled RWE CA certificates are missing.");
     }
 }

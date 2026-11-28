@@ -16,70 +16,64 @@ public sealed class WorkloadKitGeneratorTests
     private readonly WorkloadKitGenerator _generator = new();
 
     [Fact]
-    public void TheApprovedCertificateBundleIsEmbeddedAndCopiedExactlyIntoTheBuildContext()
+    public void TheApprovedCorporateCasAreEmbeddedAndCopiedExactlyIntoTheBuildContext()
     {
         // Arrange
-        using var embedded = typeof(WorkloadKitGenerator).Assembly.GetManifestResourceStream(
-            "Abox.Features.Build.Assets.rwe_inspection_certificate_chain.pem"
-        );
-        embedded.Should().NotBeNull("installed tools cannot depend on the repository or host PEM");
-        using var source = new MemoryStream();
-        embedded!.CopyTo(source);
-        var expected = source.ToArray();
         // Security-integrity pin: trust-anchor changes require explicit approval, unlike static snapshots.
-        Convert
-            .ToHexString(SHA256.HashData(expected))
-            .Should()
-            .Be("5994104949F2CB3A35FCBA877D5D94E3123C394D05261044BE2CAB49C8B73BFC");
-
-        // Act
-        _generator.Generate(WriteWorkload(""), Path.Combine(_root.Path, "kit"));
-
-        // Assert
-        var bundle = File.ReadAllBytes(
-            Path.Combine(_root.Path, "kit", "certificates", "rwe_inspection_certificate_chain.pem")
-        );
-        bundle.Should().Equal(expected);
-    }
-
-    [Fact]
-    public void EachTrustedCertificateHasItsOwnCrtFileAndThereAreNoPrivateKeys()
-    {
-        // Arrange
-        using var embedded = typeof(WorkloadKitGenerator).Assembly.GetManifestResourceStream(
-            "Abox.Features.Build.Assets.rwe_inspection_certificate_chain.pem"
-        );
-        embedded.Should().NotBeNull();
-        using var reader = new StreamReader(embedded!);
-        var source = reader.ReadToEnd();
-        var blocks = Regex.Matches(
-            source,
-            @"-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----"
-        );
-        blocks.Should().NotBeEmpty();
-
+        var approved = new Dictionary<string, string>
+        {
+            ["rwe-private-auth-ica-2024.crt"] =
+                "3BD5E6B01CC00F3F8153FC6ABB4CE8DCAB0F0E9BDCEAA729C9A04AC1F8A3DACD",
+            ["rwe-private-root-ca-r1.crt"] =
+                "816062A7D057D5388511010C6E7C0A40C12641FBA9570796DAD79AF0F88C30F5",
+            ["rwe-private-root-ca-r23.crt"] =
+                "6592FA28B2D9CFFF827E65B6674604CE68DF9D9AFC90CAFBAAD2726D423AA7BE",
+            ["rwe-private-zica-2020.crt"] =
+                "D8FD53608F041F67CF4412494216FC466FC64201EE73982D78E30145E69E03D2",
+            ["rwe-root-ca-corporate-2016.crt"] =
+                "0C7A731EE70D1A03CA93897BC10697BB98475872BA8FC7ECCDEA700673046833",
+        };
         var directory = Path.Combine(_root.Path, "kit", "certificates");
 
         // Act
         _generator.Generate(WriteWorkload(""), Path.Combine(_root.Path, "kit"));
 
         // Assert
-        File.ReadAllText(Path.Combine(directory, "rwe_inspection_certificate_chain.pem"))
-            .Should()
-            .NotContain("PRIVATE KEY");
-
-        var files = Directory.GetFiles(directory, "*.crt").Order(StringComparer.Ordinal).ToList();
-        files.Should().HaveCount(blocks.Count);
-        for (var index = 0; index < files.Count; index++)
+        var files = Directory.GetFiles(directory).Select(Path.GetFileName).ToList();
+        files.Should().BeEquivalentTo(approved.Keys);
+        foreach (var (fileName, fingerprint) in approved)
         {
-            var pem = File.ReadAllText(files[index]);
-            pem.Should().NotContain("PRIVATE KEY");
-            pem.ReplaceLineEndings("\n")
-                .Trim()
-                .Should()
-                .Be(blocks[index].Value.ReplaceLineEndings("\n"));
+            using var certificate = X509Certificate2.CreateFromPem(
+                File.ReadAllText(Path.Combine(directory, fileName))
+            );
+            certificate.GetCertHashString(HashAlgorithmName.SHA256).Should().Be(fingerprint);
+        }
+    }
+
+    [Fact]
+    public void EachTrustedCertificateIsOneCaWithoutAPrivateKey()
+    {
+        // Arrange
+        var directory = Path.Combine(_root.Path, "kit", "certificates");
+
+        // Act
+        _generator.Generate(WriteWorkload(""), Path.Combine(_root.Path, "kit"));
+
+        // Assert
+        var files = Directory.GetFiles(directory, "*.crt");
+        files.Should().NotBeEmpty();
+        foreach (var file in files)
+        {
+            // update-ca-certificates reads one certificate per .crt file.
+            var pem = File.ReadAllText(file);
+            pem.Should().NotContain("PRIVATE KEY").And.NotContain("\r");
+            Regex.Matches(pem, "-----BEGIN CERTIFICATE-----").Should().HaveCount(1);
             using var certificate = X509Certificate2.CreateFromPem(pem);
             certificate.HasPrivateKey.Should().BeFalse();
+            certificate
+                .Extensions.OfType<X509BasicConstraintsExtension>()
+                .Should()
+                .ContainSingle(constraints => constraints.CertificateAuthority);
         }
 
         // Arrange
@@ -118,12 +112,13 @@ public sealed class WorkloadKitGeneratorTests
         dockerfile
             .Should()
             .Contain(
-                "ENV MISE_EXTRA_CA_CERTS=\"/usr/local/share/ca-certificates/abox/rwe_inspection_certificate_chain.pem\""
-            );
-        dockerfile
-            .Should()
-            .Contain(
-                "ENV NODE_EXTRA_CA_CERTS=\"/usr/local/share/ca-certificates/abox/rwe_inspection_certificate_chain.pem\""
+                "RUN update-ca-certificates\n"
+                    + "ENV MISE_EXTRA_CA_CERTS=\"/etc/ssl/certs/ca-certificates.crt\"\n"
+                    + "ENV NODE_EXTRA_CA_CERTS=\"/etc/ssl/certs/ca-certificates.crt\"\n"
+                    + "ENV REQUESTS_CA_BUNDLE=\"/etc/ssl/certs/ca-certificates.crt\"\n"
+                    + "ENV AWS_CA_BUNDLE=\"/etc/ssl/certs/ca-certificates.crt\"\n"
+                    + "ENV UV_SYSTEM_CERTS=\"true\"\n"
+                    + "USER agent\n"
             );
         var trust = dockerfile.IndexOf("RUN update-ca-certificates", StringComparison.Ordinal);
         foreach (var download in new[] { "apt-get update", "curl -fsSL", "mise use", "RUN bash" })

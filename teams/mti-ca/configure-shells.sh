@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-export AWS_CA_BUNDLE="$REQUESTS_CA_BUNDLE" UV_SYSTEM_CERTS=true
 mise settings set auto_update_check_duration 365d
 mise settings set use_versions_host false
 mise reshim
@@ -25,8 +23,6 @@ cat >> "$HOME/.bashrc" <<'BASH'
 
 export LANG=C.UTF-8 LC_ALL=C.UTF-8 EDITOR=edit VISUAL=edit
 export STARSHIP_LOG=error CARAPACE_MATCH=2
-export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-export AWS_CA_BUNDLE="$REQUESTS_CA_BUNDLE" UV_SYSTEM_CERTS=true
 . /opt/sandbox/startup/dotnet-env.sh
 command -v mise >/dev/null 2>&1 && eval "$(mise activate bash)"
 command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"

@@ -6,6 +6,8 @@ reference for the `.abox` and `.workload` files.
 
 - [Kits](authoring-kits.md): local and registry kits, kit arguments, the kit build step.
 - [Secrets](authoring-secrets.md): declaring the credentials the kits ask for.
+- [Corporate CA certificates](corporate-certificates.md): how every image trusts the RWE
+  CAs, and where to add a CA or a tool that ignores the system store.
 - [Artifact format](artifact-format.md): what `abox build` and `abox publish` produce.
 - [Development](development.md): building, publishing and testing from a checkout.
 
